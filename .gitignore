@@ -1,0 +1,22 @@
+# Secrets and credentials — never committed (CLAUDE.md, RULE on credentials)
+.env
+.env.*
+*.key
+*.pem
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Node
+node_modules/
+
+# OS
+.DS_Store
+
+# Data exports — personal data never leaves this system via the repo
+*.parquet
+*.pq
+/exports/
+/data/exports/
