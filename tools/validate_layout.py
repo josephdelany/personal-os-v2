@@ -88,7 +88,11 @@ if c:
 spec_files = sorted((ROOT / "specs").rglob("requirements.md"))
 all_ids, dup, no_shall, has_should, weasel = {}, [], [], [], []
 formats = {}
-WEASEL = re.compile(r'\b(fast|slow|quick|reasonable|appropriate|user-friendly|robust|efficient|as needed|etc\.)\b', re.I)
+# 'robust' on its own is vague; 'autocorrelation-robust' (and any hyphenated
+# qualifier + robust) is a statistical term of art, so a preceding hyphen exempts it.
+WEASEL = re.compile(
+    r'\b(?:fast|slow|quick|reasonable|appropriate|user-friendly|efficient|as needed|etc\.)\b'
+    r'|(?<!-)\brobust\b', re.I)
 # tolerant: an ID may be bold or bare, statement may be on the same line or the next
 REQ_LINE = re.compile(r'^(\**)(REQ-[A-Z]+-\d{3})\**\s*(\([^)]*\))?\s*(.*)$')
 
@@ -113,7 +117,15 @@ for sf in spec_files:
         if " shall " not in stmt.lower(): no_shall.append(rid + " (" + rel + ")")
         unquoted = re.sub(r"'[^']*'|`[^`]*`", "", stmt)
         if re.search(r'\bshould\b', unquoted, re.I): has_should.append(rid + " (" + rel + ")")
-        w = WEASEL.search(stmt)
+        # Only the normative SHALL response is testable prose. Anything before
+        # the first SHALL is preamble, and a "because" clause is rationale that
+        # explains *why* the requirement holds -- adjectives there are expected,
+        # not defects, so trim both before the weasel scan.
+        k = stmt.lower().find(" shall")
+        normative = stmt[k:] if k != -1 else stmt
+        b = normative.lower().find(" because")
+        if b != -1: normative = normative[:b]
+        w = WEASEL.search(normative)
         if w: weasel.append(rid + ": '" + w.group(0) + "'")
     ok("%s: %d requirements, %d Gherkin scenarios" % (rel, n_req, n_sc))
 

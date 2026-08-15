@@ -104,6 +104,23 @@ Settles it: a calibration session once six months of real data exists — these
 should be set against Joe's actual data density, not guessed now. Until then
 they are explicitly provisional and every finding they gate says so.
 
+*Rationale-clause adjectives (appended 2026-08-15).* Two requirements use a
+vague adjective inside a *because*-clause — rationale wording, not a threshold
+the system gates on. The adjective linter in `tools/validate_layout.py` no
+longer flags either (it now scans only the normative SHALL response and skips
+`because` clauses). Kept here so the wording is on record as provisional, not
+because either is an open decision:
+
+- **REQ-FIN-166 · "robust"** — "visit count is robust to price variance and to
+  splitting". Rationale for preferring visit count over dollar amount as the
+  alcohol-context metric. To make it a number one would measure the variance of
+  visit-count vs dollar-amount under price changes and bill-splitting — but
+  there is no gate here to set a threshold on.
+- **REQ-INF-521 · "slow"** — "make CI installation slow or fragile", the
+  rationale for banning Stan/CmdStanPy/Turing.jl/PyMC. To make it a number one
+  would pick a CI install/compile wall-clock budget and measure each toolchain
+  against it — again a justification, not a gate.
+
 **OQ-11 — `INSUFFICIENT` has two disclosure modes. Both?**
 Partial ("here is what we have, here is what it would take") and absent ("we do
 not have enough to answer this"). This is the choice that overturns the old
