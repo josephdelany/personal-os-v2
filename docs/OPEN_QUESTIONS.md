@@ -45,11 +45,23 @@ unwritten.
 *Full text at `specs/02-capture-nutrition/requirements.md` §§A–G
 "UNRESOLVED QUESTIONS" — 7 questions, A-Q1 through G-Q1.*
 
-The one that still blocks work (OQ-05 resolved 2026-08-15 — see RESOLVED):
+What still blocks work (OQ-05 resolved 2026-08-15 — see RESOLVED). This file is
+the canonical *index* of what blocks work and its status; the full text of each
+question lives in its spec's UNRESOLVED QUESTIONS section, and spec headers point
+here rather than restating blocker status of their own.
 
 **OQ-06 — Is the subject-day boundary 04:00?**
 Depends on it: the generated `subject_day` column in ADR-0002, and therefore
 every daily aggregate ever computed. Changing it later rewrites history.
+
+**D-Q1 (spec §D) — Big Mac: prefer USDA Branded label data or the FNDDS survey
+composite?** *Blocks Section D food resolution.* One-line status only; full text
+in the spec's D.UNRESOLVED QUESTIONS. Open because REQ-NUT-001 stops at the first
+match, so whether a Big Mac even reaches the Branded step depends on whether a
+survey composite matches it first — which is the preference nobody has set.
+Depends on it: which nutrient numbers the Phase-3 slice resolves against, and so
+the `estimate_method` and interval it reports. Settles it: Joe choosing
+label-first or survey-first for branded menu items.
 
 ## Finance
 

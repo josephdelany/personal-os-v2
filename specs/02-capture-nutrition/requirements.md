@@ -1,8 +1,9 @@
 # 02 — CAPTURE & NUTRITION RESOLUTION — REQUIREMENTS (EARS)
 
-**Status:** COMPLETE — 152 requirements, 12 acceptance scenarios. Ready for review by Joe.
-**Blocking:** the UNRESOLVED QUESTIONS in each section are decisions for Joe. Claude Code must ASK,
-not decide. D-Q1 blocks implementation of Section D. E-Q1 is RESOLVED (2026-08-15, ADR-0005 / OQ-05).
+**Status:** COMPLETE — 154 requirements, 12 acceptance scenarios. Ready for review by Joe.
+**Blocking:** the UNRESOLVED QUESTIONS in each section are decisions for Joe — Claude Code must ASK,
+not decide. What is still undecided, and what it blocks, is tracked canonically in
+`docs/OPEN_QUESTIONS.md`; this header does not restate it. (E-Q1 was resolved 2026-08-15 — see OQ-05.)
 **Scope:** the "Big Mac vertical slice". Joe says or photographs *"I ate a Big Mac from McDonald's"*
 and the system stores honest, interval-valued nutrition with full provenance.
 **Grammar:** EARS (Mavin & Wilkinson). Five patterns only. SHALL is binding. SHOULD is not used
@@ -578,7 +579,9 @@ portion phrase.
 A counted menu item — *"a Big Mac"*, *"two McMuffins"* — states its quantity as a bare count, not a
 mass, a volume, or a vernacular portion phrase, so none of REQ-NUT-019 through REQ-NUT-021 converts
 it to grams. The count resolves through the branded label's own per-serving definition, and the case
-where that definition is absent is stated so the count is never silently guessed into grams.
+where that definition is absent is stated so the count is never silently guessed into grams. A
+*partial* count — "half a Big Mac", or a vague "most of" — is handled by REQ-NUT-052 and REQ-NUT-053
+so that a stated fraction and a vague quantifier are treated differently, not both guessed.
 
 **REQ-NUT-050** (Event-driven) WHEN an extracted quantity is a unitless count of a food resolved from
 the USDA Branded data type, the nutrition resolver SHALL multiply the Branded record's per-serving
@@ -586,11 +589,30 @@ gram weight by the count to obtain the item's mass, SHALL store the Branded serv
 household-measure string and its per-serving gram weight — on the resolved row, and SHALL set
 `estimate_method = 'labelled'` so that the interval width of REQ-NUT-036 governs.
 
-**REQ-NUT-051** (Unwanted behaviour) IF an extracted quantity is a unitless count of a restaurant or
-branded menu item and no USDA Branded record carrying a per-serving gram weight is available for it,
-THEN the nutrition resolver SHALL leave the count unconverted, SHALL set `nutrition_status =
-'unresolved'` for the item, SHALL retain the item name, the brand or restaurant token, and the count
-verbatim, and SHALL add the item to the review list with reason `no_branded_serving`.
+**REQ-NUT-051** (Unwanted behaviour) IF an extracted quantity is a unitless count (whole or
+fractional) of a restaurant or branded menu item and no USDA Branded record carrying a per-serving
+gram weight is available for it, THEN the nutrition resolver SHALL leave the count unconverted, SHALL
+set `nutrition_status = 'unresolved'` for the item, SHALL retain the item name, the brand or
+restaurant token, and the count verbatim, and SHALL add the item to the review list with reason
+`no_branded_serving`.
+
+**REQ-NUT-052** (Event-driven) WHEN an extracted quantity is a fractional or partial count of a food
+resolved from the USDA Branded data type and the Branded record carries a per-serving gram weight — a
+stated fraction such as `half` or `0.5`, or the fractional part of a mixed count such as `2.5` — the
+nutrition resolver SHALL resolve the whole-number part, if any, under REQ-NUT-050, SHALL multiply the
+Branded per-serving values by the fractional part, SHALL store the Branded serving definition and
+brand-owner string on the row exactly as REQ-NUT-050 and REQ-NUT-014 require so the label origin
+stays auditable by `fdcId`, SHALL set the quantity's `provenance` to `defaulted`, and SHALL set
+`estimate_method = 'portion_table'` on the fractional part so that the wider interval of REQ-NUT-037
+governs it, because a stated fraction of a serving is an estimated portion, not a measured one.
+
+**REQ-NUT-053** (Unwanted behaviour) IF an extracted quantity of a branded or counted menu item is a
+vague or non-numeric quantifier that maps to no explicit fraction — such as `most of` or `a few
+bites` — THEN the nutrition resolver SHALL NOT assign it a fraction, SHALL set `nutrition_status =
+'unresolved'` for the item, SHALL retain the quantifier phrase verbatim, and SHALL add the item to
+the review list with reason `vague_fraction`; the system carries no vague-quantifier-to-fraction
+mapping, because inventing one (`most of` = 0.75) would impute a quantity the system never measured,
+which RULE-06 forbids.
 
 ### D.5 The never-guess rule
 

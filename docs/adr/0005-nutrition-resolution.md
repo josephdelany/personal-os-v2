@@ -88,8 +88,19 @@ Recorded so the gap is visible, not silently closed:
 - The personal portion table design (REQ-NUT-018..023).
 - Confirmation of the `portion_table` (±20%) and `photo_estimate` (0.75×/1.60×)
   widths against Joe rather than against the research alone.
-- The count→grams resolution for branded menu items (REQ-NUT-050/051), added
-  this session; its choice of `estimate_method = 'labelled'` is stated in the
-  requirement but not yet argued here.
+- The count→grams resolution for branded menu items (REQ-NUT-050 through
+  REQ-NUT-053): the choice of `estimate_method = 'labelled'` for a whole count,
+  and the routing of a vague quantifier to unresolved+review, are stated in the
+  requirements but not yet argued here.
+- **Owed refinement (raised in review):** a fractional count of a labelled item
+  (REQ-NUT-052) currently reuses `estimate_method = 'portion_table'` for its
+  ±20% width while retaining the Branded `fdcId`/serving definition on the row,
+  so composition provenance is preserved but the method *label* overloads
+  `portion_table` (whose canonical resolution path is `portion_aliases`,
+  REQ-NUT-020). The RULE-08-clean fix is a distinct `estimate_method` value
+  (e.g. `labelled_partial`) with its own width in E.2 and its own entry in
+  REQ-NUT-032's enum. Not done here because adding an enum value is a taxonomy
+  decision that cascades into REQ-NUT-032/037/042 and belongs in this ADR's full
+  authorship, not a same-day spec patch. Proposed, not built.
 
 These must be authored before Phase 3 builds the slice.

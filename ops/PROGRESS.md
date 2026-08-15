@@ -199,4 +199,74 @@ are specification rows; their proving tests arrive with the Phase 3 slice, and
   whole servings. A fractional or split branded item ("half a Big Mac") is not
   handled by 050 or 051 and is not specified anywhere. Flagging, not deciding.
 
-**Commit.** (this session's commit on `main`)
+**Commit.** 6f7c5eb
+
+---
+
+## 2026-08-15 — Session 2 follow-up: partial servings, and one home for undecided facts
+
+**Attempted.** Three follow-up rulings from Joe after commit 6f7c5eb. Still spec
+only, no code. Both gates green after every edit.
+
+**What changed:**
+1. **REQ-NUT-050/051 kept as two** — confirmed by Joe, no edit.
+2. **Partial servings.** Added **REQ-NUT-052** (Event-driven: a fractional or
+   partial count of a Branded-resolved food multiplies the per-serving values by
+   the stated fraction and drops `estimate_method` to `portion_table`, so the
+   wider ±20% interval of REQ-NUT-037 governs instead of the `labelled` ±10%,
+   because a stated fraction of a serving is an estimated portion, not a measured
+   one) and **REQ-NUT-053** (Unwanted behaviour: a vague or non-numeric
+   quantifier — "most of", "a few bites" — is NOT mapped to an invented fraction;
+   it goes `unresolved` + review with reason `vague_fraction`). My call on the
+   choice Joe left open: vague quantifiers are unresolved/reviewable, not a
+   documented mapping, because a "most of = 0.75" table is the same
+   fabricated-portion guess REQ-NUT-023/025 forbid. Two IDs again, for the same
+   EARS reason Joe endorsed for 050/051.
+3. **Single-home tracking.** The capture/nutrition spec header no longer restates
+   its own blockers; it points to `docs/OPEN_QUESTIONS.md` as canonical. The
+   Section-D blocker (D-Q1, Branded vs FNDDS) is now carried in OPEN_QUESTIONS
+   alongside OQ-06, so the blocking-status fact has exactly one home.
+
+Counts: 152 → 154 in-file, 543 → 545 total, REQ-NUT 55 → 57; index matches disk.
+
+**Adversarial review ran before commit and changed the requirements.** Findings
+folded in: REQ-NUT-052 now preserves the Branded `fdcId`/serving definition and
+brand-owner on the row (so a fractional row's composition provenance is not lost
+to the `portion_table` width label), decomposes a mixed count like `2.5` into a
+whole `labelled` part (via REQ-NUT-050) plus a fractional `portion_table` part,
+and guards its trigger on a per-serving gram weight being present so it does not
+overlap REQ-NUT-051's unresolved path. REQ-NUT-051 now says "(whole or
+fractional)". REQ-NUT-053's rationale now cites RULE-06 (never impute) rather
+than the loosely-fitting REQ-NUT-023/025. The OPEN_QUESTIONS "canonical" claim
+was corrected from over-claiming ("the spec files point here rather than
+restating their blockers") to the accurate scope: this file is the canonical
+*index* of blocker status; full question text stays in each spec section, so
+D-Q1 is a one-line index entry here, not a second full copy.
+
+**Correction to an instruction (flagged, not silently followed).** Joe said "the
+spec header should point at OQ-06 rather than restating it as D-Q1," treating
+D-Q1 and OQ-06 as one fact. They are two different facts: D-Q1 is the
+Branded-vs-FNDDS preference (Section D); OQ-06 is the 04:00 subject-day boundary.
+Writing "OQ-06 blocks Section D" would have been false. So I applied the
+principle rather than the literal edit: the spec header defers to OPEN_QUESTIONS,
+and D-Q1's blocking status was given its own canonical home there. Net effect is
+what Joe asked for — one fact, one home — without equating two unrelated facts.
+
+**Requirement IDs touched.** REQ-NUT-052, REQ-NUT-053 (new). REQ-NUT-035/050/051
+unchanged in this follow-up.
+
+**WHAT I DID NOT DO.**
+- Did **not** resolve D-Q1 itself (Branded vs FNDDS) — only gave its blocking
+  status a canonical home. Still Joe's decision.
+- Did **not** add a new `estimate_method` enum value for "a fraction of a label";
+  I reused `portion_table` for its width rather than touching the RULE-08 /
+  ADR-0002 method enum. If Joe wants fraction-of-label distinguishable from a
+  true portion-table estimate later, that is a schema change, not a spec edit.
+- Did **not** add proving tests or move any `ops/features.json` entry — no code.
+- Did **not** add the missing adjective-linter negative fixture (still owed from
+  the prior entry).
+- Did **not** mint an `OQ-nn` number for D-Q1; it is referenced by its spec-local
+  ID in the canonical blocker list. If every blocker should carry an OQ number,
+  that is a small follow-up.
+
+**Commit.** (this follow-up's commit on `main`)
