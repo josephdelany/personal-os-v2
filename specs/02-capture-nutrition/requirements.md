@@ -1,8 +1,8 @@
 # 02 — CAPTURE & NUTRITION RESOLUTION — REQUIREMENTS (EARS)
 
-**Status:** COMPLETE — 150 requirements, 12 acceptance scenarios. Ready for review by Joe.
+**Status:** COMPLETE — 152 requirements, 12 acceptance scenarios. Ready for review by Joe.
 **Blocking:** the UNRESOLVED QUESTIONS in each section are decisions for Joe. Claude Code must ASK,
-not decide. D-Q1 and E-Q1 block implementation of Sections D and E respectively.
+not decide. D-Q1 blocks implementation of Section D. E-Q1 is RESOLVED (2026-08-15, ADR-0005 / OQ-05).
 **Scope:** the "Big Mac vertical slice". Joe says or photographs *"I ate a Big Mac from McDonald's"*
 and the system stores honest, interval-valued nutrition with full provenance.
 **Grammar:** EARS (Mavin & Wilkinson). Five patterns only. SHALL is binding. SHOULD is not used
@@ -573,6 +573,25 @@ resolver SHALL update the matching `portion_aliases` row's `grams` value, SHALL 
 **REQ-NUT-023** (Ubiquitous) The extraction service SHALL NOT emit a gram value for a vernacular
 portion phrase.
 
+### D.4a Counts of branded menu items
+
+A counted menu item — *"a Big Mac"*, *"two McMuffins"* — states its quantity as a bare count, not a
+mass, a volume, or a vernacular portion phrase, so none of REQ-NUT-019 through REQ-NUT-021 converts
+it to grams. The count resolves through the branded label's own per-serving definition, and the case
+where that definition is absent is stated so the count is never silently guessed into grams.
+
+**REQ-NUT-050** (Event-driven) WHEN an extracted quantity is a unitless count of a food resolved from
+the USDA Branded data type, the nutrition resolver SHALL multiply the Branded record's per-serving
+gram weight by the count to obtain the item's mass, SHALL store the Branded serving definition — its
+household-measure string and its per-serving gram weight — on the resolved row, and SHALL set
+`estimate_method = 'labelled'` so that the interval width of REQ-NUT-036 governs.
+
+**REQ-NUT-051** (Unwanted behaviour) IF an extracted quantity is a unitless count of a restaurant or
+branded menu item and no USDA Branded record carrying a per-serving gram weight is available for it,
+THEN the nutrition resolver SHALL leave the count unconverted, SHALL set `nutrition_status =
+'unresolved'` for the item, SHALL retain the item name, the brand or restaurant token, and the count
+verbatim, and SHALL add the item to the review list with reason `no_branded_serving`.
+
 ### D.5 The never-guess rule
 
 **REQ-NUT-024** (Unwanted behaviour) IF a food name resolves against no configured source, THEN the
@@ -671,7 +690,10 @@ kcal_point <= kcal_high` on every row.
 ### E.2 Interval width is a function of resolution method
 
 **REQ-NUT-035** (Event-driven) WHEN `estimate_method = 'weighed'`, the nutrition resolver SHALL set
-`kcal_low = 0.95 × kcal_point` and `kcal_high = 1.05 × kcal_point`.
+`kcal_low = 0.90 × kcal_point` and `kcal_high = 1.10 × kcal_point` — provisionally equal to the
+`labelled` width (REQ-NUT-036) per ADR-0005, because weighing removes portion error but not
+composition error, and the composition uncertainty of a weighed generic food is not yet calibrated
+and may prove wider than a label's legal tolerance rather than tighter.
 
 **REQ-NUT-036** (Event-driven) WHEN `estimate_method = 'labelled'`, the nutrition resolver SHALL set
 `kcal_low = 0.90 × kcal_point` and `kcal_high = 1.10 × kcal_point`.
@@ -755,10 +777,14 @@ narrows the interval.
 
 ### E.UNRESOLVED QUESTIONS
 
-- **E-Q1.** The `weighed` interval of ±5% (REQ-NUT-035) is **not** in the research — the research gives
-  ±10% for `labelled`, ±20% for `portion_table` and 0.75×/1.6× for `photo_estimate`, and lists
-  `weighed` as a method without a width. ±5% is a placeholder and must be confirmed or replaced by
-  Joe.
+- **E-Q1 — RESOLVED 2026-08-15 (ADR-0005, OQ-05).** The `weighed` interval was a ±5% placeholder not
+  found in the research (which gives ±10% for `labelled`, ±20% for `portion_table`, 0.75×/1.6× for
+  `photo_estimate`, and lists `weighed` without a width). Joe's ruling: set it to ±10%, equal to
+  `labelled` (REQ-NUT-035), and keep it provisional pending a calibration against a known-label food.
+  Rationale: weighing removes portion error but not composition error, so a weighed generic food's
+  true width may prove *wider* than a label's legal tolerance, not tighter. `weighed` and `labelled`
+  stay distinct `estimate_method` values even while their widths are equal, so calibration can
+  separate them later without a migration.
 - **E-Q2.** Should the interval narrow as `portion_aliases.n_corrections` grows for a given phrase?
   It is intuitively right — a phrase corrected fifteen times is better known than one corrected once —
   but no evidence in the research supports any particular narrowing function, so none is specified.

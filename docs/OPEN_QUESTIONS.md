@@ -45,17 +45,7 @@ unwritten.
 *Full text at `specs/02-capture-nutrition/requirements.md` §§A–G
 "UNRESOLVED QUESTIONS" — 7 questions, A-Q1 through G-Q1.*
 
-The two that block work:
-
-**OQ-05 — What is the interval width for `weighed` food?**
-Why open: the research gives defensible widths for `labelled` (±10%),
-`portion_table` (±20%) and `photo_estimate` (0.75× / 1.6×, asymmetric) and
-**no width at all for `weighed`**. ±5% is currently written into REQ-NUT-035
-and is invented.
-Depends on it: `weighed` is the narrowest interval in the system, so it alone
-determines whether a daily energy total is ever tight enough to resolve a
-deficit. Every claim about energy balance rests on this number.
-Settles it: Joe deciding, or a small calibration exercise against a known food.
+The one that still blocks work (OQ-05 resolved 2026-08-15 — see RESOLVED):
 
 **OQ-06 — Is the subject-day boundary 04:00?**
 Depends on it: the generated `subject_day` column in ADR-0002, and therefore
@@ -144,8 +134,14 @@ blocking, but the answer is worth capturing whenever it arrives.
 
 ## RESOLVED
 
-*(empty — entries move here with a date and a pointer to the ADR or requirement
-that settled them)*
+**OQ-05 — RESOLVED 2026-08-15.** *What is the interval width for `weighed` food?*
+Ruling: ±10%, equal to `labelled`, marked provisional in REQ-NUT-035 pending a
+calibration against a known-label food. Weighing removes portion error but not
+composition error, so a weighed generic food's true width may prove *wider*
+than a label's legal tolerance, not tighter — the old ±5% placeholder wrongly
+made `weighed` the tightest method in the system. `weighed` and `labelled` stay
+distinct `estimate_method` values despite equal widths, so calibration can
+separate them later without a migration. Pointer: ADR-0005 (stub) + REQ-NUT-035.
 
 ---
 

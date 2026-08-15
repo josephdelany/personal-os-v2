@@ -26,3 +26,177 @@ OPEN_QUESTIONS OQ-14 and OQ-15.
 **Requirement IDs touched.** None — no implementation this session.
 
 **Commit.** (pending first commit)
+
+---
+
+## 2026-08-15 — Session 1: orientation, verification, and five director rulings
+
+**Attempted.** Orientation and verification only. No implementation code, schema,
+or migration — by instruction. Read CLAUDE.md, the full constitution (31 rules,
+RULE-00..RULE-30), OPERATING_MANUAL, ROADMAP, OPEN_QUESTIONS, REQUIREMENTS_INDEX,
+DECISIONS, and the 150 capture/nutrition requirements incl. all 12 Gherkin
+scenarios. Ran both gates. Traced the Big Mac path end to end. Surfaced OQ-03,
+OQ-05, OQ-07, the manual §4 recommendation, and one new correctness finding for
+Joe to rule on.
+
+**Works.** `tools/validate_layout.py` exit 0 (31 passed, 0 warnings, 0 failed).
+`tools/test_guard.sh` exit 0 (25 passed, 0 failed). Both re-run at session end,
+same result. Working tree clean at session start and after (only this PROGRESS
+entry changed).
+
+**Does not work / unchanged.** No code exists yet beyond the two harnesses. The
+gates check the specification, not any implementation.
+
+**Director rulings this session (to be executed, paired with their settling
+artifact, in the owning phase — NOT applied this session):**
+1. **OQ-03 → PUBLIC.** Precondition, not preference: nothing is pushed to a
+   public remote until the Supabase credential (OQ-01) is rotated. Before Phase 0
+   commits `archive/`, grep all 19 legacy files for the old credential string and
+   for any Supabase key or connection URL; report findings before the commit.
+   Settles when: repo ADR written + OQ-01 rotated + archive grep clean.
+2. **OQ-05 → weighed interval widened to ±10% (= labelled), marked provisional
+   in REQ-NUT-035.** Rationale accepted: weighing removes portion error, not
+   composition error. Calibration exercise (weigh a known-label food, compare
+   stored vs label) logged as the measured number that would replace the
+   placeholder. Settles when: ADR-0005 + REQ-NUT-035 edit, then OQ-05 → RESOLVED.
+3. **OQ-07 → ACCEPT the narrowing.** System measures use; Joe supplies value where
+   he wants it. Words "necessary"/"unnecessary" stay banned in generated copy.
+   Settles when: finance ADR, then OQ-07 → RESOLVED.
+4. **Manual §4 → MOVE the fabrication + traceability gates to a new Phase 2.5,
+   before the Big Mac slice.** Settles when: ROADMAP edit.
+5. **RULE-02 finding ACCEPTED → first task of Phase 2.** Change enforcement from
+   "absence of a grant" (which the table owner and Supabase `service_role`
+   bypass) to "demonstrated inability to mutate": a BEFORE UPDATE OR DELETE
+   trigger that RAISEs, plus a test that connects as the role the resolution job
+   actually uses, attempts DELETE on `atoms`, and asserts failure. Constraints
+   from Joe: (a) write an ADR covering the owner/service_role bypass, the
+   trigger design, and which role each job connects as, BEFORE the code; (b)
+   decide and record that role explicitly — "whichever role the client defaults
+   to" is how the hole reopens. This strengthens a gate, so RULE-00 is not in
+   play, but it changes a stated enforcement mechanism, hence the ADR.
+   CORRECTION (reviewer, this session): Joe's ruling named "ADR-0003", but
+   DECISIONS.md:19 already reserves ADR-0003 for the Evidence ladder. This work
+   must use a fresh unreserved number — next free is ADR-0010. Also noted: the
+   trigger remedy is not novel — the same "put the constraint where the agent
+   cannot route around it" pattern is already accepted at
+   specs/04-reasoning/requirements.md:317,360 (an UPDATE-rejecting trigger on
+   hypothesis_register), and ROADMAP Gate 2 (line 49) already requires "an
+   attempted UPDATE on atoms fails with a permission error, shown." Phase 2's
+   task is therefore to HARDEN Gate 2, not invent a gate.
+
+**Requirement IDs touched.** None — no implementation this session.
+
+**Commit.** (pending)
+
+---
+
+## 2026-08-15 — Session 2: four director instructions executed as the record
+
+**Attempted.** Execute Joe's four Session-2 instructions as committed record on
+`main` (not proposals). Still no implementation code, schema, or migration —
+this is spec and doctrine work only, which is in scope for this phase. Ran
+session-start in full first: both gates green at start, no regression against
+Session 1.
+
+**Works.** `tools/validate_layout.py` exit 0 (31 passed, 0 warnings, 0 failed)
+after every edit — 152 requirements in the capture/nutrition file, 543 total,
+REQ-NUT census 55, index count matches disk, zero unquantified-adjective
+warnings. `tools/test_guard.sh` exit 0 (25 passed). Adversarial reviewer run
+before commit.
+
+**What changed, by instruction:**
+
+1. **ADR-0003 → ADR-0010 confirmed.** DECISIONS.md now reserves ADR-0010 for the
+   RULE-02 enforcement-hardening work (the atoms/`raw_captures` mutation-
+   rejecting trigger and the role decision), with a note recording that Joe's
+   Session-1 "ADR-0003" collided with the reserved Evidence-ladder number and
+   ADR-0010 is the corrected free number. No ADR body written — that is Phase 2.
+
+2. **OQ-05 resolved; REQ-NUT-035 widened ±5% → ±10%.** The `weighed` interval is
+   now equal to `labelled` and marked provisional, paired with stub ADR-0005.
+   ADR-0005 records the reasoning: a labelled packaged food has known portion
+   and composition-only uncertainty; a weighed generic food has known portion
+   but composition uncertainty plausibly *wider* than a label's legal tolerance,
+   so weighed may end up wider than labelled, not tighter. The binding
+   structural rule: `weighed` and `labelled` stay distinct `estimate_method`
+   values even while their widths are equal, so calibration can separate them
+   later without a migration. Never collapse two methods because their current
+   numbers match. RULE-00 not triggered — the ±5% was an invented placeholder,
+   not a passing threshold; no test asserts it (F-005 stays `failing`), so
+   nothing was weakened to make anything pass, and the change references ADR-0005
+   as RULE-00 requires for any threshold move. OQ-05 moved to RESOLVED; spec
+   E-Q1 marked resolved.
+
+3. **Big Mac count→grams gap (Reviewer Finding 3) filled.** Added **REQ-NUT-050**
+   (Event-driven: a unitless count of a USDA-Branded-resolved food multiplies the
+   record's per-serving gram weight by the count, stores the serving definition,
+   sets `estimate_method = 'labelled'`) and **REQ-NUT-051** (Unwanted behaviour:
+   no Branded per-serving weight available → count left unconverted, item marked
+   `unresolved`, name/token/count retained verbatim, review-list reason
+   `no_branded_serving`). Index and self-reported counts updated; gate re-run,
+   green. *Deviation from the instruction, flagged:* Joe said "a new REQ-NUT id"
+   (singular); I wrote two, because EARS forbids two patterns in one statement
+   and "state what happens when no Branded record exists" is a distinct testable
+   behaviour that needs its own ID and test under this project's rules.
+
+4. **Audit trail for commit 914de1f written (below), per RULE-00.**
+
+**Audit trail for commit 914de1f — adjective-linter narrowing (RULE-00 record).**
+Joe authorised this narrowing and the reasoning was his; it is recorded here
+because loosening a LINT check is RULE-00 territory and the justification
+otherwise lived only in a chat the repo cannot see.
+
+- *What the linter now skips.* Two things, both in `tools/validate_layout.py`'s
+  WEASEL check. (a) The word `robust` is exempt when immediately preceded by a
+  hyphen, so a hyphenated qualifier + `robust` compound passes. (b) The scan no
+  longer reads a requirement's preamble (anything before the first ` shall`) or
+  its trailing `because`-clause rationale — it inspects only the normative SHALL
+  response. This cleared 5 false positives (REQ-INF-020/026/215 were noise;
+  REQ-FIN-166 and REQ-INF-521 are rationale-clause wording, now recorded under
+  OQ-10).
+- *Why `autocorrelation-robust` is a term of art.* It names a specific
+  statistical property — an estimator or standard error whose validity does not
+  depend on the absence of serial correlation (e.g. Newey–West HAC errors,
+  RULE-21). It is a fixed technical compound with a precise meaning, not the
+  vague quality adjective "robust" as in "a robust system". Flagging it as an
+  unquantified adjective was a false positive.
+- *The check still fires on a bare adjective in a SHALL response.* The narrowing
+  removed false positives without disarming the check: `robust` (un-hyphenated)
+  and `fast/slow/quick/reasonable/appropriate/user-friendly/efficient/as
+  needed/etc.` are still flagged when they appear inside the normative SHALL
+  text of a requirement. This was **demonstrated by execution**, not asserted:
+  the exact regex + normative-trim logic was run on four synthetic inputs and
+  behaved correctly — `"...SHALL be robust"` → fires on `robust`;
+  `"...SHALL use autocorrelation-robust errors"` → clears; a `because`-clause
+  adjective → clears; a preamble adjective → clears. The current gate run
+  reports zero adjective warnings because no real defect exists in the specs,
+  not because the check was disabled. (No permanent negative-case fixture exists
+  in the repo — noted as owed under WHAT I DID NOT DO.)
+
+**Requirement IDs touched.** REQ-NUT-035 (edited: interval width ±5% → ±10%,
+provisional). REQ-NUT-050, REQ-NUT-051 (new). No test named for them yet — these
+are specification rows; their proving tests arrive with the Phase 3 slice, and
+`ops/features.json` F-005 (REQ-NUT-035) stays `failing` until one exists.
+
+**WHAT I DID NOT DO.**
+- Did **not** write the body of ADR-0005 beyond the `weighed`-width decision. It
+  is a labelled stub; cache-first lookup, the portion table, and the other
+  method widths are explicitly listed as unauthored and due before Phase 3.
+- Did **not** write the body of ADR-0010, or any RULE-02 trigger code — Phase 2.
+- Did **not** add a proving test for REQ-NUT-035/050/051, and did **not** move
+  any `ops/features.json` entry to `passing`. No code exists to test yet.
+- Did **not** argue REQ-NUT-050's choice of `estimate_method = 'labelled'` in an
+  ADR; it is stated in the requirement and noted as owed in ADR-0005's gap list.
+- Did **not** add a permanent negative-case fixture for the adjective linter. Its
+  continued teeth were shown by a one-off execution (recorded above), not by a
+  committed test that feeds a known-bad adjective and asserts the check fires. A
+  linter with no negative fixture is a gate proven only by inspection — worth a
+  small test in a later session.
+- Did **not** execute the other Session-1 rulings (OQ-03 repo, OQ-07 finance,
+  manual §4 ROADMAP move, RULE-02 hardening) — those belong to their owning
+  phases and were not in Joe's four instructions.
+- **Newly surfaced, not built (for Joe):** REQ-NUT-050 assumes a count maps to
+  whole servings. A fractional or split branded item ("half a Big Mac") is not
+  handled by 050 or 051 and is not specified anywhere. Flagging, not deciding.
+
+**Commit.** (this session's commit on `main`)
