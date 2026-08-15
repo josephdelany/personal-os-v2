@@ -1,0 +1,13 @@
+name: gates
+on: [push, pull_request]
+jobs:
+  layout:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - name: Layout and specification gate
+        run: python3 tools/validate_layout.py
+      - name: Destructive-command guard behavioural test
+        run: ./tools/test_guard.sh

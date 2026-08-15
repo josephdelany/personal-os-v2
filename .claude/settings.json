@@ -1,0 +1,101 @@
+{
+  "_comment_hooks": "SessionStart fires on startup, resume, and after compaction. The compaction case is the important one: compaction silently drops CLAUDE.md and the constitution, and an agent that has forgotten its invariants will violate all thirty without noticing. This re-injects them.",
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '--- CONTEXT REPAIR AFTER COMPACTION ---'; cat CLAUDE.md; echo; echo '--- CONSTITUTION ---'; cat docs/CONSTITUTION.md; echo; echo '--- CURRENT PHASE ---'; grep -m1 -A3 'Current phase' CLAUDE.md; echo; echo '--- LAST 3 PROGRESS ENTRIES ---'; tail -n 60 ops/PROGRESS.md; echo; echo '--- OPEN QUESTIONS (ask, do not decide) ---'; grep -E '^\\*\\*OQ-' docs/OPEN_QUESTIONS.md"
+          }
+        ]
+      },
+      {
+        "matcher": "startup|resume",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo 'Run /session-start before any implementation work.'; git log --oneline -5"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/guard-destructive.sh"
+          }
+        ]
+      }
+    ]
+  },
+  "_comment_permissions": "Joe's standing instruction: 'i dont want to keep having to press accept.' The answer is not to disable permissions \u2014 it is to pre-approve everything reversible so that a prompt actually means something when it appears. Everything in allow is local and undoable. Everything in deny is unrecoverable and is blocked outright rather than prompted, because a prompt you see fifty times a day is a prompt you stop reading.",
+  "permissions": {
+    "allow": [
+      "Read",
+      "Glob",
+      "Grep",
+      "Edit",
+      "Write",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git branch:*)",
+      "Bash(git checkout:*)",
+      "Bash(git stash:*)",
+      "Bash(pytest:*)",
+      "Bash(python -m pytest:*)",
+      "Bash(python:*)",
+      "Bash(python3:*)",
+      "Bash(pip install:*)",
+      "Bash(ruff:*)",
+      "Bash(mypy:*)",
+      "Bash(ls:*)",
+      "Bash(cat:*)",
+      "Bash(head:*)",
+      "Bash(tail:*)",
+      "Bash(wc:*)",
+      "Bash(grep:*)",
+      "Bash(rg:*)",
+      "Bash(find:*)",
+      "Bash(mkdir:*)",
+      "Bash(cp:*)",
+      "Bash(mv:*)",
+      "Bash(jq:*)",
+      "Bash(gh run list:*)",
+      "Bash(gh run view:*)",
+      "Bash(gh workflow list:*)",
+      "Bash(supabase db diff:*)",
+      "Bash(psql:*)"
+    ],
+    "deny": [
+      "Bash(rm -rf:*)",
+      "Bash(git push --force:*)",
+      "Bash(git push -f:*)",
+      "Bash(git reset --hard:*)",
+      "Bash(supabase db reset:*)",
+      "Bash(dropdb:*)",
+      "Bash(curl:*)",
+      "Bash(wget:*)",
+      "Read(.env)",
+      "Read(.env.*)",
+      "Read(**/secrets/**)",
+      "Write(.env)",
+      "Write(archive/**)",
+      "Edit(archive/**)"
+    ],
+    "ask": [
+      "Bash(git push:*)",
+      "Bash(supabase db push:*)",
+      "Bash(supabase migration up:*)",
+      "Bash(gh workflow run:*)"
+    ]
+  },
+  "_comment_pretooluse": "The destructive-command guard. This is not paranoia: in July 2025 a coding agent deleted a production database during a change freeze and then generated 4,000 fabricated records to cover the gap."
+}

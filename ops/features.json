@@ -1,0 +1,110 @@
+{
+  "_comment": "Every feature starts failing. An entry moves to passing only when a named test containing its requirement ID proves it. Entries are never deleted and never reworded to describe what was built instead of what was required.",
+  "features": [
+    {
+      "id": "F-001",
+      "description": "Shortcut captures audio and writes to raw_captures",
+      "requirement": "REQ-CAP-003",
+      "status": "failing",
+      "proving_test": null
+    },
+    {
+      "id": "F-002",
+      "description": "PWA never calls getUserMedia",
+      "requirement": "REQ-CAP-001",
+      "status": "failing",
+      "proving_test": null
+    },
+    {
+      "id": "F-003",
+      "description": "Transcript resolves to food names only, no quantities invented",
+      "requirement": "REQ-NUT-001",
+      "status": "failing",
+      "proving_test": null
+    },
+    {
+      "id": "F-004",
+      "description": "USDA lookup with personal portion cache",
+      "requirement": "REQ-NUT-012",
+      "status": "failing",
+      "proving_test": null
+    },
+    {
+      "id": "F-005",
+      "description": "Interval-valued nutrition with estimate_method",
+      "requirement": "REQ-NUT-035",
+      "status": "failing",
+      "proving_test": null
+    },
+    {
+      "id": "F-006",
+      "description": "Bitemporal atoms table, append-only",
+      "requirement": "REQ-ONT-001",
+      "status": "failing",
+      "proving_test": null
+    },
+    {
+      "id": "F-007",
+      "description": "Gmail receipt parse to purchases",
+      "requirement": "REQ-FIN-030",
+      "status": "failing",
+      "proving_test": null
+    },
+    {
+      "id": "F-008",
+      "description": "Top-spend surface renders without moralising language",
+      "requirement": "REQ-FIN-218",
+      "status": "failing",
+      "proving_test": null
+    },
+    {
+      "id": "F-009",
+      "description": "Claim ladder computed and stored on the finding row",
+      "requirement": "REQ-TIER-001",
+      "status": "failing",
+      "proving_test": null
+    },
+    {
+      "id": "F-010",
+      "description": "INSUFFICIENT returns calibrated disclosure, not silence",
+      "requirement": "REQ-TIER-004",
+      "status": "failing",
+      "proving_test": null
+    },
+    {
+      "id": "F-011",
+      "description": "LLM narrates, never computes",
+      "requirement": "REQ-INF-001",
+      "status": "failing",
+      "proving_test": null
+    },
+    {
+      "id": "F-012",
+      "description": "Every rendered numeral traces to a stored computation",
+      "requirement": "REQ-NAR-005",
+      "status": "failing",
+      "proving_test": null
+    },
+    {
+      "id": "F-013",
+      "description": "Big Mac end-to-end slice",
+      "requirement": "REQ-CAP-003",
+      "status": "failing",
+      "proving_test": null
+    },
+    {
+      "id": "F-014",
+      "description": "Supabase keepalive",
+      "requirement": "REQ-NFR-001",
+      "status": "failing",
+      "proving_test": null
+    },
+    {
+      "id": "F-015",
+      "description": "GitHub Actions 60-day keepalive",
+      "requirement": "REQ-NFR-002",
+      "status": "failing",
+      "proving_test": null
+    }
+  ]
+}
