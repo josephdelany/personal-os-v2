@@ -614,3 +614,122 @@ addenda; ADR bodies were not silently rewritten.
   "retracted METR" line is superseded by this entry.
 
 **Commit.** (pending — this corrections commit)
+
+---
+
+## 2026-08-23 — Session 6 (Phase 2, session 1): nine schema decisions verified and ruled; plan written, no SQL
+
+**Attempted.** Phase 2, session 1 of several — **plan and ADRs only, no migration
+written, no SQL executed**, by Joe's instruction. Verify nine schema-shaping
+claims (each of which would rewrite every historical row if wrong) against primary
+sources, propose, disagree where warranted, surface un-priced consequences, and
+get Joe's rulings before any migration. session-start ran in full first: both
+gates green at start, no regression.
+
+**Works (evidence is command output shown in-session).**
+- Both gates green at start and after every edit: `validate_layout.py` **32
+  passed / 0 warnings / 0 failed**; `test_guard.sh` **24 passed / 0 failed**.
+  No pytest suite exists yet (only `tests/fixtures`) — correct, no spine code.
+- Invariant queries run live against Supabase (SELECT-only, INV-2 intact):
+  **RULE-02 = 0** UPDATE/DELETE grants on `raw_captures`/`atoms`; **RULE-04**
+  `42P01` (`derived_measures` absent — Phase-2 spine unbuilt). Same as session start.
+- Live-DB facts gathered this session (SELECT-only) and load-bearing: **PG 17.6**;
+  **DB 197 MB** of the 500 MB free ceiling (`intraday` 94, `signals` 46, `events`
+  34 MB); **`pg_available_extensions`**: `pg_duckdb`/`pg_ducklake`/`duckdb`/
+  `timescaledb`/`temporal_tables`/`periods` **all absent**, only `btree_gist 1.7`
+  + `pg_partman 5.3.1` — this settles Decisions 5 and 7 on facts, not inference.
+- **Nine claims verified against primary sources** (three web-search subagents +
+  one Explore agent mapping current spec coverage). Four of Joe's claims corrected:
+  (1) a p-value **can** be calibrated to an e-value (`e=k·p^(k-1)`); the cost is
+  **power loss, not impossibility** — we store native e-values because calibration
+  is lossy; (2) arXiv:2502.08539 is **cautionary** (stopped e-BH can *fail* without
+  a no-confounding assumption), cite as "conditions under which stopped e-BH is
+  valid"; (3) Apple on-device context is **4,096 tokens**, not ~8k; (4) workout
+  dedup key is **(start-window, duration-window)** with source as a *tiebreaker*,
+  not source-first.
+- **Deliverable written:** `docs/PHASE2_MIGRATION_PLAN.md` — full proposal, nine
+  decision-records, scorecard, build-first/defer, and a settled "Director Rulings"
+  section. `docs/OPEN_QUESTIONS.md`: **OQ-06 RESOLVED** (04:00, by-start, sleep by
+  wake day, `subject_day` stored + `rule_version`), **OQ-20 opened** (500 MB fill
+  vs append-only atoms). `docs/DECISIONS.md`: **ADR-0016–0021 reserved**.
+
+**Joe's five rulings (settled record; ADRs written next session).**
+A. OQ-06 → 04:00 local, by start instant, **sleep by wake day**, `subject_day`
+   stored with `rule_version`. B. Decision 5 (temporal) → my recommendation: instant
+   + `time_precision` for points, `valid_interval tstzrange` for durational only,
+   `expired_at` for transaction time. C. Decision 7 → **Postgres authoritative**,
+   R2 the analytical mirror. D. Decision 1 → e-values **accepted as a trade** (power
+   for anytime-validity, because Joe peeks constantly), not an upgrade. E. Decision
+   6 → trust/egress **ratified as a RULE-29 clarification + ADR-0020**, no new rule
+   (30-cap holds).
+
+**Workout capture ruling (OQ-18) — recorded per Joe's instruction.**
+- **Decision: a dedicated free lifting logger**, not a Shortcut. Compliance is the
+  binding constraint; typing sets into a purpose-built app beats a Shortcut Joe
+  would abandon by week three. Joe installs it, logs one session, and **exports CSV
+  on day one** to confirm export works on the free tier — not in month two.
+- **The interim logger is disposable scaffolding.** Joe exports CSV **weekly** to a
+  file he controls; **Phase 3 backfills it into `atoms`.** The app is **never a
+  dependency and never the system of record.**
+- **Correction that changes Phase 4 scope (record explicitly):**
+  **HealthKit / Apple Watch / GymKit capture duration, heart rate and calories —
+  NOT per-set load and reps. e1RM is unobtainable from that feed.** Any future
+  "workout ingest" work must not assume HealthKit delivers strength data; per-set
+  strength data has exactly one source — something Joe types a set into. The
+  Decision-8 Watch/GymKit dedup key is therefore a *cardio* concern, irrelevant to
+  the strength objective function.
+
+**Adversarial review ran and changed the work.** The `reviewer` subagent found two
+BLOCKERs and three MAJORs, all verified against the files and **fixed this
+session**: (1) ADR-0016 was double-booked for both forecasts and the analytical
+store → forecasts split to **ADR-0021**; (2) ADR-0016–0021 were called "reserved"
+while DECISIONS.md did not hold them → **now reserved** in DECISIONS.md; (3) the
+ruling label "by-start, per A" was self-contradictory for sleep → reworded to
+"by-start, **except sleep by wake day**"; (4) the OQ-06 resolution silently amended
+ADR-0002's *generated* `subject_day` → the generated→stored change and the
+**transient RULE-03/ADR-0002 inconsistency are now flagged explicitly**; (5)
+Decision 1 miscited REQ-INF-114 (it is about observations-store immutability) and
+missed that **REQ-INF-106's binding BH SHALL** must be amended alongside RULE-21,
+and that REQ-INF-112 already stores an E-value gate (e-values are not greenfield) →
+corrected. Full reviewer output pasted into the session-end record below.
+
+**Requirement IDs touched.** None implemented. The plan *proposes* amending
+**REQ-INF-106** (BH → e-BH) and **RULE-03 / RULE-20 / RULE-21 / RULE-29** via
+ADRs 0007/0016–0021 next session; nothing amended yet. No `ops/features.json` entry
+moved (all 15 remain `failing`; ledger write-locked, ADR-0011).
+
+**WHAT I DID NOT DO.**
+- Did **not** write any migration SQL or the ADR files — next session, by
+  instruction. Five of the nine carry Joe's rulings, so the ADRs are drafted only
+  as proposed decision-records; writing them as files pre-ruling would be the
+  "just decide" failure CLAUDE.md rule 5 forbids.
+- Did **not** resolve OQ-20 (500 MB fill) or OQ-18's Phase-4 feed design — opened /
+  deferred with the owed artifacts named.
+- Did **not** independently reproduce the science behind the nine citations, nor
+  paste every source URL into the plan (they live in this session's verification
+  reports); version/licence facts must be re-checked at dependency-ADR time.
+- Did **not** re-run the live extension query during session-end (ran it once mid-
+  session); the RULE-02/RULE-04 invariants were re-run and are shown.
+- Did **not** write a dependency ADR for `online-fdr`/`scoringrules` (RULE-28) —
+  owed before either is added.
+- **Most tempted to skip:** verifying the reviewer's spec-line citations (REQ-INF-
+  106/112/114) myself rather than taking them on faith — I read the spec and
+  confirmed them before editing, because a reviewer can be wrong too.
+
+**NEXT ACTION (Phase 2, session 2 — a fresh session starts here without
+re-explanation).** Write the migrations **and** ADRs **0007, 0016, 0017, 0018,
+0019, 0020, 0021** from the settled plan in `docs/PHASE2_MIGRATION_PLAN.md` (see
+its "Director Rulings" section) and the reserved rows in `docs/DECISIONS.md`. Build
+order is in the plan: `atoms` first (needs the ADR-0019 temporal model + OQ-06
+04:00/by-start/sleep-by-wake-day, both settled), then `raw_captures` (extended
+`capture_source` + `trust_level` + ADR-0010 mutation-rejecting trigger), then
+`metric_registry` (scale/rounding metadata), then `ops.runs`/`egress_log`/
+`job_registry` + the two keepalives that close Gate 0. Lock column shapes for
+`findings.e_value`, `predictions.forecast_distribution`, `prompt_dispatch`,
+`hypothesis_register` now; defer the R2/DuckDB analytical store (ADR-0016) and all
+statistical *compute* to later phases. Two ADR citations must be labelled
+**snippet-confirmed** (JMIR e65350 in ADR-0017; NSA U/OO/6030316-26 in ADR-0020) —
+the decisions stand on their own reasoning regardless. Migrations are forward-only,
+numbered, and run against a copy first (DoD item 5).
+
+**Commit.** (this session's commit on `main`)

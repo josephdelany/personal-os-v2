@@ -37,9 +37,9 @@ the canonical *index* of what blocks work and its status; the full text of each
 question lives in its spec's UNRESOLVED QUESTIONS section, and spec headers point
 here rather than restating blocker status of their own.
 
-**OQ-06 — Is the subject-day boundary 04:00?**
-Depends on it: the generated `subject_day` column in ADR-0002, and therefore
-every daily aggregate ever computed. Changing it later rewrites history.
+**OQ-06 — RESOLVED 2026-08-23. See RESOLVED section below.** (04:00 local;
+assignment by start instant; sleep attributed to the wake day; `subject_day`
+stored explicitly with a `rule_version` so a future change is visible, not silent.)
 
 **D-Q1 (spec §D) — Big Mac: prefer USDA Branded label data or the FNDDS survey
 composite?** *Blocks Section D food resolution.* One-line status only; full text
@@ -207,6 +207,31 @@ Depends on it: whether a capture path for workouts must exist before Phase 5/6
 derived measures and hypotheses are meaningful.
 Settles it: Joe confirming whether strength is being logged at all (and where),
 or accepting that workout capture is net-new work the roadmap must schedule.
+**Ruling direction (Joe, 2026-08-23).** Accepted as net-new work the roadmap must
+schedule: **manual, ugly, interim workout capture starts THIS WEEK** to start the
+clock (every week without it is a week Phase 6 cannot have), to be replaced by a
+real ingest path in Phase 3/4. The interim capture recommendation is recorded in
+`ops/PROGRESS.md` (this session) and the Phase-4 feed remains owed. Still open:
+which specific interim tool Joe adopts, and the Phase-4 workout-feed design.
+
+**OQ-20 — Postgres Free is 500 MB; what happens when it fills, given atoms are
+append-only?**
+Why open: Decision 7 (`docs/PHASE2_MIGRATION_PLAN.md`) makes **Postgres the
+authoritative store** and R2/Parquet the analytical mirror. Supabase Free caps the
+database at **500 MB and flips it read-only at the limit** (verified this session;
+live DB is ~197–222 MB before the new schema exists — already ~40% gone). RULE-02
+makes `atoms` and `raw_captures` **append-only**, so "delete old rows" is not an
+available remedy — the usual escape hatch is closed by our own constitution.
+Depends on it: whether the spine needs a cold-storage/eviction design (move
+sealed, superseded, or old-`recorded_at` rows to R2 Parquet and keep only a
+pointer in Postgres) from day one, or whether N=1 volumes stay under 500 MB for
+years and this is a Phase-8 concern. The busy legacy tables (`intraday` 94 MB,
+`signals` 46 MB, `events` 34 MB) show the old stack alone would blow the ceiling —
+but those are the *old* system's tables, not the new spine's.
+Settles it: a written options memo (evict-to-R2 vs archive-and-truncate-legacy vs
+accept-and-monitor with a storage alert on `ops.runs`) with the row/byte
+projection for the new schema, ruled by Joe **before** the wall, not at it.
+Raised by Joe's Decision-7 ruling, 2026-08-23.
 
 ---
 
@@ -252,6 +277,28 @@ than a label's legal tolerance, not tighter — the old ±5% placeholder wrongly
 made `weighed` the tightest method in the system. `weighed` and `labelled` stay
 distinct `estimate_method` values despite equal widths, so calibration can
 separate them later without a migration. Pointer: ADR-0005 (stub) + REQ-NUT-035.
+
+**OQ-06 — RESOLVED 2026-08-23.** *Is the subject-day boundary 04:00?*
+Ruling (Joe, 2026-08-23): **yes, 04:00 local.** Assignment of a fact to its
+`subject_day` is **by start instant**, with one documented exception: **sleep
+intervals are attributed to the day they END (the wake date)** — both the
+sleep-research convention and how Joe actually refers to it ("last night's sleep"
+belongs to this morning). `subject_day` is **stored explicitly** (not only a
+generated expression) and carries a **`rule_version`**, so the assignment rule is
+itself versioned and a future change to it is visible in the data rather than a
+silent rewrite. This settles the straddle problem raised by Decision 5 of
+`docs/PHASE2_MIGRATION_PLAN.md`: a durational atom crossing 04:00 lands by its
+start, except sleep, which lands by its end. **This amends ADR-0002's mechanism,
+not just its parameter:** ADR-0002 defines `subject_day` as a *generated* column
+on a 04:00 boundary, but a generated expression cannot encode "by start except
+sleep by end" (it needs the atom's type and its interval end), so `subject_day`
+becomes an application-computed *stored* column carrying `rule_version`. **Known
+transient inconsistency, flagged not hidden:** until the amending ADR (ADR-0019)
+and its migration land next session, `RULE-03`, `ADR-0002`, and this resolution
+describe `subject_day` differently (generated vs stored). RULE-00 is not in play —
+nothing is weakened; a director-ruled amendment is being recorded before the code,
+which is the correct order. Pointer: `docs/PHASE2_MIGRATION_PLAN.md` Decisions 5 + A;
+ADR-0019 reserved in DECISIONS.md.
 
 ---
 
