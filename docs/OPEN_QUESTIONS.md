@@ -144,6 +144,31 @@ blocking, but the answer is worth capturing whenever it arrives.
 
 ---
 
+## Data integrity
+
+**OQ-16 — `ops/features.json` cites requirement IDs that exist in no spec, and
+the layout gate does not catch it.**
+Why open: features F-006, F-014 and F-015 cite ids under the `REQ-ONT` and
+`REQ-NFR` prefixes (the ontology and non-functional specs). Those prefixes appear
+in no spec file (the prefix census is REQ-ASK/CAP/FIN/INF/NAR/NUT/TIER). The
+subsystem specs are known-unwritten (PROGRESS 2026-08-08), so the ids are forward
+references to specs that do not yet exist. `validate_layout.py` cross-checks
+requirement ids cited in *governing docs* against the specs, but does **not**
+cross-check `features.json`, so this passes silently. (This entry deliberately
+names only the prefixes, not the full ids, because writing a full undefined id
+into this governing doc would itself fail the section-8 cross-reference check —
+which is exactly the asymmetry in question.) Surfaced by the reviewer,
+2026-08-23; predates this session.
+Depends on it: whether a feature can name a requirement before that requirement
+is written, and whether the ledger↔spec link should be gated. Settles it: Joe
+ruling either (a) forward references are fine until the spec is authored, and the
+gate stays as-is, or (b) the gate must fail when `features.json` names an id no
+spec defines — in which case those three features need their specs written or
+their ids corrected. No entry may be edited to describe what was built (features.json
+`_comment`), so option (b) means writing the specs, not renaming the features.
+
+---
+
 ## RESOLVED
 
 **OQ-05 — RESOLVED 2026-08-15.** *What is the interval width for `weighed` food?*

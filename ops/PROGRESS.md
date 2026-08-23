@@ -270,3 +270,70 @@ unchanged in this follow-up.
   that is a small follow-up.
 
 **Commit.** (this follow-up's commit on `main`)
+
+---
+
+## 2026-08-23 — Session 3: environmental hardening of `.claude/` (Reward-Hacking-Benchmark)
+
+**Attempted.** Two config changes Joe directed from the Reward-Hacking-Benchmark
+finding (environmental hardening — remove the capability, don't just instruct
+against it — cuts exploitation ~87.7% with no loss of task success): (1) deny the
+agent write access to the feature ledger `ops/features.json` so it cannot mark
+its own work passing, and add a sanctioned pytest-parsing writer; (2) make the
+adversarial reviewer no cheaper than the builder. Config/doctrine only, no
+implementation code, schema, or migration — in scope for Phase 0. session-start
+ran in full first: both gates green at start, no regression.
+
+**Works (evidenced above).**
+- `.claude/settings.json`: added `Edit(/ops/features.json)` and
+  `Write(/ops/features.json)` to `permissions.deny`. **Verified empirically, not
+  asserted:** an `Edit` attempt on `ops/features.json` was rejected by the
+  permission engine ("File is in a directory that is denied by your permission
+  settings") — stopped before execution. `features.json` is byte-unchanged. The
+  leading-slash form resolves to the project root, confirmed by the block.
+- `.claude/agents/reviewer.md`: added `model: opus` and `effort: high` to the
+  frontmatter. `effort` confirmed a recognized subagent frontmatter key
+  (low/medium/high/xhigh/max) against current docs, twice, after a reviewer
+  disputed it.
+- `docs/adr/0011-features-json-write-lock.md` written; indexed in `DECISIONS.md`.
+- `validate_layout.py` 31 passed / 0 warnings / 0 failed. `test_guard.sh` 25
+  passed / 0 failed. Both re-run after every edit.
+
+**Does not work / deliberately not done.**
+- `tools/update_features.py` (the sanctioned writer) was **not** built. Joe chose
+  to defer it to Phase 3 (recommended): there is no pytest suite to parse, no CI
+  step to run it, and no entry legitimately flips before the Big Mac slice, so
+  building it now is an unexercised control that manufactures false assurance —
+  the exact failure the hardening is against. Recorded in ADR-0011. The deny is
+  safe alone: nothing should write the ledger during Phase 0–2, and the Edit/Write
+  tool deny does not block the future script's own file writes.
+- No `features.json` entry moved to `passing`; all 15 remain `failing`. Correct —
+  no code exists to prove any of them.
+
+**Reviewer change bundling corrected.** The reviewer-model change was first
+recorded inside ADR-0011 (a ledger-lock ADR); on the reviewer's finding it was
+removed from the ADR and recorded here instead, since it is unrelated to the
+ledger and uncontested.
+
+**Requirement IDs touched.** None — this is harness config and doctrine, and no
+REQ governs `.claude/` settings. No test named, no ledger entry moved.
+
+**WHAT I DID NOT DO.**
+- Did **not** build `tools/update_features.py` — deferred to Phase 3 by Joe's
+  ruling (ADR-0011). The single thing I was most tempted to build to look
+  complete; building it now would have been control theater.
+- Did **not** verify that `effort: high` changes reviewer *behaviour* — I verified
+  only that it is a recognized key in the docs. Whether this installation's
+  parser honours it at runtime I could not introspect; worst case it is inert
+  (harmless), not harmful.
+- Did **not** test the `Write(/ops/features.json)` deny directly (only `Edit`),
+  to avoid risking an overwrite of the ledger. The block message is directory-
+  scoped and both rules share syntax, so Write is covered by the same mechanism —
+  but that specific rule is inferred, not independently exercised.
+- Did **not** address the pre-existing `features.json` → spec mismatch the
+  reviewer surfaced (F-006/F-014/F-015 cite `REQ-ONT`/`REQ-NFR`, prefixes absent
+  from every spec). Logged as OQ-16. Out of scope for this session.
+- Did **not** run `git push` — nothing leaves local (OQ-01 credential + OQ-03
+  public/private still open; Joe asked only to commit).
+
+**Commit.** (this session's commit on `main`)

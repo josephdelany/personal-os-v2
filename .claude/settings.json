@@ -88,7 +88,9 @@
       "Read(**/secrets/**)",
       "Write(.env)",
       "Write(archive/**)",
-      "Edit(archive/**)"
+      "Edit(archive/**)",
+      "Edit(/ops/features.json)",
+      "Write(/ops/features.json)"
     ],
     "ask": [
       "Bash(git push:*)",

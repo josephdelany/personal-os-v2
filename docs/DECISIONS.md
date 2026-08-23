@@ -10,6 +10,7 @@ preserving.
 | ADR-0001 | Accepted | 2026-08-06 | Compute placement — three tiers, one owner per number, model plans and narrates but never computes |
 | ADR-0002 | Accepted | 2026-08-06 | The atom — bitemporal, three-valued presence, interval-valued, `state_class` in the schema |
 | ADR-0005 | Stub | 2026-08-15 | Nutrition resolution — **stub**: records only the `weighed` interval width (±10%, equal to `labelled`, provisional; distinct method kept for calibration). Cache-first lookup, portion table, and remaining widths still to be authored before Phase 3 |
+| ADR-0011 | Accepted | 2026-08-23 | `features.json` write-lock — agent denied Edit/Write on the ledger at the permission level so it cannot mark its own work passing (verified: an Edit on the file is rejected by the permission engine). The sanctioned writer that flips an entry only on proven pytest output is deferred to Phase 3, authored with the first proving test |
 
 ## Awaiting authorship
 
