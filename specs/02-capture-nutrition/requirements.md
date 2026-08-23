@@ -30,7 +30,7 @@ so that every requirement has one owner.
 | **the review list** | The batched low-confidence queue shown inside the evening reflection screen. |
 
 **Governing split, from which most of Section A follows:** iOS Shortcuts captures; the PWA displays
-and writes long-form text. This is forced by WebKit bug 215884 — in standalone (home-screen) PWA
+and writes long-form text. This is forced by a still-unfixed WebKit limitation — in standalone (home-screen) PWA
 mode, `getUserMedia` permission grants are **not persisted**, so every reload and every reopen
 re-prompts "allow for this website". Joe has stated that confirmation taps and permission prompts are
 design failures, not acceptable costs. Native Shortcuts permissions are granted permanently.
@@ -176,7 +176,8 @@ elapsed since the last successful run.
 ### A.ALTERNATIVES CONSIDERED
 
 - **PWA `getUserMedia` with a strict no-reload SPA.** Rejected. It reduces the re-prompt rate but does
-  not eliminate it; the underlying WebKit defect (bug 215884) is reported through iOS 18.5 and is
+  not eliminate it; the underlying WebKit defect (non-persistent media grants for home-screen PWAs —
+  no authoritative ticket cited, as the previously-named 215884 was a misattribution and is resolved) is
   treated as unfixed. Joe's constraint is *zero* prompts, not *fewer*.
 - **Removing `apple-mobile-web-app-capable`** so the app runs in Safari chrome, which does fix
   permission persistence. Rejected: it forfeits Web Push and the ITP 7-day storage exemption. Bad

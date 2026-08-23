@@ -11,7 +11,7 @@ IDs are stable and never reused. Every implementation commit cites the IDs it sa
 
 ## 0. PREAMBLE — THE PHIA FINDING AND WHAT IT SETTLES
 
-Google's PHIA (*Nature Communications*, published 12 Jan 2026 — "Transforming wearable data into personal health insights using large language model agents") evaluated 4,000 objective personal-health questions requiring numerical reasoning over one person's wearable data:
+Google's PHIA (*Nature Communications*, published 12 Jan 2026 — "Transforming wearable data into personal health insights using large language model agents") evaluated an **objective benchmark of 4,000 personal-health questions** requiring numerical reasoning over one person's wearable data (a separate open-ended set was also studied; 4,000 is the objective benchmark, not the total):
 
 | System | Accuracy |
 |---|---|
@@ -20,7 +20,7 @@ Google's PHIA (*Nature Communications*, published 12 Jan 2026 — "Transforming 
 | One-shot code generation, no loop | 74% |
 | **PHIA — ReAct loop, LLM writes code, deterministic sandbox executes it** | **84%** |
 
-Same weights. The swing decomposes and should not be quoted as one lump: executing code at all takes 22%→74% (the large gap — this is what "the LLM never computes" buys), and the ReAct loop then adds 74%→84% (~10 further points). Caveats: one model only (Gemini 1.0 Ultra), and the result has not been independently replicated. The architectural conclusion below is robust to both — it does not depend on the exact 84, only on "executed ≫ in-head."
+Same weights. The swing decomposes and should not be quoted as one lump: executing code at all takes 22%→74% (the large gap — this is what "the LLM never computes" buys), and the ReAct loop then adds 74%→84% (~10 further points). Caveats: Gemini 1.0 Ultra for all main results (the paper also reports a GPT-4 chain-of-thought comparison, the 53.6% row above), and the result has not been independently replicated. The architectural conclusion below is robust to both — it does not depend on the exact 84, only on "executed ≫ in-head."
 
 **This settles the architecture of the entire reasoning layer, and every requirement below is downstream of it:**
 

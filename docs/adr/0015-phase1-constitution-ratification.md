@@ -44,13 +44,21 @@ hypotheses with adjustment sets, lags, and windows fixed and stamped before any
 new data accumulates. The waiting clock starts day one, and the old data does the
 job it is good for — generating hypotheses, never confirming them.
 
-**Amendment 2 — RULE-30.** Records the revisit trigger (if WebKit 215884 is fixed
-in iOS 19+, the rule is re-opened, not silently kept) and strengthens the
-rationale beyond "bug workaround": Apple's on-device Foundation Model is reachable
-from Shortcuts with structured output and no developer account, and on-device
-SpeechAnalyzer beats Whisper (14.0% WER at 70× realtime). Shortcuts-owned capture
-is free, private, offline, and better — advantages that survive the bug fix, so a
-future session must weigh them rather than reverse the rule reflexively.
+**Amendment 2 — RULE-30.** Records the revisit trigger (if iOS/WebKit ships
+persistent media-permission grants for home-screen PWAs, the rule is re-opened,
+not silently kept) and strengthens the rationale beyond "bug workaround": Apple's
+on-device Foundation Model is reachable from Shortcuts with structured output and
+no developer account, and Apple's on-device SpeechTranscriber beats WhisperKit
+base.en on **accuracy** (14.0 vs 15.2 WER; WhisperKit is the *faster* one, 111×
+vs 70× realtime). Shortcuts-owned capture is free, private, offline, and — on
+accuracy — better; advantages that survive the platform fix, so a future session
+must weigh them rather than reverse the rule reflexively.
+*(Correction 2026-08-23: the first draft cited WebKit bug 215884 as the revisit
+trigger and the underlying cause — a misattribution; 215884 concerns
+hash-navigation prompt recurrence and is resolved. Non-persistent grants are a
+separate, still-unfixed WebKit request; no specific ticket is cited to avoid
+repeating the error. Also corrected: WhisperKit, not Apple, is faster — Apple
+wins on accuracy only.)*
 
 ## Consequences
 
@@ -59,7 +67,7 @@ future session must weigh them rather than reverse the rule reflexively.
 - RULE-19's one-time exploratory pass becomes a concrete Phase-6 deliverable (the
   hypothesis register authored before results are seen — it aligns with ROADMAP
   Phase 6's "hypothesis library re-authored before any results are seen").
-- RULE-30 carries a live revisit trigger tied to an external event (iOS 19 /
-  WebKit 215884); a future session that sees the bug fixed must re-open, not
-  auto-keep.
+- RULE-30 carries a live revisit trigger tied to an external event (iOS/WebKit
+  shipping persistent media-permission grants for home-screen PWAs); a future
+  session that sees it land must re-open, not auto-keep.
 - No rule was added or removed here, so the 30-cap is untouched.

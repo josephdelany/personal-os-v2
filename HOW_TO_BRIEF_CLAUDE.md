@@ -317,18 +317,21 @@ alter what gets built.
 Communications*, 12 Jan 2026), a language model reasoning over personal health
 data in context with no tools answered **22%**; one-shot generated-and-executed
 code reached **74%**; the full agentic loop reached **84%**. Executing code at
-all buys the large gap; the loop adds the last ~10 points. One model only
-(Gemini 1.0 Ultra), not yet replicated — but no amount of prompting care closes
+all buys the large gap; the loop adds the last ~10 points. Gemini 1.0 Ultra for
+all main results (a GPT-4 chain-of-thought comparison at 53.6% is also reported),
+not yet replicated — but no amount of prompting care closes
 the in-head gap. Therefore: all math is
 executed and stored, the model plans the computation and narrates the result,
 and every rendered numeral must be present in the result set it was given. This
 single finding settles the entire architecture, and it is now RULE-11 and
 ADR-0001.
 
-**2. Your "allow for this website" problem has a named cause.** WebKit bug
-215884: microphone and camera grants are **not persisted** for a PWA launched
-from the home screen — still true through iOS 18.5. It is not you, and no
-amount of tapping fixes it. The fix is architectural: **iOS Shortcuts own all
+**2. Your "allow for this website" problem has a real cause.** On iOS,
+microphone and camera grants are **not persisted** for a PWA launched from the
+home screen — a still-unfixed WebKit limitation. (No bug number: the ticket once
+cited here, 215884, was a misattribution about hash-navigation prompts and is
+resolved; persistent grants are a separate unfixed request.) It is not you, and
+no amount of tapping fixes it. The fix is architectural: **iOS Shortcuts own all
 media capture**, the PWA reads and writes long-form text only, and a
 `getUserMedia` call anywhere in client code fails the build. That is RULE-30.
 Separately, iOS "Run Immediately" with "Notify When Run" off gives genuinely
@@ -442,9 +445,10 @@ blocks the commands outright.
 **The productivity illusion.** People systematically misjudge their own speed —
 self-judged productivity is unreliable in exactly this setting. Trust the gates
 and the tests, not the feeling of momentum. This applies to me as much as to you.
-(An earlier draft cited METR's 2025 "19% slower with AI" trial; that design was
-retracted 2026-02-24 for selection bias, so the number is dropped — the durable
-claim stands on its own.)
+(METR's 2025 trial found developers were ~19% slower with AI while believing they
+were faster; METR is redesigning the experiment for selection effects — 30–50% of
+*developers* reported withholding some tasks — but the result stands as published,
+nothing was retracted.)
 
 ---
 

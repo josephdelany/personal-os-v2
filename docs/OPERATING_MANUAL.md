@@ -183,14 +183,13 @@ it is the best two sessions this project can spend.
 
 ## 5. Cadence, realistically
 
-Two or three sessions a week is a better plan than eight in a weekend. People
-systematically misjudge their own speed — the felt sense of productivity is
+Two or three sessions a week is a better plan than eight in a weekend. METR's
+2025 randomised trial found experienced developers were **19% slower** using AI
+assistance while believing they were faster — the perception of speed is
 unreliable in exactly this setting, so pace against completed gates rather than
-against how productive a session felt. (An earlier draft cited METR's 2025
-"19% slower with AI" trial for this; that experiment's design was retracted on
-2026-02-24 for severe selection bias — developers withheld 30–50% of tasks — so
-the number is removed. The durable claim it was standing in for — self-judged
-speed is unreliable, pace against gates — stands on its own.)
+against how productive a session felt. (METR is redesigning the experiment due
+to selection effects — 30–50% of *developers* reported withholding some tasks —
+but the 2025 result stands as published; nothing was retracted.)
 
 Expect Phase 0 through 3 — safety, doctrine, spine, Big Mac end to end — to be
 the first month. When that works, the rest is breadth over a proven spine, and

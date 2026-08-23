@@ -26,23 +26,26 @@ which attributes the whole gap to executing code. PHIA (*Nature Communications*,
 **12 Jan 2026**) actually reports three conditions: **22%** no-tools in-context,
 **74%** one-shot generated-and-executed code, **84%** the full ReAct agentic
 loop. Executing code at all buys the large gap (22→74); the loop adds ~10 more
-(74→84). It tested **one model only (Gemini 1.0 Ultra)** and has **not been
-replicated**. RULE-11's text now states the three-way breakdown and the caveats.
+(74→84). It used **Gemini 1.0 Ultra for all main results** (the paper also
+reports a GPT-4 chain-of-thought comparison at 53.6%) and has **not been
+independently replicated**. RULE-11's text now states the three-way breakdown and the caveats.
 The conclusion — the model plans and narrates, never computes — is unchanged and
 if anything better supported.
 
 **2. RULE-17 — causal-discovery distrust strengthened (C3).** RULE-17 keeps
 PCMCI+/VAR-LiNGAM/regularized-VAR output as `CANDIDATE`-only, never shown. The
-justification was understated. CausalDynamics (NeurIPS 2025,
-arXiv:2505.16620) scored **PCMCI+ at AUROC ~0.47 on even simple systems — worse
-than chance.** RULE-17 now cites it: the distrust is empirical, not stylistic.
+justification was understated. CausalDynamics (NeurIPS 2025, arXiv:2505.16620;
+14,693 graphs) scored **PCMCI+ at chance on its simple tier** (AUROC
+0.52/0.50/0.49; coupled systems fare better, ~0.67). RULE-17 now cites it: the
+distrust is empirical, not stylistic — at chance on the easy case is enough.
 
 **3. New RULE-13 — the model never selects the temporal specification (C4).**
 Lag structures, window definitions, aggregation choices, and adjustment sets
 come from the pre-registered hypothesis and the metric registry, never from the
-model at query time. Justification: **HEARTS (arXiv:2603.06638)** found code
-execution fixes arithmetic but **not** temporal reasoning — models fall back on
-heuristics and degrade as temporal complexity rises. So the RULE-11 remedy
+model at query time. Justification: **HEARTS (ICML 2026 poster; arXiv:2603.06638)**
+found code execution fixes arithmetic but **not** temporal reasoning — the
+degradation persists even under a CodeAct code-execution harness, models falling
+back on heuristics as temporal complexity rises. So the RULE-11 remedy
 (execute, don't reason in-head) does not cover temporal-structure choices; those
 must be fixed data, not model output. Tier TEST + REVIEW.
 
@@ -67,9 +70,11 @@ so the set stays contiguous RULE-00..RULE-30 at exactly 30 numbered rules.
   Phase 6 — so the rule is TEST + REVIEW with the TEST owed at that time.
 - Anyone who referenced "RULE-13" as the render/no-compute rule must now read
   RULE-14; the reviewer map and this ADR record the move.
-- METR's retracted "19% slower" (OPERATING_MANUAL §5) is a fourth correction
-  from the same batch but touches no constitution rule; it is recorded there and
-  in PROGRESS, not here.
+- METR's "19% slower" (OPERATING_MANUAL §5) is a fourth item from the same batch
+  but touches no constitution rule; recorded there and in PROGRESS, not here.
+  *(Correction 2026-08-23: an intermediate edit wrongly called this result
+  "retracted" — nothing was retracted; the 2025 result stands as published and
+  METR is only redesigning the experiment for selection effects. Fixed.)*
 
 ## Alternatives considered
 
@@ -81,3 +86,23 @@ so the set stays contiguous RULE-00..RULE-30 at exactly 30 numbered rules.
   it inside RULE-11 would hide it from the reviewer's boundary-rule pass.
 - **Retire a different rule.** The former RULE-13 was the only genuine corollary;
   every other Section-II rule carries weight not covered elsewhere.
+
+## Correction 2026-08-23 — post-hoc source verification
+
+After this ADR was accepted, Joe verified the citations against primary sources
+and three of the four were wrong as first written. The body above is corrected
+inline; the errors are recorded here so the mistake is not silently erased:
+
+- **CausalDynamics.** First written "AUROC ~0.47 — worse than chance." Wrong:
+  PCMCI+ on the simple tier is 0.52/0.50/0.49 — **at chance, not below it** —
+  over 14,693 graphs (585 simple, 14,096 coupled, 12 climate); coupled ~0.67 is
+  fine. The rule's conclusion (never show it) is unchanged: at chance is enough.
+- **PHIA.** "One model only" → **Gemini 1.0 Ultra for all main results** (a GPT-4
+  chain-of-thought comparison at 53.6% is also in the paper). 4,000 is the
+  objective benchmark, not the total question count. The 22/74/84 figures and the
+  12 Jan 2026 date were verbatim correct.
+- **HEARTS.** Upgraded from "arXiv preprint" to **ICML 2026 poster**; the
+  temporal-reasoning degradation persists even under a CodeAct code-execution
+  harness. RULE-13 is well founded.
+- **METR** (recorded in OPERATING_MANUAL, not a rule): the "retracted" framing was
+  false — see the corrected Consequences bullet above.

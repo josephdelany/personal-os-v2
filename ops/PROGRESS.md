@@ -553,4 +553,64 @@ also flagged that it could not verify the *external truth* of the cited numbers
   retraction against the primary sources — took Joe's cited figures as given, as
   instructed ("all three are mine to fix, not yours to defend").
 
-**Commit.** (pending — this Phase-1 commit)
+**Commit.** bf85ede
+
+---
+
+## 2026-08-23 — Session 5 corrections: Phase-1 citations externally verified, three were wrong
+
+**Attempted.** Joe verified the Phase-1 citations against primary sources after
+the fact (commit bf85ede). Three were wrong and are live rules citing false
+facts, so fixed before Phase 2; two more refined. No implementation code.
+
+**Three that were WRONG (fixed):**
+1. **METR — the "retracted" framing was false, and it was mine, not Joe's.**
+   Nothing was retracted. The post is real (metr.org/blog/2026-02-24-uplift-update/)
+   and the **19% slowdown stands as published**; only the *future* experiment is
+   being redesigned for selection effects. Also: 30–50% is the share of
+   *developers* who reported withholding some tasks, not the share of tasks. In an
+   intermediate edit I had *removed* the 19% as "retracted" — restored and
+   reframed in OPERATING_MANUAL §5 and HOW_TO_BRIEF_CLAUDE.md.
+2. **RULE-30 / WebKit 215884 — wrong ticket, and resolved.** 215884 covers
+   prompt recurrence on hash navigation (CONFIGURATION CHANGED, 3 Feb 2026), not
+   non-persistent grants. Removed the citation everywhere (CONSTITUTION, ADR-0015,
+   specs/02, HOW_TO_BRIEF, DECISIONS) and stated the behaviour without a bug
+   number rather than risk a second misattribution (candidate tickets 185448 /
+   220416 / 180551 not verified). The rule stands; the revisit trigger is now
+   "iOS/WebKit ships persistent PWA media grants," not a ticket number.
+3. **CausalDynamics — "below chance at 0.47" was wrong.** PCMCI+ simple tier is
+   0.52/0.50/0.49 — **at chance, not below** — over 14,693 graphs (585 simple,
+   14,096 coupled, 12 climate); coupled ~0.67 is fine. Restated as "at chance" in
+   RULE-17, ADR-0014, DECISIONS.
+
+**Two refined (were not strictly wrong):**
+4. **PHIA** — "one model only" → "Gemini 1.0 Ultra for all main results" (a GPT-4
+   CoT comparison at 53.6% is in the paper); 4,000 is the objective benchmark, not
+   the total. 22/74/84 and the 12 Jan 2026 date were verbatim correct. Fixed in
+   RULE-11, CLAUDE.md, ADR-0001 addendum, ADR-0014, specs/04-reasoning, HOW_TO_BRIEF.
+5. **HEARTS** — upgraded "arXiv preprint" → "ICML 2026 poster"; degradation
+   persists under a CodeAct code-execution harness. RULE-13 well founded.
+6. **Speech** — corrected the implication: Apple SpeechTranscriber wins on
+   **accuracy** (14.0 vs 15.2 WER); **WhisperKit is faster** (111× vs 70×). No doc
+   now implies Apple won on speed.
+7. The "on-device model can't take images in Shortcuts" claim was never asserted
+   in any doc (checked), so nothing to attribute or drop.
+
+**Works.** `validate_layout` 32/0/0; `test_guard` 24/0; secret scan clean. All
+wrong-form strings ("worse than chance", "one model only", bare "SpeechAnalyzer
+beats Whisper", "retracted") now appear only inside dated correction notes that
+flag them as errors. ADR-0014 and ADR-0015 carry inline fixes plus correction
+addenda; ADR bodies were not silently rewritten.
+
+**Requirement IDs touched.** None — citation corrections to doctrine.
+
+**WHAT I DID NOT DO.**
+- Did **not** verify which WebKit ticket (185448/220416/180551) actually describes
+  non-persistent grants — stated the behaviour without a number to avoid a second
+  misattribution; a verified ticket can be added later.
+- Did **not** independently re-verify the *corrected* figures against primary
+  sources either — applied Joe's verified corrections as given.
+- Did **not** edit the committed Session-5 entry above (append-only); its
+  "retracted METR" line is superseded by this entry.
+
+**Commit.** (pending — this corrections commit)

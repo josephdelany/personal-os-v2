@@ -119,8 +119,9 @@ The language layer receives result rows and renders them. Evidence (PHIA,
 *Nature Communications*, 12 Jan 2026): reasoning in-context with no tools scored
 22%; one-shot generated-and-executed code scored 74%; the full agentic loop
 scored 84%. Executing code at all buys the large gap (22→74); the loop adds the
-last ~10 points (74→84). One model only (Gemini 1.0 Ultra), not yet replicated —
-the architectural conclusion holds regardless. See ADR-001 and ADR-0014.
+last ~10 points (74→84). Gemini 1.0 Ultra for all main results (the paper also
+reports a GPT-4 chain-of-thought comparison at 53.6%); not yet independently
+replicated — the architectural conclusion holds regardless. See ADR-001, ADR-0014.
 
 **RULE-12 — Compute happens exactly once, in one place, stamped.**
 *(Tier: SQL + REVIEW)*
@@ -135,8 +136,9 @@ Lag structures, window definitions, aggregation choices, and adjustment sets
 come from the pre-registered hypothesis and the metric registry — never from the
 model at query time. The model may plan and narrate (RULE-11); the temporal and
 causal-analysis parameters are fixed data, not model output. Evidence: HEARTS
-(arXiv:2603.06638) found code execution fixes arithmetic but **not** temporal
-reasoning — models fall back on heuristics and degrade as temporal complexity
+(ICML 2026 poster; arXiv:2603.06638) found code execution fixes arithmetic but
+**not** temporal reasoning — the degradation persists even under a CodeAct
+code-execution harness, models falling back on heuristics as temporal complexity
 rises. See ADR-0014. *(This rule replaced the former RULE-13, "the PWA renders,
 it does not compute," which merged into RULE-14 to hold the 30-rule cap.)*
 
@@ -167,8 +169,10 @@ build.
 Automated structure-discovery output — PCMCI+, VAR-LiNGAM, regularized VAR —
 enters the system only as `CANDIDATE` and never reaches a screen. These are
 hypothesis generators, not findings. The distrust is empirical, not stylistic:
-CausalDynamics (NeurIPS 2025, arXiv:2505.16620) scored PCMCI+ at AUROC ~0.47 on
-even simple systems — worse than chance. See ADR-0014.
+CausalDynamics (NeurIPS 2025, arXiv:2505.16620; 14,693 graphs) scored PCMCI+
+**at chance** on its simple tier (AUROC 0.52 / 0.50 / 0.49); coupled systems fare
+better (~0.67). At chance on the easy case is reason enough never to show it. See
+ADR-0014.
 
 **RULE-18 — `INSUFFICIENT` is a returnable, displayable answer.**
 *(Tier: TEST)*
@@ -267,18 +271,23 @@ before the file is tracked.
 
 **RULE-30 — iOS Shortcuts owns all media capture. The PWA never calls
 `getUserMedia`.** *(Tier: LINT)*
-WebKit bug 215884 — microphone and camera grants are not persisted for a PWA
-launched from the home screen, through iOS 18.5. This is the direct cause of
-the repeated "allow for this website" prompts. Shortcuts capture audio and
-photos and post them; the PWA reads, and writes long-form text only. A call to
-`getUserMedia` in client code fails the build.
+On iOS, microphone and camera permission grants are not persisted for a PWA
+launched from the home screen — a real, still-unfixed WebKit limitation, the
+direct cause of the repeated "allow for this website" prompts. (No bug number is
+cited: the ticket previously named here, 215884, was a misattribution — it covers
+prompt recurrence on hash navigation and is resolved — and persistent grants
+across reloads are, per a WebKit engineer, a separate unfixed request.) Shortcuts
+capture audio and photos and post them; the PWA reads, and writes long-form text
+only. A call to `getUserMedia` in client code fails the build.
 The case is stronger than a bug workaround: Apple's on-device Foundation Model is
 reachable from Shortcuts with structured output and no developer account, and
-on-device SpeechAnalyzer now beats Whisper (14.0% WER at 70× realtime). So
-Shortcuts-owned capture is free, private, offline, and *better* — not merely the
-option left after a bug. **Revisit trigger:** if WebKit 215884 is fixed in
-iOS 19+, this rule is re-opened, not silently kept — but the free/private/offline
-on-device advantages survive the fix and must be weighed then.
+Apple's on-device SpeechTranscriber beats WhisperKit base.en on **accuracy**
+(14.0 vs 15.2 WER; WhisperKit is the *faster* one, 111× vs 70× realtime). So
+Shortcuts-owned capture is free, private, offline, and — on accuracy — *better*,
+not merely the option left after a bug. **Revisit trigger:** if iOS/WebKit ships
+persistent media-permission grants for home-screen PWAs, this rule is re-opened,
+not silently kept — but the free/private/offline on-device advantages survive
+that fix and must be weighed then.
 (Amended 2026-08-23, Phase-1 ruling; ADR-0015.)
 
 ---
