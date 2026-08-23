@@ -54,7 +54,7 @@ Twelve are derived from real archived tables:
 | `vital_sample` | `health__hr_samples`, `health__rhr`, `health__spo2`, `health__resp_rate`, `health__wrist_temp`, `health__walking_hr` |
 | `heart_rate_variability` | `health__hrv_windows` |
 | `body_measurement` | `pos__body_composition` |
-| `activity_sample` | `pos__daily_health` / `intraday` activity series (steps, distance, flights, active energy) |
+| `activity_sample` | `intraday` activity series (steps, distance, flights, active energy) — the *sample* stream, not the `pos__daily_health` daily rollup (see guess #5) |
 | `location_fix` | `locations` |
 | `web_visit` | `pos__chrome_history` |
 | `media_play` | `pos__youtube_history` |

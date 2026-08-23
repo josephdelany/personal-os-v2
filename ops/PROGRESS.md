@@ -806,3 +806,56 @@ Most tempted to skip: writing the second (post-apply) reviewer given everything 
 already green — it found the M1 lane hole, which was real.
 
 **Commit.** `3a7b10d` on `main` (this note recorded in a small follow-up commit).
+
+## 2026-08-23 — Session 8 (Phase 2, session 3): INSERT-path proofs, core. guard, REQ-ONT taxonomy
+
+**Attempted.** Three director tasks, in order: (1) OQ-21 — clarify RULE-01 to permit
+rolled-back constraint probes, then behaviourally prove the spine's INSERT path;
+(2) OQ-24 — extend the guard hook's append-only regex to `core.`; (3) OQ-23/OQ-16 —
+write the REQ-ONT ontology spec closing the `atoms.kind`/`entities.entity_type`
+taxonomies, derived not invented, and enforce with a live CHECK migration. session-start
+ran in full first; both gates green at start, no regression.
+
+**Works (evidence is command output pasted into the session-end record).**
+- **Task 1 (OQ-21, ADR-0022).** RULE-01 clarified in `docs/CONSTITUTION.md` + `CLAUDE.md`:
+  a test MAY INSERT fixtures into a disposable schema (never `core`/`public`) inside a
+  rolled-back transaction. New `tests/test_spine_insert_paths.py` (11 tests) proves the
+  acceptance/coercion paths last session could only verify structurally: a legitimate
+  **`observed_absent` row and a valid-interval-only nutrition estimate INSERT** (the two
+  Joe named), the value/presence/lane CHECKs reject (RULE-05/07/08, ADR-0002),
+  `force_recorded_at` overrides a client-backdated `recorded_at` to now() (ADR-0002/0019),
+  `predictions` accepts binary-only and continuous-only but rejects both/neither
+  (ADR-0021), and `hypothesis_register` allows a status-only UPDATE but rejects a frozen
+  prereg column (REQ-INF-103). **Full suite 15 passed.**
+- **Task 2 (OQ-24).** `guard-destructive.sh` line 13 regex `(public\.)?` → `(public\.|core\.)?`;
+  `test_guard.sh` gains `UPDATE core.atoms` and `delete from core.raw_captures` BLOCK
+  cases. **26 passed / 0 failed.** (Joe authorised the self-edit explicitly; the auto-mode
+  classifier had correctly refused it last session.)
+- **Task 3 (OQ-23, ADR-0023, REQ-ONT).** `specs/05-ontology/requirements.md`
+  (REQ-ONT-001..014) closes `atoms.kind` to **19 members** (7 spec/ADR-cited, 12
+  archive-derived) and `entities.entity_type` to **6**, derived from the 34 archived
+  tables + cited specs. Migration `0014_ontology_checks.sql` adds the CHECKs (not native
+  ENUM — the set grows; CHECK is a cheap forward migration). **Applied live** over the
+  empty `core` tables after a copy-first dry-run of all 86 statements (rolled back);
+  live `core.atoms`/`core.entities` still **0 rows** (no fabrication). `REQUIREMENTS_INDEX`
+  now 559 reqs / 4 spec files. ADR-0022/0023 written + indexed in DECISIONS.md.
+- Gates after every edit and post-apply: `validate_layout` **33/0/0**, `test_guard`
+  **26/0**, `check_invariants --core core` **ALL PASS** (RULE-04 PENDING — OQ-22).
+
+**Director rulings executed this session.** (A) OQ-21 → probe clarification, option (a).
+(B) OQ-23 → requirements **and** the enforcing CHECK now, over the empty tables.
+(C) Taxonomy → proceed with the derived 19-kind (7 spec/ADR-cited + 12 archive-derived,
+`context_fact` among the 12) / 6-entity-type set, the seven guesses recorded in ADR-0023.
+(D) OQ-24 → explicitly authorised the guard self-edit.
+
+**Does not work / deferred.** RULE-04 still cannot run (Phase-5 `derived_measures`, OQ-22).
+No entity resolution algorithm (Phase 4). `REQ-NFR` still unwritten, so OQ-16 only
+half-resolved. `estimate_method` left as open TEXT (owned by REQ-NUT, out of scope).
+features.json untouched (write-locked; no entry legitimately flips).
+
+**Requirement / rule IDs touched.** New: REQ-ONT-001..014. Proven by named test:
+RULE-05, RULE-07, RULE-08, ADR-0002, ADR-0019 (force_recorded_at), ADR-0021, REQ-INF-103,
+REQ-ONT-001, REQ-ONT-002. Doctrine: RULE-01 (clarified, ADR-0022). Enforced in schema:
+REQ-ONT-001/002 (migration 0014). No `ops/features.json` entry moved.
+
+**Commit.** `6571c7a` on `main`.

@@ -1,6 +1,6 @@
 # 05 — ONTOLOGY — REQUIREMENTS (EARS)
 
-**Status:** COMPLETE — 14 requirements, 0 acceptance scenarios (the taxonomy is
+**Status:** COMPLETE — 15 requirements, 0 acceptance scenarios (the taxonomy is
 proven by a SQL CHECK plus behavioural INSERT-path tests, ADR-0022, not by Gherkin).
 **Scope:** the closed vocabularies of the spine — the `atoms.kind` taxonomy, the
 `entities.entity_type` taxonomy, and the controlled-vocabulary columns of an atom.
@@ -87,9 +87,15 @@ unlogged day never collapse into the same value (RULE-07).
 of `extracted`, `inferred`, `defaulted`.
 
 **REQ-ONT-010** (Ubiquitous) The atoms schema SHALL record aggregation legality as
-`state_class` ∈ {`measurement`, `total`, `total_increasing`}, and SHALL record a
-stored clock time using a `value_type` of `time_from_midnight` or `time_from_midday`
-so that a time crossing midnight is not averaged as a raw number.
+`state_class` ∈ {`measurement`, `total`, `total_increasing`}, so that the database
+can refuse an aggregation the class forbids.
+
+**REQ-ONT-015** (Event-driven) WHEN the extraction service stores an atom whose
+value is a clock time, the extraction service SHALL set `value_type` to
+`time_from_midnight` or `time_from_midday`, so that a time crossing midnight is not
+averaged as a plain number. (`value_type` is deliberately not a closed CHECK — the
+set of value types is open — so this is an extraction-service obligation proven by
+test in Phase 3, not a schema guarantee, and REQ-ONT-010 is the schema half.)
 
 **REQ-ONT-011** (Unwanted behaviour) IF an atom's presence is `unknown`, THEN the
 database SHALL reject any row that also carries a value, so that "not known" is never

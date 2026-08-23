@@ -22,11 +22,11 @@ response is observable. Numbers, never adjectives.
 
 ---
 
-## Current coverage — 559 requirements, 36 scenarios
+## Current coverage — 560 requirements, 36 scenarios
 
 | Prefix | Count | Subsystem | File |
 |---|---|---|---|
-| `REQ-ONT` | 14 | Ontology — the closed `atoms.kind` and `entities.entity_type` taxonomies, atom controlled vocabularies | `specs/05-ontology/requirements.md` |
+| `REQ-ONT` | 15 | Ontology — the closed `atoms.kind` and `entities.entity_type` taxonomies, atom controlled vocabularies | `specs/05-ontology/requirements.md` |
 | `REQ-CAP` | 97 | Capture — Shortcuts ingress, transcription, extraction, prompting | `specs/02-capture-nutrition/requirements.md` |
 | `REQ-NUT` | 57 | Nutrition resolution — USDA lookup, portions, intervals | `specs/02-capture-nutrition/requirements.md` |
 | `REQ-FIN` | 165 | Finance — ingestion, merchant resolution, usage inference, restraint | `specs/03-finance/requirements.md` |

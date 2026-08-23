@@ -219,8 +219,19 @@ inconsistent values that a later CHECK would reject). Settles it: Joe authoring 
 ruling the `kind` and `entity_type` taxonomies (part of the unwritten ontology spec,
 OQ-16), after which a forward migration adds the CHECK/enum. Raised 2026-08-23.
 
-**OQ-24 — The guard hook's append-only regex matches `public.` but not `core.`
-schema-qualified table names.**
+**OQ-24 — RESOLVED 2026-08-23.** Ruling (Joe): the guard self-edit was authorised
+explicitly this session (the auto-mode classifier had correctly refused it last
+session). Done: `.claude/hooks/guard-destructive.sh:13` regex is now
+`(public\.|core\.)?`, and `tools/test_guard.sh` blocks `UPDATE core.atoms` and
+`delete from core.raw_captures` (26/0). **Known residual, honestly bounded (per the
+OQ-15 stance that a shell regex cannot be exhaustive):** the regex still misses
+`UPDATE ONLY core.atoms` and quoted-identifier forms (`"core"."atoms"`); the
+DB-level `reject_mutation()` trigger catches all of these, so enforcement is intact
+and this is dev-time defence-in-depth only. Not chasing regex completeness would
+give false assurance (OQ-15). Original question retained below.
+
+**OQ-24 (original) — The guard hook's append-only regex matches `public.` but not
+`core.` schema-qualified table names.**
 Why open: `.claude/hooks/guard-destructive.sh` blocks `UPDATE/DELETE … (public\.)?
 (atoms|raw_captures|entities|links|findings)`, but the new spine lives in `core`, so
 `UPDATE core.atoms …` is **not** blocked by the dev-time guard. The DB-level
@@ -245,6 +256,27 @@ confirmation job (REQ-INF-104/105) can be implemented against the spine as built
 whether a reconciliation ADR is needed first. Settles it: an ADR mapping the
 reasoning-spec bitemporal vocabulary onto the spine's, written before Phase 6.
 Raised by the session-end reviewer, 2026-08-23.
+
+**OQ-26 — The finance spec references atom column names the spine does not have.**
+Why open: REQ-FIN-001 (specs/03-finance/requirements.md:31) says a transaction atom
+carries `lane` and is queryable on `atoms.local_date`, but the built spine renamed
+these — the value's lane is `estimate_method` (+ `state_class`) and the day axis is
+`subject_day` (ADR-0019). This is the same spec/spine drift as OQ-25 but in the
+finance spec, and it predates this session (surfaced while deriving REQ-ONT). Depends
+on it: whether Phase-3 finance ingest can be written against the spine as built, or
+whether REQ-FIN needs a column-name reconciliation first. Settles it: an edit to the
+affected REQ-FIN statements (or a mapping ADR) aligning `lane`→`estimate_method` and
+`local_date`→`subject_day` before finance ingest is built. Raised 2026-08-23.
+
+**OQ-27 — Three `atoms.kind`/`entity_type` boundary calls are guesses, not rulings.**
+Why open: ADR-0023 and REQ-ONT (`specs/05-ontology/requirements.md` §UNRESOLVED,
+O-Q1/2/3) record three membership boundaries decided by derivation, not by Joe:
+`mood` vs `self_report`; `media_play` vs `screen_session` and the `heart_rate_variability`
+split from `vital_sample`; and whether `entity_type` needs `brand`/`product` as a 7th
+type. The taxonomy is enforced (migration 0014), so a change is now a forward migration,
+not a free edit. Depends on it: whether Phase-3 extraction emits kinds that match Joe's
+mental model. Settles it: Joe ruling each boundary once real extraction exercises it, or
+accepting the derived defaults. Not blocking. Raised 2026-08-23.
 
 ---
 
