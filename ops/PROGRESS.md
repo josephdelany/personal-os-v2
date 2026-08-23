@@ -805,4 +805,4 @@ no code; `online-fdr`/`scoringrules` dependency ADRs (RULE-28) still owed before
 Most tempted to skip: writing the second (post-apply) reviewer given everything was
 already green — it found the M1 lane hole, which was real.
 
-**Commit.** `0b8afa0` on `main`.
+**Commit.** `3a7b10d` on `main` (this note recorded in a small follow-up commit).
