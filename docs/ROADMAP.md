@@ -14,13 +14,18 @@ with output shown. **RULE-00: never weaken a gate to make it pass.**
 
 ## Phase 0 — Safety. Today, before anything else.
 
-Archive all 14 legacy tables and the existing feature store to Parquet, and
-verify by row count, **before** any backfill touches anything. Roughly two
-years of browsing, media, health, location and spend history is irreplaceable.
+Archive **all live tables and all local legacy sources, count verified at
+archive time** (not a fixed number — the original "14 legacy tables" was an
+estimate written before anyone counted; the live DB held 34 `public` DATA
+tables at first archive, 2026-08-23, plus 29 local-source entities already in
+`_legacy_snapshot/manifest.json`). A number nobody checked is how a gate passes
+while missing data. Archive to Parquet and verify by row count, **before** any
+backfill touches anything. Roughly two years of browsing, media, health,
+location and spend history is irreplaceable.
 Move all 19 previous specification files to `archive/`, read-only, in one
 commit, unedited. Stand up `ops.runs`. Add the Supabase 7-day keepalive and the
 GitHub Actions 60-day keepalive — either one silently ends the project.
-Decide OQ-01 (credential) and OQ-02/OQ-03 (repository).
+Decide OQ-01 (credential — **RESOLVED 2026-08-23**) and OQ-02/OQ-03 (repository).
 
 **Gate 0:** Parquet archives exist and row counts match source. `archive/` is
 committed and read-only. Both keepalives have run once on schedule and left a

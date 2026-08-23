@@ -16,12 +16,7 @@ settle it.**
 
 ## Architecture and operations
 
-**OQ-01 — Is the Supabase credential rotated?**
-Why open: `***REMOVED-DEAD-CREDENTIAL***` was exposed in the previous build folder and has not
-been rotated. Joe's ruling: *"its internal. its just finish the project and ill
-close everything."* Recorded once, not raised again.
-Depends on it: nothing technically; it is a standing exposure.
-Settles it: Joe rotating it, or explicitly closing this as accepted risk.
+**OQ-01 — RESOLVED 2026-08-23. See RESOLVED section below.**
 
 **OQ-02 — What is the repository name and where does it live?**
 Depends on it: every CI check, every keepalive, the Actions budget.
@@ -167,9 +162,56 @@ spec defines — in which case those three features need their specs written or
 their ids corrected. No entry may be edited to describe what was built (features.json
 `_comment`), so option (b) means writing the specs, not renaming the features.
 
+**OQ-17 — The previous build is still live and writing to the database v2 is
+rebuilding. Coexist, migrate, or tear down?**
+Why open: the live DB has 8 active `pg_cron` jobs (health_staleness_check,
+brief_readiness_tick, day-narrative-tick, enumerate_insights,
+generate_betterment_plan, refresh_metric_catalog, run_coaches, log_forecast), all
+succeeding as of 2026-08-23, writing tables v2 will own (events, signals,
+insights, metric_catalog, …). Discovered this session while checking for an
+existing keepalive. Nothing in any doc says whether v2 runs alongside the old
+system, migrates off it, or tears it down first. Two direct consequences already
+realised: (a) the Phase-0 Parquet archive is a point-in-time snapshot of a
+*mutating* source, already stale for the busy tables; (b) Phase 2's "spine, in
+code" partially already exists as this old stack.
+Depends on it: whether Phase-2 migrations target an empty schema or must
+coexist with live writers; whether the archive must be re-taken at a quiesced
+moment; the meaning of "backfill" in Gate 2.
+Settles it: Joe deciding the disposition of the old cron stack (freeze / migrate
+/ drop) and whether the archive needs a quiesced re-run.
+
+**OQ-18 — There is no workout/strength history anywhere, yet strength is the
+system's stated objective function.**
+Why open: `public.workouts` is 0 rows live, and the July backup CSV was empty —
+so no workout data exists in either source. ROADMAP Phase 6 names strength and
+body composition as the objective function, and the previous hypothesis library
+was faulted for near-zero coverage of e1RM/sets/RPE/lean mass. If workouts are
+never captured, the whole objective is unmeasurable.
+Depends on it: whether a capture path for workouts must exist before Phase 5/6
+derived measures and hypotheses are meaningful.
+Settles it: Joe confirming whether strength is being logged at all (and where),
+or accepting that workout capture is net-new work the roadmap must schedule.
+
 ---
 
 ## RESOLVED
+
+**OQ-01 — RESOLVED 2026-08-23.** *Is the Supabase credential rotated?*
+Finding: the previously-exposed password is DEAD — it fails pooler auth with
+`28P01` (tenant found, password rejected), so it had already been rotated
+despite the original "not rotated" premise. A working credential was supplied
+this session and lives only in `.claude/settings.local.json` under `env`
+(gitignored; `lib/db.py` reads it from there). The *live* credential is written
+into no committed doc; the dead prior value is deliberately not reproduced here
+either. Ruling (Joe, 2026-08-23): **treat the live credential as burned — it
+entered the chat transcript in the course of being set, so the transcript now
+carries a live secret — and rotate it again once the project is done and
+everything is closed.** That final rotation is the standing action; until then
+the transcript exposure is accepted risk. No further raising of this question.
+Note (2026-08-23): the *dead* prior value is present in git history (commit
+`990bc97`, the skeleton commit), so making the repo public (OQ-03) would expose a
+dead string in history; scrubbing history is optional given the value is dead but
+worth weighing when OQ-03 is decided.
 
 **OQ-05 — RESOLVED 2026-08-15.** *What is the interval width for `weighed` food?*
 Ruling: ±10%, equal to `labelled`, marked provisional in REQ-NUT-035 pending a

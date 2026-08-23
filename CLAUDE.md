@@ -1,13 +1,9 @@
 # Personal OS
 
-One private database of everything about my life, with a statistical reasoning
-layer on top of it. Supabase Postgres + Python jobs in GitHub Actions +
-Cloudflare Workers AI + iOS Shortcuts for capture + a PWA that renders.
-Single user: me (Joe). Built by you, directed by me.
-
 I am not an engineer. I cannot verify by reading code. I verify by running
 things, reading outputs, and independent adversarial review. Design for that —
-if the only proof a thing works is that you say so, it is not proven.
+if the only proof a thing works is that you say so, it is not proven. Single
+user, directed by me (Joe).
 
 ## Current phase
 
@@ -23,9 +19,9 @@ it, stop and tell me rather than reaching forward.
 - `docs/OPEN_QUESTIONS.md` — undecided. Ask me. Do not decide these alone.
 - `ops/PROGRESS.md`        — the last three entries.
 
-`archive/` holds the previous 617 KB specification. It is read-only history.
-Never load it unless I ask, and never treat it as authority — where archive
-and live documents disagree, the live document wins, always.
+`archive/` is read-only history. Never load it unless I ask, and never treat it
+as authority — where archive and live documents disagree, the live document
+wins, always.
 
 ## Invariants (full text and SQL checks in `docs/CONSTITUTION.md`)
 
@@ -130,9 +126,3 @@ logged to `ops.egress_log`.
 
 Credentials come from environment variables or repository secrets. Never from
 chat, never committed, never echoed into a log.
-
-## Non-goals
-
-Not multi-user. Not real-time — hourly batch is fine. Not a product. No native
-app. No causal claim from observational data without a registered adjustment
-set. No gamification, no streaks, no celebratory animation, ever.

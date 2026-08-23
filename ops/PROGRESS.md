@@ -337,3 +337,93 @@ REQ governs `.claude/` settings. No test named, no ledger entry moved.
   public/private still open; Joe asked only to commit).
 
 **Commit.** (this session's commit on `main`)
+
+---
+
+## 2026-08-23 — Session 4: Phase 0 live half — DB reachable, live archive, ETL TLS posture
+
+**Attempted.** The live half of Phase 0: give the tools a working DB credential,
+reach the Supabase database over a *verified* connection, inventory every table
+with exact row counts, and archive the data tables to Parquet with re-read
+verification. Then settle the `csv__workouts` question, record the TLS decision as
+an ADR, and execute four of Joe's rulings. This is the first session to touch the
+live database.
+
+**Works (evidence is command output shown in-session, not assertion).**
+- **Credential.** Old exposed password is DEAD (`28P01`, tenant found / password
+  rejected) — it had been rotated despite OQ-01's premise. A three-way probe
+  (real tenant `28P01` vs bogus tenant `XX000 ENOTFOUND`) proved the tenant is
+  found and the pooler host/region correct. Working credential now in the
+  gitignored `.claude/settings.local.json` `env` block; a fresh tool shell reads
+  it (length verified, value never printed).
+- **Verified TLS, pinned CA.** `lib/certs/supabase-prod-ca-2021.crt` is the real
+  self-signed `Supabase Root 2021 CA` (fetched from the official `supabase/cli`
+  repo over public-CA TLS), **proven to anchor the live pooler chain**
+  (`openssl s_client -CAfile … → Verify return code: 0 (ok)`). `lib/db.py` is the
+  one sanctioned connection: `CERT_REQUIRED` + hostname check, only
+  `VERIFY_X509_STRICT` cleared (the intermediate+leaf omit `keyUsage`; the root
+  carries it — verified by cert inspection). **CERT_NONE was considered and
+  rejected** — recorded in ADR-0012 and `lib/db.py`.
+- **Inventory.** 74 base tables (34 `public` DATA, 40 Supabase-managed), exact
+  counts shown.
+- **Archive.** 34/34 public DATA tables → Parquet, **426,269 source rows =
+  426,269 Parquet rows**, confirmed by an independent fresh re-read (0 mismatches;
+  sha256/bytes recorded per table). SELECT/count only — INV-2 intact, nothing
+  mutated. Manifest `_legacy_snapshot/supabase_manifest.json` in the existing
+  manifest format.
+- **`csv__workouts` settled.** Live `public.workouts` is 0 rows / 9 cols — the
+  empty backup CSV reflected reality, not truncation. No workout history exists
+  anywhere. Documented gap, not fabricated.
+- **ADR-0012 written** (ETL TLS posture) and indexed. `pg8000` (pure-Python PG
+  driver) installed — a $0 local dep with no service/limit, RULE-28 cost test N/A.
+- Both gates green after every edit: `validate_layout.py` 31/0/0; `test_guard.sh`
+  25 passed. Invariant queries run live: RULE-02 = 0 (vacuous, no spine tables);
+  RULE-04 errors `42P01` (derived_measures absent — Phase 2 unbuilt).
+
+**Rulings executed (Joe, this session).**
+1. OQ-01 → **RESOLVED**: live credential treated as burned (it entered the chat
+   transcript), rotate again at project close; standing action recorded.
+2. ROADMAP Phase 0 amended: "14 legacy tables" (an uncounted estimate) → "all
+   live tables and all local legacy sources, count verified at archive time."
+3. Supabase-managed tables (auth/storage/**vault.secrets**/cron/…) **not**
+   archived — infra, and secrets must never leave the platform.
+4. Before any keepalive: reported existing cron. **8 active pg_cron jobs, all
+   succeeding today** — the *previous build is still live and writing to this DB.*
+   None is a keepalive, so a future one won't duplicate. Not built (needs
+   `ops.runs`, Phase 2).
+
+**Does not work / not done.**
+- Gate 0 not closed: keepalives (Supabase 7-day + GH Actions 60-day) need
+  wall-clock days and `ops.runs` (Phase 2); `archive/` read-only not verified;
+  OQ-02/OQ-03 open. See WHAT I DID NOT DO.
+
+**Adversarial review ran and changed the work.** Five findings; four fixed
+(keyUsage rationale was backwards in 3 places; ADR "one path" overclaim; the
+dead-credential literal left in a tracked doc + a self-contradicting claim;
+missing PROGRESS entry — this). The two pre-existing unverified scratch scripts
+(`_legacy_snapshot/live_snapshot.py`, `diag.py`, not authored this session) are
+disclosed in ADR-0012 and **recommended for deletion, pending Joe** — not removed
+because they were not created here.
+
+**Requirement IDs touched.** None — no REQ governs Phase-0 archive/transport
+infra. No test named, no `ops/features.json` entry moved (all 15 remain failing;
+the ledger is also write-locked to the agent per ADR-0011).
+
+**WHAT I DID NOT DO.**
+- Did **not** commit or push — no commit instruction this session; `lib/`
+  untracked, doc edits unstaged.
+- Did **not** delete the two stale scratch scripts (`live_snapshot.py`,
+  `diag.py`) — surfaced for Joe's decision; the single thing most tempting to
+  quietly remove to make ADR-0012's "one path" true on disk.
+- Did **not** archive the 40 Supabase-managed tables (by ruling); if cron config
+  matters for the keepalive, only `cron.job` rows are to be captured.
+- Did **not** preserve column *types* for the 5 empty tables (workouts etc.):
+  `archive.py` writes a null-typed schema for a 0-row table, so a consumer can't
+  recover the DDL from the Parquet alone (recoverable from the live DB).
+- Did **not** stand up either keepalive or `ops.runs` — Phase 2.
+- Did **not** re-archive after noting the source is live and mutating — the
+  Parquet is a point-in-time snapshot; the busy tables (events/signals/intraday)
+  have grown since.
+- Did **not** add an automated gate for the TLS posture (ADR-0012 is REVIEW-tier).
+
+**Commit.** (pending — not committed this session)
