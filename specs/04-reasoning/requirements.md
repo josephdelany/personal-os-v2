@@ -11,7 +11,7 @@ IDs are stable and never reused. Every implementation commit cites the IDs it sa
 
 ## 0. PREAMBLE — THE PHIA FINDING AND WHAT IT SETTLES
 
-Google's PHIA (*Nature Communications*, 2025 — "Transforming wearable data into personal health insights using large language model agents") evaluated 4,000 objective personal-health questions requiring numerical reasoning over one person's wearable data:
+Google's PHIA (*Nature Communications*, published 12 Jan 2026 — "Transforming wearable data into personal health insights using large language model agents") evaluated 4,000 objective personal-health questions requiring numerical reasoning over one person's wearable data:
 
 | System | Accuracy |
 |---|---|
@@ -20,7 +20,7 @@ Google's PHIA (*Nature Communications*, 2025 — "Transforming wearable data int
 | One-shot code generation, no loop | 74% |
 | **PHIA — ReAct loop, LLM writes code, deterministic sandbox executes it** | **84%** |
 
-Same weights. A 3.8x accuracy swing from architecture alone. Error rate 0.192 vs 0.395 for the one-shot baseline.
+Same weights. The swing decomposes and should not be quoted as one lump: executing code at all takes 22%→74% (the large gap — this is what "the LLM never computes" buys), and the ReAct loop then adds 74%→84% (~10 further points). Caveats: one model only (Gemini 1.0 Ultra), and the result has not been independently replicated. The architectural conclusion below is robust to both — it does not depend on the exact 84, only on "executed ≫ in-head."
 
 **This settles the architecture of the entire reasoning layer, and every requirement below is downstream of it:**
 
@@ -768,7 +768,7 @@ The reasoning layer SHALL reason over resolved place labels and entities, and SH
 
 ## H. OPEN-ENDED QUESTION ANSWERING (REQ-ASK)
 
-Joe wants to ask anything about his life and get an answer. PHIA is the published architecture for exactly this: a ReAct loop where the model writes code, a sandbox executes it, the model reads the output and continues. 84% vs 22%. This section specifies that loop with the LLM's arithmetic privileges removed entirely.
+Joe wants to ask anything about his life and get an answer. PHIA is the published architecture for exactly this: a ReAct loop where the model writes code, a sandbox executes it, the model reads the output and continues. 22%→74%→84% (see preamble §0 for the decomposition and caveats). This section specifies that loop with the LLM's arithmetic privileges removed entirely.
 
 ### H.1 The loop
 
@@ -1167,7 +1167,7 @@ Then the question is answered at tier "DESCRIPTIVE" without the language layer
 
 ### The single rule this file exists to enforce
 
-All math is deterministic, auditable, and executed. The LLM plans the computation and narrates the result. **The LLM never computes.** 22% versus 84%, same model, architecture alone.
+All math is deterministic, auditable, and executed. The LLM plans the computation and narrates the result. **The LLM never computes.** 22%→74%→84%, same model (see preamble §0 for the decomposition and caveats).
 
 ### The second rule, which is the first rule's mirror
 

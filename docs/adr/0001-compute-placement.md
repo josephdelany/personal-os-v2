@@ -107,4 +107,17 @@ job, and a migration — friction that is the point.
 **Deferred.** Whether the repository is public or private is not settled here;
 it is in `OPEN_QUESTIONS.md` as OQ-03, because it trades compute budget against
 code exposure and the answer depends on how much of the pipeline logic Joe is
-comfortable publishing.
+comfortable publishing. *(OQ-03 later RESOLVED public — ADR-0013.)*
+
+## Correction 2026-08-23 — PHIA numbers refined (decision unchanged)
+
+The Context above quotes PHIA as **22% in-context vs 84% executed**, which
+overstates what deterministic execution alone buys. The published breakdown
+(PHIA, *Nature Communications*, 12 Jan 2026) is three-way: **22%** no-tools
+in-context, **74%** one-shot generated-and-executed code, **84%** the full
+ReAct agentic loop. Executing code at all buys the large gap (22→74); the loop
+adds the last ~10 points (74→84). Caveats: one model only (Gemini 1.0 Ultra),
+not yet independently replicated. **The decision in this ADR is unchanged** — it
+depends only on "executed ≫ in-head," which the corrected numbers support at
+least as strongly. See ADR-0014 for the matching constitution correction
+(RULE-11).

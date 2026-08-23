@@ -292,9 +292,13 @@ can only move one to passing when a named test proves it. This is Anthropic's
 own pattern and it exists because "done" is the most abused word in an agentic
 build.
 
-**`archive/` makes the extraction safe.** Nothing is lost, you can always go
-back and check what a decision was, and archived text stops competing with live
-text for authority.
+**`archive/` was to make the extraction safe** — but the 19 legacy files were
+lost with a cloud workspace before they were ever archived (see ROADMAP Phase 0,
+OQ-19). What survives is only what was re-derived into the live constitution and
+specs; the surviving *data* record is the verified Parquet snapshot in
+`_legacy_snapshot/`. There is no `archive/` document folder and there will not
+be. *(This section, and this file's other `archive/` references, are stale
+pre-Phase-0 narrative — see PROGRESS 2026-08-23.)*
 
 **The re-accumulation guard.** The old corpus reached 617 KB because nothing
 prevented it. There is now a line budget on `CLAUDE.md`, a hard 30-item cap on
@@ -309,11 +313,13 @@ in eighteen months.
 These are the research results that are not merely interesting but actually
 alter what gets built.
 
-**1. The model must never do arithmetic.** In PHIA (Google, published in
-*Nature Communications*), a language model reasoning over personal health data
-in context answered numeric questions with **22% accuracy**. The same model,
-writing code that was then executed deterministically, reached **84%**. This is
-not a prompting problem and no amount of care closes it. Therefore: all math is
+**1. The model must never do arithmetic.** In PHIA (Google, *Nature
+Communications*, 12 Jan 2026), a language model reasoning over personal health
+data in context with no tools answered **22%**; one-shot generated-and-executed
+code reached **74%**; the full agentic loop reached **84%**. Executing code at
+all buys the large gap; the loop adds the last ~10 points. One model only
+(Gemini 1.0 Ultra), not yet replicated — but no amount of prompting care closes
+the in-head gap. Therefore: all math is
 executed and stored, the model plans the computation and narrates the result,
 and every rendered numeral must be present in the result set it was given. This
 single finding settles the entire architecture, and it is now RULE-11 and
@@ -433,10 +439,12 @@ database, a plausible fake number is worse than a crash, because a crash is
 visible. Hence RULE-01, `<no_fabrication>` in `CLAUDE.md`, and a hook that
 blocks the commands outright.
 
-**The productivity illusion.** A randomised trial found experienced developers
-were **19% slower** using AI assistance while believing they were 20% faster.
-Trust the gates and the tests, not the feeling of momentum. This applies to me
-as much as to you.
+**The productivity illusion.** People systematically misjudge their own speed —
+self-judged productivity is unreliable in exactly this setting. Trust the gates
+and the tests, not the feeling of momentum. This applies to me as much as to you.
+(An earlier draft cited METR's 2025 "19% slower with AI" trial; that design was
+retracted 2026-02-24 for selection bias, so the number is dropped — the durable
+claim stands on its own.)
 
 ---
 

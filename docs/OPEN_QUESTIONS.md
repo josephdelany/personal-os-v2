@@ -129,6 +129,21 @@ system".
 Asked before, never answered. Interfaces come last (Phase 7), so this is not
 blocking, but the answer is worth capturing whenever it arrives.
 
+**OQ-19 — The archived UI system was lost; ADR-0009's "carry forward" premise is void.**
+Why open: the 42 archived screens, the old `11_UI_SYSTEM.md` (palette, font stack,
+tabular numerals, 4 px grid, ≥44 pt targets, motion rules), the honesty grammar
+and design tokens were all in the cloud workspace that was lost (same loss as the
+19 spec files, see ROADMAP Phase 0). ADR-0009 (awaiting authorship) was to
+"carry forward" the design tokens and honesty grammar *from that archive* — there
+is nothing to carry forward. Surfaced 2026-08-23 while cleaning stale `archive/`
+references (ADR none; ruling scoped to Gate 0).
+Depends on it: Phase 7 (interfaces) and ADR-0009. What survives is only what is
+written into the live constitution (RULE-14, RULE-24 motion/anti-gamification
+constraints) and OQ-12's partial notes; the type scale, corner radii, palette,
+and honesty-grammar vocabulary must be **re-derived, not recovered**.
+Settles it: Joe deciding, at Phase 7, whether to re-derive the design system from
+scratch or adopt a new reference; and re-scoping ADR-0009 accordingly.
+
 ---
 
 ## Data integrity
@@ -209,10 +224,10 @@ entered the chat transcript in the course of being set, so the transcript now
 carries a live secret — and rotate it again once the project is done and
 everything is closed.** That final rotation is the standing action; until then
 the transcript exposure is accepted risk. No further raising of this question.
-Note (2026-08-23): the *dead* prior value is present in git history (commit
-`990bc97`, the skeleton commit), so making the repo public (OQ-03) would expose a
-dead string in history; scrubbing history is optional given the value is dead but
-worth weighing when OQ-03 is decided.
+Note (2026-08-23): the *dead* prior value was present in git history (the
+skeleton commit) but has been **scrubbed from all history** via `git filter-repo`
+and verified absent from every git object (see ADR-0013 addendum). The rewrite
+changed all commit hashes.
 
 **OQ-02 — RESOLVED 2026-08-23.** *Repository name and where it lives?*
 Ruling (Joe): name is **`personal-os`** — nothing cute, nothing identifying.
@@ -225,9 +240,9 @@ public-repo Actions runners are unmetered on 4 vCPU / 16 GB, and the statistical
 layer (permutation / specification-curve inference) is only affordable because of
 that. Enforced consequence: no personal data ever enters git; every data path is
 gitignored by default and a tracked `.parquet`/`.csv`/`.db`/`.sqlite` fails CI.
-Pointer: ADR-0013 + RULE-29 (strengthened). Note: the dead credential in history
-(`990bc97`) becomes public on first push — scrub-or-accept decision owed at
-first-push time (see OQ-01).
+Pointer: ADR-0013 + RULE-29 (strengthened). The dead credential in history was
+scrubbed 2026-08-23 (git filter-repo, verified absent from every object), so the
+first public push carries no known secret.
 
 **OQ-05 — RESOLVED 2026-08-15.** *What is the interval width for `weighed` food?*
 Ruling: ±10%, equal to `labelled`, marked provisional in REQ-NUT-035 pending a

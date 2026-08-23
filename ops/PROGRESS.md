@@ -473,3 +473,84 @@ CI data-file check (LINT enforcement of RULE-29), demonstrated above.
   fixture would need an ADR (RULE-01 + ADR-0013). Empty today, so no conflict.
 
 **Commit.** (pending — this follow-up)
+
+---
+
+## 2026-08-23 — Session 5 (Phase 1): constitution ratified; credential history scrubbed; research corrections
+
+**Attempted.** Phase 1 (constitution & doctrine, no implementation code). Three
+setup tasks then the full 31-rule review:
+A. Scrub the dead credential from git history before any public push.
+B. Clean stale `archive/` references (that folder is lost and will not return).
+C. Three research corrections + one new constitution rule.
+Then: walk all 31 rules for Joe's keep/amend/drop ruling (Gate 1).
+
+**Works (evidence shown in-session).**
+- **A — history scrubbed.** `git filter-repo --replace-text` removed the dead
+  credential from all blobs. Verified four ways: `git log --all -S` none;
+  `git grep` across every commit tree 0; reflog 0; `git cat-file
+  --batch-all-objects` scan **0 objects** contain it (redaction marker in 5).
+  All commit hashes changed (skeleton `990bc97`→`e3ff7c7`, etc.); backup bundle
+  taken then deleted. Recorded in ADR-0013 addendum.
+- **B — archive refs removed** from CLAUDE.md, the guard hook (+ its test:
+  `mv archive/…` case dropped, rm-rf coverage preserved via `node_modules`/`build`;
+  `test_guard` now 24/0), and ROADMAP Phase 7. Flagged that ADR-0009/OQ-12's
+  "carried-forward UI system" was in the same lost folder → OQ-19.
+- **C — corrections landed** (ADR-0014): RULE-11 PHIA numbers → 22%→74%→84%,
+  one model (Gemini 1.0 Ultra), unreplicated, published 12 Jan 2026 (also fixed
+  in CLAUDE.md, ADR-0001 addendum, `specs/04-reasoning`); METR "19% slower"
+  removed from OPERATING_MANUAL §5 (retracted 2026-02-24); RULE-17 causal-
+  discovery distrust strengthened with CausalDynamics (PCMCI+ AUROC ~0.47);
+  **new RULE-13** "the model never selects the temporal specification" (HEARTS),
+  old RULE-13 merged into RULE-14 to hold the 30-cap. Reviewer map updated.
+- **Gate 1 — all 31 rules ruled, all kept.** Reversals RULE-18/23/30 affirmed
+  explicitly. RULE-19 amended (one-time early exploratory pre-registration pass;
+  waiting clock starts day one). RULE-30 amended (revisit trigger if WebKit
+  215884 fixed in iOS 19+; rationale strengthened — on-device Foundation Model +
+  SpeechAnalyzer make Shortcuts capture free/private/offline/better). ADR-0015.
+- Gates green throughout: `validate_layout` 32/0/0 (cap held, contiguous);
+  `test_guard` 24/0. Invariants live: RULE-02=0; RULE-04 `42P01` (spine unbuilt).
+
+**Does not work / not done.** No GitHub repo created, no push (Joe: commit and
+stop). Enforcement of the new RULE-13 (TEST) awaits the Phase-6 reasoning layer.
+See WHAT I DID NOT DO.
+
+**Requirement IDs touched.** None — Phase 1 is doctrine/config; the one code
+change is the RULE-29 data-file CI check (LINT), demonstrated by execution.
+
+**Adversarial review ran and caught incompleteness; findings folded in.** The
+reviewer found Parts B and C were scoped too narrowly: two root-level onboarding
+docs I never opened (`HOW_TO_BRIEF_CLAUDE.md`, `START_HERE.md`) still carried the
+retracted METR "19%" as live fact, the old binary PHIA "22 vs 84" framing, and
+live `archive/` instructions (one said "Nothing is lost" — the opposite of
+true). My Part B/C greps scoped to `CLAUDE.md docs specs` and missed root `*.md`.
+Fixed this session: METR and PHIA corrected in `HOW_TO_BRIEF_CLAUDE.md`; the
+"archive/ makes extraction safe / nothing is lost" claim corrected there and the
+archive instruction in `START_HERE.md` (both now point at the Parquet snapshot +
+OQ-19). Also fixed: DECISIONS.md ADR table reordered ascending (my additions had
+stacked descending); ADR-0009's index row annotated void (OQ-19). The reviewer
+also flagged that it could not verify the *external truth* of the cited numbers
+(PHIA/HEARTS/CausalDynamics/METR) — I took Joe's figures as given by instruction.
+
+**WHAT I DID NOT DO.**
+- Did **not** fully refresh `HOW_TO_BRIEF_CLAUDE.md` or `START_HERE.md`. They
+  predate Phase 0/1 and are broadly stale (they still narrate the archive plan,
+  present the three reversals as un-ruled, and describe Phase 0 as pending). I
+  corrected only the outright factual errors and the actively-false claims and
+  flagged the rest in-doc; a full rewrite of both onboarding docs is owed.
+- Did **not** create/push the `personal-os` repo — first outward action, deferred.
+- Did **not** write an enforcing TEST for the new RULE-13 — no reasoning layer to
+  test against until Phase 6; rule is TEST + REVIEW with the TEST owed then. The
+  thing most tempting to fake as "done."
+- Did **not** re-derive the lost UI system (design tokens, honesty grammar,
+  motion rules, 42 screens) — logged as OQ-19; Phase 7.
+- Did **not** author the RULE-19 one-time exploratory hypothesis register — that
+  is the Phase-6 deliverable the amendment defines, not this session's work.
+- Did **not** rewrite every downstream "84 vs 22" shorthand in `specs/04-reasoning`
+  — corrected the preamble decisively and the two load-bearing summaries; the
+  ALTERNATIVES lines cite 22% correctly (the in-head figure) and were left.
+- Did **not** independently re-verify HEARTS, CausalDynamics, PHIA, or the METR
+  retraction against the primary sources — took Joe's cited figures as given, as
+  instructed ("all three are mine to fix, not yours to defend").
+
+**Commit.** (pending — this Phase-1 commit)

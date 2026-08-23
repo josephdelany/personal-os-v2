@@ -19,9 +19,6 @@ echo "$CMD" | grep -qE 'reset[[:space:]]+--hard' && block "Hard reset discards w
 echo "$CMD" | grep -qE '\brm[[:space:]]+(-[a-zA-Z]*r[a-zA-Z]*f|-[a-zA-Z]*f[a-zA-Z]*r)' \
   && block "Recursive force delete. Move files to _to_delete/ and tell Joe instead."
 
-echo "$CMD" | grep -qE '(rm|mv|sed -i|>|>>).*archive/' \
-  && block "archive/ is read-only history. Where archive and live docs disagree, the live doc wins."
-
 echo "$CMD" | grep -qiE '(cat|head|tail|less|echo).*(\.env|SUPABASE_(KEY|PASSWORD|SERVICE)|CLOUDFLARE_API)' \
   && block "Credentials come from env vars or repo secrets. Never into context, never echoed."
 

@@ -124,9 +124,13 @@ deliberately over-claimed sentence.
 
 ## Phase 7 — Interfaces, last.
 
-The 42 archived screens come out of `archive/` and are re-judged against RPCs
-that return real rows. Most will be wrong. The honesty grammar, the design
-tokens and the motion rules will not be.
+The 42 archived screens **no longer exist** — they were lost with the cloud
+workspace, along with the spec-document folder (see Phase 0). Interfaces are
+built fresh here and judged against RPCs that return real rows. Consequence to
+resolve before this phase: the archived UI system that the honesty grammar,
+design tokens and motion rules were to be "carried forward" from (ADR-0009,
+OQ-12) was in the same lost archive, so those must be **re-derived, not
+recovered**.
 
 **Gate 7:** No screen renders a number that does not trace to a stored
 computation. No arithmetic operator outside the formatting allowlist exists in

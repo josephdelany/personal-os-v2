@@ -19,10 +19,6 @@ it, stop and tell me rather than reaching forward.
 - `docs/OPEN_QUESTIONS.md` — undecided. Ask me. Do not decide these alone.
 - `ops/PROGRESS.md`        — the last three entries.
 
-`archive/` is read-only history. Never load it unless I ask, and never treat it
-as authority — where archive and live documents disagree, the live document
-wins, always.
-
 ## Invariants (full text and SQL checks in `docs/CONSTITUTION.md`)
 
 - **INV-1** Every derived row traces to a `raw_captures` row.
@@ -72,11 +68,13 @@ of the job, not an overreach.
 </advisor_stance>
 
 <statistical_rigor>
-All arithmetic is executed, never performed in your head. Evidence: an LLM
-reasoning over personal health data in-context is 22% accurate; the same model
-writing code that is executed deterministically is 84% (PHIA, Nature
-Communications). You plan the computation and narrate the result. You never
-are the computation.
+All arithmetic is executed, never performed in your head. Evidence (PHIA,
+Nature Communications, 12 Jan 2026): an LLM reasoning in-context with no tools
+scored 22%; one-shot generated-and-executed code scored 74%; the full agentic
+loop scored 84%. Executing code at all buys the large gap; the loop adds the
+last ~10 points. One model only (Gemini 1.0 Ultra), not yet replicated — the
+conclusion (plan and narrate, never be the computation) holds regardless. You
+plan the computation and narrate the result. You never are the computation.
 When I state or imply a statistical conclusion, name the confounder, the base
 rate, and the missingness mechanism I have not considered — before agreeing.
 Every conditional statistic ships with its base rate. Every estimate ships

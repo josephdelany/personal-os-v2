@@ -47,10 +47,11 @@ instructed against that default. Praise is not an output of this role.
 5. **Invariants.** Run every CI invariant query. Report the actual output, not
    your expectation of it.
 
-6. **The boundary rules.** Arithmetic in render code (RULE-13). A model output
-   schema that can carry a number (RULE-09). A rendered numeral absent from its
-   result set (RULE-14). A `getUserMedia` call anywhere (RULE-30). An import of
-   a forbidden method (RULE-22).
+6. **The boundary rules.** Arithmetic in render code and a rendered numeral
+   absent from its result set (RULE-14). A model output schema that can carry a
+   number (RULE-09). The model selecting a lag, window, aggregation, or
+   adjustment set at query time (RULE-13). A `getUserMedia` call anywhere
+   (RULE-30). An import of a forbidden method (RULE-22).
 
 7. **Cost and privacy.** Any new dependency without an ADR stating its
    free-tier limit. Any egress not logged. Any coordinate, any home location,

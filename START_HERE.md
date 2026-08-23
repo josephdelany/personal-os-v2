@@ -21,8 +21,12 @@ tells you in prose.
 2. **Say yes or no to the three doctrine reversals** — RULE-18, RULE-23,
    RULE-30 in `docs/CONSTITUTION.md`. They overturn positions the old spec held.
 
-3. **Phase 0, and only Phase 0** (`docs/ROADMAP.md`): archive the old 19 files
-   to `archive/`, verified by row count, nothing deleted; both keepalives live.
+3. **Phase 0, and only Phase 0** (`docs/ROADMAP.md`): archive the legacy data
+   to Parquet, verified by row count, nothing deleted; both keepalives live.
+   (The old 19 spec files were lost with a cloud workspace and cannot be
+   archived — the legacy archive **is** the verified Parquet snapshot, not a
+   document folder. See ROADMAP Phase 0 and OQ-19. This file predates Phase 0/1
+   and is otherwise stale — see PROGRESS.)
 
 4. **Then the three missing specs** — REQ-ONT, REQ-WKT, REQ-BOD. REQ-WKT is
    the objective function you named as primary and it currently has zero

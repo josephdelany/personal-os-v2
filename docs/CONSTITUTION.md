@@ -115,9 +115,12 @@ own provenance and are replayed over every rebuild.
 
 **RULE-11 — The model plans and narrates. It never computes.** *(Tier: TEST)*
 All arithmetic and all statistics are executed deterministically and stored.
-The language layer receives result rows and renders them. Evidence: 22%
-accuracy for in-context arithmetic over personal health data versus 84% for
-generated-and-executed code (PHIA, *Nature Communications*). See ADR-001.
+The language layer receives result rows and renders them. Evidence (PHIA,
+*Nature Communications*, 12 Jan 2026): reasoning in-context with no tools scored
+22%; one-shot generated-and-executed code scored 74%; the full agentic loop
+scored 84%. Executing code at all buys the large gap (22→74); the loop adds the
+last ~10 points (74→84). One model only (Gemini 1.0 Ultra), not yet replicated —
+the architectural conclusion holds regardless. See ADR-001 and ADR-0014.
 
 **RULE-12 — Compute happens exactly once, in one place, stamped.**
 *(Tier: SQL + REVIEW)*
@@ -126,15 +129,24 @@ Nothing recomputes a value it does not own. This is why two screens agree by
 construction rather than by coincidence. Placement is governed by ADR-001; a
 computation with a rendering surface and no named owner fails CI.
 
-**RULE-13 — The PWA renders. It does not compute.** *(Tier: LINT)*
-No arithmetic beyond formatting in client code. A lint rule bans arithmetic
-operators outside a formatting allowlist in the render layer.
+**RULE-13 — The model never selects the temporal specification.**
+*(Tier: TEST + REVIEW)*
+Lag structures, window definitions, aggregation choices, and adjustment sets
+come from the pre-registered hypothesis and the metric registry — never from the
+model at query time. The model may plan and narrate (RULE-11); the temporal and
+causal-analysis parameters are fixed data, not model output. Evidence: HEARTS
+(arXiv:2603.06638) found code execution fixes arithmetic but **not** temporal
+reasoning — models fall back on heuristics and degrade as temporal complexity
+rises. See ADR-0014. *(This rule replaced the former RULE-13, "the PWA renders,
+it does not compute," which merged into RULE-14 to hold the 30-rule cap.)*
 
-**RULE-14 — Every number rendered traces to a stored computation.**
-*(Tier: LINT + TEST)*
-Numeral-template rendering: the renderer refuses to emit a numeral that is not
-present in the result set it was given. A model that produces "about 25 fewer
-minutes" when the stored value is −21.4 is refused, not rounded.
+**RULE-14 — The render layer renders; it never computes, and every number it
+emits traces to a stored computation.** *(Tier: LINT + TEST)*
+No arithmetic beyond formatting in client code — a lint rule bans arithmetic
+operators outside a formatting allowlist in the render layer. Numeral-template
+rendering: the renderer refuses to emit a numeral that is not present in the
+result set it was given. A model that produces "about 25 fewer minutes" when the
+stored value is −21.4 is refused, not rounded.
 
 **RULE-15 — Nothing may require the language model to be available.**
 *(Tier: TEST)*
@@ -154,7 +166,9 @@ build.
 **RULE-17 — `CANDIDATE` is never shown.** *(Tier: TEST)*
 Automated structure-discovery output — PCMCI+, VAR-LiNGAM, regularized VAR —
 enters the system only as `CANDIDATE` and never reaches a screen. These are
-hypothesis generators, not findings.
+hypothesis generators, not findings. The distrust is empirical, not stylistic:
+CausalDynamics (NeurIPS 2025, arXiv:2505.16620) scored PCMCI+ at AUROC ~0.47 on
+even simple systems — worse than chance. See ADR-0014.
 
 **RULE-18 — `INSUFFICIENT` is a returnable, displayable answer.**
 *(Tier: TEST)*
@@ -168,6 +182,12 @@ response to a question I asked.
 A hypothesis carries `preregistered_at`, direction, lag, and adjustment set. A
 schema constraint makes it impossible to confirm a hypothesis using data that
 already existed when it was registered.
+The exploratory pass over the pre-existing ~two years of data runs **once,
+early**, and its only output is a written register of pre-registered hypotheses
+with their adjustment sets, lags, and windows fixed and stamped **before** any
+new data accumulates. This starts the waiting clock on day one instead of month
+three, and puts the old data to the job it is actually good for — generating
+hypotheses, never confirming them. (Amended 2026-08-23, Phase-1 ruling; ADR-0015.)
 
 **RULE-20 — Every promoted finding emits a scored forward prediction.**
 *(Tier: TEST)*
@@ -252,6 +272,14 @@ launched from the home screen, through iOS 18.5. This is the direct cause of
 the repeated "allow for this website" prompts. Shortcuts capture audio and
 photos and post them; the PWA reads, and writes long-form text only. A call to
 `getUserMedia` in client code fails the build.
+The case is stronger than a bug workaround: Apple's on-device Foundation Model is
+reachable from Shortcuts with structured output and no developer account, and
+on-device SpeechAnalyzer now beats Whisper (14.0% WER at 70× realtime). So
+Shortcuts-owned capture is free, private, offline, and *better* — not merely the
+option left after a bug. **Revisit trigger:** if WebKit 215884 is fixed in
+iOS 19+, this rule is re-opened, not silently kept — but the free/private/offline
+on-device advantages survive the fix and must be weighed then.
+(Amended 2026-08-23, Phase-1 ruling; ADR-0015.)
 
 ---
 

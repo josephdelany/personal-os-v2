@@ -71,3 +71,26 @@ argument wins.
   capped at 30 and a public repo is already a third party under RULE-29;
   strengthening RULE-29 plus a CI check achieves the same enforcement without
   breaching the cap.
+
+## Update 2026-08-23 — dead credential scrubbed from history (discharges the owed action)
+
+The Consequences section above said scrubbing the dead credential from history was
+"owed at first-push time." Joe directed it be done now, before any push (eight
+commits, no forks, nothing pushed — the last cheap moment). Done:
+
+- Tool: `git filter-repo --replace-text` (installed locally, $0, no service —
+  same RULE-28 reasoning as `pg8000`). The dead credential token (and its
+  URL-encoded form) was replaced with `***REMOVED-DEAD-CREDENTIAL***` across all
+  blobs. A full-history bundle backup was taken first, then deleted after
+  verification (it carried the dead string).
+- **Verification shown in-session, four ways, all clean:** `git log --all -S`
+  → none; `git grep` across every commit tree → 0; reflog → 0; and the
+  definitive `git cat-file --batch-all-objects` scan of every loose+packed
+  object → **0 objects contain the string** (the redaction marker appears in 5,
+  confirming replacement not deletion).
+- **Consequence — all commit hashes changed.** Pre-rewrite → post-rewrite:
+  skeleton `990bc97`→`e3ff7c7`, Session-4 live `7b50c80`→`307c8d1`, Session-4
+  follow-up `45afb86`→`4119d0a`. Any commit hash recorded in `ops/PROGRESS.md`
+  entries written before this rewrite is pre-rewrite and no longer resolves;
+  those entries are append-only history and are left as-is, with this addendum as
+  the authority on the mapping.
