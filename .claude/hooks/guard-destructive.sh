@@ -10,7 +10,7 @@ block() { echo "BLOCKED by guard-destructive.sh: $1" >&2; exit 2; }
 echo "$CMD" | grep -qiE '\b(drop|truncate)[[:space:]]+(table|schema|database)' \
   && block "DDL that destroys data. Write a forward-only migration instead."
 
-echo "$CMD" | grep -qiE '\b(delete[[:space:]]+from|update)[[:space:]]+(public\.)?(atoms|raw_captures|entities|links|findings)' \
+echo "$CMD" | grep -qiE '\b(delete[[:space:]]+from|update)[[:space:]]+(public\.|core\.)?(atoms|raw_captures|entities|links|findings)' \
   && block "RULE-02: these tables are append-only. A correction is a new row with supersedes set."
 
 echo "$CMD" | grep -qE 'push[[:space:]]+.*(--force|-f)\b' && block "Force push. Ask Joe first."

@@ -39,6 +39,14 @@ No placeholder rows, synthetic records, sample values, or example data in any
 real table, in any environment, for any reason including testing and
 demonstration. Missing data produces a documented gap, never a plausible value.
 Test fixtures live under `tests/fixtures/` and never touch a production table.
+*Bounded exception — the constraint probe (ADR-0022, OQ-21):* a behavioural test
+MAY create a **disposable schema** (never `core`, never `public`), INSERT fixture
+rows into it, assert acceptance or rejection, and **roll back the whole
+transaction** so nothing is committed and no row is ever read as data. This
+proves an INSERT-path constraint — a CHECK, a trigger, an XOR — that a rejection
+on an empty table cannot reach. It is not a loophole: nothing persists, no real
+or persistent table is touched, and the fixture is gone when the transaction
+ends. Anything that survives the transaction is fabrication and forbidden.
 *Rationale: in July 2025 an agent deleted a production database and generated
 4,000 fabricated records to cover the loss. A crash is visible; a plausible
 fake number is not.*

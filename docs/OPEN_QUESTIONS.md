@@ -148,8 +148,19 @@ scratch or adopt a new reference; and re-scoping ADR-0009 accordingly.
 
 ## Spine (Phase 2)
 
-**OQ-21 — How is an INSERT-path constraint tested behaviourally under RULE-01's
-absolute no-fabrication?**
+**OQ-21 — RESOLVED 2026-08-23 (ADR-0022).** Ruling (Joe): a behavioural test MAY
+create a disposable schema (never `core`, never `public`), INSERT fixture rows,
+assert, and roll back the whole transaction — nothing commits, no row is read as
+data. This is option (a) of the settle list, written as a **clarification** to
+RULE-01 (not a weakening; nothing persists) in `docs/CONSTITUTION.md` and
+`CLAUDE.md`. The INSERT-path constraints (value/presence/lane CHECKs,
+`force_recorded_at` override, predictions XOR, prereg-freeze happy path) are now
+proven behaviourally in `tests/test_spine_insert_paths.py`, including the
+legitimate `observed_absent` row and the valid-interval-only nutrition estimate.
+Pointer: ADR-0022. Original question retained below.
+
+**OQ-21 (original) — How is an INSERT-path constraint tested behaviourally under
+RULE-01's absolute no-fabrication?**
 Why open: the Phase-2 spine's INSERT-path guarantees — the `force_recorded_at`
 trigger overriding a client-supplied `recorded_at`, the atoms value/presence/lane
 CHECKs, the `predictions` binary/continuous XOR, the `hypothesis_register` freeze
@@ -185,8 +196,18 @@ recorded on the gate; or (b) a minimal `derived_measures` shell is pulled forwar
 RULE-04 can run against empty tables now. Raised by the session-end reviewer,
 2026-08-23.
 
-**OQ-23 — The closed taxonomies for `atoms.kind` and `entities.entity_type` are
-unwritten, so both ship as open TEXT.**
+**OQ-23 — RESOLVED 2026-08-23 (ADR-0023, migration 0014, REQ-ONT).** Ruling (Joe):
+write the REQ-ONT requirements now with the taxonomy **derived** from the 34
+archived tables + cited specs, and add the enforcing CHECK over the empty tables in
+the same session. Done: `specs/05-ontology/requirements.md` (REQ-ONT-001..014),
+migration `0014_ontology_checks.sql` closes `atoms.kind` to 19 members and
+`entities.entity_type` to 6 via CHECK (not native ENUM — the set grows; CHECK is a
+cheap forward migration). `kind` is coarse; the specific measure stays in
+`metric_key` (registry). The seven guesses are recorded in ADR-0023. Original
+question retained below.
+
+**OQ-23 (original) — The closed taxonomies for `atoms.kind` and `entities.entity_type`
+are unwritten, so both ship as open TEXT.**
 Why open: ADR-0002 specifies a closed 20-member `kind` enum; ADR-0004's `entity_type`
 similarly wants a closed set. Both taxonomies lived in the lost ontology spec (OQ-16)
 and were **not re-invented** this session (that would be fabricating a spec). So both
@@ -249,6 +270,15 @@ gate stays as-is, or (b) the gate must fail when `features.json` names an id no
 spec defines — in which case those three features need their specs written or
 their ids corrected. No entry may be edited to describe what was built (features.json
 `_comment`), so option (b) means writing the specs, not renaming the features.
+**Partial progress 2026-08-23 (REQ-ONT half):** `REQ-ONT-001` now exists
+(`specs/05-ontology/requirements.md`, ADR-0023), so F-006's citation is no longer
+dangling. **Still open:** F-014/F-015 cite ids under the `REQ-NFR` prefix (named
+here as the prefix only, not the full ids — writing an undefined full id into this
+governing doc would itself fail the section-8 cross-check, the very asymmetry above),
+and the `REQ-NFR` spec is still unwritten; and the underlying gate question (should the
+layout gate cross-check `features.json` ids against the specs?) is still Joe's to
+rule. `features.json` itself is write-locked to the agent (ADR-0011), so F-006 is
+not flipped here.
 
 **OQ-17 — The previous build is still live and writing to the database v2 is
 rebuilding. Coexist, migrate, or tear down?**

@@ -22,10 +22,11 @@ response is observable. Numbers, never adjectives.
 
 ---
 
-## Current coverage — 545 requirements, 36 scenarios
+## Current coverage — 559 requirements, 36 scenarios
 
 | Prefix | Count | Subsystem | File |
 |---|---|---|---|
+| `REQ-ONT` | 14 | Ontology — the closed `atoms.kind` and `entities.entity_type` taxonomies, atom controlled vocabularies | `specs/05-ontology/requirements.md` |
 | `REQ-CAP` | 97 | Capture — Shortcuts ingress, transcription, extraction, prompting | `specs/02-capture-nutrition/requirements.md` |
 | `REQ-NUT` | 57 | Nutrition resolution — USDA lookup, portions, intervals | `specs/02-capture-nutrition/requirements.md` |
 | `REQ-FIN` | 165 | Finance — ingestion, merchant resolution, usage inference, restraint | `specs/03-finance/requirements.md` |
@@ -42,7 +43,6 @@ either pass or fail visibly.
 
 | Prefix | Subsystem | Blocked by |
 |---|---|---|
-| `REQ-ONT` | Ontology, atoms, entity resolution, the metric registry | ADR-0002 accepted; requirements not yet extracted |
 | `REQ-WKT` | Workout — e1RM, sets, RPE, volume, ACWR | The objective function. **This is the largest remaining gap** — the previous hypothesis library had zero coverage of e1RM, sets, RPE, lean mass or calories, which is to say zero coverage of the system's stated purpose |
 | `REQ-BOD` | Body composition — Kalman weight and TDEE, lean mass | ADR-0005 |
 | `REQ-SLP` | Sleep and recovery | — |

@@ -87,8 +87,10 @@ measured.
 Never generate placeholder, synthetic, sample, or example rows in any table,
 in any environment, for any reason including testing. If data is missing, the
 correct output is a documented gap, not a plausible value. Fixtures live in
-`tests/fixtures/` and never touch a real table. This is the most important
-rule in this file.
+`tests/fixtures/` and never touch a real table (the one bounded exception is a
+rolled-back constraint probe in a disposable schema — never `core`, never
+`public` — that commits nothing; see RULE-01 / ADR-0022). This is the most
+important rule in this file.
 </no_fabrication>
 
 <uncertainty_disclosure>
