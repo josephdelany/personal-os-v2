@@ -733,3 +733,76 @@ the decisions stand on their own reasoning regardless. Migrations are forward-on
 numbered, and run against a copy first (DoD item 5).
 
 **Commit.** (this session's commit on `main`)
+
+## 2026-08-23 — Session 7 (Phase 2, session 2): the spine, in code — applied live
+
+**What was attempted.** Execute the settled Phase-2 plan: author the 10 ADRs, write
+the forward-only migration for the `core`/`ops` spine, verify against a copy, and —
+per Joe's ruling this session — apply it for real to the live Supabase DB.
+
+**What works (evidenced, output pasted into the session).**
+- **10 ADRs written** and moved from "Awaiting authorship" to Accepted in
+  `docs/DECISIONS.md`: 0004 (entity/link shape), 0007 (e-values/e-BH), 0008 (capture
+  schema), 0010 (RULE-02 enforcement), 0016 (analytical store), 0017 (prompt_dispatch),
+  0018 (registry metadata), 0019 (temporal amendment), 0020 (trust/egress), 0021
+  (distributional forecasts). ADR-0004 and ADR-0008 authored **partially** (shape/enum
+  only; resolution algorithm and transport contract still owed).
+- **13 numbered migrations** (`migrations/0001..0013`) applied to **live** `core`/`ops`.
+  `core` now holds 9 tables (metric_registry, entities, raw_captures, atoms, links,
+  findings, predictions, prompt_dispatch, hypothesis_register) + 3 derived-currency
+  views; `ops` holds runs, egress_log, job_registry. **`public.entities` and the old
+  cron stack are untouched** (OQ-17). All tables empty — `core.atoms` = 0 rows (no
+  fabrication, RULE-01).
+- **RULE-02 proven behaviourally, both paths, on empty tables (no fabricated row):**
+  service_role UPDATE/DELETE → "permission denied for table atoms" (grant path);
+  owner UPDATE/DELETE → "RULE-02: … is forbidden" (statement-level trigger path).
+  Grant-scope query = 0. `pytest tests/test_spine_invariants.py` → **4 passed**
+  (named `test_RULE_02_*`, `test_REQ_INF_103_*`). `validate_layout` 32/0, `test_guard`
+  24/0, `check_invariants --core core` ALL PASS.
+- **Copy-first (DoD item 5):** the migration was applied inside a transaction and
+  ROLLED BACK first (77 statements, zero residue, same PG 17.6 engine) before the
+  real COMMIT — a stricter copy than create-and-drop.
+- **Two adversarial reviews ran and changed the work.** Pre-apply review found B1
+  (client-writable `recorded_at`) and B2 (trigger never behaviourally exercised) plus
+  majors; all fixed before apply. Discovered mid-fix that a stored `expired_at`
+  conflicts with INV-2 (would need a forbidden UPDATE to stamp on supersession) →
+  Joe ratified deriving currency from `supersedes` via `*_current` views instead.
+  Post-apply review found M1 (a value-lane CHECK hole), M2 (a false Supabase-grant
+  premise in ADR-0010), M3 (stale ADR text) → M1 fixed live via migration 0013
+  (tables still empty), M2/M3 corrected in the ADRs, m8 (non-security_invoker views)
+  fixed in 0013.
+
+**What does NOT work / is deferred.** No statistical compute (Phases 5/6). No R2/DuckDB
+(ADR-0016 is a decision record only). No keepalives, no repo push, no Gate-0 close.
+No legacy backfill. **RULE-04 cannot run** (needs Phase-5 `derived_measures`) → OQ-22.
+INSERT-path guarantees (`force_recorded_at`, the value/presence/lane CHECKs, the
+prereg-freeze happy path) are verified **structurally only** — RULE-01 forbids the
+test INSERT that would prove them → OQ-21.
+
+**Director rulings this session.** (1) spine in dedicated `core`/`ops` schemas;
+(2) `features.json` write-locked, all 15 stay failing, DoD item 4 waived — "a
+migration proves no feature"; (3) copy-first = scratch/rollback on the same instance;
+(4) apply for real now; (5) transaction-time currency **derived** from supersedes,
+not a stored `expired_at` (ratifies the INV-2 correction to ADR-0019); (6) RULE-02 CI
+query **scoped to app roles** ratified, constitution example query updated to match.
+
+**Requirement / rule IDs touched.** Implemented in schema: RULE-02 (grant + trigger),
+RULE-03/ADR-0002/ADR-0019 (bitemporal atom, stored subject_day), RULE-05/07/08
+(lane/presence/interval CHECKs), RULE-29/ADR-0020 (trust_level), REQ-CAP-006/012/013/015
+(raw_captures), REQ-INF-100/102/103 (hypothesis_register + freeze trigger),
+REQ-INF-106/112 (findings e-value shape), REQ-INF-300..330 (predictions shape), INV-1
+(atoms→raw_captures FK). Proven by named test: RULE-02, REQ-INF-103. **No
+`features.json` entry moved** (write-locked; ruled).
+
+**WHAT I DID NOT DO** — filed as OQ-21..OQ-25 and detailed in the session-end record:
+INSERT-path is structurally-not-behaviourally verified (OQ-21); RULE-04 not runnable
+until Phase-5 `derived_measures` (OQ-22); `atoms.kind`/`entity_type` ship as open TEXT,
+taxonomies unwritten (OQ-23); the guard regex doesn't match `core.` — Joe must fix, I'm
+blocked from editing it (OQ-24); reasoning-spec bitemporal names (`ingested_at`,
+`source_rev`, `is_current`) diverge from the spine (OQ-25). Also: `entities`/`links` are
+shape-only (resolution algorithm is Phase 4); ADR-0016 R2 store is a decision record with
+no code; `online-fdr`/`scoringrules` dependency ADRs (RULE-28) still owed before compute.
+Most tempted to skip: writing the second (post-apply) reviewer given everything was
+already green — it found the M1 lane hole, which was real.
+
+**Commit.** `0b8afa0` on `main`.

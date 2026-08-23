@@ -49,10 +49,15 @@ fake number is not.*
 the grant level, not merely avoided by convention. Corrections are new rows
 that supersede, never edits in place.
 ```sql
--- CI check RULE-02
+-- CI check RULE-02 (scoped to app roles per ADR-0010, ratified 2026-08-23:
+-- the table owner's implicit UPDATE/DELETE grant is unrevocable and always
+-- present, so an unscoped count can never be 0; the owner is stopped instead by
+-- the append-only trigger, proven behaviourally. REQ-CAP-012 scopes immutability
+-- to the app roles, which is exactly what this checks.)
 select count(*) from information_schema.role_table_grants
 where table_name in ('raw_captures','atoms')
-  and privilege_type in ('UPDATE','DELETE');  -- must be 0
+  and privilege_type in ('UPDATE','DELETE')
+  and grantee in ('anon','authenticated','service_role');  -- must be 0
 ```
 
 **RULE-03 — Everything is bitemporal.** *(Tier: SQL)*

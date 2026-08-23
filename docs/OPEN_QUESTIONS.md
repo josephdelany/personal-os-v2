@@ -146,6 +146,87 @@ scratch or adopt a new reference; and re-scoping ADR-0009 accordingly.
 
 ---
 
+## Spine (Phase 2)
+
+**OQ-21 — How is an INSERT-path constraint tested behaviourally under RULE-01's
+absolute no-fabrication?**
+Why open: the Phase-2 spine's INSERT-path guarantees — the `force_recorded_at`
+trigger overriding a client-supplied `recorded_at`, the atoms value/presence/lane
+CHECKs, the `predictions` binary/continuous XOR, the `hypothesis_register` freeze
+trigger's *legitimate* status-only-UPDATE path — can only be proven by executing an
+INSERT and observing acceptance/rejection. RULE-01 forbids "placeholder, synthetic,
+sample, or example rows in any table, in any environment, for any reason including
+testing," and says fixtures "never touch a real table." So these are currently
+verified **structurally only** (constraint/trigger definitions present via
+catalog), never behaviourally. The append-only *rejection* path is proven (no row
+needed — privilege/trigger fires on an empty table); the *acceptance and coercion*
+paths are not. Depends on it: whether the shape-lock work is actually trustworthy
+or merely present. Settles it: Joe ruling one of — (a) a narrow RULE-01 clarification
+that a rolled-back INSERT into a throwaway schema, never committed and never read as
+data, is a permitted constraint probe; (b) fixture tables in `tests/fixtures/` that
+mirror the shape and carry the same constraints (duplication risk — the fixture can
+drift from the real DDL); or (c) accept structural-only verification for INSERT-path
+and document it as a standing limitation. Raised by the session-end reviewer,
+2026-08-23.
+
+**OQ-22 — Gate 2 requires RULE-04 "written and running," but RULE-04's query needs
+`derived_measures`, which is Phase 5.**
+Why open: ROADMAP Gate 2 says "Every CI invariant query written and running,
+including RULE-04 point-in-time correctness," and RULE-04 is Tier SQL. But RULE-04's
+query joins `derived_measures` (a Phase-5 derived-compute table) to `atoms`, and the
+spine scope Joe set this session explicitly excludes derived compute. So RULE-04 is
+*written* (in `tools/check_invariants.py`) but prints PENDING and cannot run — the
+single query that "proves bitemporality actually works rather than merely existing
+in the schema" is not exercised at all this phase. Depends on it: whether Gate 2 can
+be declared passed with RULE-04 pending, or whether the gate wording is wrong.
+Settles it: Joe ruling either (a) Gate 2 is satisfied for Phase 2 with RULE-04
+explicitly deferred to whenever `derived_measures` lands (Phase 5), the deferral
+recorded on the gate; or (b) a minimal `derived_measures` shell is pulled forward so
+RULE-04 can run against empty tables now. Raised by the session-end reviewer,
+2026-08-23.
+
+**OQ-23 — The closed taxonomies for `atoms.kind` and `entities.entity_type` are
+unwritten, so both ship as open TEXT.**
+Why open: ADR-0002 specifies a closed 20-member `kind` enum; ADR-0004's `entity_type`
+similarly wants a closed set. Both taxonomies lived in the lost ontology spec (OQ-16)
+and were **not re-invented** this session (that would be fabricating a spec). So both
+columns are `NOT NULL TEXT` with no CHECK — a typo or an out-of-taxonomy value is
+accepted. The append-only tables mean adding the CHECK later is a forward migration
+that must pass over historical rows. Depends on it: whether extraction (Phase 3) can
+begin writing `kind`/`entity_type` values before the taxonomy is fixed (risking
+inconsistent values that a later CHECK would reject). Settles it: Joe authoring or
+ruling the `kind` and `entity_type` taxonomies (part of the unwritten ontology spec,
+OQ-16), after which a forward migration adds the CHECK/enum. Raised 2026-08-23.
+
+**OQ-24 — The guard hook's append-only regex matches `public.` but not `core.`
+schema-qualified table names.**
+Why open: `.claude/hooks/guard-destructive.sh` blocks `UPDATE/DELETE … (public\.)?
+(atoms|raw_captures|entities|links|findings)`, but the new spine lives in `core`, so
+`UPDATE core.atoms …` is **not** blocked by the dev-time guard. The DB-level
+append-only trigger still catches it (so enforcement is intact), but the guard —
+which exists to stop the mistake before it reaches the DB — has a gap. Claude Code is
+blocked from editing its own guard config (auto-mode classifier denied the edit this
+session), so this must be applied by Joe. Depends on it: dev-time defence-in-depth
+only; DB enforcement is unaffected. Settles it: Joe adding `core\.` to the regex on
+line 13 of the guard hook (`(public\.|core\.)?`) and adding a `core.atoms` case to
+`tools/test_guard.sh`. Raised 2026-08-23.
+
+**OQ-25 — Bitemporal column names diverge between the spine and the Phase-6
+reasoning requirements.**
+Why open: REQ-INF-104/105 reference an observations store filtered on `ingested_at`,
+and REQ-INF-114 requires `source_rev` + a flipped `is_current`. The spine instead
+uses `recorded_at` + `supersedes` with currency derived via `*_current` views. These
+are plausibly the same concepts under different names, but nothing maps
+`ingested_at → recorded_at` or explains the absence of `source_rev`/`is_current`, and
+REQ-INF-114's "flip is_current" is a *different* mechanism (an in-place UPDATE, which
+INV-2 would forbid) from derive-from-supersedes. Depends on it: whether the Phase-6
+confirmation job (REQ-INF-104/105) can be implemented against the spine as built, or
+whether a reconciliation ADR is needed first. Settles it: an ADR mapping the
+reasoning-spec bitemporal vocabulary onto the spine's, written before Phase 6.
+Raised by the session-end reviewer, 2026-08-23.
+
+---
+
 ## Data integrity
 
 **OQ-16 — `ops/features.json` cites requirement IDs that exist in no spec, and
