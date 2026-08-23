@@ -237,6 +237,13 @@ No location data is ever sent to a third party including the model layer. Home
 coordinates never appear in any export, log line, or prompt. Non-home places
 are stored at ~100 m precision. Analysis uses place labels, never coordinates.
 Every outbound model call writes a row to `ops.egress_log`.
+**A public git repository is a third party.** The repo is public (OQ-03,
+ADR-0013), so not one row of personal data is ever committed or tracked — code
+and specs are public, the life they describe is not. Every data path (Parquet,
+exports, fixtures, caches) is gitignored by default; `_legacy_snapshot/` stays
+gitignored permanently. A tracked `.parquet`, `.csv`, `.db`, or `.sqlite` file
+fails CI (`tools/validate_layout.py`). Any exception is justified in an ADR
+before the file is tracked.
 
 **RULE-30 — iOS Shortcuts owns all media capture. The PWA never calls
 `getUserMedia`.** *(Tier: LINT)*

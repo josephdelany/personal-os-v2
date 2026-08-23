@@ -22,14 +22,18 @@ tables at first archive, 2026-08-23, plus 29 local-source entities already in
 while missing data. Archive to Parquet and verify by row count, **before** any
 backfill touches anything. Roughly two years of browsing, media, health,
 location and spend history is irreplaceable.
-Move all 19 previous specification files to `archive/`, read-only, in one
-commit, unedited. Stand up `ops.runs`. Add the Supabase 7-day keepalive and the
-GitHub Actions 60-day keepalive — either one silently ends the project.
-Decide OQ-01 (credential — **RESOLVED 2026-08-23**) and OQ-02/OQ-03 (repository).
+The 19 previous specification files **no longer exist** — they were lost with a
+cloud workspace and were never on this machine. There is no document folder to
+archive and none will be invented: **the legacy archive is the verified Parquet
+snapshot, not a document folder.** Stand up `ops.runs`. Add the Supabase 7-day
+keepalive and the GitHub Actions 60-day keepalive — either one silently ends the
+project. Decide OQ-01 (credential), OQ-02 (repo name) and OQ-03 (public/private)
+— **all RESOLVED 2026-08-23**, see DECISIONS (ADR-0013 for the repo decisions).
 
-**Gate 0:** Parquet archives exist and row counts match source. `archive/` is
-committed and read-only. Both keepalives have run once on schedule and left a
-row in `ops.runs`.
+**Gate 0:** Parquet archives exist and row counts match source — this *is* the
+legacy archive (the previous spec-document folder was lost and is deliberately
+not recreated; criterion voided 2026-08-23). Both keepalives have run once on
+schedule and left a row in `ops.runs`.
 
 ## Phase 1 — Constitution and doctrine. One session.
 
@@ -73,6 +77,12 @@ without touching anything else, the meal and the charge appear as linked atoms
 with intervals, provenance, and a rendered figure that traces to a stored
 computation. Twelve Gherkin scenarios from
 `specs/02-capture-nutrition/requirements.md` pass, by name.
+
+**Old-stack freeze (OQ-17).** The previous cron stack keeps running until this
+phase proves a replacement. It is frozen/switched off **only** after the new
+capture path **ingests one real day end to end** — capture → `raw_captures` →
+atoms → rendered figure — with nothing hand-fed. Until that test passes, nothing
+in the old stack is disabled. Phase 2 does not touch the old tables.
 
 ## Phase 4 — Breadth of ingest, then entity resolution.
 

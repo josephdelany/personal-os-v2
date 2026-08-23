@@ -426,4 +426,50 @@ the ledger is also write-locked to the agent per ADR-0011).
   have grown since.
 - Did **not** add an automated gate for the TLS posture (ADR-0012 is REVIEW-tier).
 
-**Commit.** (pending — not committed this session)
+**Commit.** 7b50c80
+
+---
+
+## 2026-08-23 — Session 4 follow-up: rulings on everything open in Gate 0
+
+**Attempted.** Execute Joe's rulings closing out the open Gate-0 items. Doctrine/
+config only; no new implementation code beyond one CI check. Both gates green
+after every edit.
+
+**What changed, by ruling.**
+1. **OQ-03 → PUBLIC** (RESOLVED). Load-bearing: public-repo Actions are unmetered
+   on 4 vCPU / 16 GB, which the statistical layer needs. Consequence enforced:
+   **no personal data ever enters git.** RULE-29 strengthened to name git/tracked
+   files explicitly (no new numbered rule — the 30-cap holds; a public repo is
+   already a third party under RULE-29). New CI check (`validate_layout.py`
+   section 9): a tracked `.parquet`/`.csv`/`.db`/`.sqlite` fails the build.
+   **Teeth demonstrated by execution:** a dummy tracked `.csv` produced
+   `FAIL … (RULE-29)` and exit 1; clean tree passes (32 checks). ADR-0013 written.
+2. **OQ-02 → `personal-os`** (RESOLVED). Repo creation/first push not done —
+   deliberate outward action for later.
+3. **Gate 0 `archive/` criterion → VOID.** The 19 legacy spec files were lost
+   with a cloud workspace and never existed on this machine. ROADMAP amended: the
+   legacy archive **is** the verified Parquet snapshot, not a document folder. No
+   substitute invented.
+4. **OQ-17 → freeze deferred to Phase 3**, conditional on the new capture path
+   ingesting one real day end to end before the old cron stack is switched off.
+   Recorded in OQ-17 and ROADMAP Phase 3. Old stack keeps running; archive
+   accepted as point-in-time.
+
+**Requirement IDs touched.** None — doctrine/config. The one code change is the
+CI data-file check (LINT enforcement of RULE-29), demonstrated above.
+
+**WHAT I DID NOT DO.**
+- Did **not** create the GitHub repo or push — Joe said commit and stop; the
+  first public push, and the dead-credential-in-history (`990bc97`) scrub-or-
+  accept decision, are owed at that time.
+- Did **not** scrub the dead credential from git history — it becomes public on
+  first push; flagged in OQ-01/OQ-03/ADR-0013.
+- Did **not** touch CLAUDE.md's `archive/` paragraph, the guard hook's `archive/`
+  block, or ROADMAP Phase 7's "42 archived screens" reference — all still assume
+  an `archive/` folder that does not exist. Flagged for Joe; not edited, since the
+  ruling was scoped to Gate 0. **The thing most worth a follow-up.**
+- Did **not** exempt `tests/fixtures/` from the data-file check — a tracked
+  fixture would need an ADR (RULE-01 + ADR-0013). Empty today, so no conflict.
+
+**Commit.** (pending — this follow-up)

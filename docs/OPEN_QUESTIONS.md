@@ -18,17 +18,9 @@ settle it.**
 
 **OQ-01 — RESOLVED 2026-08-23. See RESOLVED section below.**
 
-**OQ-02 — What is the repository name and where does it live?**
-Depends on it: every CI check, every keepalive, the Actions budget.
+**OQ-02 — RESOLVED 2026-08-23. See RESOLVED section below.** (name: `personal-os`)
 
-**OQ-03 — Public or private repository?**
-Why open: public gives unmetered Actions with 4 vCPU / 16 GB, which is what
-makes permutation inference affordable; it also makes all pipeline logic
-public and means a committed secret is a real breach rather than an
-embarrassment. Private caps at 2,000 minutes/month on 2 vCPU / 8 GB.
-Depends on it: ADR-0001's compute budget; whether specification-curve and
-permutation methods are affordable at all.
-Settles it: Joe's comfort with publishing code that contains no data.
+**OQ-03 — RESOLVED 2026-08-23. See RESOLVED section below.** (public; ADR-0013)
 
 **OQ-04 — Which surfaces may run while the language model is unavailable, and
 what do they show?**
@@ -179,6 +171,15 @@ coexist with live writers; whether the archive must be re-taken at a quiesced
 moment; the meaning of "backfill" in Gate 2.
 Settles it: Joe deciding the disposition of the old cron stack (freeze / migrate
 / drop) and whether the archive needs a quiesced re-run.
+**Ruling (Joe, 2026-08-23).** The old cron stack keeps running — it is still the
+only working system and still collecting wanted data. The Parquet archive is
+accepted as explicitly point-in-time; no quiesced re-run is required. Phase 2
+creates *new* tables and does not touch the old ones, so the moving target is not
+a blocker for the spine. **Freeze is deferred to Phase 3, conditional on the new
+capture path demonstrably replacing the old one — specific acceptance test: the
+new path ingests one real day end to end before anything is switched off.** Until
+that test passes, nothing in the old stack is disabled. (Recorded in ROADMAP
+Phase 3.)
 
 **OQ-18 — There is no workout/strength history anywhere, yet strength is the
 system's stated objective function.**
@@ -212,6 +213,21 @@ Note (2026-08-23): the *dead* prior value is present in git history (commit
 `990bc97`, the skeleton commit), so making the repo public (OQ-03) would expose a
 dead string in history; scrubbing history is optional given the value is dead but
 worth weighing when OQ-03 is decided.
+
+**OQ-02 — RESOLVED 2026-08-23.** *Repository name and where it lives?*
+Ruling (Joe): name is **`personal-os`** — nothing cute, nothing identifying.
+Where it lives (the GitHub account/org) and the first push are not done yet;
+creation is a deliberate outward action for a later session. Pointer: ADR-0013.
+
+**OQ-03 — RESOLVED 2026-08-23.** *Public or private repository?*
+Ruling (Joe, now that OQ-01 rotation is done): **PUBLIC.** Load-bearing —
+public-repo Actions runners are unmetered on 4 vCPU / 16 GB, and the statistical
+layer (permutation / specification-curve inference) is only affordable because of
+that. Enforced consequence: no personal data ever enters git; every data path is
+gitignored by default and a tracked `.parquet`/`.csv`/`.db`/`.sqlite` fails CI.
+Pointer: ADR-0013 + RULE-29 (strengthened). Note: the dead credential in history
+(`990bc97`) becomes public on first push — scrub-or-accept decision owed at
+first-push time (see OQ-01).
 
 **OQ-05 — RESOLVED 2026-08-15.** *What is the interval width for `weighed` food?*
 Ruling: ±10%, equal to `labelled`, marked provisional in REQ-NUT-035 pending a

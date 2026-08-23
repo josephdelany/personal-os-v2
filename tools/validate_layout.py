@@ -172,6 +172,23 @@ for ref in sorted(set(re.findall(r'`((?:docs|specs|ops|tools|\.claude|tests)/[A-
 for rid in sorted(set(re.findall(r'\bREQ-[A-Z]+-\d{3}\b', body))):
     if rid not in all_ids: fail(f"{rid} is cited in a governing doc but is not defined in any spec")
 
+# ---------- 9. no personal-data files tracked in git (RULE-29 / ADR-0013) ----------
+# The repo is public. Not one row of personal data may be committed. A tracked
+# Parquet/CSV/SQLite/DB file is a leak; any exception must be ADR'd first.
+import subprocess
+DATA_EXT = (".parquet", ".csv", ".db", ".sqlite")
+try:
+    tracked = subprocess.run(["git", "-C", str(ROOT), "ls-files"],
+                             capture_output=True, text=True, check=True).stdout.split()
+    offenders = sorted(f for f in tracked if f.lower().endswith(DATA_EXT))
+    if offenders:
+        for f in offenders:
+            fail(f"personal-data file tracked in git (RULE-29): {f}")
+    else:
+        ok(f"no tracked data files ({', '.join(DATA_EXT)}) — RULE-29 clean")
+except Exception as e:
+    warn(f"could not run git ls-files for the RULE-29 data-file check: {e}")
+
 # ---------- report ----------
 for m in passes: print(f"PASS  {m}")
 for m in warns: print(f"WARN  {m}")
