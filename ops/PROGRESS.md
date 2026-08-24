@@ -1173,16 +1173,54 @@ lint is owed. Gate 0 still open (keepalive registered, not fired — F-014/F-015
 **Commit.** Main restructure `7924162`; session-end corrections + this record in a follow-up
 commit on `main`.
 
+## 2026-08-24 — Session 11 (cont.): Gate 0 FIRST REAL EVIDENCE — keepalive fired, ops.runs row VERIFIED
+
+**Attempted.** Joe manually dispatched `keepalive.yml` (green, 16s, on main) and asked me
+to verify the heartbeat row actually landed — a green Action proves the job *ran*, not that
+the row was *written* (the lesson already in memory: check the surface that measures the claim).
+
+**Verified — SELECT against `ops.runs` on the live DB (pasted):** two rows from this dispatch —
+- `keepalive_github`  run_id `979eb039…`  started `2026-08-24 04:06:25.380467Z`  finished `04:06:25.693709Z`  status=`ok`  rows_written=`0`  detail=`{result:warm, trigger:scheduled}`
+- `keepalive_supabase` run_id `69bb9542…` started `2026-08-24 04:06:23.507131Z`  finished `04:06:23.853915Z` status=`ok`  rows_written=`0`  detail=`{result:warm, trigger:scheduled}`
+
+Both have `started_at ≠ finished_at` (≈0.3s apart) — the `clock_timestamp()` fix (session 9,
+reviewer B1/MAJOR) confirmed working on a runner, distinct from the pre-fix `manual_smoke`
+rows (`6a4adbec`/`309d787b`, 2026-08-23 23:55Z) that are `now()`-stamped (started==finished).
+`rows_written=0` is the ADR-0024 heartbeat doctrine (a true "job ran at T" row, not fabricated
+data). This also proves the pinned-CA TLS path (ADR-0012) verifies from a GitHub runner.
+
+**Works.** Registration is real (Actions API), the workflow runs green, the DB write lands,
+TLS verifies. **This is Gate 0's first real evidence.**
+
+**What remains OPEN on Gate 0 (precise).** A manual `workflow_dispatch` is **not** a scheduled
+firing. Gate 0 closes only when the cron fires on its own and the intervals prove the clocks
+are actually held: the **7-day** Supabase inactivity clock and the **60-day** GitHub
+scheduled-workflow-disable clock must each elapse with a *scheduled* firing landing a row
+inside the limit. Cron is `17 6 * * *`; the first scheduled row should appear ~06:17 UTC.
+**Observability caveat (owed):** `detail.trigger` reads `scheduled` even for this manual
+dispatch, because the workflow hard-codes `--trigger scheduled` in both steps — so an
+`ops.runs` row alone cannot yet distinguish a manual dispatch from a cron firing. Until the
+trigger label reflects the real event, "a scheduled row exists" must be cross-checked against
+the Actions run `event`, not the row's own trigger field.
+
+**features.json.** F-014/F-015 stay `failing`: write-locked to the agent (ADR-0011), no
+committed proving test, and no scheduled firing has elapsed. Not flipped.
+
+**Requirement / rule IDs touched.** REQ-NFR-001/002/003 (evidence, not closure); Gate 0
+(first evidence, stays open). ADR-0012 (TLS proven on runner), ADR-0024 (heartbeat doctrine
+confirmed). **Commit.** This record + NEXT ACTION update on `main`.
+
 ## NEXT ACTION (from docs/REMEDIATION_PLAN.md sequence — single item only)
 
-Sequence item **1** (apply the ratified constitution restructure) is **done** this
-session (ADR-0029, commit `7924162`). Sequence item **2** is next and only its
-*registration* half is done:
+Sequence items **1** (constitution restructure) and **2** (keepalive registration + first
+fire; Gate 0 first evidence landed) are done. Item 2's *scheduled* firings still have to
+elapse (7-day / 60-day) before Gate 0 closes — but that is a wait, not an action. Next:
 
-> **Fire the keepalive to start the Gate 0 clock.** Set `SUPABASE_DB_URL` as a
-> repository Actions secret (Joe's action), dispatch `keepalive.yml` once, and
-> confirm it leaves an `ops.runs` row. Until that row exists, Gate 0 stays open and
-> Supabase can pause. (Registration is already proven — the workflow is `active` in
-> the Actions API; this is the firing, not the registration.)
+> **Sequence item 3 — the requirements audit** (REMEDIATION_PLAN Track 1.1). Audit all 564
+> requirements against the eleven stated wants, exactly as the constitution audit was run:
+> conflicts ranked by how much of a want they remove, **nothing changed**. Expect it to find
+> more than the constitution audit did — 4× the volume, written in one turn by parallel
+> sub-agents, never reviewed. Output is a ranked conflict list Joe ratifies at consequence
+> level; no requirement edited until he does.
 
-Do not start item 3 (requirements audit) until item 2 is closed. One item at a time.
+One item at a time. Do not start Track 1.2 (correction) until the audit is read and ratified.

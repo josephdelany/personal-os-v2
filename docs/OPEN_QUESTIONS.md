@@ -290,8 +290,9 @@ accepting the derived defaults. Not blocking. Raised 2026-08-23.
 
 **→ Remediation:** `docs/REMEDIATION_PLAN.md` **Track 1** (requirements audit +
 correction) — the `atoms.kind`/`entity_type` boundary guesses are revisited there.
-*Note (session 11): the plan text does not name OQ-27 explicitly; this mapping to
-Track 1 is Claude's, pending Joe's confirmation that Track 1 is the intended home.*
+*Note (session 11): the plan text does not name OQ-27 explicitly; the mapping to
+Track 1 was Claude's and **Joe confirmed it 2026-08-24** — the `atoms.kind` /
+`entity_type` boundary is a requirements-layer question, so Track 1 is its home.*
 
 **OQ-28 — RESOLVED 2026-08-23 (Phase-2 session 4).** Consent granted (Joe). Corrected on
 the live DB: the two pre-fix `ops.runs` smoke rows are marked `trigger=manual_smoke` with a
