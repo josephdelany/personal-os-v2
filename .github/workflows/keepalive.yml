@@ -13,6 +13,15 @@ name: keepalive
 # FIRST FIRING is blocked until (a) this repo is pushed to GitHub (OQ-02) and
 # (b) SUPABASE_DB_URL is set as a repository Actions secret. Until then nothing here
 # fires and no clock is running. workflow_dispatch triggers the first proof by hand.
+#
+# REGISTRATION NOTE (session 11, 2026-08-23): a schedule/workflow_dispatch-only workflow
+# is NOT indexed by GitHub when it merely rides along in a bulk/history-rewrite push. In the
+# single push that built this repo (to 0e8d588), gates.yml ran on its `on: push` trigger and
+# was registered; this file, having no push trigger, was never exercised, never indexed, and
+# did not appear in the Actions API workflows list. A push that MODIFIES this file forces
+# GitHub to re-scan changed workflow files and register it — this trailing comment is that
+# modification. "On the remote ref" (what `git ls-remote` proves) is not "registered as a
+# workflow" (what the Actions API measures). Do not conflate the two again.
 
 on:
   schedule:
