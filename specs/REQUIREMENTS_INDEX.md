@@ -47,7 +47,8 @@ either pass or fail visibly.
 | `REQ-WKT` | Workout — e1RM, sets, RPE, volume, ACWR | The objective function. **This is the largest remaining gap** — the previous hypothesis library had zero coverage of e1RM, sets, RPE, lean mass or calories, which is to say zero coverage of the system's stated purpose |
 | `REQ-BOD` | Body composition — Kalman weight and TDEE, lean mass | ADR-0005 |
 | `REQ-SLP` | Sleep and recovery | — |
-| `REQ-CTX` | Context — location, media, alcohol, screen time | Extraction from archived `08` |
+| `REQ-CTX` | Context — location, media, alcohol, screen time | Extraction from archived `08` (location storage unblocked by ADR-0029 / the reworded RULE-29) |
+| `REQ-ACT` | Action — when the system may recommend, on what evidence tier, in what language, how often, and what happens when a recommendation turns out wrong | **Authoring opened (ADR-0029).** Scope in ADR-0029 §D4 / `docs/CONSTITUTION_RESTRUCTURE_PROPOSAL.md` §4. Blocked on OQ-30 (the evidence-tier floor) and on the tier-labelling surface (RULE-17). No requirement is numbered until OQ-30 is ruled |
 | `REQ-UI` | Interface | Phase 7, deliberately last |
 
 ## Rules for adding requirements

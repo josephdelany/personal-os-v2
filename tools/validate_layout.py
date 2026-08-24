@@ -189,6 +189,41 @@ try:
 except Exception as e:
     warn(f"could not run git ls-files for the RULE-29 data-file check: {e}")
 
+# ---------- 10. no committed coordinate / home-location literal (RULE-29 SCOPE lint) ----------
+# ADR-0029 opened location storage but kept the egress ban absolute: "a lint fails
+# the build if a coordinate or the home location can reach an export, log, commit,
+# or prompt path." This is the STATIC half — it catches a coordinate or home-location
+# literal committed to the public repo, the leak that is checkable today. The RUNTIME
+# half (proving no coordinate reaches an export/log/prompt at execution time) is OWED
+# when the location table (Phase 4) and egress paths (Phase 3) exist; it is named here,
+# not silently skipped, so this lint is not mistaken for complete (cf. OQ-15).
+CODE_EXT = (".py", ".sql", ".ts", ".tsx", ".js", ".jsx", ".json", ".yml", ".yaml", ".sh")
+SELF = "tools/validate_layout.py"
+# a home-coordinate constant, or any coordinate identifier assigned a decimal-degree
+# literal (>=3 dp — a real coordinate, not a version or ratio).
+HOME_COORD = re.compile(r'\bhome_(?:lat|lon|lng|latitude|longitude)\b', re.I)
+COORD_LIT  = re.compile(r'\b(?:lat|lon|lng|latitude|longitude)\s*[:=]\s*-?\d{1,3}\.\d{3,}')
+try:
+    coord_offenders = []
+    for f in tracked:
+        if not f.lower().endswith(CODE_EXT) or f == SELF:
+            continue
+        p = ROOT / f
+        try:
+            txt = p.read_text(errors="ignore")
+        except Exception:
+            continue
+        m = HOME_COORD.search(txt) or COORD_LIT.search(txt)
+        if m:
+            coord_offenders.append(f"{f}: '{m.group(0)}'")
+    if coord_offenders:
+        for o in coord_offenders:
+            fail(f"coordinate/home-location literal committed (RULE-29): {o}")
+    else:
+        ok("no committed coordinate/home-location literal (RULE-29 static lint; runtime egress check owed Phase 3/4)")
+except Exception as e:
+    warn(f"could not run the RULE-29 coordinate-literal check: {e}")
+
 # ---------- report ----------
 for m in passes: print(f"PASS  {m}")
 for m in warns: print(f"WARN  {m}")

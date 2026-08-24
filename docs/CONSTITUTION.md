@@ -19,6 +19,35 @@ Each rule carries an **enforcement tier**:
 
 ---
 
+## Structure — three sections, two amendment bars
+
+This constitution is organised into three sections (ADR-0029):
+
+- **INTEGRITY** — how we know something is true. These were earned; they caught
+  the 450k-row double-count, the smeared archive, and two over-claims. They stay.
+- **SCOPE** — what the system may be about, capture, say, or do. Revisable when
+  we understand the goal better, via an ADR.
+- **HYBRID** — a rule that braids an integrity core with a revisable scope shell.
+  Each is split in place: the `[INTEGRITY core]` clause takes the integrity bar,
+  the `[SCOPE shell]` clause takes the scope bar.
+
+Amendment is by **consequence, not summary** — the process failure behind
+ADR-0029 was ratifying one-line summaries instead of consequences:
+
+- A **SCOPE** amendment requires a written statement of what the change makes
+  possible, what it still forecloses, and its failure mode — ratified by reading
+  that. Recorded as an ADR.
+- An **INTEGRITY** amendment requires the above **plus an adversarial review
+  whose job is to break the change**. Finding nothing is a failed review, re-run.
+  An integrity failure is invisible (a plausible wrong number); a scope failure
+  is a missing capability you will notice and ask for — so the bars differ
+  deliberately.
+
+The three-section split changes no rule's number and does not change the 30-rule
+cap. RULE-00 is the meta-rule and governs all three sections.
+
+---
+
 ## THE FIRST RULE
 
 **RULE-00 — Never weaken a gate, a threshold, an invariant, or a test to make
@@ -32,7 +61,7 @@ in this file can be defeated by breaking it.
 
 ---
 
-## I. DATA INTEGRITY
+## INTEGRITY — how we know something is true
 
 **RULE-01 — No fabricated data, anywhere, ever.** *(Tier: REVIEW + LINT)*
 No placeholder rows, synthetic records, sample values, or example data in any
@@ -96,7 +125,11 @@ its lane is a defect, not a shortcut.
 A missing value stays missing. No carry-forward, no mean-fill, no
 interpolation, no "assume typical". Coverage is reported alongside every
 aggregate; an aggregate over insufficient coverage refuses rather than
-estimates.
+estimates. This forbids imputing a missing *input* and reading it as measured;
+it does **not** forbid a *modelled estimate that carries its own uncertainty* —
+stored as an interval with `estimate_method` and lane `inferred` (RULE-05,
+RULE-08). A mean-fill masquerading as data is forbidden; an honest posterior
+interval is the system working as designed. (Clarified 2026-08-23, ADR-0029.)
 
 **RULE-07 — Presence is three-valued.** *(Tier: SQL)*
 `observed` / `observed_absent` / `unknown`. "I did not log a drink" and "I
@@ -122,10 +155,6 @@ Once I correct a category, a portion, an entity match, or a label, no
 downstream process may re-guess it. Corrections are first-class rows with their
 own provenance and are replayed over every rebuild.
 
----
-
-## II. COMPUTE AND CORRECTNESS
-
 **RULE-11 — The model plans and narrates. It never computes.** *(Tier: TEST)*
 All arithmetic and all statistics are executed deterministically and stored.
 The language layer receives result rows and renders them. Evidence (PHIA,
@@ -143,18 +172,6 @@ Nothing recomputes a value it does not own. This is why two screens agree by
 construction rather than by coincidence. Placement is governed by ADR-001; a
 computation with a rendering surface and no named owner fails CI.
 
-**RULE-13 — The model never selects the temporal specification.**
-*(Tier: TEST + REVIEW)*
-Lag structures, window definitions, aggregation choices, and adjustment sets
-come from the pre-registered hypothesis and the metric registry — never from the
-model at query time. The model may plan and narrate (RULE-11); the temporal and
-causal-analysis parameters are fixed data, not model output. Evidence: HEARTS
-(ICML 2026 poster; arXiv:2603.06638) found code execution fixes arithmetic but
-**not** temporal reasoning — the degradation persists even under a CodeAct
-code-execution harness, models falling back on heuristics as temporal complexity
-rises. See ADR-0014. *(This rule replaced the former RULE-13, "the PWA renders,
-it does not compute," which merged into RULE-14 to hold the 30-rule cap.)*
-
 **RULE-14 — The render layer renders; it never computes, and every number it
 emits traces to a stored computation.** *(Tier: LINT + TEST)*
 No arithmetic beyond formatting in client code — a lint rule bans arithmetic
@@ -168,24 +185,11 @@ stored value is −21.4 is refused, not rounded.
 Every surface degrades to a deterministic rendering. The model is a
 presentation improvement, never a dependency.
 
----
-
-## III. HONESTY AND CLAIMS
-
 **RULE-16 — Six tiers, and every claim carries one.** *(Tier: SQL + LINT)*
 `DESCRIPTIVE` → `CANDIDATE` → `PROMOTED` → `CONFIRMED_OBSERVATIONAL` →
 `EXPERIMENTAL`, plus `INSUFFICIENT`. Each tier has a permitted vocabulary
 enforced by a linter. A claim rendered in language above its tier fails the
 build.
-
-**RULE-17 — `CANDIDATE` is never shown.** *(Tier: TEST)*
-Automated structure-discovery output — PCMCI+, VAR-LiNGAM, regularized VAR —
-enters the system only as `CANDIDATE` and never reaches a screen. These are
-hypothesis generators, not findings. The distrust is empirical, not stylistic:
-CausalDynamics (NeurIPS 2025, arXiv:2505.16620; 14,693 graphs) scored PCMCI+
-**at chance** on its simple tier (AUROC 0.52 / 0.50 / 0.49); coupled systems fare
-better (~0.67). At chance on the easy case is reason enough never to show it. See
-ADR-0014.
 
 **RULE-18 — `INSUFFICIENT` is a returnable, displayable answer.**
 *(Tier: TEST)*
@@ -193,18 +197,6 @@ ADR-0014.
 Weak evidence is disclosed as weak evidence with what it would take to settle
 it. Absent evidence is disclosed as absent. Silence is not permitted as the
 response to a question I asked.
-
-**RULE-19 — Pre-registration is a database constraint, not a promise.**
-*(Tier: SQL)*
-A hypothesis carries `preregistered_at`, direction, lag, and adjustment set. A
-schema constraint makes it impossible to confirm a hypothesis using data that
-already existed when it was registered.
-The exploratory pass over the pre-existing ~two years of data runs **once,
-early**, and its only output is a written register of pre-registered hypotheses
-with their adjustment sets, lags, and windows fixed and stamped **before** any
-new data accumulates. This starts the waiting clock on day one instead of month
-three, and puts the old data to the job it is actually good for — generating
-hypotheses, never confirming them. (Amended 2026-08-23, Phase-1 ruling; ADR-0015.)
 
 **RULE-20 — Every promoted finding emits a scored forward prediction.**
 *(Tier: TEST)*
@@ -219,46 +211,147 @@ Tree-structured FDR over domain → variable-pair → lag. Newey–West HAC stan
 errors are mandatory — the naive false-positive rate is ~0.78 versus ~0.07 at
 ρ = 0.5. Any surface reporting `n` without `n_eff` fails.
 
-**RULE-22 — These methods are forbidden.** *(Tier: LINT)*
-NOTEARS and DYNOTEARS (scale non-invariance; varsortability above 0.94), DSEM,
-convergent cross-mapping, multivariate transfer entropy, model-X knockoffs. A
-CI check greps imports and fails on any of them.
+---
+
+## HYBRID — an integrity core braided with a revisable scope shell
+
+**RULE-13 — The model never selects the temporal specification.**
+*(Tier: TEST + REVIEW)*
+**[INTEGRITY core — immutable]** Lag structures, window definitions, aggregation
+choices, and adjustment sets are fixed data, never model output at query time.
+The model may plan and narrate (RULE-11); it never chooses the temporal or
+causal-analysis parameters. Evidence: HEARTS (ICML 2026 poster; arXiv:2603.06638)
+found code execution fixes arithmetic but **not** temporal reasoning — the
+degradation persists even under a CodeAct code-execution harness, models falling
+back on heuristics as temporal complexity rises. See ADR-0014. *(This rule
+replaced the former RULE-13, "the PWA renders, it does not compute," which merged
+into RULE-14 to hold the 30-rule cap.)*
+**[SCOPE shell — revisable, ADR-0029]** These parameters come from the metric
+registry and the continuous exploration engine (RULE-17, RULE-19) — not solely
+from a single pre-registered hypothesis. Widening the source does not touch the
+core: whatever supplies a specification, it is fixed data the model reads, not a
+choice the model makes at query time. (Split 2026-08-23, ADR-0029.)
+
+**RULE-17 — Automated discovery is exploratory, never a finding.** *(Tier: TEST)*
+**[INTEGRITY core — immutable]** Automated structure-discovery output — PCMCI+,
+VAR-LiNGAM, regularized VAR — enters the system only as `CANDIDATE`/exploratory.
+It is never promoted to a finding on its own evidence and never rendered in
+confirmed-tier vocabulary. These are hypothesis generators, not findings. The
+distrust is empirical, not stylistic: CausalDynamics (NeurIPS 2025,
+arXiv:2505.16620; 14,693 graphs) scored PCMCI+ **at chance** on its simple tier
+(AUROC 0.52 / 0.50 / 0.49); coupled systems fare better (~0.67). At chance on the
+easy case is reason enough never to promote it. See ADR-0014.
+**[SCOPE shell — revisable, ADR-0029]** Exploratory output MAY be displayed,
+carrying an explicit **EXPLORATORY** label that makes it un-mistakable for a
+finding — this reverses the former "never reaches a screen". **Binding
+sequencing (Joe's ruling):** the tier-labelling surface that renders the label
+is built and *proven* before any continuous exploration ships; if it is not
+proven, exploration does not ship, regardless of how ready anything else is.
+(Split 2026-08-23, ADR-0029.)
+
+**RULE-19 — Pre-registration is a database constraint, not a promise.**
+*(Tier: SQL)*
+**[INTEGRITY core — immutable]** A hypothesis carries `preregistered_at`,
+direction, lag, and adjustment set. A schema constraint makes it impossible to
+**confirm** a hypothesis using data that already existed when it was registered,
+and a `CONFIRMED` claim carries its frozen pre-registration. This is the direct
+defence against confirming what I want to hear, and it does not move.
+**[SCOPE shell — revisable, ADR-0029]** Exploration is **continuous**, not a
+single early pass: general probabilistic inference over the metric registry may
+run at any time, and its output is displayable as exploratory (RULE-17), never as
+confirmation. This reverses the former "runs **once, early**" (which amended
+ADR-0015); the waiting clock for any *confirmation* still starts at that
+hypothesis's registration, putting pre-existing data to the job it is good for —
+generating hypotheses, never confirming them. (Split 2026-08-23, ADR-0029;
+supersedes the ADR-0015 one-time-pass amendment.)
+
+**RULE-29 — Location is stored restricted and never leaked.**
+*(Tier: LINT + SQL)*
+**[INTEGRITY core — immutable]** Personal data leaves this system only to
+Supabase, Cloudflare Workers AI, and originating source APIs. No coordinate is
+ever sent to a third party including the model layer (ADR-0020). Home
+coordinates never appear in any export, log line, commit, or prompt. Non-home
+places egress at ~100 m precision; home never egresses at any precision. Every
+outbound model call writes a row to `ops.egress_log`.
+**A public git repository is a third party.** The repo is public (OQ-03,
+ADR-0013), so not one row of personal data is ever committed or tracked — code
+and specs are public, the life they describe is not. Every data path (Parquet,
+exports, fixtures, caches) is gitignored by default; `_legacy_snapshot/` stays
+gitignored permanently. A tracked `.parquet`, `.csv`, `.db`, or `.sqlite` file
+fails CI (`tools/validate_layout.py`). Any exception is justified in an ADR
+before the file is tracked.
+**[SCOPE shell — revisable, ADR-0029]** Coordinates ARE stored, in a restricted
+table whose access is separated from any egress-capable session (ADR-0020), and
+the system DERIVES place labels and mobility metrics — dwell, visit, radius of
+gyration, location entropy, commute and transit load — from them. Location is a
+first-class analytic domain. A lint fails the build if a coordinate or the home
+location can reach an export, log, commit, or prompt path. This reverses the
+former "analysis uses place labels, never coordinates" storage ban; the privacy
+intent — coordinates and home never *leave* — is unchanged, now enforced by the
+egress lint rather than by refusing to store. (Split 2026-08-23, ADR-0029;
+re-opens the ADR-0027 `locations`→Phase-4 deferral.)
 
 ---
 
-## IV. WHAT THE SYSTEM MAY AND MAY NOT SAY
+## SCOPE — what the system may be about, capture, say, or do
 
-**RULE-23 — Never moralise.** *(Tier: LINT)*
-No units-per-week counter, no guideline comparison, no spending judgment, no
-screen-time score, no "necessary" or "unnecessary" as a system-generated label.
-The money surface exists — *this reverses the previous prohibition, at my
-instruction* — but a surface that tallies and scolds does not.
+**RULE-22 — These methods are forbidden.** *(Tier: LINT)*
+NOTEARS and DYNOTEARS (scale non-invariance; varsortability above 0.94), DSEM,
+convergent cross-mapping, multivariate transfer entropy, model-X knockoffs. A
+CI check greps imports and fails on any of them. *(SCOPE — revisable with
+evidence via an ADR (ADR-0029): which methods are too unreliable to use is an
+evidence-based choice, not an invariant of truth; the CI grep enforces whatever
+the current list is.)*
+
+**RULE-23 — Inform, never moralise.** *(Tier: LINT)*
+The system MAY surface usage-based necessity (`used` / `unused` / `unknown`,
+OQ-07), top-spend rankings, and neutral pattern teaching — what happened, when,
+how it covaries — without a verdict. It MUST NOT attach a judgment, a guideline
+comparison, a spending or screen-time score, or the words "necessary" /
+"unnecessary" as a system-generated label, to any behaviour, rating, or total.
+The judgment-vocabulary linter (extending REQ-NAR-023's banned wordlist) fails
+the build on a match. The money surface exists — *this reverses the previous
+prohibition, at my instruction* — but a surface that tallies and scolds does not.
 *Independent support: precise, always-on spending feedback has been shown to
 increase spending by $32–40. The restraint is not squeamishness; the nagging
-version measurably backfires.*
+version measurably backfires — it argues against scolding, not against
+information.* (Reworded 2026-08-23, ADR-0029.)
 
-**RULE-24 — No live counters, no streaks, no gamification, no celebratory
-animation.** *(Tier: LINT + REVIEW)*
-A displayed number is itself an intervention: an RCT manipulating displayed
-step counts causally worsened mood, self-esteem, diet, blood pressure and heart
-rate. Coverage is shown as a rolling 7-day figure, never as a streak that can
-be broken.
+**RULE-24 — No gamification; plain progress only.** *(Tier: LINT + REVIEW)*
+The system MUST NOT display a streak, a compliance score, a composite wellness
+score, a celebratory animation, or a step-count-style live intervention counter.
+A displayed number is itself an intervention: an RCT manipulating displayed step
+counts causally worsened mood, self-esteem, diet, blood pressure and heart rate.
+It MAY display plain progress metrics toward the stated strength and
+body-composition objective (e.g. e1RM over time, a lean-mass trend), shown
+without gamification and without a breakable-streak mechanic. Coverage is shown
+as a rolling 7-day figure, never as a streak that can be broken. (Reworded
+2026-08-23, ADR-0029.)
 
-**RULE-25 — Notice and ask. Do not conclude.** *(Tier: TEST)*
-Below `CONFIRMED_OBSERVATIONAL`, the system surfaces a pattern as a question,
-never as a fact about me.
+**RULE-25 — Recommend with disclosed uncertainty; never assert as established.**
+*(Tier: TEST)*
+Below `CONFIRMED_OBSERVATIONAL` the system MAY recommend an action, provided it
+names its evidence tier, its uncertainty, and what would raise it; it MUST NOT
+assert the underlying pattern as an established fact about me. Every
+recommendation is subject to RULE-20 — it emits a scored forward prediction and
+is auto-demoted when its predictions fail. (Reworded 2026-08-23, ADR-0029; the
+former "surface as a question, never conclude" is replaced by "recommend
+provisionally, never assert".)
 
-**RULE-26 — Never diagnose, never prescribe medically, never interpret a
-symptom.** *(Tier: LINT + REVIEW)*
+**RULE-26 — Never diagnose, prescribe medically, or interpret a symptom.**
+*(Tier: LINT + REVIEW)*
+The system MUST NOT name a medical condition, interpret a symptom, or recommend
+a medical action — dosing, medication, or treatment; it returns the stored
+referral string with the relevant data attached (REQ-ASK-028). It MAY make a
+behavioural or lifestyle recommendation grounded in my own logged data — e.g.
+"you're under-slept, lift lighter today" — which is distinct from a medical claim
+(RULE-25; REQ-ASK-029). When the behavioural/medical line is unclear, it defaults
+to the referral string. (Clarified 2026-08-23, ADR-0029.)
 
 **RULE-27 — Never nag, and never repeat a dismissed prompt.** *(Tier: TEST)*
 One prompt per subject per day, maximum. Prompts are scheduled, never random —
 scheduled morning prompts achieve 81% compliance versus 52% for random pings.
 No battery exceeds 26 items.
-
----
-
-## V. COST, PRIVACY, CAPTURE
 
 **RULE-28 — $0 recurring. No exceptions, including small ones.**
 *(Tier: REVIEW + LINT)*
@@ -267,20 +360,6 @@ projected usage, and behaviour at the limit, **before** it is added. A service
 that bills on overage rather than failing is disqualified. Cloudflare Workers
 AI is preferred partly because it hard-fails rather than billing. Projected
 steady-state usage is ~2,760 neurons/day against a 10,000/day allowance.
-
-**RULE-29 — Personal data leaves this system only to Supabase, Cloudflare
-Workers AI, and originating source APIs.** *(Tier: LINT + SQL)*
-No location data is ever sent to a third party including the model layer. Home
-coordinates never appear in any export, log line, or prompt. Non-home places
-are stored at ~100 m precision. Analysis uses place labels, never coordinates.
-Every outbound model call writes a row to `ops.egress_log`.
-**A public git repository is a third party.** The repo is public (OQ-03,
-ADR-0013), so not one row of personal data is ever committed or tracked — code
-and specs are public, the life they describe is not. Every data path (Parquet,
-exports, fixtures, caches) is gitignored by default; `_legacy_snapshot/` stays
-gitignored permanently. A tracked `.parquet`, `.csv`, `.db`, or `.sqlite` file
-fails CI (`tools/validate_layout.py`). Any exception is justified in an ADR
-before the file is tracked.
 
 **RULE-30 — iOS Shortcuts owns all media capture. The PWA never calls
 `getUserMedia`.** *(Tier: LINT)*

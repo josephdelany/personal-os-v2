@@ -343,6 +343,28 @@ DuckDB-over-Parquet (ADR-0016). Settles it: the first Phase-5/6 analysis that na
 a legacy stream, at which point the load target + size are decided against the
 then-current ceiling. Raised 2026-08-23 (ADR-0028).
 
+**OQ-30 — What evidence-tier floor governs a REQ-ACT recommendation, and how does a
+proactive recommendation fit RULE-27's cadence?**
+Ruling context (Joe, 2026-08-23, ADR-0029): RULE-25 was reworded so the system MAY
+recommend below `CONFIRMED_OBSERVATIONAL` with disclosed uncertainty, and REQ-ACT
+authoring is opened (REQUIREMENTS_INDEX "Not yet written"). The audit confirmed **no**
+existing requirement authorises prescription — REQ-ASK is descriptive, REQ-NAR is
+narration restraint. **What is still undecided before REQ-ACT can be numbered:**
+(1) the **evidence-tier floor** — three options in `CONSTITUTION_RESTRUCTURE_PROPOSAL.md`
+§4.2: (a) recommend from `DESCRIPTIVE` with mandatory uncertainty (maximally useful,
+maximally risky); (b) from `PROMOTED` upward only (safer, quieter); (c) tier-gated
+*language* — hedged verbs below `CONFIRMED`, direct verbs at/above it (the drafted
+recommendation, mapping the REQ-NAR-020 per-tier vocabulary linter onto actions);
+(2) whether a **proactive** recommendation counts against RULE-27's single daily
+prompt or is a separate channel; (3) the **demotion thresholds** for a recommendation
+whose scored forward prediction (RULE-20) fails — these join OQ-10's placeholder-threshold
+set, to be set against real data, not guessed; (4) whether Joe wants a daily
+"what to do today" digest surface or only on-demand (REQ-ASK-style).
+Depends on it: whether REQ-ACT requirements can be written, and how aggressively the
+system is allowed to prescribe. Also gated on the tier-labelling surface (RULE-17
+binding sequencing) being built and proven first. Settles it: Joe ruling the tier floor
+(1) and the cadence question (2); (3)/(4) can follow. Raised 2026-08-23 (ADR-0029).
+
 ---
 
 ## Data integrity
