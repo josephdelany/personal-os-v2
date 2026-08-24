@@ -360,10 +360,24 @@ prompt or is a separate channel; (3) the **demotion thresholds** for a recommend
 whose scored forward prediction (RULE-20) fails — these join OQ-10's placeholder-threshold
 set, to be set against real data, not guessed; (4) whether Joe wants a daily
 "what to do today" digest surface or only on-demand (REQ-ASK-style).
+**Reconciliation the session-end reviewer surfaced (must be done before REQ-ACT is
+numbered):** the recommendation *disclosure contract* already exists — REQ-TIER-047
+forbids a recommendation phrased as a causal-effect claim below `CONFIRMED_OBSERVATIONAL`;
+REQ-TIER-048 permits a decision-under-uncertainty recommendation below CONFIRMED provided
+it carries tier, effect size + interval, `n`, `coverage`, and what-would-change-it;
+REQ-TIER-049 fails the build if one renders without its tier + interval. So the tier floor
+(1) is **partially pre-answered** (below CONFIRMED, with disclosure), and REQ-ACT covers
+only the *generation* machinery those requirements do not — when/how-often/what-happens-when-wrong/
+the action vocabulary. Separately, new RULE-25 ("MAY recommend") is in tension with
+**unamended REQ-FIN-190 / REQ-FIN-198**, which still require a co-occurrence be phrased as
+a question, never a conclusion; those two need reconciling (edit to align with RULE-25, or
+an ADR) before finance surfaces recommend.
 Depends on it: whether REQ-ACT requirements can be written, and how aggressively the
 system is allowed to prescribe. Also gated on the tier-labelling surface (RULE-17
-binding sequencing) being built and proven first. Settles it: Joe ruling the tier floor
-(1) and the cadence question (2); (3)/(4) can follow. Raised 2026-08-23 (ADR-0029).
+binding sequencing) being built and proven first. Settles it: Joe ruling the residual tier
+floor (what REQ-TIER-047/048 leave open) and the cadence question (2), and the
+REQ-FIN-190/198 reconciliation; (3)/(4) can follow. Raised 2026-08-23 (ADR-0029);
+extended by the session-end reviewer 2026-08-23.
 
 ---
 

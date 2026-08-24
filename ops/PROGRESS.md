@@ -1087,3 +1087,88 @@ assertion). No ADR: this is diagnosis + a standard remedy, not a new decision. N
 - Did **not** flip `F-014`/`F-015` — they require a proving run that has not happened.
 
 **Commit.** `a2c9088` on `main` (this correction recorded in a follow-up commit).
+
+## 2026-08-23 — Session 11 (cont.): constitution split into INTEGRITY / SCOPE / HYBRID (ADR-0029)
+
+**Attempted.** After the keepalive fix, Joe surfaced a deeper finding: RULE-29 forbade
+*storing* coordinates, which deleted the whole location domain by conflating storage with
+exposure, and survived eleven sessions. He ordered an audit of all 30 rules + 6 invariants
++ non-goals against eleven stated wants — change nothing, just classify and recommend —
+then, after reading the consequence-level proposal, ratified a re-derivation of the SCOPE
+layer and told me to apply exactly what he marked.
+
+**Works (evidence = command output pasted in-session).**
+- **Audit** found not one bad rule but ~8–9 SCOPE conflicts from one root cause (rules
+  ratified in Phase 1 by one-line summary, not consequence). All six invariants are pure
+  integrity and foreclose nothing — the clean result that justified the split.
+- **ADR-0029 + `docs/CONSTITUTION_RESTRUCTURE_PROPOSAL.md`** drafted for consequence-level
+  ratification; Joe ratified all six changes. Applied to `CONSTITUTION.md`: three sections
+  (INTEGRITY / SCOPE / HYBRID), amendment-by-consequence (INTEGRITY additionally needs an
+  adversarial review that tries to break the change). RULE-29 OPEN (store restricted, derive
+  labels+mobility, egress lint; ADR-0013/0020 integrity clauses retained); RULE-13/17/19
+  SPLIT (confirmation frozen; exploration continuous + displayable-as-EXPLORATORY, tier-
+  labelling surface built+proven FIRST); RULE-25/23/24 reworded; RULE-06/22/26 clarified;
+  RULE-28 unchanged.
+- **Verified the restructure did exactly what was ratified, nothing else:** a diff script
+  parsed old (HEAD) vs new into rule→text and confirmed CHANGED = exactly
+  {06,13,17,19,22,23,24,25,26,29}; the other **21 rules byte-identical**; 30-cap held;
+  numbers contiguous. Gate output: `validate_layout` **35/0** ("31 rules RULE-00..30",
+  "inside 30-rule cap", "contiguous"), `test_guard` **26/0**, `check_invariants --core core`
+  **ALL PASS** (RULE-04 PENDING), `pytest` **21 passed**.
+- **RULE-29 static coordinate lint** added to `validate_layout.py`, then **strengthened
+  after the reviewer** to catch JSON-key / decimal-degree-pair / WKT-POINT forms (proven
+  inline against the evasion cases; no false positives on the real repo). It is a tripwire,
+  not coverage; the authoritative runtime egress proof is owed Phase 3/4.
+- **Prescription finding — CORRECTED by the reviewer.** Initial claim "no requirement
+  authorises prescription" was **false**: REQ-TIER-047/048/049 already authorise a
+  recommendation below CONFIRMED with a disclosure contract. `REQ-ACT` authoring opened for
+  the *generation* machinery those requirements don't cover (when / cadence / auto-demotion
+  of recommendations / action vocabulary), reconciled-not-duplicated. OQ-30 raised + extended.
+
+**Adversarial reviewer (on `689ae33..HEAD`) found real defects — verbatim, with my response.**
+- **MAJOR-1 (agree, corrected).** "No requirement authorises prescription" is false —
+  REQ-TIER-047/048/049 already authorise+constrain recommendation emission below CONFIRMED.
+  My grep missed them (`\brecommend\b` ≠ "recommendation") and I didn't read section A's
+  claim-ladder tail. Corrected in ADR-0029 addendum, OQ-30, REQUIREMENTS_INDEX, DECISIONS.
+- **MAJOR-2 (agree, fixed).** The coordinate lint was evadable on the JSON export form
+  (`"lat": 51.5231`) — the likeliest real leak — plus tuples/WKT. Strengthened + proven.
+- **MINOR-1 (agree, corrected in addendum).** ADR body line "RULE-13,17,19,22,29 are the
+  hybrids" is wrong — RULE-22 is SCOPE (D3.7); hybrids are 13,17,19,29 (as placed).
+- **MINOR-2 (agree, recorded).** New RULE-25 ("MAY recommend") conflicts with unamended
+  REQ-FIN-190/198 ("phrase as a question, never a conclusion"). Reconciliation owed → OQ-30.
+- **OBSERVATION-1 (agree, disclosed).** The RULE-29 integrity-core wording narrowed "location
+  data"→"coordinate" — a *ratified* consequence of the reframe, not byte-preservation; the
+  clause also strengthened (added "commit"; "home never egresses at any precision").
+- Reviewer confirmed sound: changed-set exactly {06,13,17,19,22,23,24,25,26,29}, 21 byte-
+  identical; 30-cap + contiguity held; RULE-19 immutable core cannot be read to permit
+  confirming on generating data (DB CHECK `confirmation_data_from >= preregistered_at`);
+  ADR-0013/0020 clauses retained.
+
+**Requirement / rule IDs touched.** RULE-06/13/17/19/22/23/24/25/26/29 (constitution).
+Governing: ADR-0029 (amends process of ADR-0015; interacts ADR-0013/0020/0027); RULE-00
+(nothing weakened — verified byte-identical + gates green); INV-1..6 (untouched). REQ-ACT
+authoring opened; must reconcile REQ-TIER-047/048/049 + REQ-FIN-190/198. OQ-30 raised.
+
+**Does not work / deferred.** No enforcement code for the SCOPE rewrites yet: the RULE-23
+judgment-vocabulary linter, the RULE-17 tier-labelling surface (binding-before-exploration),
+and the RULE-29 *runtime* egress proof are all owed (Phase 3/4+), named not silent. REQ-ACT
+requirements not written (blocked on OQ-30). A committed regression test for the coordinate
+lint is owed. Gate 0 still open (keepalive registered, not fired — F-014/F-015 stay failing).
+
+**WHAT I DID NOT DO.**
+- Did **not** write any REQ-ACT requirement — blocked on OQ-30 (residual tier floor +
+  REQ-FIN-190/198 reconciliation) and the tier-labelling surface. Only the index row + OQ.
+- Did **not** build any SCOPE-rule enforcement (judgment-vocab linter, tier-labelling
+  surface, runtime coordinate-egress proof). The constitution now *permits/forbids* things
+  whose linters don't exist yet — the rules moved ahead of their enforcement.
+- Did **not** add a committed test for the RULE-29 coordinate lint (proven inline only);
+  a fixture-based regression test is owed. **The thing I was most tempted to let stand:** the
+  first coordinate lint looked done and passed green, but it was a false green on the JSON
+  export form — exactly the false-assurance trap; the reviewer caught it and it is now fixed.
+- Did **not** reconcile REQ-FIN-190/198 with the new RULE-25, nor touch CLAUDE.md's privacy
+  paragraph (still consistent — it was always egress language, never a storage ban).
+- Did **not** edit the ADR-0029 body for MAJOR-1/MINOR-1 (ADR immutability); corrections are
+  a dated addendum, per the ADR-0013/0014 precedent.
+
+**Commit.** Main restructure `7924162`; session-end corrections + this record in a follow-up
+commit on `main`.

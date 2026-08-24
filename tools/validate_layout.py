@@ -192,35 +192,40 @@ except Exception as e:
 # ---------- 10. no committed coordinate / home-location literal (RULE-29 SCOPE lint) ----------
 # ADR-0029 opened location storage but kept the egress ban absolute: "a lint fails
 # the build if a coordinate or the home location can reach an export, log, commit,
-# or prompt path." This is the STATIC half — it catches a coordinate or home-location
-# literal committed to the public repo, the leak that is checkable today. The RUNTIME
-# half (proving no coordinate reaches an export/log/prompt at execution time) is OWED
-# when the location table (Phase 4) and egress paths (Phase 3) exist; it is named here,
-# not silently skipped, so this lint is not mistaken for complete (cf. OQ-15).
+# or prompt path." This is a STATIC TRIPWIRE, not coverage — it catches a coordinate
+# or home-location literal committed to the public repo, in the common serializations
+# (JSON/dict key, coordinate pair, WKT POINT, home_* identifier). It CANNOT prove the
+# absence of every encoding (geohash, split x/y, base64) — a static regex never can
+# (cf. OQ-15). The AUTHORITATIVE enforcement is the RUNTIME egress proof (no coordinate
+# reaches an export/log/prompt at execution time; `ops.egress_log`) + review, OWED when
+# the location table (Phase 4) and egress paths (Phase 3) exist. Named here, not skipped,
+# so a green from this lint is never mistaken for "no coordinate can leak."
+# tests/ is excluded: its fixtures are synthetic (RULE-01), not personal coordinates.
 CODE_EXT = (".py", ".sql", ".ts", ".tsx", ".js", ".jsx", ".json", ".yml", ".yaml", ".sh")
 SELF = "tools/validate_layout.py"
-# a home-coordinate constant, or any coordinate identifier assigned a decimal-degree
-# literal (>=3 dp — a real coordinate, not a version or ratio).
 HOME_COORD = re.compile(r'\bhome_(?:lat|lon|lng|latitude|longitude)\b', re.I)
-COORD_LIT  = re.compile(r'\b(?:lat|lon|lng|latitude|longitude)\s*[:=]\s*-?\d{1,3}\.\d{3,}')
+COORD_KV   = re.compile(r'["\']?\b(?:lat|lon|lng|latitude|longitude)\b["\']?\s*[:=]\s*-?\d{1,3}\.\d{3,}', re.I)
+COORD_PAIR = re.compile(r'-?\d{1,3}\.\d{3,}\s*,\s*-?\d{1,3}\.\d{3,}')  # decimal-degree pair
+WKT_POINT  = re.compile(r'\bPOINT\s*\(\s*-?\d', re.I)
 try:
     coord_offenders = []
     for f in tracked:
-        if not f.lower().endswith(CODE_EXT) or f == SELF:
+        if not f.lower().endswith(CODE_EXT) or f == SELF or f.startswith("tests/"):
             continue
         p = ROOT / f
         try:
             txt = p.read_text(errors="ignore")
         except Exception:
             continue
-        m = HOME_COORD.search(txt) or COORD_LIT.search(txt)
+        m = (HOME_COORD.search(txt) or COORD_KV.search(txt)
+             or COORD_PAIR.search(txt) or WKT_POINT.search(txt))
         if m:
             coord_offenders.append(f"{f}: '{m.group(0)}'")
     if coord_offenders:
         for o in coord_offenders:
             fail(f"coordinate/home-location literal committed (RULE-29): {o}")
     else:
-        ok("no committed coordinate/home-location literal (RULE-29 static lint; runtime egress check owed Phase 3/4)")
+        ok("no committed coordinate/home-location literal (RULE-29 static tripwire; runtime egress proof owed Phase 3/4)")
 except Exception as e:
     warn(f"could not run the RULE-29 coordinate-literal check: {e}")
 

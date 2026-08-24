@@ -48,7 +48,7 @@ either pass or fail visibly.
 | `REQ-BOD` | Body composition — Kalman weight and TDEE, lean mass | ADR-0005 |
 | `REQ-SLP` | Sleep and recovery | — |
 | `REQ-CTX` | Context — location, media, alcohol, screen time | Extraction from archived `08` (location storage unblocked by ADR-0029 / the reworded RULE-29) |
-| `REQ-ACT` | Action — when the system may recommend, on what evidence tier, in what language, how often, and what happens when a recommendation turns out wrong | **Authoring opened (ADR-0029).** Scope in ADR-0029 §D4 / `docs/CONSTITUTION_RESTRUCTURE_PROPOSAL.md` §4. Blocked on OQ-30 (the evidence-tier floor) and on the tier-labelling surface (RULE-17). No requirement is numbered until OQ-30 is ruled |
+| `REQ-ACT` | Action — the *generation* machinery for recommendations: when to recommend (proactive vs on-demand), cadence, the scored-prediction/auto-demotion loop applied to recommendations, the action vocabulary, an optional "what to do today" digest | **Authoring opened (ADR-0029).** Must **reconcile with, not duplicate, REQ-TIER-047/048/049**, which already specify the recommendation *disclosure contract* (session-end reviewer, ADR-0029 addendum). Scope in ADR-0029 §D4 / `docs/CONSTITUTION_RESTRUCTURE_PROPOSAL.md` §4. Blocked on OQ-30 (residual tier floor + REQ-FIN-190/198 reconciliation) and the tier-labelling surface (RULE-17). No requirement numbered until OQ-30 is ruled |
 | `REQ-UI` | Interface | Phase 7, deliberately last |
 
 ## Rules for adding requirements

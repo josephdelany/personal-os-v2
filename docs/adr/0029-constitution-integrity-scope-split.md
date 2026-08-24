@@ -170,3 +170,64 @@ this session (Joe: plan, do not execute).
 - REQ-ACT requirement set authored (separately, consequence-ratified).
 - `docs/DECISIONS.md` index row; `CONSTITUTION.md` restructured to three sections
   once ratified; ADR-0027's `locations`→Phase-4 deferral re-opened under the new RULE-29.
+
+---
+
+## Addendum — session-end reviewer findings (2026-08-23)
+
+The adversarial reviewer ran on the session diff and found real defects. Recorded
+here rather than by editing the accepted body (ADR immutability; cf. ADR-0013/0014
+addenda). Corrections and disclosures:
+
+- **MAJOR-1 — the "no requirement authorises prescription" claim (§D4) is CORRECTED.**
+  It is false. `REQ-TIER-047/048/049` (`specs/04-reasoning/requirements.md:173-180`)
+  already authorise and constrain recommendation emission below
+  `CONFIRMED_OBSERVATIONAL`: REQ-TIER-048 permits a "decision-under-uncertainty"
+  recommendation below CONFIRMED provided it carries tier, effect size + interval,
+  `n`, `coverage`, and what-would-change-it; REQ-TIER-047 forbids phrasing it as a
+  causal-effect claim below CONFIRMED; REQ-TIER-049 fails the build if it renders
+  without tier + interval. The grep missed them because `\brecommend\b` does not match
+  the noun "recommendation," and section A's claim-ladder tail was not read.
+  **Consequence:** REQ-ACT is not "prescription from scratch." The recommendation
+  *disclosure contract* already exists. What REQ-ACT adds is the action-*generation*
+  machinery those requirements do not cover: **when** to recommend (proactive vs
+  on-demand), **cadence** (vs RULE-27), the **scored-prediction/auto-demotion loop
+  applied to recommendations** (RULE-20 today names findings), the **action vocabulary**,
+  and an optional "what to do today" digest. OQ-30's evidence-tier floor is **partially
+  pre-answered** by REQ-TIER-047/048 (below CONFIRMED, with disclosure) — narrowed
+  accordingly. REQ-ACT must **reconcile with, not duplicate**, REQ-TIER-047-049.
+
+- **MINOR-1 — corrected.** The Context line "RULE-13, 17, 19, 22, and 29 are the
+  hybrids" is wrong. RULE-22 is **SCOPE** (D3.7 / §3H: "the method blocklist moves to
+  SCOPE"). The HYBRIDs are **13, 17, 19, 29**, exactly as placed in `CONSTITUTION.md`.
+  The constitution placement is authoritative; the Context line is the typo.
+
+- **MINOR-2 — disclosed, reconciliation owed.** New RULE-25 ("MAY recommend") is in
+  tension with unamended `REQ-FIN-190`/`REQ-FIN-198` (a co-occurrence "SHALL be phrased
+  as an observation followed by a question... SHALL NOT be phrased as a conclusion").
+  Not an invariant violation (a disclosed-uncertainty recommendation is not a
+  conclusion), but constitution and finance spec now point different ways on the same
+  behaviour. Added to OQ-30.
+
+- **OBSERVATION-1 — disclosed honestly.** The RULE-29 `[INTEGRITY core]` wording
+  narrowed "No **location data** is ever sent to a third party" → "No **coordinate**".
+  This is a *ratified* consequence of the reframe (place labels may egress at ~100 m),
+  not byte-preservation of that clause. The clause also *strengthened* (added "commit"
+  to the leak list; "home never egresses at any precision"). Recorded as a real change,
+  not as "intent byte-preserved."
+
+- **MAJOR-2 — fixed this session.** The RULE-29 static coordinate lint was evadable on
+  the JSON export form (`"lat": 51.5231`) — the single likeliest real leak — plus
+  tuples and WKT. Strengthened to catch quoted-key, decimal-degree-pair, and
+  WKT-POINT forms (proven inline against the reviewer's evasion cases; no false
+  positives on the real repo). `tests/` excluded (synthetic fixtures, RULE-01). It
+  remains a **tripwire, not coverage** — a static regex cannot prove absence of every
+  encoding (geohash, split x/y); the **authoritative** enforcement is the runtime
+  egress proof (owed Phase 3/4) + review. A committed regression test for the lint is
+  owed.
+
+The reviewer independently verified and confirmed sound: the changed-rule set is
+exactly {06,13,17,19,22,23,24,25,26,29} (21 rules byte-identical); the 30-cap held and
+numbers are contiguous; the RULE-19 immutable core cannot be read to permit confirming
+on generating data (DB CHECK `confirmation_data_from >= preregistered_at`); ADR-0013 and
+ADR-0020 clauses are retained in the new RULE-29 core.
