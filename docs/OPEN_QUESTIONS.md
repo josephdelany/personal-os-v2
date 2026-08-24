@@ -493,6 +493,21 @@ accept-and-monitor with a storage alert on `ops.runs`) with the row/byte
 projection for the new schema, ruled by Joe **before** the wall, not at it.
 Raised by Joe's Decision-7 ruling, 2026-08-23.
 
+**OQ-31 — The requirements audit (session 12) is ranked but not ratified; two rulings owe ADRs.**
+Why open: `docs/REQUIREMENTS_AUDIT.md` holds ~17 conflicts over ~30 REQ IDs + 8 missing
+requirement-sets from the item-3 audit. Nothing is applied — Track 1.2 (correction) is gated on
+Joe reading the worksheet and marking each item ACCEPT/REJECT/DEFER. Two items were ruled early
+because they alone have a hardening deadline: **RULED-1** (ontology — alcohol=`consume`+metric_key,
+mobility=`derived_measures`; spine-verified, no migration; reserved **ADR-0030**) and **RULED-2**
+(finance = full system with net-worth/investments carved out, no live spend counter; reserved
+**ADR-0031**). Those two ADRs are OWED and unauthored. One sub-item is newly open and unresolved by
+either ruling: **strength-*set* granularity** — is a strength set (exercise/weight/reps/RPE) one
+`workout` atom per set or one per session? The objective function (want 7) rides on it, and it is a
+requirements-layer question REQ-ONT is silent on (no O-Q, unlike the mood/media/brand boundaries).
+Depends on it: whether Phase-3 extraction and Phase-5/6 derived measures for e1RM/volume read a
+consistent set-level shape. Settles it: Joe ratifying the worksheet (→ Track 1.2 corrections +
+ADR-0030/0031 authored), and ruling the set-granularity boundary. Raised 2026-08-24 (session 12).
+
 ---
 
 ## RESOLVED

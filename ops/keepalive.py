@@ -20,7 +20,7 @@ copy of started_at. A keepalive writes no DATA rows, so
 rows_written is 0 — the run row is an operational heartbeat recording a true "this job
 ran at T" event, not fabricated data (RULE-01; heartbeat-rows-are-legit ruling, ADR-0024).
 
-    PYTHONPATH=. python3 ops/keepalive.py --job supabase --trigger scheduled   # CI use
+    PYTHONPATH=. python3 ops/keepalive.py --job supabase --trigger "$GITHUB_EVENT_NAME"  # CI: schedule|workflow_dispatch
     PYTHONPATH=. python3 ops/keepalive.py --job supabase --dry-run             # persists nothing
 
 perform() takes an open cursor and a schema, so a test can drive it (success AND failure)
@@ -91,7 +91,9 @@ def main(argv=None):
     ap.add_argument("--job", required=True, choices=VALID_JOBS)
     ap.add_argument("--ops", default="ops", help="ops schema name (default: ops)")
     ap.add_argument("--trigger", default="manual",
-                    help="what fired this run: 'scheduled' (CI), 'manual', 'manual_smoke'")
+                    help="what fired this run, recorded verbatim in ops.runs.detail. CI passes "
+                         "github.event_name ('schedule' = cron, 'workflow_dispatch' = manual "
+                         "dispatch); local use: 'manual', 'manual_smoke'.")
     ap.add_argument("--dry-run", action="store_true",
                     help="roll back instead of commit — proves the path, persists nothing")
     args = ap.parse_args(argv)

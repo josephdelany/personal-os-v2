@@ -1210,17 +1210,85 @@ committed proving test, and no scheduled firing has elapsed. Not flipped.
 (first evidence, stays open). ADR-0012 (TLS proven on runner), ADR-0024 (heartbeat doctrine
 confirmed). **Commit.** This record + NEXT ACTION update on `main`.
 
+## 2026-08-24 — Session 12: trigger observability fix (keepalive.yml) + requirements audit (item 3)
+
+**Fix (item 0).** `.github/workflows/keepalive.yml` now passes `--trigger "${{ github.event_name }}"`
+to both keepalive steps instead of the hard-coded `--trigger scheduled`. An `ops.runs` row from a
+cron firing will now carry `detail.trigger = "schedule"`; a manual dispatch carries
+`"workflow_dispatch"` — the distinction Gate 0's closing evidence needs, which the session-11
+caveat flagged as missing. `ops/keepalive.py` `--trigger` help text updated to describe the real
+event names (the arg is free-text, recorded verbatim; no code-path/validation change).
+
+**Backfill: none — by instruction.** Existing `ops.runs` rows are left exactly as they are. Every
+keepalive row written **before this fix** (both the `manual_smoke` smoke rows and the 2026-08-24
+`04:06Z` manual-dispatch rows that read `detail.trigger = "scheduled"`) **cannot be distinguished
+as manual vs scheduled from the row alone** — their trigger field is the hard-coded label, not the
+real event. For those rows the Actions run `event` must still be cross-checked (the session-11
+method). Only rows written after this workflow change carry a truthful trigger.
+
+**Item 3 (requirements audit).** Ran via 5 parallel adversarial auditors (one per domain); every
+HIGH/MED finding re-verified by Claude against source text before ranking. ~17 conflicts over ~30
+REQ IDs + 8 missing requirement-sets. Persisted to `docs/REQUIREMENTS_AUDIT.md` as an inline
+ratification worksheet — CHANGE NOTHING; no requirement/rule/test/spec edited. Track 1.2
+(correction) stays gated on Joe's ratification. Headline defects: the RULE-25 "phrase-as-a-question"
+family extends well beyond the reviewer's REQ-FIN-190/198 (also 157/200/222 + §0 governing line 27 +
+REQ-NAR-024) → forecloses want 2 (prescription); and REQ-INF-402/403 + §F line 629 still encode
+RULE-17's *reversed* "never reaches a screen" — line 629 explicitly REJECTS the exploratory label
+ADR-0029 now mandates → forecloses wants 1/3.
+
+**Two rulings banked NOW (Joe, 2026-08-24) — the only items with a hardening deadline:**
+- **RULED-1 (ontology, reserved ADR-0030).** Alcohol = `kind='consume'` + `metric_key` (standard
+  drinks, ethanol grams); generalises to caffeine/supplements/medication. Mobility scalars (radius
+  of gyration, entropy, commute, transit) = `derived_measures` + `metric_registry`, NOT a new
+  `atoms.kind`. **Spine-verified (migrations 0002/0005/0014):** `consume` is in the 0014 kind CHECK,
+  `atoms.metric_key` is a live FK to `metric_registry`, no constraint ties kind→metric_key, so
+  seeding alcohol metrics is a registry data INSERT — **no one-way-door migration; 0014 stays
+  frozen.** Caveat surfaced: `derived_measures` is the not-yet-built Phase-5 table (RULE-04
+  PENDING/OQ-22), so mobility is designed-in, not buildable now — correct for a derived measure.
+- **RULED-2 (finance want-8, reserved ADR-0031).** Full finance system. IN: income, balances/cash
+  position, budgets/targets, range-based forecasting, the REQ-FIN-041 reconciliation layer. OUT for
+  now: net worth/investments/portfolio (not restraint — just not asked; addable later). Surviving
+  constraint (do NOT reverse): no live running counter of money spent/remaining (REQ-FIN-210 KEPT);
+  budgets/forecasts are retrospective or range-based (REQ-FIN-212 KEPT), never a live countdown;
+  REQ-FIN-214 budget ban REVERSED.
+
+ADR-0030/0031 are OWED (not authored this session — Joe ratifies the worksheet first). Nothing
+applied.
+
+**Reviewer round (adversarial, on the session diff).** Confirmed CLEAN on the load-bearing claims:
+trigger fix expression correct (`github.event_name` → `schedule`/`workflow_dispatch`), no downstream
+equality-consumer of the trigger value (free-text into `ops.runs.detail`), RULED-1 spine premises all
+true (`consume` in 0014 CHECK, `atoms.metric_key` FK live, no kind→metric_key constraint,
+`derived_measures` absent), 7 HIGH audit quotes verbatim, CHANGE-NOTHING discipline held (no
+requirement/rule/spec/test/migration edited). Found and I FIXED four accuracy defects in this
+session's own artifacts: (1) stale `--trigger scheduled` example in `keepalive.py:23` docstring
+contradicting the fix → updated to `$GITHUB_EVENT_NAME`; (2) the "564 vs 570 count drift" was a grep
+artifact (`REQ-INF-4xx` headers matching `REQ-INF-4`), not drift → corrected in the worksheet; (3)
+REQ-FIN-214 quoted without its "for any individual category" scope → restored + flagged that RULED-2
+reverses broader than the clause; (4) C-10 claimed "necessary"+"score" as two RULE-23 tokens →
+"score" is a concept-level ban, real gap is the one token "necessary" → corrected. Reviewer could not
+reach the live DB (invariant queries / `ops.runs` row contents taken on file-word) or observe a real
+scheduled firing — same standing gaps as Gate 0.
+
+**Verification (evidence, not assertion).** `pytest` 21 passed; `check_invariants.py --core core`
+INVARIANTS: ALL PASS (RULE-04 PENDING, Phase 5); `validate_layout.py` 35 passed / 0 failed;
+`keepalive.yml` valid YAML; `keepalive.py` syntax OK. features.json unchanged (15 failing) — no
+proving test flips F-014/F-015; the trigger fix adds none.
+
 ## NEXT ACTION (from docs/REMEDIATION_PLAN.md sequence — single item only)
 
-Sequence items **1** (constitution restructure) and **2** (keepalive registration + first
-fire; Gate 0 first evidence landed) are done. Item 2's *scheduled* firings still have to
-elapse (7-day / 60-day) before Gate 0 closes — but that is a wait, not an action. Next:
+Sequence items **1** (constitution restructure), **2** (keepalive registration + first fire;
+Gate 0 first evidence landed), and **3** (requirements audit — ranked, verified, persisted to
+`docs/REQUIREMENTS_AUDIT.md`) are done. Item 2's *scheduled* firings still have to elapse
+(7-day / 60-day) before Gate 0 closes — a wait, not an action. Item 0 this session also fixed the
+trigger-observability gap so the first scheduled row will read a truthful `detail.trigger`. Next:
 
-> **Sequence item 3 — the requirements audit** (REMEDIATION_PLAN Track 1.1). Audit all 564
-> requirements against the eleven stated wants, exactly as the constitution audit was run:
-> conflicts ranked by how much of a want they remove, **nothing changed**. Expect it to find
-> more than the constitution audit did — 4× the volume, written in one turn by parallel
-> sub-agents, never reviewed. Output is a ranked conflict list Joe ratifies at consequence
-> level; no requirement edited until he does.
+> **Joe ratifies `docs/REQUIREMENTS_AUDIT.md`** — marks each conflict/missing-set
+> ACCEPT/REJECT/DEFER inline. RULED-1 (ontology) and RULED-2 (finance want-8) are already decided;
+> everything else is gated on his read. **Only after ratification:** Track 1.2 (correction) — which
+> begins by authoring ADR-0030 (ontology: alcohol=`consume`+metric_key, mobility=`derived_measures`)
+> and ADR-0031 (finance = full system, net-worth/investments out, no live spend counter), then the
+> ratified requirement edits.
 
 One item at a time. Do not start Track 1.2 (correction) until the audit is read and ratified.
+No requirement, rule, spec, test, or migration is edited before Joe rules.

@@ -49,17 +49,21 @@ jobs:
       - name: Install DB driver
         run: pip install 'pg8000>=1.30,<2'
 
+      # --trigger passes github.event_name verbatim so an ops.runs row can distinguish
+      # a cron firing ('schedule') from a manual dispatch ('workflow_dispatch'). Gate 0's
+      # closing evidence depends on that distinction; the hard-coded 'scheduled' label
+      # made every dispatch look scheduled (session-11 observability caveat).
       - name: Supabase keepalive (REQ-NFR-001, writes ops.runs)
         env:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
           PYTHONPATH: .
-        run: python3 ops/keepalive.py --job supabase --trigger scheduled
+        run: python3 ops/keepalive.py --job supabase --trigger "${{ github.event_name }}"
 
       - name: GitHub keepalive proof-of-life (REQ-NFR-003, writes ops.runs)
         env:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
           PYTHONPATH: .
-        run: python3 ops/keepalive.py --job github --trigger scheduled
+        run: python3 ops/keepalive.py --job github --trigger "${{ github.event_name }}"
 
       - name: Heartbeat commit if the repo is going stale (REQ-NFR-002)
         run: |
