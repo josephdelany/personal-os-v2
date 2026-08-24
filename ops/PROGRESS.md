@@ -1016,3 +1016,74 @@ test, so nothing legitimately flips; all 15 stay `failing`.
   attribution — only that their sum (185,875) is exact.
 
 **Commit.** `b12ecba` on `main` (this session-end record + reviewer-finding addenda in a follow-up commit).
+
+## 2026-08-23 — Session 11 (Phase 2, Gate 0): keepalive workflow ACTUALLY registered — correcting the session-10 over-claim
+
+**Correction to the session-10 record.** Session 10 asserted "**the keepalive is
+dispatchable now** from the Actions tab," resting on `git ls-remote` showing
+`workflow_dispatch: {}` committed on the remote ref. **That claim was wrong, and the
+evidence did not support it.** Joe checked the browser directly: the Actions tab listed
+only `gates`; `/actions/workflows/keepalive.yml` returned "This workflow does not exist";
+there was no Run workflow button. `ls-remote` proves a blob is on a ref. It does **not**
+prove GitHub parsed and registered that blob as a runnable workflow. The record asserted
+the stronger fact (registered/dispatchable) from the weaker evidence (file on the ref).
+
+**Diagnosis (proven against the GitHub Actions API, not the git ref).**
+- `GET /actions/workflows` returned `total_count: 1` — only `gates.yml` (id 340858349).
+  `keepalive.yml` was absent, confirming Joe's browser observation from the authoritative
+  source.
+- The file was genuinely fine and genuinely present: its remote blob (`c5a011b`) is
+  byte-identical to local, it parses, and its introducing commit `5358f62` is a true
+  ancestor of `origin/main`. So "bad file" and "not on the branch" are both ruled out.
+- **Root cause.** The repo had received exactly **one** push in its whole history — the
+  run at 2026-08-24T01:06:03Z on `0e8d588`, `event=push`. That push carried both workflow
+  files, but only `gates.yml` (`on: [push, pull_request]`) was exercised by it and thereby
+  registered. `keepalive.yml` triggers only on `schedule` + `workflow_dispatch`, so the
+  push never exercised it and GitHub never indexed it. A schedule/dispatch-only workflow
+  that merely rides along in a bulk/history-rewrite push (the reflog shows the `filter-repo`
+  rewrite at `0e8d588`; OQ-01 records the credential scrub that changed every hash) does
+  not get registered.
+
+**Fix (standard remedy).** Pushed a commit (`a2c9088`) that *modifies* `keepalive.yml`
+(a self-documenting comment recording this lesson at the source). A push that changes a
+workflow file forces GitHub to re-scan and register it.
+
+**Verified after the push (Actions API, the thing that actually proves registration).**
+- `GET /actions/workflows` now returns `total_count: 2`; `keepalive` present,
+  `id=340904886`, `state=active`.
+- The registered file on the default branch declares `workflow_dispatch: {}` (line 29) +
+  `schedule` cron — so GitHub now renders the Run workflow button. Dispatch capability is
+  present. (The push also carried the two previously-unpushed session records `b12ecba`,
+  `689ae33`, and re-ran `gates` on the new HEAD.)
+- `keepalive` total runs: **0**. It has **not** fired. No `ops.runs` row exists.
+
+**Gate 0 stays OPEN.** Registration is not firing. "Dispatch capability present" is a
+weaker, honest claim than "proven to fire": a full firing needs a manual dispatch (or the
+schedule) *and* the `SUPABASE_DB_URL` secret, and would leave an `ops.runs` heartbeat row —
+that is the bar for closing Gate 0, and Joe deferred it ("no clock is running today").
+`F-014`/`F-015` stay `failing` (no proving run, no `ops.runs` row) — not touched.
+
+**General lesson (recorded so it is not repeated).** "The file is on the remote" is not
+"the platform accepted it." Verify a claim against the surface that actually measures the
+property claimed — the Actions **API workflows list** for registration, not the git ref;
+an `ops.runs` **row** for firing, not registration. `ls-remote` answers a question about
+git; it cannot answer a question about GitHub Actions. When two facts differ in strength,
+assert only the one the evidence reaches.
+
+**Requirement / rule IDs touched.** REQ-NFR-002, REQ-NFR-003 (registration only, no
+firing). Governing: Gate 0 (stays open), RULE-00 (nothing weakened — the gate bar is
+unchanged), and the CLAUDE.md verification doctrine (proof by running/observing, not by
+assertion). No ADR: this is diagnosis + a standard remedy, not a new decision. No
+`ops/features.json` entry moved.
+
+**WHAT I DID NOT DO.**
+- Did **not** fire the keepalive — no manual dispatch, no `ops.runs` row. Gate 0 stays
+  open by design (Joe: no clock today).
+- Did **not** confirm the dispatch *succeeds* end-to-end. Proven: registered + button
+  present. Unproven (deferred): that a dispatch runs green, which additionally requires the
+  `SUPABASE_DB_URL` Actions secret. Registration ≠ a working firing.
+- Did **not** verify the `SUPABASE_DB_URL` secret is set (out of scope today; needed
+  before the first real firing).
+- Did **not** flip `F-014`/`F-015` — they require a proving run that has not happened.
+
+**Commit.** `a2c9088` on `main` (this correction recorded in a follow-up commit).
