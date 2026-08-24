@@ -583,6 +583,13 @@ The reasoning layer SHALL treat a single edge from a regularized or graphical VA
 
 ### F.2 Killed methods — forbidden
 
+*Note (C-14, 2026-08-24): this enumerated ban list is the **current** RULE-22 method list, which
+RULE-22 makes revisable-with-evidence via an ADR (the CI grep enforces whatever the current list is).
+An ADR that revises RULE-22 — adding or removing a method on new evidence — amends the requirements in
+this section and their dependency/import checks in the same change, so a future revision updates these
+rather than orphaning them as build-failing contradictions. The GIMME and GES/FGES bans below are
+stricter than RULE-22's named set by deliberate choice, recorded here.*
+
 **REQ-INF-420 (Ubiquitous)**
 The reasoning layer SHALL NOT use NOTEARS.
 
@@ -917,7 +924,7 @@ IF a generated claim string contains a verb or qualifier not permitted at its ti
 The render pipeline SHALL fail the build if any template in the repository contains a term above the tier that template is declared for.
 
 **REQ-NAR-023 (Ubiquitous)**
-The render pipeline SHALL lint every copy string against the banned moralising wordlist — at minimum {excessive, wasteful, unnecessary, too much, splurge, guilty} — and SHALL fail the build on a match.
+The render pipeline SHALL lint every copy string against the banned moralising wordlist — at minimum {excessive, wasteful, necessary, unnecessary, too much, splurge, guilty} — and SHALL fail the build on a match. (C-10: added the standalone token `necessary`, which RULE-23 names by hand alongside `unnecessary`; the concept-level "spending/screen-time score" ban RULE-23 also names is enforced structurally by RULE-24 / REQ-NAR-025, not this wordlist.)
 
 **REQ-NAR-024 (Ubiquitous)**
 The language layer SHALL NOT render a rating, a total, or a behaviour back to Joe with a moralising judgment attached — a term on the REQ-NAR-023 banned wordlist; a decision-under-uncertainty recommendation carrying its tier and interval per REQ-TIER-048 is permitted (RULE-25).

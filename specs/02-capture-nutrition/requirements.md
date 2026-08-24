@@ -429,8 +429,15 @@ resolve it with `dateparser` using `RELATIVE_BASE` set to the capture's `capture
 `PREFER_DATES_FROM: 'past'`.
 
 **REQ-CAP-065** (Unwanted behaviour) IF `dateparser` fails to resolve a temporal expression span,
-THEN the resolution job SHALL set the event time to `captured_at` and SHALL set that field's
-`provenance` to `defaulted`.
+THEN the resolution job SHALL set the event time to `captured_at`, SHALL set that field's
+`provenance` to `defaulted`, and SHALL set its `time_precision` to `unknown`, so the fallback is never
+read downstream as a measured instant. (Reworded 2026-08-24, requirements-audit C-11 / RULE-06: a
+`dateparser`-failure fallback to `captured_at` is a *system default* (REQ-CAP-060), so `defaulted` is
+the correct provenance — and it is exactly the value REQ-CAP-062 already excludes from statistics (or
+requires a stated count for). The C-11 fix is the added `time_precision='unknown'`, which flags the
+substituted instant as imprecise so no consumer reads it as measured; the C-11 reviewer corrected an
+earlier draft that mislabelled it `inferred`, which REQ-CAP-062 does *not* filter — that would have
+weakened the guard, not strengthened it.)
 
 **REQ-CAP-066** (Ubiquitous) The resolution job SHALL attribute a capture whose resolved event time
 falls before the configured personal day boundary to the preceding calendar day.

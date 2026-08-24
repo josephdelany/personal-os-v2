@@ -1368,10 +1368,26 @@ order, one item at a time, gates between, **stopping before anything needing a m
   *forward* commitment to the unbuilt Phase-3 table, not a reconciliation to an existing column; (MINOR)
   REQ-FIN-001 value-lane conditioned on non-null value; `source` dropped. **OQ-26 marked RESOLVED**
   (remediation applied), **OQ-32 raised**. Gate after fixes: `validate_layout` 35/0/0. No migration.
-- **Next units:** C-3 disposition (reverse REQ-FIN-214, keep 210/212 — RULED-2), C-9/C-10/C-11/C-14
-  (small conflict fixes), then the missing-sets D/E/F/G/H + B's requirements. **STOP at Missing-B's
-  `metric_registry` seed (data write — Joe wants to see it first).** Missing-F needs ADR-0032 (surface
-  modality: text/labels only, no charts — Joe ruled 2026-08-24). Each its own gated + reviewed pass.
+- **Unit 6 — small-fixes batch (C-3, C-10, C-11, C-14)** (one gated+reviewed pass — C-9 is the same work
+  as Missing-H, deferred to the missing-set authoring). C-3: REQ-FIN-214 budget ban REVERSED to a
+  permission bound by REQ-FIN-210/211/212 (RULED-2). C-10: added `necessary` to the banned-word lists.
+  C-11: REQ-CAP-065 fallback time gets `time_precision='unknown'` (RULE-06). C-14: §F.2 note that the
+  method-ban list is the current RULE-22 list, revisable via ADR. **Reviewer found 1 MAJOR + 3 MINOR/NIT,
+  all fixed:** (MAJOR) §E line 416 still said "no budget exists in this design" — a live contradiction with
+  the reversed 214 → reworded; (MINOR) my C-11 draft changed `defaulted`→`inferred`, which is BOTH
+  taxonomically wrong (REQ-CAP-060: a system fallback is `defaulted`, not model-`inferred`) AND escapes
+  REQ-CAP-062's stats filter (which catches `defaulted` but not `inferred`) — **reverted to `defaulted`**,
+  kept the real fix (`time_precision='unknown'`); (MINOR) C-10 only fixed the reasoning banlist —
+  REQ-FIN-218 (finance) had the same gap → added `necessary` there too. Also caught by the gate mid-unit:
+  a requirement ID mentioned in a prose note is parsed as a duplicate requirement (REQ-INF-428) — reworded
+  the C-14 note to avoid bare IDs. Gate after fixes: `validate_layout` 35/0/0. No migration.
+- **Remaining Track 1.2 (net-new requirement authoring — checkpoint here):** the missing-sets. Missing-A
+  (REQ-ONT alcohol=consume+registry + per-set strength — ADR-0030 done, requirement owed), Missing-C
+  (income/balances/budgets/forecast/reconciliation — ADR-0031 done, requirements owed), Missing-B (alcohol
+  instrumentation — **STOP at the `metric_registry` seed, a data write Joe wants to see first**), Missing-D
+  (mostly done in C-5; residual), Missing-E (recommendation-narration rung + inference trigger), Missing-F
+  (EXPLORATORY surface — **text/labels only, no charts, Joe ruled 2026-08-24; needs ADR-0032**), Missing-G
+  (continuous/on-demand inference), Missing-H/C-9 (ask completeness). Each its own gated + reviewed pass.
 
 ## NEXT ACTION (from docs/REMEDIATION_PLAN.md sequence — single item only)
 
