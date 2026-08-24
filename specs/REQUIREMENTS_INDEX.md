@@ -22,7 +22,7 @@ response is observable. Numbers, never adjectives.
 
 ---
 
-## Current coverage — 568 requirements, 36 scenarios
+## Current coverage — 572 requirements, 36 scenarios
 
 | Prefix | Count | Subsystem | File |
 |---|---|---|---|
@@ -32,7 +32,7 @@ response is observable. Numbers, never adjectives.
 | `REQ-NUT` | 57 | Nutrition resolution — USDA lookup, portions, intervals | `specs/02-capture-nutrition/requirements.md` |
 | `REQ-FIN` | 165 | Finance — ingestion, merchant resolution, usage inference, restraint | `specs/03-finance/requirements.md` |
 | `REQ-INF` | 137 | Inference — multiplicity, pre-registration, trials, predictions, cross-lens | `specs/04-reasoning/requirements.md` |
-| `REQ-TIER` | 39 | The six-tier evidence ladder | `specs/04-reasoning/requirements.md` |
+| `REQ-TIER` | 43 | The six-tier evidence ladder; the EXPLORATORY surface (REQ-TIER-050..053, Missing-F/ADR-0032) | `specs/04-reasoning/requirements.md` |
 | `REQ-NAR` | 27 | Narration — numeral templates, vocabulary linting, degradation | `specs/04-reasoning/requirements.md` |
 | `REQ-ASK` | 23 | Open-ended question answering — the PHIA loop | `specs/04-reasoning/requirements.md` |
 

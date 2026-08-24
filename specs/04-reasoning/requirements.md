@@ -179,6 +179,22 @@ WHERE a recommendation is emitted below tier `CONFIRMED_OBSERVATIONAL` as a deci
 **REQ-TIER-049 (Unwanted behaviour)**
 IF a recommendation is rendered without its tier label and its interval, THEN the build SHALL fail the acceptance suite and the surface SHALL NOT ship.
 
+### A.6 The EXPLORATORY surface (RULE-17, Missing-F)
+
+*The RULE-17 SCOPE shell (ADR-0029) permits `CANDIDATE`/exploratory structure-discovery output to be displayed, carrying an explicit `EXPLORATORY` label, on a surface built and proven before any continuous exploration ships. These requirements define that surface — its row source, its format, its build-before-exploration gate, and its vocabulary. The integrity core is unchanged — such output is never promoted to a finding and never rendered in confirmed-tier vocabulary (REQ-INF-401, REQ-INF-402).*
+
+**REQ-TIER-050 (Ubiquitous)**
+The EXPLORATORY surface SHALL render a `CANDIDATE`-status row only as text and labels carrying an explicit `EXPLORATORY` tag, SHALL emit only text and label render components, and SHALL NOT render it as a chart, plot, scatter, trend line, edge or network diagram, heat map, or any other graphical encoding (ADR-0032, reinforcing REQ-NAR-035).
+
+**REQ-TIER-051 (State-driven)**
+WHILE the EXPLORATORY surface has not passed the acceptance suite that proves it renders `CANDIDATE` output under its `EXPLORATORY` label (RULE-17's "built and proven" gate, enforced as in REQ-TIER-049), the reasoning layer SHALL NOT ship any continuous exploration — the label surface precedes the generation that feeds it.
+
+**REQ-TIER-052 (Ubiquitous)**
+The EXPLORATORY surface SHALL draw its copy only from the `EXPLORATORY` row of `tier_vocabulary` (illustrative members: "a generator flagged", "candidate", "exploratory, not a finding", "may", "might", "unverified"; the closure of every per-tier vocabulary row is the open question in §A.UNRESOLVED), and the per-tier vocabulary linter of REQ-NAR-020 SHALL fail the build if any confirmed-tier verb (for example "precedes", "predicts", "predictive lead", "causes") appears on it.
+
+**REQ-TIER-053 (Ubiquitous)**
+The EXPLORATORY surface SHALL source its rows from `hypothesis_register` entries whose `status = 'CANDIDATE'` and SHALL render no row of any other status; this is the one surface on which a `CANDIDATE` row is displayable (REQ-INF-402), and the routing of generator/continuous-exploration output to it is by this source binding, not by any push.
+
 ### A.NON-GOALS
 - Not a goal: mapping this ladder onto GRADE's High/Moderate/Low/Very Low labels for display. GRADE's five downgrade and three upgrade domains are used as *inputs* to tier computation; the GRADE label itself is never shown.
 - Not a goal: a numeric confidence score per finding. Tier plus interval plus coverage is the contract; a single scalar invites exactly the composite-score failure mode the old spec bans.
