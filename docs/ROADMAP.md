@@ -74,6 +74,12 @@ into a rolled-back copy, all CHECKs/FKs/triggers/invariants passing; `backfill_r
 (ADR-0028), the same named-not-silent pattern as RULE-04's deferral — `core.atoms`
 stays 0 this phase (no premature append, no fabrication).
 
+> **Before Phase 3 begins, see `docs/REMEDIATION_PLAN.md`.** Its Tracks 1–3
+> (requirements audit + correction + the missing requirement sets; the
+> schema-addendum migrations; the infrastructure fixes including Gate 0) run
+> **before** Phase 3. This inserts remediation work ahead of the Big Mac slice;
+> it does **not** renumber the phases — Phase 3 remains Phase 3.
+
 ## Phase 3 — One vertical slice, end to end: the Big Mac path.
 
 Joe's own example, chosen deliberately because it is the largest gap and

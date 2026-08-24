@@ -25,6 +25,8 @@ it, stop and tell me rather than reaching forward.
 - `docs/DECISIONS.md`      — one-line ADR index. Read the full ADR before
                              changing anything it covers.
 - `docs/OPEN_QUESTIONS.md` — undecided. Ask me. Do not decide these alone.
+- `docs/REMEDIATION_PLAN.md` — everything known to be wrong, ranked and sequenced.
+                             What runs before Phase 3, and in what order.
 - `ops/PROGRESS.md`        — the last three entries.
 
 ## Invariants (full text and SQL checks in `docs/CONSTITUTION.md`)

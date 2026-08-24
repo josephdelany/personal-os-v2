@@ -1172,3 +1172,17 @@ lint is owed. Gate 0 still open (keepalive registered, not fired — F-014/F-015
 
 **Commit.** Main restructure `7924162`; session-end corrections + this record in a follow-up
 commit on `main`.
+
+## NEXT ACTION (from docs/REMEDIATION_PLAN.md sequence — single item only)
+
+Sequence item **1** (apply the ratified constitution restructure) is **done** this
+session (ADR-0029, commit `7924162`). Sequence item **2** is next and only its
+*registration* half is done:
+
+> **Fire the keepalive to start the Gate 0 clock.** Set `SUPABASE_DB_URL` as a
+> repository Actions secret (Joe's action), dispatch `keepalive.yml` once, and
+> confirm it leaves an `ops.runs` row. Until that row exists, Gate 0 stays open and
+> Supabase can pause. (Registration is already proven — the workflow is `active` in
+> the Actions API; this is the firing, not the registration.)
+
+Do not start item 3 (requirements audit) until item 2 is closed. One item at a time.

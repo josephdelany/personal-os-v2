@@ -288,6 +288,11 @@ not a free edit. Depends on it: whether Phase-3 extraction emits kinds that matc
 mental model. Settles it: Joe ruling each boundary once real extraction exercises it, or
 accepting the derived defaults. Not blocking. Raised 2026-08-23.
 
+**→ Remediation:** `docs/REMEDIATION_PLAN.md` **Track 1** (requirements audit +
+correction) — the `atoms.kind`/`entity_type` boundary guesses are revisited there.
+*Note (session 11): the plan text does not name OQ-27 explicitly; this mapping to
+Track 1 is Claude's, pending Joe's confirmation that Track 1 is the intended home.*
+
 **OQ-28 — RESOLVED 2026-08-23 (Phase-2 session 4).** Consent granted (Joe). Corrected on
 the live DB: the two pre-fix `ops.runs` smoke rows are marked `trigger=manual_smoke` with a
 note (they stay `now()`-stamped — labelled, not re-run, so they are never mistaken for a
@@ -342,6 +347,11 @@ hardcoded excluded-bucket constants in `backfill_run.py`. Depends on it: whether
 DuckDB-over-Parquet (ADR-0016). Settles it: the first Phase-5/6 analysis that names
 a legacy stream, at which point the load target + size are decided against the
 then-current ceiling. Raised 2026-08-23 (ADR-0028).
+
+**→ Remediation:** `docs/REMEDIATION_PLAN.md` **Track 3.2/3.3** — the legacy-load
+trigger/sizing (3.2) and the three loader defects owed before any load (3.3:
+per-night `subject_day` sessionisation, `evidence_span` capture-row gap, dead
+`txn_amount` row + hardcoded bucket constants).
 
 **OQ-30 — What evidence-tier floor governs a REQ-ACT recommendation, and how does a
 proactive recommendation fit RULE-27's cadence?**
@@ -441,6 +451,9 @@ capture path demonstrably replacing the old one — specific acceptance test: th
 new path ingests one real day end to end before anything is switched off.** Until
 that test passes, nothing in the old stack is disabled. (Recorded in ROADMAP
 Phase 3.)
+
+**→ Remediation:** `docs/REMEDIATION_PLAN.md` **Track 3.2** (storage ceiling) —
+retiring the old stack at Phase 3 reclaims ~174 MB; step not yet executed.
 
 **OQ-18 — There is no workout/strength history anywhere, yet strength is the
 system's stated objective function.**
@@ -596,3 +609,6 @@ downgraded to REVIEW until the lint exists.
 
 *Would settle it.* Writing the forbidden-import lint and adding it to
 `tools/validate_layout.py`, then restating RULE-29's enforcement tier.
+
+**→ Remediation:** `docs/REMEDIATION_PLAN.md` **Track 4** (Phase 2.5 gates) — the
+forbidden-import lint closes this OQ and lets RULE-29 claim tier LINT.
