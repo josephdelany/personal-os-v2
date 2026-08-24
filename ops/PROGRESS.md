@@ -1275,6 +1275,60 @@ INVARIANTS: ALL PASS (RULE-04 PENDING, Phase 5); `validate_layout.py` 35 passed 
 `keepalive.yml` valid YAML; `keepalive.py` syntax OK. features.json unchanged (15 failing) — no
 proving test flips F-014/F-015; the trigger fix adds none.
 
+## 2026-08-24 — Session 13: first UNATTENDED scheduled firing verified; item-0 fix found UNPUSHED; audit ratified
+
+**Scheduled firing — verified against the DB, not the green tick.** SELECT on `ops.runs` (live):
+two new rows from the overnight cron —
+- `keepalive_github`   run_id `0f2e75a8…`  started `2026-08-24 07:31:30.998176Z`  finished `07:31:31.086755Z`  status=`ok`  rows_written=`0`  `detail.trigger='scheduled'`
+- `keepalive_supabase` run_id `0afcb56d…`  started `2026-08-24 07:31:30.375071Z`  finished `07:31:30.482514Z` status=`ok`  rows_written=`0`  `detail.trigger='scheduled'`
+
+`started_at ≠ finished_at` (~0.1s) — `clock_timestamp()` path confirmed on a runner. GitHub cron
+drift (schedule `06:17`, ran `07:31`) is normal on free runners. This is the **first unattended
+scheduled firing** (the 04:06 rows were session-11's manual dispatch). The cron mechanism is proven.
+
+**HONEST FINDING — the trigger label reads `'scheduled'`, not `'schedule'`.** The row the item-0 fix
+existed to produce does NOT exist. Cause, verified: `git status -sb` → `main...origin/main [ahead 5]`;
+`git branch -r --contains 2038a34` → empty. **The item-0 commit is 5 commits ahead of origin,
+unpushed.** GitHub ran the OLD `keepalive.yml` (`--trigger scheduled` hard-coded). The fix is correct
+in the working tree and never reached the runner. So this scheduled row is known-scheduled ONLY by
+cross-checking the Actions "Scheduled" event (session-11 method); the row cannot yet self-distinguish.
+Closing that gap is still blocked on the push (OQ-02, Joe pushes). Not rounded up.
+
+**F-014/F-015 — proving evidence? NO.** Three independent blockers, any one sufficient: (1)
+`proving_test: None` for both — DoD item 4 forbids a failing→passing move without a named test;
+(2) the 7-day/60-day calendar clocks have not elapsed — one firing proves the cron runs once, not
+that the clocks are held across their limits; (3) the distinguishing label is unpushed, so a row
+still can't self-certify as scheduled. Genuine advance recorded (first unattended firing); features
+stay `failing`. Not flipped.
+
+**Requirements audit RATIFIED (Joe, shorthand).** ACCEPT: C-1, C-2 (each as its own pass — they
+reverse acceptance tests + a governing principle, authorised knowingly), C-3, C-5, C-6, C-7, C-8,
+C-9, C-10, C-11, C-14, and all eight missing-sets A–H. DEFER: C-12, C-13, C-15, C-16, C-17. NEW
+RULING: strength-set granularity is **PER SET** — one `workout` atom per set carrying exercise,
+load, reps, RPE (e1RM/volume/per-exercise trends need it; it is the objective function). Marks
+recorded in `docs/REQUIREMENTS_AUDIT.md`. Track 1.2 begins: ADR-0030, ADR-0031, then the suggested
+order, one item at a time, gates between, **stopping before anything needing a migration**.
+
+**Track 1.2 progress (units, each gated + reviewed):**
+- **Unit 1 — ADR-0030 + ADR-0031** (foundation). Written + indexed in DECISIONS.md. Gate: `validate_layout` 35/0/0.
+- **Unit 2 — C-5 / Missing-D** (capture generalisation). REQ-CAP-051 rescoped to the *food-item profile*;
+  new REQ-CAP-108 (per-subject profile dispatch, closed set + `note` fallback), REQ-CAP-109 (extractive-only
+  contract binds every profile — restated positively so no profile schema carries a resolved gram/calorie/
+  standard-drink/ethanol-gram/dollar, RULE-09), REQ-CAP-110 (location capture path via `source='location'`,
+  RULE-29-safe), REQ-CAP-111 (three-valued-presence capture of a logged absence, RULE-07). Index 564→568,
+  REQ-CAP 97→101. **Reviewer (adversarial) found 2 MAJOR + 3 MINOR, all fixed:** (MAJOR) REQ-CAP-110 named
+  `shortcut_location` — the enum reserves `location` (migration 0004), corrected + ADR-0008 citation fixed;
+  (MAJOR) REQ-CAP-109 delegated the numeric ban to food-only 052/056, leaving a hole for a model-emitted
+  `ethanol_grams`/`standard_drinks` on the drink profile — restated positively for every profile; (MINOR)
+  REQ-CAP-108 "at minimum" open list → closed set + fallback, `mood/note` split; (MINOR) ADR-0031 overstated
+  REQ-FIN-041 as a "dangling reference" (it is a *defined* requirement, finance:81, whose layer is
+  under-specified) — corrected. Gate after fixes: `validate_layout` 35/0/0. **Migration boundary NOT crossed**
+  — no schema change, no `metric_registry` seed. **Owed (Phase 3, named):** no acceptance scenario binds
+  REQ-CAP-108–111 yet, and REQ-CAP-110's egress guarantee is asserted, not runtime-proven (proof owed
+  Phase 3/4, same class as OQ-15).
+- **Next units:** C-1 (RULE-25 family), C-2 (RULE-17 reversal) — each its own gated + reviewed pass
+  (both rewrite acceptance scenarios = RULE-00 territory). Then C-8, then the rest. Stop before any migration.
+
 ## NEXT ACTION (from docs/REMEDIATION_PLAN.md sequence — single item only)
 
 Sequence items **1** (constitution restructure), **2** (keepalive registration + first fire;

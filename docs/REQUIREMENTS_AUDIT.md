@@ -1,10 +1,20 @@
 # REQUIREMENTS AUDIT — ratification worksheet
 
-**Status: NOTHING APPLIED.** This is the ranked output of the requirements audit
-(REMEDIATION_PLAN sequence item 3 / Track 1.1). Correction is Track 1.2 and is
-gated on Joe's ratification. Mark each item inline — `[x] ACCEPT`, `[x] REJECT`,
-or `[x] DEFER` — and add a note. No requirement, rule, test, or spec is edited
-until you do.
+**Status: RATIFIED 2026-08-24 (Joe, shorthand). Track 1.2 in progress.** This is the
+ranked output of the requirements audit (REMEDIATION_PLAN sequence item 3 / Track 1.1).
+Correction (Track 1.2) is now authorised for the ACCEPTED items below.
+
+**Ratification summary (Joe, 2026-08-24):**
+- **ACCEPT:** C-1, C-2 (each as its own pass — knowingly reversing acceptance tests +
+  a governing principle), C-3, C-5, C-6, C-7, C-8, C-9, C-10, C-11, C-14, and all eight
+  missing-sets A–H.
+- **DEFER:** C-12, C-13, C-15, C-16, C-17.
+- **REJECT:** none.
+- **NEW RULING — strength-set granularity is PER SET:** one `workout` atom per set,
+  carrying exercise, load, reps, RPE. e1RM, volume progression, and per-exercise trends
+  all need per-set; it is the objective function. (Resolves the Missing-A follow-up + OQ-31.)
+- **Migration boundary:** Track 1.2 stops before anything needing a migration (e.g. seeding
+  `metric_registry` rows, or a schema change) — those wait for Joe.
 
 **Method.** Five adversarial auditors, one per domain (REQ-CAP / REQ-NUT+ONT+NFR
 / REQ-FIN / REQ-INF / REQ-TIER+NAR+ASK), each running two jobs: conflict against
@@ -119,7 +129,7 @@ mental-health inference from spend) — those are *correct* and survive RULE-25.
 defect is that the six rows above conflate a banned causal/trait assertion with a
 now-permitted tiered recommendation, and kill both.
 
-- [ ] ACCEPT  - [ ] REJECT  - [ ] DEFER — note: __________
+- [x] ACCEPT  - [ ] REJECT  - [ ] DEFER — note: ratified 2026-08-24 (Joe)
 
 #### C-2 · RULE-17 reversal, foreclosed *and argued against* → removes **want 1 (general inference)** + **want 3 (finding true things I didn't know)**
 RULE-17's SCOPE shell now permits exploratory output displayed behind an
@@ -138,7 +148,7 @@ rejects the fix in its own ALTERNATIVES CONSIDERED.
 *before* continuous exploration ships. The rewrite must reference that gate, not
 just open the door.
 
-- [ ] ACCEPT  - [ ] REJECT  - [ ] DEFER — note: __________
+- [x] ACCEPT  - [ ] REJECT  - [ ] DEFER — note: ratified 2026-08-24 (Joe)
 
 #### C-3 · Want-8 foreclosure → **want 8 (finance as a full system)** — **SUPERSEDED BY RULED-2**
 The spec's title is "FINANCE / **SPEND** SUBSYSTEM"; only transactions, recurring,
@@ -179,7 +189,7 @@ confirming the hole.
 - **Cost:** wording + one architectural note. **One fix unblocks four wants** —
   Joe flagged this to sit near the top.
 
-- [ ] ACCEPT  - [ ] REJECT  - [ ] DEFER — note: __________
+- [x] ACCEPT  - [ ] REJECT  - [ ] DEFER — note: ratified 2026-08-24 (Joe)
 
 ### TIER 2 — MED: removes a facet of a want, or a testability defect
 
@@ -197,7 +207,7 @@ in capture: a closed door with no open one. Additive fix — see Missing-D.
 - Survives: yes; the prohibition is fine, the paired positive requirement is missing.
 - Cost: additive (a new REQ-CAP; no migration to existing reqs).
 
-- [ ] ACCEPT  - [ ] REJECT  - [ ] DEFER — note: __________
+- [x] ACCEPT  - [ ] REJECT  - [ ] DEFER — note: ratified 2026-08-24 (Joe)
 
 #### C-8 · Spine drift — untestable against schema (OQ-26, extended) — MED-HIGH
 `[verified against migration 0005: `lane` is only a constraint *name*; `local_date`
@@ -210,7 +220,7 @@ appears nowhere; spine uses `estimate_method`/`state_class` and `subject_day`]`
   `atoms.local_date`→`subject_day`, reconcile `'hard'` against the enums; + any
   test asserting the old names.
 
-- [ ] ACCEPT  - [ ] REJECT  - [ ] DEFER — note: __________
+- [x] ACCEPT  - [ ] REJECT  - [ ] DEFER — note: ratified 2026-08-24 (Joe)
 
 #### C-9 · REQ-ASK narrowed below "any question" (want 5) — MED
 **REQ-ASK-002/004** restrict the answerable space to {registered metric ×
@@ -223,7 +233,7 @@ confirmation pipeline.
   rung for out-of-registry shapes, and a causal-routing rung.
 - Cost: medium (new REQ-ASK rungs). See Missing-H.
 
-- [ ] ACCEPT  - [ ] REJECT  - [ ] DEFER — note: __________
+- [x] ACCEPT  - [ ] REJECT  - [ ] DEFER — note: ratified 2026-08-24 (Joe)
 
 #### C-10 · REQ-NAR-023 under-enforces RULE-23 (want 4) — MED
 **REQ-NAR-023** banned-wordlist is missing the standalone token **"necessary"** —
@@ -236,7 +246,7 @@ being wrong, but omitting a token its parent rule names by hand is weak enforcem
 Guard against banning the neutral money vocabulary RULE-23 now permits.
 - Survives: yes. Cost: trivial (add the "necessary" token).
 
-- [ ] ACCEPT  - [ ] REJECT  - [ ] DEFER — note: __________
+- [x] ACCEPT  - [ ] REJECT  - [ ] DEFER — note: ratified 2026-08-24 (Joe)
 
 #### C-11 · REQ-CAP-065 imputes event time (RULE-06) — LOW-MED
 **REQ-CAP-065** — on `dateparser` failure, sets event time to `captured_at`, tagged
@@ -245,27 +255,27 @@ substitution read downstream as real — RULE-06 wants an uncertainty-carrying
 interval, or at minimum lane `inferred` (not `defaulted`).
 - Survives: yes. Cost: switch the tag (no migration) or store an interval (schema).
 
-- [ ] ACCEPT  - [ ] REJECT  - [ ] DEFER — note: __________
+- [x] ACCEPT  - [ ] REJECT  - [ ] DEFER — note: ratified 2026-08-24 (Joe)
 
 ### TIER 3 — LOW / framing (for your eye; no want removed; taken on auditor report)
 
 - **C-12 · REQ-FIN-215** pie-chart ban — spec confesses this is an unmandated
-  carry-forward (already OQ-08).  - [ ] note: ____
+  carry-forward (already OQ-08).  - [x] DEFER 2026-08-24 (Joe)
 - **C-13 · REQ-FIN-156/223** running cancellation total — near a RULE-24 streak/score;
-  framed as self-efficacy, borderline.  - [ ] note: ____
+  framed as self-efficacy, borderline.  - [x] DEFER 2026-08-24 (Joe)
 - **C-14 · REQ-INF-424/427/428/429/430** hard-code the RULE-22 method ban (and add
   GES/FGES/GIMME, not in RULE-22). Fine today; a future ADR revising the list would
   orphan these as build-failing contradictions. Add a "current list, revisable via
-  ADR" note.  - [ ] note: ____
+  ADR" note.  - [x] ACCEPT 2026-08-24 (Joe)
 - **C-15 · REQ-CAP-085** review-list ordered by "interval width" — a nutrition-only key
-  undefined for non-food review reasons.  - [ ] note: ____
+  undefined for non-food review reasons.  - [x] DEFER 2026-08-24 (Joe)
 - **C-16 · REQ-INF (line 748)** "reason over resolved place labels … SHALL NOT include
   a numeric coordinate in any payload/export/log." Egress half matches reworded
   RULE-29 — but "place labels only" may foreclose *coordinate-derived mobility
   metrics* from reasoning. Verify intent (mobility scalars are derived, so probably
-  fine, but confirm).  - [ ] note: ____
+  fine, but confirm).  - [x] DEFER 2026-08-24 (Joe)
 - **C-17 · Count drift** — 570 grepped vs 564 index (REQ-INF 143 vs 137). Bookkeeping.
-  - [ ] note: ____
+  - [x] DEFER 2026-08-24 (Joe)
 
 ---
 
@@ -285,7 +295,7 @@ index-tracked REQ-BOD/REQ-SLP):
   counting, a **deterministic ABV→ethanol-grams conversion** (`volume × ABV ×
   0.789` — the textbook RULE-09-compliant lookup, currently unspecified while food's
   USDA path is fully specified), and abstinence-day `observed_absent` capture.
-  - [ ] ACCEPT  - [ ] REJECT  - [ ] DEFER — note: ____
+  - [x] ACCEPT  - [ ] REJECT  - [ ] DEFER — note: ratified 2026-08-24 (Joe)
 
 - **Missing-C · Finance full-system sets (want 8)** — **SCOPED BY RULED-2.** Write:
   income/earnings ingestion (today the only inbound handling nets P2P receipts
@@ -300,7 +310,7 @@ index-tracked REQ-BOD/REQ-SLP):
   (`source='shortcut_location'`, see C-7); and a **negative-observation /
   three-valued-presence capture path** — nothing lets Joe capture "logged that I did
   not drink" (RULE-07 `observed_absent` has no capture origin).
-  - [ ] ACCEPT  - [ ] REJECT  - [ ] DEFER — note: ____
+  - [x] ACCEPT  - [ ] REJECT  - [ ] DEFER — note: ratified 2026-08-24 (Joe)
 
 - **Missing-E · Recommendation machinery (want 2)** — a NAR-side
   recommendation-narration rung (template + numeral binding + linter, mirroring
@@ -309,26 +319,26 @@ index-tracked REQ-BOD/REQ-SLP):
   Plus an inference-side trigger ("finding strong enough + achievable delta large
   enough → emit a candidate prescription with a scored prediction"). REQ-ACT covers
   the action side; these two are distinct and also missing.
-  - [ ] ACCEPT  - [ ] REJECT  - [ ] DEFER — note: ____
+  - [x] ACCEPT  - [ ] REJECT  - [ ] DEFER — note: ratified 2026-08-24 (Joe)
 
 - **Missing-F · EXPLORATORY display path (wants 1/3)** — a requirement defining the
   EXPLORATORY label/tier and its permitted vocabulary, routing continuous-exploration
   output to it, and encoding RULE-17's binding sequencing (surface built+proven
   *before* exploration ships). The six-tier ladder has CANDIDATE = "never shown" and
   no displayable-exploratory rung.
-  - [ ] ACCEPT  - [ ] REJECT  - [ ] DEFER — note: ____
+  - [x] ACCEPT  - [ ] REJECT  - [ ] DEFER — note: ratified 2026-08-24 (Joe)
 
 - **Missing-G · Continuous / on-demand inference (want 1)** — RULE-19's SCOPE shell
   says exploration is "continuous … may run at any time," but every REQ-INF generator
   run is weekly/monthly batch. No requirement guarantees the on-demand property.
-  - [ ] ACCEPT  - [ ] REJECT  - [ ] DEFER — note: ____
+  - [x] ACCEPT  - [ ] REJECT  - [ ] DEFER — note: ratified 2026-08-24 (Joe)
 
 - **Missing-H · Ask completeness (want 5)** — a rung for out-of-registry
   operation/question-shape → graceful INSUFFICIENT-style disclosure + nearest
   computable, and a routing rung from a causal ASK question into the confirmation
   pipeline (so a causal answer draws its tier from a `findings` row, not a fresh
   in-answer computation).
-  - [ ] ACCEPT  - [ ] REJECT  - [ ] DEFER — note: ____
+  - [x] ACCEPT  - [ ] REJECT  - [ ] DEFER — note: ratified 2026-08-24 (Joe)
 
 ---
 

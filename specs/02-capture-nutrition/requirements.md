@@ -84,6 +84,21 @@ pixels before upload.
 request, the ingest endpoint SHALL insert a `raw_captures` row **before** issuing any Workers AI
 call, and SHALL return HTTP 202 with the `capture_id` once that insert commits.
 
+**REQ-CAP-110** (Optional feature) WHERE a capture carries `source = 'location'` (the
+`capture_source` enum member reserved by ADR-0008, migration 0004), the ingest endpoint SHALL write
+the coordinate payload to `raw_captures` and SHALL route it to the restricted coordinate store whose
+access is separated from any egress-capable session (RULE-29, ADR-0020), and no coordinate and no
+home location SHALL reach any export, log line, commit, or model prompt. (Ratified 2026-08-24;
+requirements-audit Missing-D — the worksheet's `shortcut_location` was corrected to the actual
+reserved enum member `location` by the C-5 reviewer. Pairs with REQ-CAP-106: the PWA never requests
+a location permission; the coordinate path arrives via the Shortcut.)
+
+**REQ-CAP-111** (Event-driven) WHEN a capture states that a loggable behaviour did **not** occur
+(e.g. "I did not drink today"), the extraction service SHALL record it as an `observed_absent`
+presence for that subject, distinct from `unknown` (RULE-07), and SHALL NOT collapse a logged absence
+into the same zero as an un-logged day. (Ratified 2026-08-24; requirements-audit Missing-D. This is
+the capture origin the three-valued presence state previously lacked.)
+
 ### A.3 Immutability of `raw_captures`
 
 **REQ-CAP-012** (Ubiquitous) The `raw_captures` table SHALL be append-only: the database SHALL deny
@@ -337,9 +352,11 @@ word "calorie".** It reads names and stated quantities; deterministic Python doe
 **REQ-CAP-050** (Ubiquitous) The extraction service SHALL request output under a JSON Schema via the
 Workers AI `response_format` parameter on every call.
 
-**REQ-CAP-051** (Ubiquitous) The extraction service's output schema SHALL contain, per food item,
-exactly the fields `name`, `evidence`, `evidence_start`, `quantity`, `quantity_unit`,
-`quantity_evidence`, and `quantity_evidence_start`.
+**REQ-CAP-051** (Ubiquitous) The extraction service's **food-item extraction profile** output schema
+SHALL contain, per food item, exactly the fields `name`, `evidence`, `evidence_start`, `quantity`,
+`quantity_unit`, `quantity_evidence`, and `quantity_evidence_start`. (This is the food profile of the
+per-subject dispatch in REQ-CAP-108; the extractive-only contract of REQ-CAP-052/053/056 binds every
+profile, not only this one.)
 
 **REQ-CAP-052** (Ubiquitous) The extraction service's output schema SHALL NOT contain any field
 whose name or description refers to calories, kilocalories, energy, grams of macronutrient, protein,
@@ -361,6 +378,25 @@ capture to the review list.
 grams of a macronutrient appears anywhere in an extraction service response, THEN the resolution job
 SHALL discard that value at the adapter boundary before any row is written, and SHALL NOT store it
 at reduced confidence.
+
+**REQ-CAP-108** (Event-driven) WHEN the extraction service processes a capture, it SHALL select
+exactly one extraction profile by the capture's detected subject from the closed set `food`,
+`workout`, `drink`, `activity`, `mood`, `note`, and SHALL apply that profile's own closed field
+schema (the food profile is REQ-CAP-051); IF no profile matches the detected subject, THEN it SHALL
+route the capture to the `note` profile rather than emit an un-profiled extraction. (Ratified
+2026-08-24, ADR-0030 context; requirements-audit C-5/Missing-D. This replaces the former single
+food-only extraction path that foreclosed capture of workouts, drinks and activities — wants 6/7/9.
+The profile set extends only by a requirement edit, never silently — new subjects are a spec change.)
+
+**REQ-CAP-109** (Ubiquitous) The extractive-only contract SHALL bind every extraction profile: for
+every profile the span assertion of REQ-CAP-053 and the discard-on-mismatch of REQ-CAP-054 SHALL
+hold, and every profile's output schema SHALL contain **only** extraction fields — a `name`, verbatim
+`evidence` spans, and a model-stated `quantity` with its `quantity_unit` — and SHALL NOT contain any
+field that holds a resolved or derived measure: no gram, calorie, macronutrient, standard-drink count,
+ethanol gram, or dollar (RULE-09). Every such measure is produced downstream by deterministic lookup
+(REQ-NUT for food; the ADR-0030 ABV→ethanol path for drink), never emitted by the model. REQ-CAP-052
+and REQ-CAP-056 remain the food-profile enforcement of this rule; this requirement extends the same
+boundary to every non-food profile.
 
 ### C.2 Three-way provenance
 
