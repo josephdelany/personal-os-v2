@@ -920,3 +920,99 @@ INV-5, RULE-01 (heartbeat doctrine), RULE-29 (heartbeat file). ADRs: 0024 (keepa
 28 raised. No `ops/features.json` entry moved (write-locked; nothing legitimately flips).
 
 **Commit.** `5358f62` on `main` (this note recorded in a small follow-up commit).
+
+## 2026-08-23 — Session 10 (Phase 2, session 5): legacy backfill built + DB-verified, load DEFERRED (Parquet-authoritative)
+
+**Attempted.** Joe's three tasks: (1) settle the INV-1 legacy-lineage granularity and
+stop for a ruling; (2) confirm the keepalive is dispatchable and push; (3) execute the
+reconciled backfill (ADR-0025), showing the reconciliation before/after. session-start
+ran in full first: all gates green at start, no regression.
+
+**Works (evidence is command output pasted in-session).**
+- **Task 1 (ADR-0026).** INV-1 legacy lineage ruled **A′**: one `raw_captures` per source
+  table-load (`source='legacy_archive'`), source-row locator in `atoms.evidence_span`;
+  row-level audit via the sha256-pinned Parquet, not ~625k JSONB rows (OQ-20). O-Q2 settled:
+  gait five series = `activity_sample`. Migration **0015** (`legacy_archive` enum) applied
+  live and verified (`capture_source` now 9 values). Recoverability-by-re-derivation recorded.
+- **Task 2.** `git ls-remote` → remote `main` = local HEAD (`0e8d588`); `workflow_dispatch: {}`
+  already committed. **The keepalive is dispatchable now** from the Actions tab. PROGRESS
+  s9's "not pushed" line is **stale — corrected here**: the repo is public and live at
+  github.com/josephdelany/personal-os-v2, gates ran green on a runner, `SUPABASE_DB_URL` set.
+- **Task 3 — reading the real archive corrected the plan at ~450k-row scale.** `intraday`
+  (Supabase) and the `health__*` tables (sqlite) are the **same Apple-Health export**,
+  double-stored (value-level set match on `wrist_temp`: identical 64 `(ts,value)` pairs; counts
+  identical to the row across ≥10 series); `events` overlaps `pos__*`; `metric_catalog` is a
+  derived-feature catalog, **not** a units registry; `locations` cannot be a scalar atom
+  (RULE-29, no coord columns). `tools/backfill_run.py` does verified per-stream union-dedup,
+  names **DUP_INTERNAL=305,485** (rider 1), tags source in `evidence_span` (rider 2), builds the
+  registry fresh (ADR-0027; `plausible_low/high` NULL per RULE-06), and **reconciles to 810,933,
+  Δ=0**. Chrome disjoint check (rider 5): 0 genuine disjoint (gap was 2,326 within-`pos` dups).
+- **DB dry-run (rolled back).** 15 migrations applied to a `core_dryrun` copy in-txn; **309,826
+  atoms + 30 registry + 8 captures inserted, every CHECK/FK/trigger + all invariants passing**,
+  then ROLLED BACK — no residue, `core.atoms`/`raw_captures`/`metric_registry` all still 0.
+- **Storage projection (measured, decision-relevant).** atoms footprint = **113 MB** (data+5
+  indexes); DB 200.5 → **313.7 MB (63%)**, headroom 299.5 → 186.3 MB. `public.intraday` (94 MB,
+  still live, OQ-17) is the same history → committing would **triple-store** it.
+- **Ruling (c) — commit NO legacy atoms (ADR-0028).** Legacy is Parquet-authoritative; the
+  proven loader stands by; **Gate 2 satisfied by reconciliation with load DEFERRED** to Phase 5/6
+  (OQ-29), same named-not-silent pattern as RULE-04/OQ-22. `core.atoms` stays 0.
+- Gates at session end: `validate_layout` **34/0/0**, `test_guard` **26/0**, `pytest` **21 passed**,
+  `check_invariants --core core` **ALL PASS** (RULE-04 PENDING), reconciliation **Δ=0**.
+
+**Adversarial reviewer ran on commit b12ecba and found real defects (verbatim, with my response).**
+- **MAJOR — sleep `subject_day` is per stage-segment, not per night.** Each stage interval gets
+  `subject_day` on its own end under the 04:00 rule, so a night straddling 04:00 splits across two
+  days (10,721 / 20,248 segments end before 04:00 ET). "By wake day" needs per-night sessionization.
+  **I agree — real defect.** Not live (core=0); recorded as owed-before-load in OQ-29(4) + ADR-0028
+  addendum. It downscopes my "proven loader" claim to *DB-constraint-verified*, not semantically
+  complete.
+- **MAJOR — A′ `evidence_span` names 13 dedup-secondary `health__*` tables that have no capture
+  row.** The chain "named on the table-load capture" is incomplete for them (intraday subsumes them,
+  so only 8 captures exist). **I agree.** Fix before load: capture every contributing source, or stop
+  naming capture-less ones. OQ-29(4) + ADR-0028/0026 addenda.
+- **MINOR — 23% of the total (188,527 rows) is hardcoded constants from `backfill_map.py`, and
+  `grand=810933` is a literal.** Reviewer confirmed the sum is honest (185,875 matches) but a future
+  archive change could break the constants while Δ still reads 0. **Agree — robustness gap; owed.**
+- **MINOR — `txn_amount` registry row is dead** (transaction atoms carry `metric_key=NULL`),
+  contradicting ADR-0027 "one row per measure written." **Agree; owed** (tag transactions or drop
+  the row).
+- **MINOR/observation — self_report stores exact `value_point` alongside the coarsening interval.**
+  Reviewer notes downstream averaging `value_point` treats a coarsened report as precise. **Partial
+  disagree:** the lane (`estimate_method='self_report'`) disambiguates and RULE-08 wants the interval
+  *with* its method, so storing the reported value as the point + the bin as low/high is correct by
+  design; the fix is a reader-discipline note, not a data change. Only 3 rows. Noted.
+- **Observation — Gate 2 invariants "pass" trivially over an empty `core.atoms`.** **Agree, stated
+  plainly:** "Gate 2 satisfied" here means *reconciled + transforms verified in a rolled-back copy*,
+  which is materially weaker than *legacy queryable in core* — documented in ADR-0028/ROADMAP, not a
+  covert weakening (RULE-00 not triggered; the reviewer concurred it is a legitimate ADR-recorded
+  reading of ADR-0025).
+- Reviewer confirmed clean: no fabrication (core empty, dry-run rolled back, no leaked schema);
+  dedup keys sound on probed streams; migration 0015 idempotent/harmless; value-lane constraints
+  satisfied; RULE-29 respected (locations read for row-count only).
+
+**Requirement / rule IDs touched.** Governing: INV-1 (A′ FK design), INV-5/RULE-01 (dedup + DERIVED
+exclusions), RULE-06 (NULL plausible ranges), RULE-29 (locations deferred), Gate 2 (reconciliation,
+load deferred), RULE-02 (append-only, why load is irreversible). ADRs: **0026** (A′ + gait), **0027**
+(registry + modeling), **0028** (Parquet-authoritative, option c). OQ: **29** raised. No
+`ops/features.json` entry moved — write-locked (ADR-0011), and no atoms committed + no new proving
+test, so nothing legitimately flips; all 15 stay `failing`.
+
+**WHAT I DID NOT DO.**
+- Did **not** commit any legacy atom — ruling (c); `core.atoms` stays 0. The load is deferred to
+  Phase 5/6 (OQ-29).
+- Did **not** fix the two reviewer MAJORs (sleep-by-night sessionization; `evidence_span`/capture
+  lineage for dedup-secondary sources). They are defects in the **deferred** loader, not live data;
+  fixing sleep-by-night is partly a modeling decision (how a "night" is bounded). Recorded as
+  owed-before-load (OQ-29, ADR-0028). **The thing I was most tempted to let stand as "proven"** — the
+  DB dry-run passing every CHECK made the loader look complete; it is constraint-valid but
+  semantically wrong for sleep.
+- Did **not** fix the MINORs (dead `txn_amount` row; hardcoded reconciliation constants;
+  `grand=810933` literal) — owed with the deferred load.
+- Did **not** add a committed test exercising `backfill_run.py` — a future reviewer without live-DB
+  access can reproduce `--report` (reconciliation) but not the `--dry-run` insert claims. Owed.
+- Did **not** independently recompute the manifest sha256 against the Parquet files (A′ leans on
+  them), nor verify the old extractors' timezone behaviour beyond the observed offset alignment.
+- Did **not** re-verify per-entity the hardcoded OVERLAP/DERIVED/ENTITY/REGISTRY/OPERATIONAL bucket
+  attribution — only that their sum (185,875) is exact.
+
+**Commit.** `b12ecba` on `main` (this session-end record + reviewer-finding addenda in a follow-up commit).

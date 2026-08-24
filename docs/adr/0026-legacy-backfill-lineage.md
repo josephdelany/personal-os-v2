@@ -103,3 +103,12 @@ classification above stand regardless of how they are resolved.
 - **Gait = `vital_sample`.** Rejected: gait is movement, not a vital sign;
   conflating them would pollute the cardiorespiratory family used by the RULE-21
   FDR tree.
+
+## Addendum — capture count is 8, not ~24 (session-end reviewer, 2026-08-23)
+
+The "~24 capture rows" figure above (written before the DB-verified build) is
+stale. Because the dedup collapses the 13 `health__*` tables into `intraday` (they
+are the same export), only **8** tables actually yield atoms and get a table-load
+capture. The A′ chain is therefore complete only for those 8 primary sources; for
+the dedup-secondary tables named in `evidence_span` it is incomplete — see the
+ADR-0028 addendum (owed before the deferred load, OQ-29).

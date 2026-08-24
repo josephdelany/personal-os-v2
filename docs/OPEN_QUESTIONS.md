@@ -330,7 +330,14 @@ time: (1) the old cron stack must be **frozen and its ~174 MB (`public.intraday`
 94 + `signals` 46 + `events` 34) reclaimed** (OQ-17), so the same history is not
 double-stored; (2) the load is **sized against the 500 MB ceiling as it stands
 then** (OQ-20) and scoped to the stream(s) the analysis names; (3) anything not
-explicitly loaded stays Parquet-authoritative. Depends on it: whether Phase-5/6
+explicitly loaded stays Parquet-authoritative; (4) **two loader defects the
+session-end reviewer found must be fixed first** (ADR-0028 addendum): sleep
+`subject_day` is computed per stage-segment, splitting a night that straddles 04:00
+across two days — the "by wake day" rule needs per-night sessionization, not
+per-segment; and `evidence_span` names dedup-secondary `health__*` tables that have
+no A′ capture row — either capture every contributing source or stop naming
+capture-less ones. Also owed: the dead `txn_amount` registry row and the
+hardcoded excluded-bucket constants in `backfill_run.py`. Depends on it: whether Phase-5/6
 `derived_measures`/hypotheses read history from `core.atoms` or from
 DuckDB-over-Parquet (ADR-0016). Settles it: the first Phase-5/6 analysis that names
 a legacy stream, at which point the load target + size are decided against the
