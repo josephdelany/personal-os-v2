@@ -1,0 +1,10 @@
+keepalive heartbeat marker (REQ-NFR-002, ADR-0024).
+
+This file is overwritten with a UTC timestamp by the `github` job of
+.github/workflows/keepalive.yml, but ONLY when the most recent commit is older than
+KEEPALIVE_MAX_COMMIT_AGE_DAYS (50), so that the repository never reaches GitHub's
+60-day scheduled-workflow-disable limit. It carries a timestamp and nothing else —
+no personal data ever (RULE-29).
+
+last heartbeat: (none yet — the workflow has not fired; first firing is blocked on the
+first push to GitHub per OQ-02)

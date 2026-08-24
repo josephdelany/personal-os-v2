@@ -22,11 +22,12 @@ response is observable. Numbers, never adjectives.
 
 ---
 
-## Current coverage — 560 requirements, 36 scenarios
+## Current coverage — 564 requirements, 36 scenarios
 
 | Prefix | Count | Subsystem | File |
 |---|---|---|---|
 | `REQ-ONT` | 15 | Ontology — the closed `atoms.kind` and `entities.entity_type` taxonomies, atom controlled vocabularies | `specs/05-ontology/requirements.md` |
+| `REQ-NFR` | 4 | Non-functional (reliability) — the Supabase 7-day and GitHub Actions 60-day keepalives and their `ops.runs` evidence | `specs/06-nfr/requirements.md` |
 | `REQ-CAP` | 97 | Capture — Shortcuts ingress, transcription, extraction, prompting | `specs/02-capture-nutrition/requirements.md` |
 | `REQ-NUT` | 57 | Nutrition resolution — USDA lookup, portions, intervals | `specs/02-capture-nutrition/requirements.md` |
 | `REQ-FIN` | 165 | Finance — ingestion, merchant resolution, usage inference, restraint | `specs/03-finance/requirements.md` |
@@ -47,7 +48,6 @@ either pass or fail visibly.
 | `REQ-BOD` | Body composition — Kalman weight and TDEE, lean mass | ADR-0005 |
 | `REQ-SLP` | Sleep and recovery | — |
 | `REQ-CTX` | Context — location, media, alcohol, screen time | Extraction from archived `08` |
-| `REQ-NFR` | Non-functional — cost, privacy, performance, reliability | Partly in `CONSTITUTION.md` §V; needs numeric form |
 | `REQ-UI` | Interface | Phase 7, deliberately last |
 
 ## Rules for adding requirements

@@ -859,3 +859,64 @@ REQ-ONT-001, REQ-ONT-002. Doctrine: RULE-01 (clarified, ADR-0022). Enforced in s
 REQ-ONT-001/002 (migration 0014). No `ops/features.json` entry moved.
 
 **Commit.** `6571c7a` on `main`.
+
+## 2026-08-23 — Session 9 (Phase 2, session 4): keepalives built+proven, backfill planned, RULE-04 deferred
+
+**Attempted.** Joe's three tasks: (1) `ops.runs`/`job_registry`/`egress_log` + both
+keepalives; (2) build the Supabase 7-day and GitHub 60-day keepalives so they write to
+`ops.runs`; (3) **plan, not execute**, the legacy Parquet backfill into `atoms`. Then two
+follow-up rulings: (A) correct `CLAUDE.md`'s phase line (still said Phase 0); (B) OQ-22 —
+Gate 2 passes with RULE-04 **deferred**, named not silent, and RULE-04 activation added to
+Gate 5. session-start ran in full first; all gates green at start, no regression.
+
+**Works (evidence is command output pasted into the session-end record).**
+- **Task 1.** The three `ops` tables **already existed** (migration 0011, session 7) — not
+  recreated. Both keepalive jobs registered in the empty `ops.job_registry`.
+- **Task 2 (ADR-0024, REQ-NFR-001..004).** `specs/06-nfr/requirements.md` written first
+  (F-014/F-015 cited `REQ-NFR-*` ids that existed in no spec — the missing-requirement
+  rule; this closes the REQ-NFR half of OQ-16). One **daily** GitHub-Actions workflow
+  (`.github/workflows/keepalive.yml`) pings Supabase (7-day pause), writes `ops.runs`, and
+  checks repo staleness **daily**, committing a heartbeat only when the last commit is >50
+  days old (worst-case 51d < GitHub's 60d). `ops/keepalive.py` opens/closes a run row with
+  `clock_timestamp()`, records `status='error'` on a reachable-DB failure and exits
+  non-zero when unreachable. **`tests/test_keepalive.py` — 6 named tests pass**
+  (`test_REQ_NFR_001..004`), incl. the real aborted-transaction failure path.
+- **Task 3 (ADR-0025, plan only).** `docs/PHASE2_BACKFILL_PLAN.md` + re-runnable
+  `tools/backfill_map.py` reconcile the **810,933-row / 63-table** archive: 13 tables map
+  cleanly to atoms (135,362 rows), 11 need judgement (489,696), and 185,875 rows are
+  excluded with a recorded reason (17 DERIVED tables would fabricate lineage — INV-1/INV-5;
+  6 OVERLAP duplicate tables double-count; 5 ENTITY / 2 REGISTRY reference; 7 EMPTY). Gate 2
+  ruled = **reconciliation, not row-count equality**.
+- **Rulings A/B.** `CLAUDE.md:10` now says Phase 2 and carries the two open gate items.
+  ROADMAP Gate 2 amended (RULE-04 DEFERRED to Phase 5, named; reconciliation semantics),
+  Gate 5 gains RULE-04 activation; OQ-22 RESOLVED (option a).
+- Gates after all fixes: **pytest 21 passed**, `check_invariants --core core` **ALL PASS**
+  (RULE-04 PENDING — deferred, OQ-22), `validate_layout` **34/0/0** (564 reqs / 5 specs,
+  REQ-NFR=4), `test_guard` **26/0**, `backfill_map` reconciliation **OK**. `core.atoms` /
+  `core.entities` still **0 rows** (no fabrication).
+
+**Two adversarial reviews ran and changed the work.** Review 1 (mid-session) found a
+BLOCKER (**B1**: monthly stale-check + 50d threshold = up to 81d > GitHub's 60d — the
+keepalive could disable itself) and two MAJORs (error-path silent on connection failure;
+`started_at==finished_at`). All fixed: daily stale-check (51d), same-connection error row +
+non-zero exit, `clock_timestamp()`. Review 2 (session-end) confirmed those and found that
+the fixes had **not propagated to ADR-0024/DECISIONS.md or the committed `ops.job_registry`
+row** (still described the monthly design), and that the two committed `ops.runs` smoke rows
+were **pre-fix** (now()-stamped, no `trigger` key) — cited as evidence they should not be.
+Docs corrected this session; the **live rows/registry correction is an UPDATE against
+committed rows, blocked by `<safety>` pending Joe's consent** (see OPEN_QUESTIONS OQ-28).
+
+**Does not work / deferred.** No clock is running: the keepalives cannot fire until the
+repo is pushed to GitHub (OQ-02) + `SUPABASE_DB_URL` secret set — **F-014/F-015 stay
+`failing`**. Backfill not executed (plan only); `intraday`/`events` per-metric split, the
+gait `vital_sample`↔`activity_sample` boundary (~170k rows, O-Q2), OVERLAP-subset
+verification, and the INV-1 legacy-lineage mechanism are all owed before execution.
+RULE-04 still PENDING (Phase 5). Two stale live rows + one stale registry row await consent.
+
+**Requirement / rule IDs touched.** New + proven by named test: REQ-NFR-001, REQ-NFR-002,
+REQ-NFR-003, REQ-NFR-004. Governing: Gate 0, Gate 2 (amended), Gate 5 (amended), INV-1,
+INV-5, RULE-01 (heartbeat doctrine), RULE-29 (heartbeat file). ADRs: 0024 (keepalive),
+0025 (backfill reconciliation). OQ: 22 RESOLVED, 16 (REQ-NFR half) resolved, 02 updated,
+28 raised. No `ops/features.json` entry moved (write-locked; nothing legitimately flips).
+
+**Commit.** recorded in the follow-up entry (this session-end commit; hash in the report).

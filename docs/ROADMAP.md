@@ -51,13 +51,19 @@ previous doctrine.
 Migrations for `atoms`, `entities`, `links`, `metric_registry`, `sources`,
 `raw_captures`, `findings`, `ops.runs`, `ops.job_registry`, `ops.egress_log`.
 RLS everywhere. UPDATE and DELETE revoked at the grant level. Every CI
-invariant query written and running, including RULE-04 point-in-time
-correctness. `ops/features.json` created with every planned feature pre-marked
-failing. Legacy Parquet backfilled into `atoms`.
+invariant query written and running **except RULE-04 point-in-time correctness,
+which is DEFERRED to Phase 5** — its query joins `derived_measures`, which does
+not exist until then, so it cannot run this phase and is not silently counted as
+passed (OQ-22; `tools/check_invariants.py` prints it PENDING with that reason).
+`ops/features.json` created with every planned feature pre-marked failing. Legacy
+Parquet backfilled into `atoms`.
 
-**Gate 2:** All invariant queries return zero rows. An attempted UPDATE on
-`atoms` fails with a permission error, shown. Backfilled row count matches the
-Parquet archive.
+**Gate 2:** All runnable invariant queries return zero rows (**RULE-04 explicitly
+deferred to Phase 5, named not silent — OQ-22**). An attempted UPDATE on `atoms`
+fails with a permission error, shown. The legacy backfill **reconciles** against
+the Parquet archive — every archived row is mapped to an atom or excluded with a
+recorded reason, exact per source table (reconciliation, not row-count equality;
+ADR-0025).
 
 ## Phase 3 — One vertical slice, end to end: the Big Mac path.
 
@@ -103,7 +109,10 @@ one has a registry row and a named job before it has a surface.
 
 **Gate 5:** No derived measure is readable by any surface without an
 `ops.job_registry` row. Two independent implementations of the within–between
-estimator agree to stated tolerance on the same input.
+estimator agree to stated tolerance on the same input. **RULE-04 activates here
+(deferred from Gate 2, OQ-22):** now that `derived_measures` exists, the RULE-04
+point-in-time query runs in CI and returns zero rows, shown — the single query
+that proves bitemporality works rather than merely existing in the schema.
 
 ## Phase 6 — Statistics and the ladder.
 

@@ -1,0 +1,70 @@
+name: keepalive
+# Two calendar clocks silently end this project (ROADMAP Gate 0):
+#   - Supabase Free pauses a project after 7 days of inactivity   -> REQ-NFR-001
+#   - GitHub disables scheduled workflows after 60 days of no repo activity -> REQ-NFR-002
+# Both keepalives write a heartbeat row to ops.runs (REQ-NFR-003).
+#
+# ONE DAILY job runs everything. The stale-repo commit is checked EVERY DAY, so the
+# repository can be at most (threshold + 1 day) = 51 days stale before a heartbeat commit
+# fires — safely under GitHub's 60-day limit. (A monthly check would allow threshold + 31
+# = 81 days, which can exceed 60 and let the schedule disable itself — the bug this
+# structure avoids. See ADR-0024 / reviewer finding B1.)
+#
+# FIRST FIRING is blocked until (a) this repo is pushed to GitHub (OQ-02) and
+# (b) SUPABASE_DB_URL is set as a repository Actions secret. Until then nothing here
+# fires and no clock is running. workflow_dispatch triggers the first proof by hand.
+
+on:
+  schedule:
+    - cron: '17 6 * * *'   # daily 06:17 UTC
+  workflow_dispatch: {}
+
+concurrency:
+  group: keepalive
+  cancel-in-progress: false
+
+env:
+  KEEPALIVE_MAX_COMMIT_AGE_DAYS: "50"   # REQ-NFR-002: commit if last commit older than this;
+                                        # daily check => max staleness 51 days < 60.
+
+jobs:
+  keepalive:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write        # only for the stale-repo heartbeat commit below
+    steps:
+      - uses: actions/checkout@v4
+        with: {fetch-depth: 0}
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - name: Install DB driver
+        run: pip install 'pg8000>=1.30,<2'
+
+      - name: Supabase keepalive (REQ-NFR-001, writes ops.runs)
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          PYTHONPATH: .
+        run: python3 ops/keepalive.py --job supabase --trigger scheduled
+
+      - name: GitHub keepalive proof-of-life (REQ-NFR-003, writes ops.runs)
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          PYTHONPATH: .
+        run: python3 ops/keepalive.py --job github --trigger scheduled
+
+      - name: Heartbeat commit if the repo is going stale (REQ-NFR-002)
+        run: |
+          set -euo pipefail
+          AGE_DAYS=$(( ( $(date +%s) - $(git log -1 --format=%ct) ) / 86400 ))
+          echo "last commit ${AGE_DAYS}d ago; threshold ${KEEPALIVE_MAX_COMMIT_AGE_DAYS}d"
+          if [ "$AGE_DAYS" -gt "${KEEPALIVE_MAX_COMMIT_AGE_DAYS}" ]; then
+            # RULE-29-safe: a timestamp is not personal data. No row of life leaves here.
+            date -u +"%Y-%m-%dT%H:%M:%SZ keepalive heartbeat" > ops/heartbeat.txt
+            git config user.name  "keepalive-bot"
+            git config user.email "keepalive@users.noreply.github.com"
+            git add ops/heartbeat.txt
+            git commit -m "chore: keepalive heartbeat (RULE-29-safe timestamp, no data)"
+            git push
+          else
+            echo "repo fresh enough; no heartbeat commit needed"
+          fi

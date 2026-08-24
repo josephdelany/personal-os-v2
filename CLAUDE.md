@@ -7,7 +7,15 @@ user, directed by me (Joe).
 
 ## Current phase
 
-**Phase 0 — safety and spine.** See `docs/ROADMAP.md`.
+**Phase 2 — the spine, in code.** See `docs/ROADMAP.md`.
+Two items from earlier gates are still open and carried forward:
+- **Gate 0** — the Supabase and GitHub keepalives are built and proven but have
+  not fired on their own schedule; that is blocked on the first push to GitHub
+  and the `SUPABASE_DB_URL` secret (OQ-02, ADR-0024).
+- **Gate 2** — the legacy Parquet backfill is planned but not executed; its row
+  count is *reconciled, not equal* (ADR-0025), and RULE-04 is deferred to Phase 5
+  (OQ-22).
+
 Do not start work belonging to a later phase. If something appears to require
 it, stop and tell me rather than reaching forward.
 

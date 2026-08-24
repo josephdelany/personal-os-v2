@@ -180,7 +180,17 @@ drift from the real DDL); or (c) accept structural-only verification for INSERT-
 and document it as a standing limitation. Raised by the session-end reviewer,
 2026-08-23.
 
-**OQ-22 — Gate 2 requires RULE-04 "written and running," but RULE-04's query needs
+**OQ-22 — RESOLVED 2026-08-23 (Phase-2 session 4 ruling).** Ruling (Joe): **option (a)**.
+Gate 2 is satisfied for Phase 2 with **RULE-04 explicitly DEFERRED to Phase 5, named on
+the gate, not passed silently** — its query joins `derived_measures`, which does not exist
+until Phase 5, so it cannot run this phase. No minimal shell is pulled forward (option (b)
+rejected). Done: ROADMAP Phase 2 body + Gate 2 amended to state the deferral, and
+**RULE-04's activation is added to Gate 5** so it cannot be forgotten (Gate 5 now requires
+the deferred RULE-04 query to run against `derived_measures` and return zero rows).
+`tools/check_invariants.py` already prints RULE-04 PENDING with this reason. Original
+question retained below.
+
+**OQ-22 (original) — Gate 2 requires RULE-04 "written and running," but RULE-04's query needs
 `derived_measures`, which is Phase 5.**
 Why open: ROADMAP Gate 2 says "Every CI invariant query written and running,
 including RULE-04 point-in-time correctness," and RULE-04 is Tier SQL. But RULE-04's
@@ -278,6 +288,26 @@ not a free edit. Depends on it: whether Phase-3 extraction emits kinds that matc
 mental model. Settles it: Joe ruling each boundary once real extraction exercises it, or
 accepting the derived defaults. Not blocking. Raised 2026-08-23.
 
+**OQ-28 — Three committed operational rows are pre-fix and describe the abandoned monthly
+keepalive; correcting them needs a Joe-consented UPDATE.**
+Why open: session-4 committed two `ops.runs` smoke rows and one `ops.job_registry` row
+(`keepalive_github`) with the *pre-fix* design — the `ops.runs` rows are `now()`-stamped
+(`started_at == finished_at`, no `trigger` key), and the registry row still says
+`schedule = '0 6 1 * *'` (monthly), `max_staleness_hours = 1440` (60 days), from the design
+reviewer-finding B1 removed. The code, tests, workflow, spec, ADR-0024 and DECISIONS.md all
+now describe the correct **daily** design, so these three rows are the only place the wrong
+design still lives — and they are operationally misleading (a reader querying `ops.runs`
+cannot tell a smoke row from a scheduled firing; the registry advertises a schedule the
+workflow does not run). Fixing them is an UPDATE against committed rows, which CLAUDE.md
+`<safety>` requires Joe to authorise first — the auto-mode classifier correctly blocked it
+this session. Depends on it: whether Gate-0 evidence and the job registry read truthfully
+before the first scheduled firing. Settles it: Joe authorising the UPDATE (mark the two
+`ops.runs` rows `trigger=manual_smoke`/pre-fix; set `keepalive_github` schedule
+`'17 6 * * *'`, staleness `1200`, daily-design description), or ruling the rows be left as
+a documented pre-fix artifact. `ops.runs`/`ops.job_registry` are operational tables (not
+`atoms`/`raw_captures`), so INV-2 does not forbid the UPDATE; only the safety rule gates it.
+Raised by the session-end reviewer, 2026-08-23.
+
 ---
 
 ## Data integrity
@@ -304,13 +334,15 @@ their ids corrected. No entry may be edited to describe what was built (features
 `_comment`), so option (b) means writing the specs, not renaming the features.
 **Partial progress 2026-08-23 (REQ-ONT half):** `REQ-ONT-001` now exists
 (`specs/05-ontology/requirements.md`, ADR-0023), so F-006's citation is no longer
-dangling. **Still open:** F-014/F-015 cite ids under the `REQ-NFR` prefix (named
-here as the prefix only, not the full ids — writing an undefined full id into this
-governing doc would itself fail the section-8 cross-check, the very asymmetry above),
-and the `REQ-NFR` spec is still unwritten; and the underlying gate question (should the
-layout gate cross-check `features.json` ids against the specs?) is still Joe's to
-rule. `features.json` itself is write-locked to the agent (ADR-0011), so F-006 is
-not flipped here.
+dangling. **Further progress 2026-08-23 (REQ-NFR half, session 4):** `specs/06-nfr/requirements.md`
+now defines `REQ-NFR-001..004` (ADR-0024), so F-014's `REQ-NFR-001` and F-015's
+`REQ-NFR-002` citations are **no longer dangling** — every prefix cited by
+`features.json` now resolves to a spec. **Still open (the actual gate question):**
+should `validate_layout.py` be extended to cross-check `features.json` requirement ids
+against the specs, so a future dangling citation fails the build rather than passing
+silently? That is still Joe's to rule. `features.json` is write-locked to the agent
+(ADR-0011); F-006/F-014/F-015 are not flipped here (they need their proving tests /
+scheduled firings, not just a resolvable citation).
 
 **OQ-17 — The previous build is still live and writing to the database v2 is
 rebuilding. Coexist, migrate, or tear down?**
@@ -401,6 +433,12 @@ changed all commit hashes.
 Ruling (Joe): name is **`personal-os`** — nothing cute, nothing identifying.
 Where it lives (the GitHub account/org) and the first push are not done yet;
 creation is a deliberate outward action for a later session. Pointer: ADR-0013.
+**Load-bearing update 2026-08-23 (session 4):** the reliability keepalives (ADR-0024,
+REQ-NFR-001/002) are built and proven locally but **cannot fire on schedule until this
+push happens** and `SUPABASE_DB_URL` is set as an Actions secret. Gate 0's calendar
+clocks (7-day Supabase, 60-day GitHub) therefore **start at the push, not before** — so
+this outward action is now the single thing gating Gate 0 closure. Joe does the push
+(ruled this session: agent builds + proves locally, Joe pushes).
 
 **OQ-03 — RESOLVED 2026-08-23.** *Public or private repository?*
 Ruling (Joe, now that OQ-01 rotation is done): **PUBLIC.** Load-bearing —
