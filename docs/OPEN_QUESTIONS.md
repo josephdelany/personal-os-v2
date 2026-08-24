@@ -317,6 +317,25 @@ a documented pre-fix artifact. `ops.runs`/`ops.job_registry` are operational tab
 `atoms`/`raw_captures`), so INV-2 does not forbid the UPDATE; only the safety rule gates it.
 Raised by the session-end reviewer, 2026-08-23.
 
+**OQ-29 — When does the legacy Parquet backfill actually load into `core.atoms`?**
+Ruling (Joe, 2026-08-23, ADR-0028): **option (c)** — legacy history is
+Parquet-authoritative and **nothing is loaded into Postgres now**. `core.atoms`
+stays 0; Gate 2 is satisfied by the proven, DB-verified reconciliation (Δ=0), not by
+rows-in-Postgres. The loader (`tools/backfill_run.py`, DB-verified this session:
+309,826 atoms into a rolled-back copy, all constraints/invariants pass) stands by.
+**What is still open:** which specific load, and when. **The condition, stated
+plainly:** the loader runs when a **named Phase-5/6 analysis actually needs a
+specific legacy stream in Postgres** — not speculatively, not wholesale. At that
+time: (1) the old cron stack must be **frozen and its ~174 MB (`public.intraday`
+94 + `signals` 46 + `events` 34) reclaimed** (OQ-17), so the same history is not
+double-stored; (2) the load is **sized against the 500 MB ceiling as it stands
+then** (OQ-20) and scoped to the stream(s) the analysis names; (3) anything not
+explicitly loaded stays Parquet-authoritative. Depends on it: whether Phase-5/6
+`derived_measures`/hypotheses read history from `core.atoms` or from
+DuckDB-over-Parquet (ADR-0016). Settles it: the first Phase-5/6 analysis that names
+a legacy stream, at which point the load target + size are decided against the
+then-current ceiling. Raised 2026-08-23 (ADR-0028).
+
 ---
 
 ## Data integrity

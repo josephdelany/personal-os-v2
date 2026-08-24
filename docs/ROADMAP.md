@@ -56,14 +56,23 @@ which is DEFERRED to Phase 5** — its query joins `derived_measures`, which doe
 not exist until then, so it cannot run this phase and is not silently counted as
 passed (OQ-22; `tools/check_invariants.py` prints it PENDING with that reason).
 `ops/features.json` created with every planned feature pre-marked failing. Legacy
-Parquet backfilled into `atoms`.
+Parquet backfill **planned, proven, and DB-verified — but NOT loaded** into
+`atoms`: legacy history stays **Parquet-authoritative** and the load into Postgres
+is deferred to Phase 5/6 (ADR-0028, OQ-29). Committing the 309,826 legacy atoms now
+(measured 113 MB) would triple-store the still-live `public.intraday` history for a
+consumer that does not exist until Phase 5/6 — 113 irreversible MB (RULE-02) for
+nothing.
 
 **Gate 2:** All runnable invariant queries return zero rows (**RULE-04 explicitly
 deferred to Phase 5, named not silent — OQ-22**). An attempted UPDATE on `atoms`
 fails with a permission error, shown. The legacy backfill **reconciles** against
 the Parquet archive — every archived row is mapped to an atom or excluded with a
 recorded reason, exact per source table (reconciliation, not row-count equality;
-ADR-0025).
+ADR-0025) — and the atom transforms are **DB-verified** (309,826 atoms inserted
+into a rolled-back copy, all CHECKs/FKs/triggers/invariants passing; `backfill_run.py`).
+**Gate 2 is satisfied by this reconciliation with physical load DEFERRED**
+(ADR-0028), the same named-not-silent pattern as RULE-04's deferral — `core.atoms`
+stays 0 this phase (no premature append, no fabrication).
 
 ## Phase 3 — One vertical slice, end to end: the Big Mac path.
 
