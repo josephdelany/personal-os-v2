@@ -919,4 +919,4 @@ INV-5, RULE-01 (heartbeat doctrine), RULE-29 (heartbeat file). ADRs: 0024 (keepa
 0025 (backfill reconciliation). OQ: 22 RESOLVED, 16 (REQ-NFR half) resolved, 02 updated,
 28 raised. No `ops/features.json` entry moved (write-locked; nothing legitimately flips).
 
-**Commit.** recorded in the follow-up entry (this session-end commit; hash in the report).
+**Commit.** `5358f62` on `main` (this note recorded in a small follow-up commit).
