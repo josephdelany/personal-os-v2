@@ -22,11 +22,11 @@ response is observable. Numbers, never adjectives.
 
 ---
 
-## Current coverage — 572 requirements, 36 scenarios
+## Current coverage — 574 requirements, 36 scenarios
 
 | Prefix | Count | Subsystem | File |
 |---|---|---|---|
-| `REQ-ONT` | 15 | Ontology — the closed `atoms.kind` and `entities.entity_type` taxonomies, atom controlled vocabularies | `specs/05-ontology/requirements.md` |
+| `REQ-ONT` | 17 | Ontology — the closed `atoms.kind` and `entities.entity_type` taxonomies, atom controlled vocabularies | `specs/05-ontology/requirements.md` |
 | `REQ-NFR` | 4 | Non-functional (reliability) — the Supabase 7-day and GitHub Actions 60-day keepalives and their `ops.runs` evidence | `specs/06-nfr/requirements.md` |
 | `REQ-CAP` | 101 | Capture — Shortcuts ingress, transcription, extraction, prompting; per-subject extraction profiles (REQ-CAP-108/109), location capture path (REQ-CAP-110), three-valued-presence capture (REQ-CAP-111) | `specs/02-capture-nutrition/requirements.md` |
 | `REQ-NUT` | 57 | Nutrition resolution — USDA lookup, portions, intervals | `specs/02-capture-nutrition/requirements.md` |

@@ -533,6 +533,21 @@ Depends on it: whether Phase-3 extraction and Phase-5/6 derived measures for e1R
 consistent set-level shape. Settles it: Joe ratifying the worksheet (→ Track 1.2 corrections +
 ADR-0030/0031 authored), and ruling the set-granularity boundary. Raised 2026-08-24 (session 12).
 
+**OQ-33 — What atom-shape stores one strength set's four attributes (exercise, load, reps, RPE)?**
+Why open: ADR-0030 ruled strength granularity is **per set** (not per session), and REQ-ONT-017
+fixes that granularity. But an `atoms` row carries a *single* `value_point` (migration 0005), so one
+set's four attributes cannot live in one atom's value. Two representations fit the built model without
+a new `kind`: (a) **one `workout` atom per attribute** (`metric_key` ∈ {`strength_load_kg`,
+`strength_reps`, `strength_rpe`}, the exercise as a linked entity), all sharing a set key /
+`occurred_at`; or (b) a **single `workout` atom per set with a structured `value_type`** (a composite),
+which strains the single-`value_point` shape and the `atoms_value_has_lane` interval model. ADR-0030's
+prose "one atom per set carrying exercise, load, reps, RPE" reads as (b) but is not directly
+expressible; (a) is expressible today. Depends on it: how Phase-3/4 workout capture (REQ-WKT) writes
+sets, and whether e1RM/volume derive from per-attribute atoms or a composite. Settles it: Joe ruling
+(a) per-attribute atoms sharing a set key, or (b) a composite value_type (with the schema change that
+implies), when REQ-WKT is authored. Not blocking the granularity ruling. Raised by the Missing-A
+authoring, 2026-08-24.
+
 ---
 
 ## RESOLVED

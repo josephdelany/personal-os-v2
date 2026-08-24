@@ -1,7 +1,8 @@
 # 05 — ONTOLOGY — REQUIREMENTS (EARS)
 
-**Status:** COMPLETE — 15 requirements, 0 acceptance scenarios (the taxonomy is
+**Status:** COMPLETE — 17 requirements, 0 acceptance scenarios (the taxonomy is
 proven by a SQL CHECK plus behavioural INSERT-path tests, ADR-0022, not by Gherkin).
+(REQ-ONT-016/017 added 2026-08-24, Missing-A / ADR-0030.)
 **Scope:** the closed vocabularies of the spine — the `atoms.kind` taxonomy, the
 `entities.entity_type` taxonomy, and the controlled-vocabulary columns of an atom.
 This is the spec ADR-0002 assumed and OQ-16 recorded as lost; the membership here is
@@ -57,6 +58,26 @@ NOT represent a specific measure by introducing a new `kind` value.
 **REQ-ONT-004** (Unwanted behaviour) IF a new `kind` member is required, THEN it
 SHALL be introduced only by a schema migration that also amends REQ-ONT-001 and is
 recorded in an ADR, and SHALL NOT be introduced as an unconstrained free-text value.
+
+**REQ-ONT-016** (Ubiquitous) The extraction service SHALL represent an alcoholic
+drink, a caffeinated drink, a dietary supplement, and a medication as a `consume`
+atom carrying a `metric_key` from `metric_registry` — for example
+`alcohol_standard_drinks`, `alcohol_ethanol_grams`, or `caffeine_mg` — and SHALL NOT
+introduce a distinct `atoms.kind` for any of them (ADR-0030; a specific application
+of REQ-ONT-003, so it takes no migration and leaves the closed `kind` set of
+REQ-ONT-001 unchanged). The named `metric_registry` keys are seeded under Missing-B
+(a data write, deliberately deferred), so an atom cannot carry them until that seed
+lands — the FK on `atoms.metric_key` enforces this.
+
+**REQ-ONT-017** (Ubiquitous) The extraction service SHALL record strength training at
+the granularity of the individual set — each set's exercise, load, repetitions and
+RPE recorded per set — and SHALL NOT store only a session-level aggregate (ADR-0030),
+so that e1RM, per-exercise volume and progression are computable per set. (The
+atom-shape by which one set's four attributes are stored — a single `workout` atom
+with a structured value versus one `workout` atom per attribute sharing a set key —
+is OQ-33, deferred to REQ-WKT; this requirement fixes the granularity, not the shape.
+Either shape satisfies per-set granularity: under the per-attribute option the attributes
+share a set key, so the set remains the resolvable unit.)
 
 ---
 

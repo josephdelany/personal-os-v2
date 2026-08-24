@@ -101,6 +101,20 @@ nothing:
 **Touches** OQ-27 (the `atoms.kind`/`entity_type` boundary is a requirements-layer
 question) and closes the ontology half of OQ-31 (strength-set granularity ruled).
 
+## Addendum — 2026-08-24 (Missing-A authoring): "one atom per set" is per-set *granularity*, shape deferred
+
+Decision §3 says "one `workout` atom per set carrying exercise, load, reps, and RPE."
+The built `atoms` row (migration 0005) carries a **single** `value_point` and no
+structured/JSONB value column, so one atom cannot literally hold four attributes —
+this ADR's own rejected-alternative reasoning ("each set as a first-class **row**")
+already points at multiple rows per set. The **ratified, load-bearing** part of §3 is
+**per-set granularity** (not per-session), which REQ-ONT-017 implements. The exact
+atom-shape — one `workout` atom per attribute sharing a set key, versus a composite
+`value_type` — is **OQ-33**, deferred to REQ-WKT. So "one atom per set" is read as
+shorthand for "per set, shape TBD"; the granularity ruling stands, the shape does not
+bind until OQ-33 is settled. (Recorded as an addendum, not an edit — ADRs are immutable;
+the reason §3 was written is preserved.)
+
 ## Alternatives considered
 
 - **Add `alcohol` (and per-mobility) members to `atoms.kind`.** Rejected: each is an
