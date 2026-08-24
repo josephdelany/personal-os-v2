@@ -267,7 +267,14 @@ whether a reconciliation ADR is needed first. Settles it: an ADR mapping the
 reasoning-spec bitemporal vocabulary onto the spine's, written before Phase 6.
 Raised by the session-end reviewer, 2026-08-23.
 
-**OQ-26 — The finance spec references atom column names the spine does not have.**
+**OQ-26 — RESOLVED 2026-08-24 (Track 1.2, C-8).** The finance-spec column drift is
+reconciled: REQ-FIN-001 (`lane`→`estimate_method`+`state_class`, `atoms.local_date`→
+`subject_day`, `source` dropped as redundant with the `NOT NULL raw_capture_id`
+lineage), REQ-FIN-026/198 (`lane='inferred'`→`provenance='inferred'`), REQ-FIN-114
+(inferred case → `provenance='inferred'`; the *human-override* case spun out to OQ-32).
+Verified against migration 0005 by the C-8 reviewer; `validate_layout` green. One
+residual it surfaced — the authoritative-human-override representation — is **OQ-32**,
+not this drift. Original question retained below.
 Why open: REQ-FIN-001 (specs/03-finance/requirements.md:31) says a transaction atom
 carries `lane` and is queryable on `atoms.local_date`, but the built spine renamed
 these — the value's lane is `estimate_method` (+ `state_class`) and the day axis is
@@ -277,6 +284,24 @@ on it: whether Phase-3 finance ingest can be written against the spine as built,
 whether REQ-FIN needs a column-name reconciliation first. Settles it: an edit to the
 affected REQ-FIN statements (or a mapping ADR) aligning `lane`→`estimate_method` and
 `local_date`→`subject_day` before finance ingest is built. Raised 2026-08-23.
+
+**OQ-32 — How does the spine represent an authoritative *direct human override* of a
+usage status, distinct from a value extracted from a capture?**
+Why open: C-8 reconciled REQ-FIN-114's `lane='inferred'`/`lane='hard'` to the spine
+vocabulary. The inferred case maps cleanly to `provenance='inferred'`. But the spine's
+`provenance` enum {`extracted`,`inferred`,`defaulted`} (migration 0005) has no value
+that distinguishes a **Joe-directly-set authoritative override** (old `lane='hard'`)
+from an ordinary content-extraction — and `confidence=1.0` alone is a weak
+discriminator (a template parser could also assign 1.0). RULE-10 ("a human correction
+outranks every automated layer, permanently") needs this distinction to be durable, not
+a confidence coincidence. Depends on it: whether REQ-FIN-114/115's human-override
+guarantee is enforceable against the schema, and whether Phase-3 usage-status rows need
+a dedicated marker. Settles it: Joe ruling one of — (a) override = `provenance='extracted'`
++ `confidence=1.0` + supersedes-lineage, with a test proving no automated process can
+re-guess it (RULE-10); (b) a dedicated `source='human_override'` / `set_by_human` marker
+(a Phase-3 schema decision); or (c) the correction is always a *superseding* row and
+authority is read from the supersedes graph, never from a column. Raised by the C-8
+session reviewer, 2026-08-24.
 
 **OQ-27 — Three `atoms.kind`/`entity_type` boundary calls are guesses, not rulings.**
 Why open: ADR-0023 and REQ-ONT (`specs/05-ontology/requirements.md` §UNRESOLVED,

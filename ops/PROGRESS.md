@@ -1355,8 +1355,23 @@ order, one item at a time, gates between, **stopping before anything needing a m
   Completeness grep: no CANDIDATE "never shown" absolute remains. Gate after fixes: `validate_layout` 35/0/0.
   No migration. **Flagged for Missing-F:** REQ-NAR-035 (no chart for a CANDIDATE claim) stays coherent iff
   the EXPLORATORY surface is label/text-only, not charts — the surface's modality is Missing-F's to define.
-- **Next units:** C-8 (spine-drift `lane`/`local_date` sweep), then C-3 disposition, C-9/C-10/C-11/C-14,
-  then the 6 remaining missing-sets (B/D/E/F/G/H). Each its own gated + reviewed pass. Stop before any migration.
+- **Unit 5 — C-8 (spine-drift sweep, OQ-26)** (finance→spine column vocabulary). REQ-FIN-001
+  (`lane`→`estimate_method`+`state_class`, `atoms.local_date`→`subject_day`, `source` dropped as
+  redundant with `NOT NULL raw_capture_id`/INV-1; value-lane clause conditioned on storing an amount),
+  REQ-FIN-026/198 (`lane='inferred'`→`provenance='inferred'`), REQ-FIN-114 (inferred→`provenance='inferred'`).
+  Mapped against the REAL columns in migration 0005 (verified, not guessed). **Reviewer found 1 MAJOR
+  (60%) + 3 MINOR, all addressed:** (MAJOR) my `lane='hard'`→`provenance='extracted'` for a Joe-SET value
+  buried a *modeling decision* in a vocabulary sweep — the spine enum has no "authoritative human override"
+  value distinct from "extracted"; **backed it out**, REQ-FIN-114 now states the human-override case as a
+  first-class RULE-10 superseding row (confidence=1.0) and spins the provenance-representation question out
+  to **OQ-32** (not decided alone); (MINOR) REQ-FIN-026's `raw_transactions.provenance` reworded as a
+  *forward* commitment to the unbuilt Phase-3 table, not a reconciliation to an existing column; (MINOR)
+  REQ-FIN-001 value-lane conditioned on non-null value; `source` dropped. **OQ-26 marked RESOLVED**
+  (remediation applied), **OQ-32 raised**. Gate after fixes: `validate_layout` 35/0/0. No migration.
+- **Next units:** C-3 disposition (reverse REQ-FIN-214, keep 210/212 — RULED-2), C-9/C-10/C-11/C-14
+  (small conflict fixes), then the missing-sets D/E/F/G/H + B's requirements. **STOP at Missing-B's
+  `metric_registry` seed (data write — Joe wants to see it first).** Missing-F needs ADR-0032 (surface
+  modality: text/labels only, no charts — Joe ruled 2026-08-24). Each its own gated + reviewed pass.
 
 ## NEXT ACTION (from docs/REMEDIATION_PLAN.md sequence — single item only)
 
