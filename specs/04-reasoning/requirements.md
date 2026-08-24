@@ -44,7 +44,7 @@ Six tiers. Every emitted sentence sits on exactly one, the tier is computed by t
 | Tier | Produced by | Shown to Joe? | Permitted vocabulary |
 |---|---|---|---|
 | `DESCRIPTIVE` | Layer 2 (description, regime HMM) | Yes | "is", "was", "has been", "typically lasts", "on N of the last M days" |
-| `CANDIDATE` | Layer 3 (PCMCI+, VAR-LiNGAM, regularized VAR) | **Never** | none |
+| `CANDIDATE` | Layer 3 (PCMCI+, VAR-LiNGAM, regularized VAR) | **EXPLORATORY-labelled surface only**, once built+proven (RULE-17); never on a finding surface | the `EXPLORATORY` label vocabulary only — never confirmed-tier terms |
 | `PROMOTED` | Layer 4 (hierarchical FDR + spec curve + shift null) | Yes | "robust across N specifications", "precedes", "predictive lead" |
 | `CONFIRMED_OBSERVATIONAL` | Layer 5 (backdoor adjustment, HAC, E-value, refuters) | Yes | "associated with, adjusting for {set}", "E-value N" |
 | `EXPERIMENTAL` | Layer 6 (randomized micro-trial, ITS) | Yes | "caused", full stop |
@@ -145,7 +145,7 @@ The reasoning layer SHALL terminate every `INSUFFICIENT` response with either a 
 IF an `INSUFFICIENT` response is rendered without either a named data requirement or a proposed trial, THEN the render pipeline SHALL reject the response and SHALL return the absent disclosure form instead.
 
 **REQ-TIER-035 (State-driven)**
-WHILE a finding has status `CANDIDATE`, the reasoning layer SHALL exclude it from every user-facing surface, every export, every notification payload, and every LLM prompt.
+WHILE a finding has status `CANDIDATE`, the reasoning layer SHALL exclude it from every finding surface, every reading-intended export, every notification payload, and every LLM prompt that would present it as established, and SHALL render it only on the `EXPLORATORY`-labelled surface (RULE-17), never in confirmed-tier vocabulary. (Reworded 2026-08-24; requirements-audit C-2, ADR-0029 RULE-17 SCOPE-shell reversal.)
 
 ### A.5 Demotion and movement between tiers
 
@@ -187,7 +187,7 @@ IF a recommendation is rendered without its tier label and its interval, THEN th
 
 ### A.ALTERNATIVES CONSIDERED
 - **Keep `09 §1` rule 6 (hide everything below rung 2).** Rejected by `G` §2.1 as the most direct conflict in the corpus, and because it contradicts `09 §11` rule 8 ("never hide an inconclusive result") within the same document. Overturning rule 6 resolves the contradiction in favour of rule 8.
-- **Four tiers, folding `CANDIDATE` into an internal status flag.** Rejected: making `CANDIDATE` a tier rather than a flag means the "never shown" property is enforced by the same mechanism that enforces every other tier property, and is testable with one test rather than N.
+- **Four tiers, folding `CANDIDATE` into an internal status flag.** Rejected: making `CANDIDATE` a tier rather than a flag means its display property is enforced by the same mechanism that enforces every other tier property, and is testable with one test rather than N. (Post-ADR-0029/C-2: the property is now "never shown *on a finding surface*, shown only on the EXPLORATORY-labelled surface once built+proven per RULE-17" — the tier mechanism enforces the narrowed property just as it enforced the former absolute.)
 - **Ban hedged phrasing outright (`10 §10`).** Rejected per `G` §2.5: calibrated disclosure is *made of* hedged phrasing. Replaced by the per-tier closed vocabulary plus a linter (REQ-TIER-020, REQ-NAR-020), converting a judgment call into a mechanical check.
 - **Show frequentist CIs.** Rejected on `C` §5.1: Hoekstra et al. found 442 students, 34 master's students and 120 researchers endorsed on average 3.51 / 3.24 / 3.45 false statements out of six about a 95% CI; only 2–3% got all six right.
 
@@ -552,10 +552,10 @@ The reasoning layer SHALL treat PCMCI+, LPCMCI, VAR-LiNGAM, DirectLiNGAM, and re
 The reasoning layer SHALL write every output of a generator method into `hypothesis_register` with status `CANDIDATE` and SHALL NOT create a `findings` row directly from a generator output.
 
 **REQ-INF-402 (Ubiquitous)**
-The reasoning layer SHALL NOT include a generator method's output in any user-facing surface, any notification, any export intended for reading, or any prompt sent to the language layer.
+The reasoning layer SHALL NOT include a generator method's output in any finding surface, any confirmed-tier rendering, any notification payload, any reading-intended export that presents it as a finding, or any prompt sent to the language layer as established fact; it MAY appear only on the dedicated pulled `EXPLORATORY`-labelled surface, and only once that surface is built and proven (RULE-17 binding sequencing — the label surface precedes any continuous exploration; exploratory output is never pushed at Joe). (Reworded 2026-08-24; requirements-audit C-2, ADR-0029 RULE-17 SCOPE-shell reversal. The former blanket "any user-facing surface" ban is narrowed to finding surfaces; the integrity core — never a finding, never confirmed vocabulary, never into an LLM prompt as fact — is unchanged, REQ-INF-401.)
 
 **REQ-INF-403 (Unwanted behaviour)**
-IF a render request resolves to a row whose `status = 'CANDIDATE'`, THEN the surface SHALL return the refusal string "No finding available." and SHALL write a row to `render_violations` with reason `candidate_leak`.
+IF a render request for a finding surface resolves to a row whose `status = 'CANDIDATE'`, THEN the surface SHALL return the refusal string "No finding available." and SHALL write a row to `render_violations` with reason `candidate_leak`; a request for the `EXPLORATORY`-labelled surface is not a violation and SHALL render the row under its `EXPLORATORY` label (RULE-17).
 
 **REQ-INF-404 (Ubiquitous)**
 The reasoning layer SHALL run generator methods on domain blocks of at most 20 variables at a time, and SHALL NOT run a generator over the full metric space in one pass.
@@ -621,12 +621,12 @@ The reasoning layer SHALL NOT perform an unrestricted all-pairs search across th
 
 ### F.NON-GOALS
 - Not a goal: reproducing published causal-discovery benchmarks. Benchmark performance on simulated DAGs is precisely what varsortability shows to be misleading.
-- Not a goal: a "discovery feed" or "things we're investigating" surface. That is `CANDIDATE` output with a friendlier name.
+- Not a goal: a "discovery feed" that launders `CANDIDATE` output into finding-like copy with a friendlier name. (The RULE-17 `EXPLORATORY`-labelled surface is the *sanctioned* alternative — it displays the same output but under a structural EXPLORATORY label and vocabulary, never as a finding; post-ADR-0029/C-2. What stays banned is the decorative feed that reads like a findings screen.)
 - Not a goal: automated DAG learning replacing the hand-written domain DAG. Discovery proposes; the written DAG identifies.
 - Not a goal: a graph database. ~80 nodes and a wide daily panel; the dominant query is a pivot, not a 3-hop traversal.
 
 ### F.ALTERNATIVES CONSIDERED
-- **Show PCMCI+ edges behind an "exploratory" label.** Rejected. The old spec's Patterns screen did exactly this and `C` §7 names it failure mode 3. A label does not undo the false-positive arithmetic once the sentence has been read.
+- **Show PCMCI+ edges behind an "exploratory" label.** Originally rejected (the old Patterns screen did exactly this; `C` §7 names it failure mode 3 — a label does not undo the false-positive arithmetic once the sentence has been read). **Reversed by ADR-0029 (RULE-17 SCOPE shell), 2026-08-24:** exploratory output MAY now be displayed carrying an explicit `EXPLORATORY` label, but only on a tier-labelling surface that is built and proven BEFORE any continuous exploration ships (binding sequencing, Joe's ruling). The integrity core the original rejection protected is unchanged — never promoted to a finding, never confirmed-tier vocabulary, never into an LLM prompt as established fact (REQ-INF-401/402). The reversal answers the old objection by making the label structural (a distinct surface + vocabulary), not decorative copy on a findings screen.
 - **DYNOTEARS as the primary discovery engine.** Rejected — the strongest negative recommendation in the research. Joe's variables span steps (10^4), HRV ms (10^1), dollars (10^2), drinks (10^0), sleep hours (10^0); a method whose output changes with unit choice returns a confident, arbitrary graph of his life.
 - **LPCMCI as primary instead of PCMCI+.** Kept available and not made primary: LPCMCI drops causal sufficiency, which is the honest choice given Joe unambiguously has hidden confounders, but its output is correspondingly weaker (mostly "confounded or one causes the other").
 - **Granger causality as a headline feature.** Narrowed to `predictive_lead` (REQ-TIER-022). All seven of its assumptions are violated in this data.
@@ -1026,8 +1026,8 @@ Then F1 is demoted to tier "PROMOTED" without any human confirmation
   And no API endpoint exists that can reverse the demotion
 ```
 
-### Scenario 4 — a PCMCI+ output must not reach the screen
-*Cites: REQ-INF-400, REQ-INF-401, REQ-INF-402, REQ-INF-403, REQ-TIER-035, REQ-TIER-011*
+### Scenario 4 — a PCMCI+ output is EXPLORATORY-only, never a finding
+*Cites: REQ-INF-400, REQ-INF-401, REQ-INF-402, REQ-INF-403, REQ-TIER-035, REQ-TIER-011, RULE-17*
 ```gherkin
 Given the monthly discovery job has run PCMCI+ over a 14-variable SUBSTANCE x WORK block
   And PCMCI+ emitted an edge substance.thc_sessions -> work.deep_work_min at lag 1
@@ -1038,11 +1038,14 @@ Then it appears in hypothesis_register with status "CANDIDATE"
 When any surface requests renderable findings
 Then that edge is absent from the response
   And it is absent from every notification payload
-  And it is absent from every prompt sent to the language layer
-  And it is absent from the human-readable export
-When a render is requested for that row by ID
+  And it is absent from every prompt that would present it as established fact
+  And it is absent from the human-readable findings export
+When a render is requested for that row by ID on a finding surface
 Then the surface returns "No finding available."
   And a render_violations row exists with reason "candidate_leak"
+When the EXPLORATORY-labelled surface renders that row (once built and proven per RULE-17)
+Then the edge appears carrying an explicit EXPLORATORY label, never in confirmed-tier vocabulary
+  And no render_violations row is written for that render
 ```
 
 ### Scenario 5 — the LLM states a number absent from the result set

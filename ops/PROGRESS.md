@@ -1339,8 +1339,24 @@ order, one item at a time, gates between, **stopping before anything needing a m
   "C-8 pass" process breadcrumb from REQ-FIN-198. Completeness grep: no other question/conclude prohibition
   remains in finance. Gate after fixes: `validate_layout` 35/0/0. No migration. `lane` refs in FIN-198 left
   for the C-8 spine-drift pass.
-- **Next units:** C-2 (RULE-17 reversal — INF-402/403, §F line 629, TIER-035, Scenario 4-reasoning), then
-  C-8 (spine-drift `lane`/`local_date` sweep), then the rest. Each its own gated + reviewed pass. Stop before any migration.
+- **Unit 4 — C-2 (RULE-17 reversal)** (reasoning: exploratory output may display behind an EXPLORATORY
+  label). Narrowed REQ-INF-402 (blanket "any user-facing surface" ban → finding-surface/confirmed-tier/
+  LLM-as-fact only; MAY appear on the pulled EXPLORATORY surface once built+proven per RULE-17), REQ-INF-403
+  (candidate_leak fires only on a finding surface), REQ-TIER-035 (same narrowing), rewrote §F ALTERNATIVES
+  to record ADR-0029's reversal (kept the original rejection text, appended the reversal), and reasoning
+  Scenario 4 (title + body: integrity guarantees kept, EXPLORATORY-render path added). **Integrity core
+  preserved** — REQ-INF-401 (CANDIDATE, no findings row) byte-unchanged; every display permission carries
+  the binding-sequencing gate. **Reviewer confirmed core intact + gate present on every permission**, found
+  the sweep incomplete: 1 MAJOR + 4 MINOR/NIT, all fixed — (MAJOR) the per-tier summary table still read
+  CANDIDATE "Shown to Joe? Never / vocabulary none" → updated to EXPLORATORY-surface-only; (MINOR) §A.ALT
+  line 190 + §F.NON-GOALS "discovery feed" stale absolutes → annotated / line drawn (banned = finding-
+  mimicking feed, allowed = EXPLORATORY surface); (MINOR) 402 notification clause aligned with TIER-035 —
+  exploratory output is **pull-only, never pushed at Joe**; (NIT) added RULE-17 to Scenario 4 cites.
+  Completeness grep: no CANDIDATE "never shown" absolute remains. Gate after fixes: `validate_layout` 35/0/0.
+  No migration. **Flagged for Missing-F:** REQ-NAR-035 (no chart for a CANDIDATE claim) stays coherent iff
+  the EXPLORATORY surface is label/text-only, not charts — the surface's modality is Missing-F's to define.
+- **Next units:** C-8 (spine-drift `lane`/`local_date` sweep), then C-3 disposition, C-9/C-10/C-11/C-14,
+  then the 6 remaining missing-sets (B/D/E/F/G/H). Each its own gated + reviewed pass. Stop before any migration.
 
 ## NEXT ACTION (from docs/REMEDIATION_PLAN.md sequence — single item only)
 
