@@ -920,7 +920,7 @@ The render pipeline SHALL fail the build if any template in the repository conta
 The render pipeline SHALL lint every copy string against the banned moralising wordlist — at minimum {excessive, wasteful, unnecessary, too much, splurge, guilty} — and SHALL fail the build on a match.
 
 **REQ-NAR-024 (Ubiquitous)**
-The language layer SHALL NOT render a rating, a total, or a behaviour back to Joe with a judgment attached.
+The language layer SHALL NOT render a rating, a total, or a behaviour back to Joe with a moralising judgment attached — a term on the REQ-NAR-023 banned wordlist; a decision-under-uncertainty recommendation carrying its tier and interval per REQ-TIER-048 is permitted (RULE-25).
 
 **REQ-NAR-025 (Ubiquitous)**
 The reasoning layer SHALL NOT display a streak, a compliance score, a composite wellness score, or a celebratory animation on any surface.

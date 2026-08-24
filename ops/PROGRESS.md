@@ -1326,8 +1326,21 @@ order, one item at a time, gates between, **stopping before anything needing a m
   — no schema change, no `metric_registry` seed. **Owed (Phase 3, named):** no acceptance scenario binds
   REQ-CAP-108–111 yet, and REQ-CAP-110's egress guarantee is asserted, not runtime-proven (proof owed
   Phase 3/4, same class as OQ-15).
-- **Next units:** C-1 (RULE-25 family), C-2 (RULE-17 reversal) — each its own gated + reviewed pass
-  (both rewrite acceptance scenarios = RULE-00 territory). Then C-8, then the rest. Stop before any migration.
+- **Unit 3 — C-1 (RULE-25 family)** (finance + narration recommendation-suppression → RULE-25 standard).
+  Rewrote §0 governing principle, REQ-FIN-157/190/198/200/222, §D.3 header, Scenario 4 + Scenario 7, and
+  REQ-NAR-024 — each now: MAY recommend with tier + disclosed uncertainty + what-would-raise-it, MUST NOT
+  assert as an established fact. **Surviving bans left untouched** (verified byte-identical): REQ-FIN-191
+  (no causal assertion), -192 (no trait/mood inference), -197 (no alcohol-volume-from-amount). Not a
+  RULE-00 weakening — the rule changed (RULE-25 reworded, ADR-0029, ratified); scenarios brought into line.
+  **Reviewer found 1 MAJOR + 3 MINOR, all fixed:** (MAJOR) REQ-FIN-190's blanket "MAY recommend"
+  contradicted REQ-FIN-171 (T0 = dated statement, no interpretation) and Scenario 4 pinned both against a
+  T0 event — scoped the recommendation license to **T1+**, T0 stays interpretation-free; (MINOR) REQ-FIN-200/
+  222 dropped RULE-25's third disclosure ("what would raise it") — added, twins aligned; (NIT) removed a
+  "C-8 pass" process breadcrumb from REQ-FIN-198. Completeness grep: no other question/conclude prohibition
+  remains in finance. Gate after fixes: `validate_layout` 35/0/0. No migration. `lane` refs in FIN-198 left
+  for the C-8 spine-drift pass.
+- **Next units:** C-2 (RULE-17 reversal — INF-402/403, §F line 629, TIER-035, Scenario 4-reasoning), then
+  C-8 (spine-drift `lane`/`local_date` sweep), then the rest. Each its own gated + reviewed pass. Stop before any migration.
 
 ## NEXT ACTION (from docs/REMEDIATION_PLAN.md sequence — single item only)
 

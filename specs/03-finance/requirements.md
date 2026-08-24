@@ -24,7 +24,7 @@ Three further findings set the ceiling on how loudly this subsystem may speak:
 - The only published N=1 mood-vs-spend study (Nelson et al. 2022, bipolar II, 3,373 transactions, 24 months) returned **null**: frequency F(1,558)=0.35, p=.556; volume F(1,431)=0.19, p=.665.
 - Zero-shot LLM transaction categorization scores **60.4%** against 91% for a trained weakly-supervised approach and 73.4% for a calibrated fine-tuned FinBERT.
 
-Therefore the design principle inherited from the research verbatim: **the system's job is to notice and ask, not to conclude.**
+Therefore the design principle, as updated by RULE-25 (ADR-0029): **the system surfaces what it sees and may recommend with disclosed uncertainty — naming its evidence tier and what would raise it — but never asserts a pattern as an established fact.** (This replaces the former "notice and ask, not conclude", which the reworded RULE-25 reversed; the still-binding halves are unchanged — no causal assertion, REQ-FIN-191; no personality/mood/mental-health inference, REQ-FIN-192.)
 
 ### §0 requirements
 ```
@@ -265,7 +265,7 @@ The research ranks inference quality by purchase type. This ranking is binding: 
 **REQ-FIN-154** (Event-driven) WHEN two or more active recurring streams resolve to merchants sharing the same service class (for example three music subscriptions or two cloud-storage plans), the finance subsystem SHALL surface the set as a duplicate-service observation with the combined monthly amount.
 **REQ-FIN-155** (Event-driven) WHEN a recurring stream remains active while its associated login, app-usage or email activity has been absent for 90 days, the finance subsystem SHALL surface it as a zombie-stream observation naming the specific absent signal.
 **REQ-FIN-156** (Event-driven) WHEN Joe cancels a stream as a result of any insight, the finance subsystem SHALL record the cancellation, the monthly amount and the originating insight ID, and SHALL include the running total of cancellations in the periodic review.
-**REQ-FIN-157** (Ubiquitous) Every unused-purchase insight SHALL end in a question that Joe can answer, dismiss, or mark 'not useful'.
+**REQ-FIN-157** (Ubiquitous) Every unused-purchase insight SHALL be answerable, dismissible, or markable 'not useful', SHALL name its evidence tier and what would raise it whenever it recommends an action (for example cancelling), and SHALL NOT assert the purchase to be unnecessary as an established fact (RULE-25).
 **REQ-FIN-158** (Event-driven) WHEN Joe marks an insight class 'not useful', the finance subsystem SHALL suppress every future insight of that class permanently and SHALL NOT re-raise it under a different wording. ```
 
 ### C. NON-GOALS
@@ -330,9 +330,9 @@ Two further constraints fall out of the research. First, **dollars are not drink
 **REQ-FIN-179** (Ubiquitous) The finance subsystem SHALL exclude cash-derived and ATM transactions from every co-occurrence denominator and SHALL state the exclusion, because cash is a systematic and non-random blind spot concentrated on exactly the behaviour being examined.
 **REQ-FIN-180** (Ubiquitous) The finance subsystem SHALL net inbound P2P transfers from any alcohol-context amount before that amount enters any co-occurrence, per REQ-FIN-050. ```
 
-### D.3 Notice and ask — never conclude
+### D.3 Recommend with disclosed uncertainty — never assert as established
 ```
-**REQ-FIN-190** (Ubiquitous) Every co-occurrence surfaced to Joe SHALL be phrased as an observation followed by a question, and SHALL NOT be phrased as a conclusion.
+**REQ-FIN-190** (Ubiquitous) Every co-occurrence surfaced to Joe SHALL carry its evidence tier and its uncertainty, MAY be accompanied — at tier T1 or above — by a recommendation that names what would raise the tier, and SHALL NOT be asserted as an established fact about Joe (RULE-25; a T0 co-occurrence carries no interpretation and no recommendation per REQ-FIN-171; REQ-FIN-191 independently forbids any causal assertion).
 **REQ-FIN-191** (Ubiquitous) The finance subsystem SHALL NEVER emit a statement asserting that one behaviour causes another.
 **REQ-FIN-192** (Ubiquitous) The finance subsystem SHALL NEVER emit a personality-trait inference, a mood-state inference, or a mental-health inference from transaction data.
 **REQ-FIN-193** (Unwanted behaviour) IF generated copy contains a causal connective ('because', 'causes', 'leads to', 'due to', 'makes you') linking a spend observation to a state observation, THEN the finance subsystem SHALL block publication of that copy and SHALL log a `copy_violation` row citing REQ-FIN-191.
@@ -340,9 +340,9 @@ Two further constraints fall out of the research. First, **dollars are not drink
 **REQ-FIN-195** (Ubiquitous) The annotation prompt SHALL be answerable in two taps and SHALL be dismissible without an answer.
 **REQ-FIN-196** (Ubiquitous) The finance subsystem SHALL treat Joe's annotation as higher-ranked evidence than any inference, and SHALL supersede any inferred value with it.
 **REQ-FIN-197** (Ubiquitous) The finance subsystem SHALL NEVER estimate alcohol volume, units or standard drinks from a transaction amount.
-**REQ-FIN-198** (Optional feature) WHERE a bar tab amount is used as a prior on drink count, the finance subsystem SHALL store it with `lane='inferred'` and `confidence` no greater than 0.30, SHALL present it only as a question, and SHALL discard it the moment an actual `consume` atom exists for that episode.
+**REQ-FIN-198** (Optional feature) WHERE a bar tab amount is used as a prior on drink count, the finance subsystem SHALL store it with `lane='inferred'` and `confidence` no greater than 0.30, SHALL present it with that lane and confidence disclosed and SHALL NOT present it as an established drink count, and SHALL discard it the moment an actual `consume` atom exists for that episode (RULE-25).
 **REQ-FIN-199** (Ubiquitous) The habit-rhythm engine SHALL use a circular histogram over day-of-week and hour-of-day with a chi-square test against uniform as its default method, and SHALL apply a Lomb-Scargle periodogram only where the series contains enough cycles for a false-alarm probability to be computed, refusing to report any peak that does not clear it.
-**REQ-FIN-200** (Ubiquitous) The finance subsystem SHALL frame every habit output around fit with Joe's own stated goals rather than around restraint, and SHALL show the pattern beside those goals rather than naming the gap itself. ```
+**REQ-FIN-200** (Ubiquitous) The finance subsystem SHALL frame every habit output around fit with Joe's own stated goals rather than around restraint, and SHALL show the pattern beside those goals and MAY name the gap provided it names its evidence tier, its uncertainty, and what would raise the tier, and does not assert the gap as an established fact (RULE-25). ```
 
 ### D. NON-GOALS
 
@@ -391,7 +391,7 @@ The positive prescription comes from motivational interviewing: express empathy,
 **REQ-FIN-219** (Unwanted behaviour) IF generated copy contains any word on the REQ-FIN-218 list, THEN the finance subsystem SHALL block publication of that copy and SHALL write a `copy_violation` row citing REQ-FIN-218 and the offending token.
 **REQ-FIN-220** (Ubiquitous) The finance subsystem SHALL express every observation in numbers, counts and timestamps, and SHALL NOT express any observation in quantity adjectives.
 **REQ-FIN-221** (Ubiquitous) Every insight surfaced SHALL carry a 'not useful' control, and activating it SHALL suppress that entire insight class permanently.
-**REQ-FIN-222** (Ubiquitous) The finance subsystem SHALL show a pattern beside Joe's own stated goals and SHALL let him name any gap, and SHALL NOT name the gap itself.
+**REQ-FIN-222** (Ubiquitous) The finance subsystem SHALL show a pattern beside Joe's own stated goals and SHALL let him name any gap, and MAY name the gap itself provided it discloses its evidence tier, its uncertainty, and what would raise the tier, and does not assert the gap as an established fact (RULE-25).
 **REQ-FIN-223** (Ubiquitous) The periodic review SHALL include a running record of changes Joe has already made and their recorded effect, per REQ-FIN-156.
 **REQ-FIN-224** (Ubiquitous) The finance subsystem SHALL label every figure affected by cash, splitting or missing coverage with the specific limitation in the same view — 'destination unknown' for ATM withdrawals, 'net of $N reimbursed' for split tabs, and the n for every inference.
 **REQ-FIN-225** (State-driven) WHILE any account has had no successful import for more than 35 days, the finance subsystem SHALL display a coverage warning naming that account on every aggregate view and SHALL NOT present any total as complete.
@@ -558,7 +558,8 @@ And   an annotation prompt SHALL be scheduled for the morning of
       2026-03-20 asking who Joe was with and how the morning is
 And   no output SHALL contain an estimated drink count, unit count, or
       eBAC value derived from the $64.00
-And   any surfaced text SHALL end in a question
+And   any surfaced text SHALL carry its evidence tier T0 and SHALL NOT
+      attach any interpretation or recommendation to it (T0, REQ-FIN-171)
 ```
 
 ---
@@ -611,7 +612,9 @@ Then  the insight SHALL be delivered
 And   it SHALL state "$45/mo, last visit 71 days ago"
 And   it SHALL NOT contain the words 'necessary', 'unnecessary' or
       'wasteful'
-And   it SHALL end in a question
+And   it MAY recommend an action, carrying its evidence tier and what
+      would change it, and SHALL NOT assert the subscription is
+      unnecessary as an established fact
 And   it SHALL carry a 'not useful' control
 ```
 
