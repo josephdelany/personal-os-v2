@@ -470,6 +470,49 @@ These are absolute. They are restated here as their own requirements so that a v
 - **How is REQ-FIN-243 enforced across the whole prompt-construction layer**, which lives in `09_PROGRAM.md` and not here?
 - **Does REQ-FIN-244's never-delete rule conflict with any data-retention or right-to-erasure obligation?** Single-user self-hosted, so probably not, but unexamined.
 
+## G. THE FULL-SYSTEM LAYERS — income, balances, budgets, forecast, reconciliation
+
+*Ratified by RULED-2 / ADR-0031: finance is a full system, not a spend tracker. Net worth, investments and portfolio remain out of scope (ADR-0031). Every layer here is bound by the restraint constraints — REQ-FIN-210 (no live spent/remaining counter), REQ-FIN-211 (no figure updating more than once per 24 hours), REQ-FIN-212 (forward amounts as ranges) — and by RULE-23 / RULE-24 (no scolding tally, no compliance score). (§G — GHERKIN below is the scenario appendix, a separate thing from this domain section G.)*
+
+### G.1 Income and earnings
+
+**REQ-FIN-259** (Ubiquitous) The finance subsystem SHALL ingest an inbound earnings flow — a paycheck, a direct deposit, or other income — as a `transaction` atom marked as income by its direction, distinct from a spend transaction and distinct from a reimbursement.
+
+**REQ-FIN-260** (Unwanted behaviour) IF an inbound flow is a peer-to-peer reimbursement netted against a shared cost per REQ-FIN-049, THEN the finance subsystem SHALL NOT classify it as income.
+
+**REQ-FIN-261** (Event-driven) WHEN a set of inbound income flows meets the recurrence criteria of REQ-FIN-130, the finance subsystem SHALL detect it as an income stream using that engine — inheriting its maturity threshold rather than introducing a separate one — and SHALL report its cadence and amount as a range.
+
+### G.2 Balances and cash position
+
+**REQ-FIN-262** (Ubiquitous) The finance subsystem SHALL derive an account balance and cash position from ingested transactions read as-of a stated date, and SHALL NOT display it as a live running counter per REQ-FIN-210 nor update it more than once per 24 hours per REQ-FIN-211.
+
+**REQ-FIN-263** (Ubiquitous) The finance subsystem SHALL label every displayed balance with its as-of date and its coverage limitation per REQ-FIN-224, so that an approximate position is never read as an exact one.
+
+### G.3 Budgets and targets
+
+**REQ-FIN-264** (Optional feature) WHERE a budget or target is set for a category, the finance subsystem SHALL present budget-versus-actual only retrospectively or as a range per REQ-FIN-214, SHALL NOT present a live remaining-to-spend counter, and SHALL NOT attach a score, a grade, or a judgment to the comparison (RULE-23, RULE-24).
+
+### G.4 Forward forecasting
+
+**REQ-FIN-265** (Ubiquitous) The finance subsystem SHALL forecast committed and expected future outflows from detected recurrence per REQ-FIN-130 as a range whose width is at least 20% of its midpoint per REQ-FIN-212, and SHALL NOT express a forecast as a single projected total.
+
+### G.5 The reconciliation and balance layer
+
+**REQ-FIN-266** (Ubiquitous) The reconciliation and balance layer of REQ-FIN-041 SHALL reconcile ingested transactions against account positions on `posted_at`, SHALL flag every period whose ingested transactions do not reconcile to the account's posted balance for that period, and SHALL surface the resulting position as an approximate figure — never a cent-accurate one — with its limitation labelled per REQ-FIN-224.
+
+### G. NON-GOALS
+- Net worth, investment and portfolio tracking (ADR-0031 — a separate subsystem, deliberately deferred).
+- A live remaining-to-spend or spent-so-far counter (the always-on precise feedback the $32–40 over-spend evidence indicts).
+- Cent-accurate reconciliation — cash spending makes it unachievable; the layer reconciles to an approximate position.
+
+### G. ALTERNATIVES CONSIDERED
+- A single projected end-of-month total. Rejected — forward point estimates are forbidden (a range is used instead).
+- Real-time balance sync via a bank aggregator (Plaid / SimpleFIN). Rejected on the $0 rule (RULE-28, OQ-09); balances derive from already-ingested transactions, not a paid feed.
+
+### G. UNRESOLVED QUESTIONS
+- Which income sources exist and how each is ingested (paycheck cadence, irregular side income) is unenumerated until Joe names them.
+- Whether a category budget is Joe-set or suggested from trailing actuals — the budget-setting interaction is unspecified, and a *suggested* budget risks becoming the guideline-comparison RULE-23 forbids.
+
 ## §G — GHERKIN ACCEPTANCE SCENARIOS
 
 Each scenario is executable and cites the requirement IDs it covers. Data is concrete on purpose.
