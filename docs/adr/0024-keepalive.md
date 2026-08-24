@@ -75,13 +75,13 @@ only then does `keepalive_supabase` fire (≤ 24 h later) and `keepalive_github`
 run). **F-014/F-015 stay `failing`** — the mechanism passing is not the feature (which is
 "fired on schedule"). The Supabase 7-day clock is not at the wall today only because the
 old cron stack (OQ-17) keeps the DB warm; that is luck, not our keepalive.
-**Stale live rows (reviewer, session-end):** the two `ops.runs` rows and the
-`keepalive_github` `ops.job_registry` row committed earlier this session were written by
-*pre-fix* code — the rows are `now()`-stamped (`started_at == finished_at`, no `trigger`
-key) and the registry row still says `schedule = '0 6 1 * *'` / staleness 1440h (the
-monthly design B1 removed). They must not be read as evidence of the fixed behaviour.
-Correcting them is an UPDATE against committed rows, which `<safety>` blocked pending Joe's
-consent — flagged in PROGRESS and OPEN_QUESTIONS, not silently left.
+**Stale live rows (reviewer, session-end — now corrected, OQ-28).** The two `ops.runs`
+rows and the `keepalive_github` `ops.job_registry` row committed earlier this session were
+written by *pre-fix* code (rows `now()`-stamped with no `trigger` key; registry row on the
+monthly `'0 6 1 * *'` / 1440h design B1 removed). With Joe's consent the `ops.runs` rows are
+now marked `trigger=manual_smoke` (labelled, not re-run — they stay `now()`-stamped so they
+are never mistaken for a scheduled firing) and `keepalive_github` moved to the daily design
+(`'17 6 * * *'`, 1200h). The mechanism's evidence is the 6 named tests, not these rows.
 
 ## Alternatives considered
 

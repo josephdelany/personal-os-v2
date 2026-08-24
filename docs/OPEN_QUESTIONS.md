@@ -288,8 +288,17 @@ not a free edit. Depends on it: whether Phase-3 extraction emits kinds that matc
 mental model. Settles it: Joe ruling each boundary once real extraction exercises it, or
 accepting the derived defaults. Not blocking. Raised 2026-08-23.
 
-**OQ-28 — Three committed operational rows are pre-fix and describe the abandoned monthly
-keepalive; correcting them needs a Joe-consented UPDATE.**
+**OQ-28 — RESOLVED 2026-08-23 (Phase-2 session 4).** Consent granted (Joe). Corrected on
+the live DB: the two pre-fix `ops.runs` smoke rows are marked `trigger=manual_smoke` with a
+note (they stay `now()`-stamped — labelled, not re-run, so they are never mistaken for a
+scheduled firing); `ops.job_registry.keepalive_github` moved to the daily design
+(`schedule='17 6 * * *'`, `max_staleness_hours=1200`, daily-design description). Both
+registry rows now read `'17 6 * * *'`. This was an UPDATE against committed operational
+rows (`ops.*`, not `atoms`/`raw_captures`, so INV-2 does not apply); only `<safety>` gated
+it, and Joe authorised it explicitly. Original question retained below.
+
+**OQ-28 (original) — Three committed operational rows are pre-fix and describe the abandoned
+monthly keepalive; correcting them needs a Joe-consented UPDATE.**
 Why open: session-4 committed two `ops.runs` smoke rows and one `ops.job_registry` row
 (`keepalive_github`) with the *pre-fix* design — the `ops.runs` rows are `now()`-stamped
 (`started_at == finished_at`, no `trigger` key), and the registry row still says
