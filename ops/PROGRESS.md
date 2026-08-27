@@ -1389,7 +1389,43 @@ order, one item at a time, gates between, **stopping before anything needing a m
   (EXPLORATORY surface — **text/labels only, no charts, Joe ruled 2026-08-24; needs ADR-0032**), Missing-G
   (continuous/on-demand inference), Missing-H/C-9 (ask completeness). Each its own gated + reviewed pass.
 
-## NEXT ACTION (from docs/REMEDIATION_PLAN.md sequence — single item only)
+## 2026-08-27 — Session 14: Track 1.2 missing-sets E (finished), then G, H — STOP at B seed
+
+Resumed the Missing-E requirements left uncommitted (not stray — the prior session was directed to
+do E→G→H each as its own gated+reviewed pass, and was interrupted before E's PROGRESS entry / review /
+commit). Joe authorised finishing E, then G, then H, and **stopping before Missing-B's `metric_registry`
+seed** (a data write he wants to inspect first).
+
+- **Unit 10 — Missing-E (recommendation machinery, want 2)** (reasoning: REQ-INF-331 inference-side
+  trigger + REQ-NAR-038/039 narration-side render template + vocabulary linter, new §I.5). The
+  recommendation *object* already existed (REQ-TIER-047/048/049); Missing-E adds the trigger that emits
+  one and the speech contract that renders/lints it. Index: REQ-INF 137→138, REQ-NAR 27→29, total 582→585.
+  **Reviewer found 2 MAJOR + 3 MINOR + 1 NIT, all fixed:** (MAJOR) REQ-INF-331 phrased its trigger floor
+  as "the recommendation floor of REQ-TIER-047 and REQ-TIER-048," which reads as a *decided* floor and
+  silently eliminates OQ-30 option (a) (emit from `DESCRIPTIVE`) — **reworded** to a named
+  "recommendation-emission floor" placeholder explicitly deferred to OQ-30, stating the three floor
+  options stay Joe's; REQ-TIER-047/048 now cited as *constraints on the emitted recommendation*, not as
+  the floor definition; (MAJOR) "carrying a scored forward prediction inserted under REQ-INF-301 … auto-
+  demoted with its finding" over-claimed — REQ-INF-301 only inserts for `PROMOTED`+ findings and RULE-20
+  demotes findings, not recommendations — **reworded** to "carrying its own scored forward prediction (the
+  recommendation-side analogue of REQ-INF-301) … a recommendation whose prediction later resolves false is
+  auto-demoted under RULE-20"; (MINOR) REQ-NAR-039's "the recommendation vocabulary" was an unbacked
+  hardcoded list against the project's table-driven discipline (REQ-NAR-020 reads `tier_vocabulary`) —
+  **bound** to the `recommendation` row of `tier_vocabulary`, read like the per-tier rows; (MINOR) "candidate
+  recommendation" collided with the reserved `CANDIDATE` tier ("never shown") → **"provisional
+  recommendation"**; (MINOR) REQ-NAR-038's template dropped `n`/`coverage` that REQ-TIER-048's disclosure
+  set requires → **added**, now the full disclosure set; (NIT) §I.5 preamble's flat "do not duplicate"
+  softened to the precise boundary (renders/lints what TIER-047/048/049 already require the object to
+  carry). Gate after fixes: `validate_layout` 35/0/0. No migration. **No new ADR** — rides ADR-0029
+  (RULE-25 reworded + REQ-ACT opened) and the ratified audit's Missing-E ACCEPT; no decision is taken here,
+  both numeric gates are deferred (floor→OQ-30, delta→OQ-10).
+
+  **Record gap flagged (not mine to fabricate):** units 7/8/9 (Missing-F, Missing-A, Missing-C) are
+  committed (`0d560ce`, `f590418`, `5ec1ca5`) but left **no PROGRESS entry** — a DoD item-8 miss in the
+  prior session. The commits carry the detail; the log does not. Left for Joe to decide whether to
+  backfill; I did not author entries for work I did not do and cannot fully verify.
+
+
 
 Sequence items **1** (constitution restructure), **2** (keepalive registration + first fire;
 Gate 0 first evidence landed), and **3** (requirements audit — ranked, verified, persisted to

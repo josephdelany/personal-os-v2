@@ -537,6 +537,9 @@ The reasoning layer SHALL count a prediction whose `resolves_at` has passed but 
 **REQ-INF-330 (Unwanted behaviour)**
 IF the unresolvable rate exceeds 0.25 over the trailing 90 days, THEN the reasoning layer SHALL report its own calibration at tier `INSUFFICIENT` and SHALL state that its track record cannot currently be assessed.
 
+**REQ-INF-331 (Event-driven)**
+WHEN a finding's tier is at or above the recommendation-emission floor and its achievable effect delta exceeds the minimum-effect threshold, the reasoning layer SHALL emit a provisional recommendation carrying its own scored forward prediction — the recommendation-side analogue of REQ-INF-301's finding-side prediction insertion — so that a recommendation whose prediction later resolves false is auto-demoted under RULE-20; and the emitted recommendation SHALL respect REQ-TIER-047 (no causal-effect phrasing below `CONFIRMED_OBSERVATIONAL`) and REQ-TIER-048 (the full disclosure set when below `CONFIRMED_OBSERVATIONAL`). (Missing-E, the inference-side trigger only. Both gates are named placeholders, undecided here: the recommendation-emission floor is OQ-30 and the minimum-effect delta joins OQ-10's placeholder set. This requirement fixes the trigger's *shape* — tier-gated, delta-gated, carries-its-own-scored-prediction — not its numeric gates, and it does not itself set the floor: whether recommendations may emit from `DESCRIPTIVE`, from `PROMOTED` upward, or under tier-gated language stays OQ-30's to rule. The recommendation's generation cadence, action vocabulary, and any "what to do today" surface are REQ-ACT, which stays blocked on OQ-30.)
+
 ### E.NON-GOALS
 - Not a goal: scoring retrospective narratives. They are unfalsifiable by construction and are therefore never scored, never counted toward calibration, and never used as evidence of system quality.
 - Not a goal: a user-facing "accuracy percentage". The reliability diagram plus the Murphy decomposition is the contract; a single scalar hides the reliability/resolution distinction that matters.
@@ -976,6 +979,16 @@ The reasoning layer SHALL include the TRUST section — coverage, missingness fl
 
 **REQ-NAR-037 (Ubiquitous)**
 The reasoning layer SHALL make export complete, free, and synchronous, including atoms, links, findings, computations, predictions, and `tier_history`.
+
+### I.5 Rendering a recommendation (RULE-25, Missing-E)
+
+*The recommendation object and its refuse-on-missing-tier/interval gate already exist (REQ-TIER-048, REQ-TIER-049). These add the narration-side speech contract that layer had none of: a render template bound to REQ-TIER-048's disclosure set, and a decision-verb vocabulary layered on the per-tier vocabulary. They do not duplicate the per-tier vocabulary of REQ-NAR-020/021 or the object contract of REQ-TIER-047/048/049 — they render and lint what those requirements already require the recommendation object to carry.*
+
+**REQ-NAR-038 (Event-driven)**
+WHEN a recommendation object is emitted per REQ-TIER-048, the render pipeline SHALL render it through a declared recommendation template that carries the tier label, the effect size with its interval, the `n` and the `coverage`, and the explicit "what would change this" clause — the full REQ-TIER-048 disclosure set — and SHALL NOT emit any numeral absent from the recommendation's stored values (RULE-14 numeral-template rendering).
+
+**REQ-NAR-039 (Ubiquitous)**
+The render pipeline SHALL lint every recommendation string against a stored recommendation-verb vocabulary — the `recommendation` row of `tier_vocabulary`, read from the table exactly as REQ-NAR-020 reads the per-tier rows and never a hardcoded list — which permits hedged decision verbs (for example "consider", "you could", "the evidence leans toward") and forbids any phrasing that asserts the pattern as an established fact about Joe (for example "you always", "this proves"); and the render pipeline SHALL discard a string that asserts above its tier and emit the deterministic template instead, extending the REQ-NAR-020 and REQ-NAR-021 mechanism to recommendations (RULE-25).
 
 ### I.NON-GOALS
 - Not a goal: a natural, chatty voice as an end in itself. Fluency is the failure mode the architecture exists to prevent.
