@@ -1455,13 +1455,46 @@ seed** (a data write he wants to inspect first).
 
 
 
+- **Unit 12 — Missing-H (ask completeness, want 5)** (reasoning: REQ-ASK-031/032 in §H.2). Two gaps:
+  (1) an out-of-registry *operation* or unmappable question-shape was rejected (REQ-ASK-004) or hit a bare
+  iteration-limit refusal (REQ-ASK-008) with no nearest-computable disclosure — silence, against RULE-18;
+  (2) nothing kept the ASK loop from originating a *causal* claim fresh, bypassing the confirmation
+  pipeline. REQ-ASK-031 adds the operation/shape completeness rung; REQ-ASK-032 adds the causal-routing
+  rung. Index: REQ-ASK 23→25, total 587→589. **Reviewer found 3 MAJOR + 3 MINOR, all fixed — this was the
+  hardest unit:** (MAJOR M1) my first draft of 031 returned tier `INSUFFICIENT` with a *new*
+  `insufficiency_reason='operation_unsupported'` — but REQ-TIER-018's `insufficiency_reason` is a **closed
+  set** and REQ-TIER-030/031/033/034 require every INSUFFICIENT response to carry a data-requirement or a
+  proposed trial (an unsupported operation has neither), so the pair was unsatisfiable → **031 reworded**
+  to a refusal *string* ("I cannot compute that.") + nearest-computable, explicitly **not** a tier,
+  mirroring REQ-ASK-003/023; (MAJOR M3) 032 said "route the effect to hypothesis registration
+  (REQ-INF-101)" — but REQ-INF-101 is the promotion-*freeze* event, not a registration entry point, AND
+  §H.UNRESOLVED (line 899) holds **open** whether the ASK loop may register a hypothesis at all → routing
+  clause **removed**, the open question explicitly deferred, not decided; (MAJOR M4) 032's trigger "WHEN a
+  question requires a causal claim" was undefined and left the LLM to self-classify (RULE-13 breach) →
+  **reworded** so the guard binds deterministically on the rendered claim's causal *vocabulary* and the
+  tier of its backing `findings` row, enforced by the existing REQ-NAR-020/021 linter, not a model
+  judgment; (MINOR m1) 032 lacked a tier floor → now requires a `findings` row at
+  `CONFIRMED_OBSERVATIONAL`/`EXPERIMENTAL` (REQ-TIER-021/023); (MINOR m2) the immature-window and
+  no-adjustment-set sub-cases now delegate to REQ-INF-107 (`window_too_short`) and REQ-ASK-024 instead of
+  being reinvented. **Re-reviewed after the fixes: all six confirmed resolved, no new integrity defect, the
+  causal guard closed on three independent legs (REQ-ASK-020 min-tier, RULE-19 clock-gate, REQ-NAR-021
+  vocabulary discard).** The re-review also caught the in-file §K requirement index was stale — my E/G/H
+  additions (REQ-INF+3, REQ-NAR+2, REQ-ASK+2) and a **pre-existing** REQ-TIER miss (Missing-F/unit 7 never
+  updated §K: 39→43) — so **§K reconciled to the validator census** (per-section counts verified
+  empirically, not guessed): REQ-INF 140, REQ-TIER 43, REQ-NAR 29, REQ-ASK 25, file total 237. Gate:
+  `validate_layout` 35/0/0. No migration. **No new ADR** — rides the ratified Missing-H ACCEPT under
+  existing RULE-11/13/18/19; no decision taken (the ASK-registers-a-hypothesis question stays open at
+  §H.UNRESOLVED line 899). No Gherkin scenario added (pinned 12/file); 032's integrity property is a strong
+  candidate for a scenario when the ASK loop is implemented (Phase 5/6).
+
 ## NEXT ACTION (from docs/REMEDIATION_PLAN.md sequence — single item only)
 
-The audit is ratified (session 13). Track 1.2 (correction) is underway — units 1–11 done and committed.
-Remaining missing-sets: **Missing-H** (ask completeness) is the next unit this session; then **Missing-B**
-(alcohol instrumentation), where the rule is a **hard STOP before its `metric_registry` seed** — that seed
-is a data write Joe wants to inspect before it runs, so author only Missing-B's non-writing requirements
-(if reached) and halt at the seed, reporting exactly what it would write.
+The audit is ratified (session 13). Track 1.2 (correction) is underway — units 1–12 done and committed.
+Missing-E, -G, -H are complete. The next missing-set is **Missing-B** (alcohol instrumentation: standard-
+drink counting, the deterministic `volume × ABV × 0.789` ethanol-grams conversion, abstinence-day
+`observed_absent` capture) — where the rule is a **hard STOP before its `metric_registry` seed**. That seed
+is a **data write** Joe wants to inspect before it runs: author only Missing-B's non-writing requirements,
+halt at the seed, and report exactly what it would write before writing anything. Do NOT run the seed.
 
 Standing waits (not actions): Gate 0's scheduled keepalive firings (7-day Supabase, 60-day GitHub) must
 still elapse before Gate 0 closes.

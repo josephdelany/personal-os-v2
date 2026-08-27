@@ -875,6 +875,12 @@ The reasoning layer SHALL answer questions about performance and subjective stat
 **REQ-ASK-030 (Ubiquitous)**
 The reasoning layer SHALL make every answer reproducible: re-executing a stored query plan at the same `as_of` SHALL return an identical result set.
 
+**REQ-ASK-031 (Event-driven)**
+WHEN a query plan names an operation absent from the operation registry (REQ-ASK-004), or the language layer cannot map the question to any registered operation within the REQ-ASK-008 iteration limit, the reasoning layer SHALL return the refusal string "I cannot compute that." together with the nearest registered operations or the nearest computable question it can answer — the operation / question-shape counterpart of REQ-ASK-003's nearest-tracked-metrics disclosure for an out-of-registry metric — and SHALL NOT execute arbitrary code emitted by the language layer and SHALL NOT assign an evidence tier to the refusal. (Missing-H: the operation / question-shape completeness rung. REQ-ASK-004 rejected an out-of-registry operation with no disclosure and REQ-ASK-008 returned a bare refusal at the iteration limit; this adds the nearest-computable disclosure so a question unanswerable as posed gets the partial disclosure RULE-18 requires instead of silence. A capability refusal is deliberately NOT an `INSUFFICIENT` evidence tier — that ladder measures data quantity and carries a closed `insufficiency_reason` set with mandatory data-requirement/trial render forms (REQ-TIER-018, REQ-TIER-030/031/033) — so this returns a refusal string like REQ-ASK-003 and REQ-ASK-023, not a tier.)
+
+**REQ-ASK-032 (Event-driven)**
+WHEN an answer would state a causal claim — a claim using the causal vocabulary reserved for tier `CONFIRMED_OBSERVATIONAL` or `EXPERIMENTAL` (REQ-TIER-021, REQ-TIER-023) — the reasoning layer SHALL resolve that claim's effect estimate and tier from a stored `findings` row at `CONFIRMED_OBSERVATIONAL` or `EXPERIMENTAL` produced by the confirmation pipeline (§C pre-registration; REQ-ASK-020 min-tier), and the ASK loop's deterministic execution (REQ-ASK-005) SHALL NOT originate a causal claim from a fresh in-answer computation; WHEN no such `findings` row exists, the reasoning layer SHALL NOT render the result in causal vocabulary and SHALL instead return the associational result at its own sub-causal tier without causal language (REQ-NAR-020, REQ-NAR-021), a registered-but-immature hypothesis taking REQ-INF-107's `window_too_short` path and a hypothesis with no minimal sufficient adjustment set taking REQ-ASK-024's. (Missing-H: the causal-routing rung. The guard is deterministic — it binds on the rendered claim's vocabulary and the tier of its backing `findings` row, enforced exactly as REQ-NAR-020/021 lint per-tier vocabulary — so it does not depend on the model correctly self-classifying a question (RULE-13: the causal specification is fixed data in the DAG and registry, never a query-time model choice; RULE-19: confirmation is clock-gated, never answered on demand). Whether the ASK loop may itself *register* a new hypothesis in response to a question is left to its open question in §H.UNRESOLVED QUESTIONS, not decided here.)
+
 ### H.NON-GOALS
 - Not a goal: free-form SQL or Python from the language layer. The closed operation registry is the security and correctness boundary.
 - Not a goal: answering questions from the model's general world knowledge about Joe's life. General knowledge may be used for framing; every claim about Joe comes from a computation.
@@ -1198,17 +1204,17 @@ Then the question is answered at tier "DESCRIPTIVE" without the language layer
 
 | Prefix | Range | Section | Count |
 |---|---|---|---|
-| `REQ-TIER` | 001–049 | A — the claim ladder | 39 |
+| `REQ-TIER` | 001–053 | A — the claim ladder | 43 |
 | `REQ-INF` | 001–038 | B — multiplicity control | 25 |
 | `REQ-INF` | 100–114 | C — pre-registration as a DB constraint | 15 |
 | `REQ-INF` | 200–219 | D — randomized micro-trials | 20 |
-| `REQ-INF` | 300–330 | E — scored predictions and auto-demotion | 21 |
-| `REQ-INF` | 400–431 | F — generator-only and killed methods | 24 |
+| `REQ-INF` | 300–331 | E — scored predictions and auto-demotion | 22 |
+| `REQ-INF` | 400–431 | F — generator-only and killed methods | 26 |
 | `REQ-INF` | 500–566 | G — cross-lens integration | 32 |
-| `REQ-ASK` | 001–030 | H — open-ended question answering | 23 |
-| `REQ-NAR` | 001–037 | I — narration restraint | 27 |
+| `REQ-ASK` | 001–032 | H — open-ended question answering | 25 |
+| `REQ-NAR` | 001–039 | I — narration restraint | 29 |
 
-**Totals:** `REQ-INF` 137 · `REQ-TIER` 39 · `REQ-NAR` 27 · `REQ-ASK` 23 · **226 requirements**, 12 acceptance scenarios.
+**Totals:** `REQ-INF` 140 · `REQ-TIER` 43 · `REQ-NAR` 29 · `REQ-ASK` 25 · **237 requirements**, 12 acceptance scenarios.
 
 ### The single rule this file exists to enforce
 

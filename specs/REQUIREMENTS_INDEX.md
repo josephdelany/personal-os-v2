@@ -22,7 +22,7 @@ response is observable. Numbers, never adjectives.
 
 ---
 
-## Current coverage — 587 requirements, 36 scenarios
+## Current coverage — 589 requirements, 36 scenarios
 
 | Prefix | Count | Subsystem | File |
 |---|---|---|---|
@@ -34,7 +34,7 @@ response is observable. Numbers, never adjectives.
 | `REQ-INF` | 140 | Inference — multiplicity, pre-registration, trials, predictions, cross-lens; on-demand exploration (REQ-INF-412/413, Missing-G) | `specs/04-reasoning/requirements.md` |
 | `REQ-TIER` | 43 | The six-tier evidence ladder; the EXPLORATORY surface (REQ-TIER-050..053, Missing-F/ADR-0032) | `specs/04-reasoning/requirements.md` |
 | `REQ-NAR` | 29 | Narration — numeral templates, vocabulary linting, degradation | `specs/04-reasoning/requirements.md` |
-| `REQ-ASK` | 23 | Open-ended question answering — the PHIA loop | `specs/04-reasoning/requirements.md` |
+| `REQ-ASK` | 25 | Open-ended question answering — the PHIA loop; out-of-registry-operation and causal-routing completeness (REQ-ASK-031/032, Missing-H) | `specs/04-reasoning/requirements.md` |
 
 **Gherkin acceptance scenarios: 12 per file, 36 total.** These are the artifact
 Joe verifies against, because they are readable without reading code and they
