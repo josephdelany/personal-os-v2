@@ -1425,20 +1425,49 @@ seed** (a data write he wants to inspect first).
   prior session. The commits carry the detail; the log does not. Left for Joe to decide whether to
   backfill; I did not author entries for work I did not do and cannot fully verify.
 
+- **Unit 11 — Missing-G (continuous / on-demand inference, want 1)** (reasoning: REQ-INF-412/413 in §F.1).
+  RULE-19's SCOPE shell asserts exploration "may run at any time," but every REQ-INF generator run was
+  weekly/monthly batch — no requirement gave the on-demand property. REQ-INF-412 adds the *trigger* (Joe
+  or the orchestration layer fires a run off-cadence); REQ-INF-413 is the integrity binding (output →
+  `CANDIDATE`, displayable only on the built-and-proven EXPLORATORY surface, never a finding, never
+  confirmation). No new method, tier, or cadence number; frequency is an operational parameter left open.
+  Index: REQ-INF 138→140, total 585→587. **Reviewer found 2 MAJOR + 2 MINOR (+ 1 NIT / 1 flag), all
+  fixed:** (MAJOR) REQ-INF-412 authorised a "generator *or probabilistic-inference* pass" but 413's
+  binding spoke only generator vocabulary (REQ-INF-401) — a §G.2 NumPyro posterior isn't a generator edge,
+  so that branch had no tier/display gate → **413 reworded** to bind output "regardless of whether a
+  generator method or a probabilistic-inference pass produced it," and 412 scoped an on-demand run to a
+  *hypothesis-generating* pass (generator REQ-INF-400, or probabilistic inference REQ-INF-520 invoked as a
+  generator), **explicitly excluding the confirmation job and a regime fit (REQ-INF-540)**; (MAJOR) "same
+  gates as a scheduled generator run" applied the generator floors (405/406) to a non-generator pass with
+  its own floors → **412 reworded** to "every precondition and floor of the method it invokes exactly as
+  the scheduled run of that method would"; (MINOR) display binding mis-cited REQ-TIER-051 (the build-gate)
+  → now cites **REQ-TIER-053** (the CANDIDATE-source rule) for display, 051 kept for sequencing; (MINOR)
+  the RULE-19 no-confirmation argument quoted half of REQ-INF-104 → now cites both `subject_day` and
+  `ingested_at`, leads with the structural reason (CANDIDATE never enters confirmation) and closes the
+  "whatever fires the confirmation job" gap. Gate after fixes: `validate_layout` 35/0/0, REQ-INF=140,
+  reasoning 235 reqs. No migration. **No new ADR** — rides ADR-0029 (RULE-19 SCOPE shell); no decision
+  taken, cadence left operational. Integrity claim (on-demand can't confirm) is transitively covered by
+  existing Scenario 9 (REQ-INF-104/105 pre-registration-leak refusal); no new Gherkin scenario added
+  (scenarios pinned at 12/file; sibling missing-set units author none). **Flag for Joe (not resolved
+  here):** no requirement states *what fires* the confirmation job (schedule vs event); its integrity
+  holds regardless via the REQ-INF-104 data filter, so this is a minor spec gap, not an integrity hole —
+  raise as an OQ if you want it pinned.
 
 
-Sequence items **1** (constitution restructure), **2** (keepalive registration + first fire;
-Gate 0 first evidence landed), and **3** (requirements audit — ranked, verified, persisted to
-`docs/REQUIREMENTS_AUDIT.md`) are done. Item 2's *scheduled* firings still have to elapse
-(7-day / 60-day) before Gate 0 closes — a wait, not an action. Item 0 this session also fixed the
-trigger-observability gap so the first scheduled row will read a truthful `detail.trigger`. Next:
 
-> **Joe ratifies `docs/REQUIREMENTS_AUDIT.md`** — marks each conflict/missing-set
-> ACCEPT/REJECT/DEFER inline. RULED-1 (ontology) and RULED-2 (finance want-8) are already decided;
-> everything else is gated on his read. **Only after ratification:** Track 1.2 (correction) — which
-> begins by authoring ADR-0030 (ontology: alcohol=`consume`+metric_key, mobility=`derived_measures`)
-> and ADR-0031 (finance = full system, net-worth/investments out, no live spend counter), then the
-> ratified requirement edits.
+## NEXT ACTION (from docs/REMEDIATION_PLAN.md sequence — single item only)
 
-One item at a time. Do not start Track 1.2 (correction) until the audit is read and ratified.
-No requirement, rule, spec, test, or migration is edited before Joe rules.
+The audit is ratified (session 13). Track 1.2 (correction) is underway — units 1–11 done and committed.
+Remaining missing-sets: **Missing-H** (ask completeness) is the next unit this session; then **Missing-B**
+(alcohol instrumentation), where the rule is a **hard STOP before its `metric_registry` seed** — that seed
+is a data write Joe wants to inspect before it runs, so author only Missing-B's non-writing requirements
+(if reached) and halt at the seed, reporting exactly what it would write.
+
+Standing waits (not actions): Gate 0's scheduled keepalive firings (7-day Supabase, 60-day GitHub) must
+still elapse before Gate 0 closes.
+
+Open flags for Joe (raised, not decided here): (a) units 7/8/9 (Missing-F/A/C) are committed with no
+PROGRESS entry — backfill or accept as-is; (b) no requirement states what *fires* the confirmation job
+(integrity holds regardless via the REQ-INF-104 data filter) — raise as an OQ if you want it pinned.
+
+One unit at a time, each gated + reviewed. STOP at the Missing-B seed and report before any data write.
