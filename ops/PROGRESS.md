@@ -1389,6 +1389,52 @@ order, one item at a time, gates between, **stopping before anything needing a m
   (EXPLORATORY surface — **text/labels only, no charts, Joe ruled 2026-08-24; needs ADR-0032**), Missing-G
   (continuous/on-demand inference), Missing-H/C-9 (ask completeness). Each its own gated + reviewed pass.
 
+### Backfill — units 7–9 PROGRESS entries (reconstructed 2026-08-27 from the commits; NOT contemporaneous)
+
+*These three Track-1.2 units were committed during session 13 with no PROGRESS entry — the DoD item-8 gap
+Joe flagged in session 14. The entries below are reconstructed after-the-fact from each commit's message
+and diffstat and are labelled `[backfilled]`; they are honest about being written later, and no claim here
+was re-verified against a fresh gate run (the gate results quoted are those the commits recorded).*
+
+- **Unit 7 — Missing-F (EXPLORATORY surface + ADR-0032)** [commit `0d560ce`, backfilled]. ADR-0032: the
+  EXPLORATORY surface is text and labels only, no charts (Joe's ruling — a chart makes an at-chance
+  correlation look like a finding; revisit trigger tied to the RULE-20 track record). New REQ-TIER-050..053
+  define the surface and close the forward references C-2 left dangling (REQ-INF-402/403, REQ-TIER-035, the
+  tier table, Scenario 4): 050 text+labels only via a positive whitelist, no charts; 051 built-and-proven
+  gate tied to the acceptance suite (RULE-17 sequencing); 052 copy only from the EXPLORATORY row of
+  `tier_vocabulary` + REQ-NAR-020 ban on confirmed-tier verbs; 053 routing (sources rows from
+  `hypothesis_register` WHERE status='CANDIDATE'). **Reviewer found 2 MAJOR + 2 MINOR + NIT, all fixed:**
+  routing was missing (surface had no row source → vacuously satisfiable) → added 053; "closed … at minimum"
+  vocabulary was an open allow-list → draw from the `tier_vocabulary` row, examples illustrative, closure
+  tracked in A.UNRESOLVED; "built and proven" undefined → tied to the acceptance suite; no-charts
+  unenforceable by string-lint → text/label-only whitelist; chart-list drift across ADR/DECISIONS/req →
+  REQ-TIER-050 made canonical. Index 568→572, REQ-TIER 39→43. Gate: `validate_layout` 35/0/0. No migration.
+
+- **Unit 8 — Missing-A (ontology reqs; ADR-0030 made real)** [commit `f590418`, backfilled]. REQ-ONT-016:
+  alcohol/caffeine/supplement/medication ride `kind='consume'` + `metric_key`, no new `atoms.kind`, no
+  migration (a specific application of REQ-ONT-003). REQ-ONT-017: strength recorded at per-set granularity
+  (not per-session) so e1RM/volume/progression are per-set computable. **Modeling gap found and raised, not
+  buried:** ADR-0030's "one atom per set carrying exercise, load, reps, RPE" is infeasible against the
+  single-`value_point` atom (0005) — four attributes can't fit one atom's value. REQ-ONT-017 fixes the
+  ratified *granularity*; the atom-shape (per-attribute atoms sharing a set key vs a composite `value_type`)
+  is **OQ-33**, deferred to REQ-WKT. **Reviewer confirmed OQ-33 genuine + REQ-ONT-017 not hollow; found
+  2 MINOR + 2 NIT, all fixed:** ontology header "15 requirements" → 17; REQ-ONT-017 silently reinterpreted
+  ratified ADR-0030 → added a dated ADDENDUM to ADR-0030 (immutable, so addendum not edit); REQ-ONT-016
+  named unseeded registry keys → cited the Missing-B seed + FK; OQ-33 option-(a) noted the shared set key.
+  Index 572→574, REQ-ONT 15→17. OQ-33 raised. Gate: `validate_layout` 35/0/0. No migration, no
+  `metric_registry` seed (Missing-B stop-point respected).
+
+- **Unit 9 — Missing-C (finance full-system layers)** [commit `5ec1ca5`, backfilled]. New section G
+  (REQ-FIN-259..266) makes RULED-2/ADR-0031 real: income/earnings (259–261), balances/cash position
+  (262–263), budgets/targets (264), forward forecasting (265), the REQ-FIN-041 reconciliation-and-balance
+  layer (266). Every layer bound by the surviving constraints — no live counter (210), no >1/24h updates
+  (211), forward amounts as ranges (212), no score/judgment (RULE-23/24). Net worth / investments stay OUT
+  (ADR-0031). **Reviewer confirmed the primary attacks found nothing (no live-counter hole, no RULE-23/24
+  leak, all 8 cited IDs correct, no scope creep); found 2 MINOR (unquantified terms), both fixed:** 261
+  "regular interval" → inherits REQ-FIN-130's maturity threshold; 266 "coverage incomplete" → defined as
+  "ingested transactions do not reconcile to the account's posted balance for that period." Index 574→582,
+  REQ-FIN 165→173. Gate: `validate_layout` 35/0/0. No migration. Named tests owed in Phase 3 (authoring-only).
+
 ## 2026-08-27 — Session 14: Track 1.2 missing-sets E (finished), then G, H — STOP at B seed
 
 Resumed the Missing-E requirements left uncommitted (not stray — the prior session was directed to
