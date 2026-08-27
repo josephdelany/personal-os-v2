@@ -564,6 +564,19 @@ and re-checks confirmation. Settles it: Joe (at or before Phase 6) ruling the co
 scheduled, event-driven on window-elapse, on-demand, or a combination — recorded as a REQ-INF requirement
 or an ADR. Raised 2026-08-27 (session 14), flagged by the Missing-G reviewer.
 
+**OQ-35 — Which standard-drink definition (grams of ethanol per standard drink) does the system use?**
+Why open: REQ-NUT-068 derives `alcohol_standard_drinks = ethanol_grams / g_per_standard_drink`, but the
+divisor is a jurisdiction convention, not physics: US NIAAA = 14 g, WHO = 10 g, UK = 8 g. The same logged
+pint of 5% beer (≈568 mL → ≈22.4 g ethanol) reads as 1.6, 2.24, or 2.8 standard drinks depending on the
+choice — a ~1.75× spread that propagates into every alcohol metric, trend, and finding. REQ-NUT-068 carries
+**14 g (US NIAAA) as a named provisional placeholder**, flagged not silently fixed, the OQ-10 placeholder
+posture. Depends on it: every standard-drink number the system stores or renders. Not blocking:
+`alcohol_ethanol_grams` — the physically-grounded measure — is fully computable without this choice; only
+the derived standard-drink count needs it. Settles it: Joe picking the jurisdiction definition (US 14 g is
+the recommended default given the US context of the rest of the system — USDA food, dollar amounts),
+recorded by fixing `g_per_standard_drink` and moving this to RESOLVED. Raised 2026-08-27 (session 14),
+Missing-B authoring.
+
 ---
 
 ## RESOLVED

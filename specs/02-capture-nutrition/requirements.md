@@ -673,6 +673,43 @@ total that includes that item's meal SHALL state the count of unresolved items c
 **REQ-NUT-027** (Ubiquitous) The system SHALL treat `unresolved` as a normal, non-error outcome and
 SHALL NOT display it as a failure state to Joe.
 
+### D.6 Drink resolution — the ABV→ethanol path (alcohol, Missing-B)
+
+*The drink analogue of the food path. The model extracts a drink name and a volume and never an ethanol
+gram or a standard-drink count (REQ-CAP-109); a deterministic reference converts them to ethanol grams and
+standard drinks (ADR-0030, RULE-09). Ethanol is stored on the `consume` atom's native interval (migration
+0005: `value_low`/`value_point`/`value_high` + `estimate_method` + `provenance`), width and provenance
+driven by how the inputs were resolved (RULE-06, RULE-08). The abstinence-day side of Missing-B — "I did
+not drink" as an `observed_absent` presence — is handled at capture by REQ-CAP-111 (Missing-D); its alcohol
+grain rides the capture subject / `metric_key` of the absence, and it is not re-authored here.*
+
+**REQ-NUT-066** (Event-driven) WHEN an extracted `consume` item is an alcoholic drink carrying a name and a
+volume, the nutrition resolver SHALL obtain the drink's alcohol-by-volume from a configured reference source
+(a static ABV reference or the drink's own label) and SHALL compute ethanol mass deterministically as
+`ethanol_grams = volume_ml × (abv_percent / 100) × 0.789`, where 0.789 g/mL is the density of ethanol
+(ADR-0030), and SHALL NOT accept an ethanol-gram or standard-drink value emitted by the model (RULE-09,
+REQ-CAP-109). WHERE the ABV is read from the drink's own label the resolver SHALL set the atom
+`provenance = 'extracted'`; WHERE it is supplied by the reference source for an unlabelled drink the
+resolver SHALL set `provenance = 'defaulted'`, because an assumed ABV is a modelled input and not a
+measurement (RULE-06).
+
+**REQ-NUT-067** (Ubiquitous) The nutrition resolver SHALL store the resolved `alcohol_ethanol_grams` as an
+interval on the `consume` atom's native value columns (`value_low`, `value_point`, `value_high`) carrying an
+`estimate_method` — REQ-NUT-032 mandates the `estimate_method` column; the interval width comes from the
+resolution method (RULE-08). WHERE the volume is estimated or the ABV is `defaulted` (REQ-NUT-066), the
+resolver SHALL make the interval non-degenerate (`value_low < value_high`) so an assumed input can never
+masquerade as a measured point (RULE-06); only a labelled volume resolved against a label ABV may narrow
+toward a point. Like the keys it is written under (REQ-NUT-068), this store is possible only once the
+Missing-B `metric_registry` seed lands, which the `atoms.metric_key` foreign key enforces.
+
+**REQ-NUT-068** (Event-driven) WHEN `alcohol_ethanol_grams` is resolved, the nutrition resolver SHALL derive
+`alcohol_standard_drinks = ethanol_grams / g_per_standard_drink` deterministically and SHALL propagate the
+interval, where `g_per_standard_drink` is a named provisional placeholder — 14 g (the US NIAAA standard
+drink) pending OQ-35, flagged provisional and not silently fixed, held as a reference value revisable to
+another jurisdiction's definition (WHO 10 g, UK 8 g) without a code change; and SHALL carry both
+`alcohol_ethanol_grams` and `alcohol_standard_drinks` under the `metric_registry` keys REQ-ONT-016 names,
+which the `atoms.metric_key` foreign key makes writable only once the Missing-B seed lands.
+
 ### D.NON-GOALS
 
 - Mirroring USDA or Open Food Facts locally. The full OFF dump is multi-GB against a 500MB Supabase

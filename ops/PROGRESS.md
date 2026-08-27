@@ -1533,14 +1533,50 @@ seed** (a data write he wants to inspect first).
   §H.UNRESOLVED line 899). No Gherkin scenario added (pinned 12/file); 032's integrity property is a strong
   candidate for a scenario when the ASK loop is implemented (Phase 5/6).
 
+- **Unit 13 — Missing-B (alcohol instrumentation, want 9) — NON-WRITING requirements only; seed halted**
+  (capture-nutrition: REQ-NUT-066/067/068, new §D.6). Joe authorised authoring Missing-B's non-writing
+  requirements and a **hard stop before the `metric_registry` seed** (a data write he wants to inspect
+  first). Authored the drink analogue of the food path: 066 the deterministic `volume_ml × (abv/100) ×
+  0.789` ethanol conversion (ADR-0030, RULE-09 — model supplies name+volume, never grams); 067 stores
+  ethanol on the `consume` atom's native interval (`value_low`/`value_point`/`value_high` + `estimate_method`,
+  migration 0005); 068 standard-drink counting (`ethanol_grams / g_per_standard_drink`). **Two-thirds of
+  Missing-B were already done or deferred:** abstinence-day `observed_absent` is covered by REQ-CAP-111
+  (Missing-D) — not re-authored; the seed is the halted data write. Index: REQ-NUT 57→60, total 589→592.
+  **Reviewer found 3 MAJOR + 2 MINOR, all fixed:** (MAJOR M1) 068 hard-defaulted `g_per_standard_drink=14`
+  (US NIAAA) — a silent jurisdiction decision (14 vs WHO 10 vs UK 8 = ~1.75× spread) with no OQ → **raised
+  OQ-35** and reworded 068 to a *named provisional placeholder pending OQ-35*, not a silent default;
+  (MAJOR M2, RULE-06) a reference/default ABV for an unlabelled drink was a latent imputation → 066 now sets
+  `provenance='defaulted'` for a reference ABV vs `'extracted'` for a label ABV (aligns with the REQ-CAP-060
+  taxonomy), and 067 forces the interval non-degenerate so an assumed input can't masquerade as measured;
+  (MAJOR M3, RULE-08) 067 miscited REQ-NUT-032 (which mandates only the `estimate_method` *column*, not
+  width) and left ethanol width undefined so a point could sneak in → citation corrected + explicit
+  anti-point rule (`value_low < value_high` whenever volume is estimated or ABV defaulted; only a
+  labelled-volume+label-ABV drink may narrow toward a point); (MINOR m1) 067's unconditional "SHALL store"
+  contradicted the seed gate → made consistent with 068's FK gate; (MINOR m2) softened the abstinence
+  preamble from "already covered … full coverage" to precisely scope the alcohol grain to the capture
+  subject. Fixes self-verified against the constitution + the prior REQ-CAP-060/062 provenance taxonomy
+  (a fallback is `defaulted`, caught by the stats filter); provenance enum confirmed in 0005. Gate:
+  `validate_layout` 35/0/0, REQ-NUT=60. **No migration, NO metric_registry seed written (stop-point
+  respected).** No new ADR (rides ADR-0030); OQ-35 raised. No Gherkin scenario (pinned 12/file) — the pure
+  `0.789`/`14 g` conversion is the ideal future executable scenario when the drink path is built (Phase 3).
+
 ## NEXT ACTION (from docs/REMEDIATION_PLAN.md sequence — single item only)
 
-The audit is ratified (session 13). Track 1.2 (correction) is underway — units 1–12 done and committed.
-Missing-E, -G, -H are complete. The next missing-set is **Missing-B** (alcohol instrumentation: standard-
-drink counting, the deterministic `volume × ABV × 0.789` ethanol-grams conversion, abstinence-day
-`observed_absent` capture) — where the rule is a **hard STOP before its `metric_registry` seed**. That seed
-is a **data write** Joe wants to inspect before it runs: author only Missing-B's non-writing requirements,
-halt at the seed, and report exactly what it would write before writing anything. Do NOT run the seed.
+Track 1.2 (correction) is essentially complete: units 1–13 done and committed; all ratified missing-sets
+(A–H) authored. The **one remaining item is the Missing-B `metric_registry` seed** — a data write held at
+Joe's instruction until he inspects exactly what it writes. The seed report is in the session-14 chat and
+below in summary; **nothing is written until Joe authorises it.** Two OQs were raised this session and
+await Joe: **OQ-34** (what fires the confirmation job) and **OQ-35** (the standard-drink definition —
+`g_per_standard_drink`, provisional 14 g). Units 7–9 PROGRESS entries were backfilled (labelled
+after-the-fact). Standing wait: Gate 0's scheduled keepalive firings must still elapse.
+
+**The Missing-B seed, exactly (NOT written):** two `metric_registry` rows, per ADR-0030 —
+`alcohol_ethanol_grams` (unit `g`) and `alcohol_standard_drinks` (unit `standard_drink`), each
+`state_class='total'` (per subject-day). Undecided fields Joe must set before the seed: `family` (the
+RULE-21 FDR group — e.g. a `substance` family), `plausible_low`/`plausible_high` bounds, `expected_cadence`,
+`max_staleness_days`. `g_per_standard_drink=14` is provisional pending OQ-35. Until the seed lands, the
+`atoms.metric_key` FK makes an alcohol atom carrying these keys unwritable — so nothing can use REQ-NUT-066..068
+yet, by construction.
 
 Standing waits (not actions): Gate 0's scheduled keepalive firings (7-day Supabase, 60-day GitHub) must
 still elapse before Gate 0 closes.
