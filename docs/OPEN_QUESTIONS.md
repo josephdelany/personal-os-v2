@@ -548,6 +548,22 @@ sets, and whether e1RM/volume derive from per-attribute atoms or a composite. Se
 implies), when REQ-WKT is authored. Not blocking the granularity ruling. Raised by the Missing-A
 authoring, 2026-08-24.
 
+**OQ-34 — What fires the confirmation job? Its trigger (schedule vs event) is unspecified.**
+Why open: the confirmation pipeline is fully specified on *what it reads* — REQ-INF-104 evaluates a
+registered hypothesis using only observations whose `subject_day` and `ingested_at` are at or after
+`confirmation_data_from` — but no requirement states *what fires* it: a nightly/weekly schedule, an event
+(a hypothesis's window elapsing, new data landing), or an on-demand call. Missing-G (REQ-INF-412/413) added
+an on-demand *exploration* trigger and explicitly excluded the confirmation job from it, which sharpened
+the gap: exploration now has a named trigger and confirmation does not. **Integrity is not at risk either
+way** — REQ-INF-104's data filter holds regardless of what fires the job, so a confirmation can never read
+pre-registration data no matter the trigger; this is why it is an open question, not a defect. But an
+unstated trigger is the kind of silence that becomes an assumption at Phase 6, when the confirmation job is
+actually built, and it interacts with REQ-INF-107 (a registered-but-immature hypothesis at
+`window_too_short` — re-checked on a cadence, or on window-elapse?). Depends on it: how Phase 6 schedules
+and re-checks confirmation. Settles it: Joe (at or before Phase 6) ruling the confirmation-job trigger —
+scheduled, event-driven on window-elapse, on-demand, or a combination — recorded as a REQ-INF requirement
+or an ADR. Raised 2026-08-27 (session 14), flagged by the Missing-G reviewer.
+
 ---
 
 ## RESOLVED
