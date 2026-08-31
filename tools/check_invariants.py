@@ -99,6 +99,32 @@ def run_checks(cur, core: str):
         print(f"[ADR-0010 trigger] {want[1]} on {want[0]}: {'present' if present else 'MISSING'}")
         ok = ok and present
 
+    # ---- INV-1 (no fabrication): every atom traces to a real raw_captures row.
+    # WORK_QUEUE U4 fabrication check — a derived row with no capture origin is
+    # fabrication (RULE-01). Primary enforcement is the NOT NULL FK
+    # atoms.raw_capture_id -> raw_captures.capture_id (migration 0005:30); this
+    # verifies that FK is present (catches a future drop) and counts orphans
+    # behaviourally (0 by construction while the FK holds, and the query that
+    # polices real data the moment atoms exist).
+    cur.execute(
+        """select count(*) from pg_constraint con
+             join pg_class c on c.oid = con.conrelid
+             join pg_namespace n on n.oid = c.relnamespace
+            where n.nspname = %s and c.relname = 'atoms' and con.contype = 'f'
+              and (select relname from pg_class where oid = con.confrelid) = 'raw_captures'""",
+        (core,))
+    fk_present = cur.fetchone()[0] > 0
+    cur.execute(
+        f"""select count(*) from {core}.atoms a
+             where a.raw_capture_id is null
+                or not exists (select 1 from {core}.raw_captures rc
+                                where rc.capture_id = a.raw_capture_id)""")
+    orphans = cur.fetchone()[0]
+    inv1_ok = fk_present and orphans == 0
+    print(f"[INV-1 fabrication] atoms->raw_captures FK present: {fk_present}; "
+          f"orphan atoms: {orphans} (must be 0) -> {'OK' if inv1_ok else 'FAIL'}")
+    ok = ok and inv1_ok
+
     # ---- RULE-04 (point-in-time): references derived_measures, a Phase-5 table.
     cur.execute("select to_regclass(%s)", (f"{core}.derived_measures",))
     dm = cur.fetchone()[0]
