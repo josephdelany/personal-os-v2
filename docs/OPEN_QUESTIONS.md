@@ -577,6 +577,18 @@ the recommended default given the US context of the rest of the system — USDA 
 recorded by fixing `g_per_standard_drink` and moving this to RESOLVED. Raised 2026-08-27 (session 14),
 Missing-B authoring.
 
+**OQ-36 — Which e1RM formula, and which ACWR window lengths and smoothing, does the workout layer use?**
+Why open: REQ-WKT-008 computes e1RM from load and reps by a single named formula, and REQ-WKT-012 computes
+the acute:chronic workload ratio over fixed window lengths — but the specific choices are not physics, they
+are modelling conventions that diverge on real data: Epley, Brzycki, and Lombardi disagree most at high rep
+counts; ACWR admits 7:28 coupled vs uncoupled and rolling-average vs EWMA variants. Both are written into
+their requirements as **provisional placeholders** and every figure they gate says so, the OQ-10 posture —
+they should be set against Joe's actual training data density, not guessed before it exists. Depends on it:
+every e1RM and ACWR number the system stores or renders, and any strength finding that rides on them.
+Settles it: a calibration once real training data exists — Joe (or the data) choosing the e1RM formula and
+the ACWR window/smoothing, recorded in the metric registry and moved to RESOLVED. Not blocking authoring;
+blocking only the numbers. Raised 2026-08-31 (session 14), REQ-WKT authoring.
+
 ---
 
 ## RESOLVED

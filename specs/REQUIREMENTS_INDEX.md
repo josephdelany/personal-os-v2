@@ -22,7 +22,7 @@ response is observable. Numbers, never adjectives.
 
 ---
 
-## Current coverage — 592 requirements, 36 scenarios
+## Current coverage — 614 requirements, 36 scenarios
 
 | Prefix | Count | Subsystem | File |
 |---|---|---|---|
@@ -35,6 +35,7 @@ response is observable. Numbers, never adjectives.
 | `REQ-TIER` | 43 | The six-tier evidence ladder; the EXPLORATORY surface (REQ-TIER-050..053, Missing-F/ADR-0032) | `specs/04-reasoning/requirements.md` |
 | `REQ-NAR` | 29 | Narration — numeral templates, vocabulary linting, degradation | `specs/04-reasoning/requirements.md` |
 | `REQ-ASK` | 25 | Open-ended question answering — the PHIA loop; out-of-registry-operation and causal-routing completeness (REQ-ASK-031/032, Missing-H) | `specs/04-reasoning/requirements.md` |
+| `REQ-WKT` | 22 | Workout — the objective function: per-set capture, deterministic e1RM/volume/ACWR, plain progression | `specs/07-workout/requirements.md` |
 
 **Gherkin acceptance scenarios: 12 per file, 36 total.** These are the artifact
 Joe verifies against, because they are readable without reading code and they
@@ -44,7 +45,6 @@ either pass or fail visibly.
 
 | Prefix | Subsystem | Blocked by |
 |---|---|---|
-| `REQ-WKT` | Workout — e1RM, sets, RPE, volume, ACWR | The objective function. **This is the largest remaining gap** — the previous hypothesis library had zero coverage of e1RM, sets, RPE, lean mass or calories, which is to say zero coverage of the system's stated purpose |
 | `REQ-BOD` | Body composition — Kalman weight and TDEE, lean mass | ADR-0005 |
 | `REQ-SLP` | Sleep and recovery | — |
 | `REQ-CTX` | Context — location, media, alcohol, screen time | Extraction from archived `08` (location storage unblocked by ADR-0029 / the reworded RULE-29) |
