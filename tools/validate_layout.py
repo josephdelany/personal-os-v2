@@ -229,6 +229,39 @@ try:
 except Exception as e:
     warn(f"could not run the RULE-29 coordinate-literal check: {e}")
 
+# ---------- 11. forbidden-import lint (RULE-29 egress boundary; closes OQ-15) ----------
+# RULE-29 requires every outbound request to go through the egress-logged path. A shell
+# guard on curl/wget/nc is bypassable by any language runtime (OQ-15), so the real
+# enforcement is a static ban on network-capable imports outside the sanctioned modules.
+# Sanctioned: lib/egress.py (model calls, owed) and lib/db.py (the Supabase connection,
+# a RULE-29-allowed destination). `urllib.parse` is a pure URL-string utility and is NOT
+# egress, so only `urllib.request`/`urllib.error` are caught. This is the LINT tier RULE-29
+# claims; like the coordinate tripwire it cannot prove absence of every encoding (a runtime
+# could import dynamically), so review remains the backstop.
+EGRESS_ALLOWED = {"lib/egress.py", "lib/db.py"}
+FORBIDDEN_IMPORT = re.compile(
+    r'^\s*(?:import|from)\s+(requests|httpx|aiohttp|socket|pycurl|urllib\.request|urllib\.error)\b')
+try:
+    import_offenders = []
+    for f in tracked:
+        if not f.endswith(".py") or f in EGRESS_ALLOWED or f == SELF:
+            continue
+        try:
+            src = (ROOT / f).read_text(errors="ignore")
+        except Exception:
+            continue
+        for lineno, line in enumerate(src.split("\n"), 1):
+            m = FORBIDDEN_IMPORT.match(line)
+            if m:
+                import_offenders.append(f"{f}:{lineno} imports '{m.group(1)}'")
+    if import_offenders:
+        for o in import_offenders:
+            fail(f"network-capable import outside the egress path (RULE-29 / OQ-15): {o}")
+    else:
+        ok("no network-capable import outside lib/egress.py or lib/db.py (RULE-29 tier LINT; OQ-15 closed)")
+except Exception as e:
+    warn(f"could not run the forbidden-import lint: {e}")
+
 # ---------- report ----------
 for m in passes: print(f"PASS  {m}")
 for m in warns: print(f"WARN  {m}")

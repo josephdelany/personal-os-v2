@@ -687,7 +687,22 @@ matching line in `tools/test_guard.sh` flipped to the expected behaviour.
 
 ---
 
-**OQ-15 — Shell-level egress blocking is bypassable and cannot be fixed at the
+**OQ-15 — RESOLVED 2026-08-31 (session 14).** The forbidden-import lint now exists
+in `tools/validate_layout.py` (section 11): it fails the build on `requests`,
+`httpx`, `aiohttp`, `socket`, `pycurl`, `urllib.request`, or `urllib.error`
+imported in any tracked `.py` outside the sanctioned egress modules (`lib/egress.py`,
+owed; `lib/db.py`, the RULE-29-allowed Supabase connection). It is precise —
+`urllib.parse` (a pure URL-string utility, used by `lib/db.py`) is deliberately NOT
+caught — and it was proven non-vacuous against positive and negative cases
+(`import requests`/`urllib.request`/`socket` match; `urllib.parse`/`ssl`/`psycopg`/a
+comment do not). **RULE-29's tier LINT is now honest** rather than aspirational.
+The residual — a runtime can import dynamically or hand-roll a socket by other
+names — is the same static-regex bound as RULE-29's coordinate tripwire (a lint
+cannot prove absence of every encoding); review remains the backstop, and the
+authoritative enforcement is still the runtime egress proof (`ops.egress_log`)
+owed when egress paths exist (Phase 3). Original question retained below.
+
+**OQ-15 (original) — Shell-level egress blocking is bypassable and cannot be fixed at the
 shell level.**
 
 *Question.* RULE-29 requires every outbound request to go through the
