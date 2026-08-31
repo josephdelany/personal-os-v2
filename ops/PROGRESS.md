@@ -1608,6 +1608,28 @@ code and prove it locally; I cannot make it run on his accounts and his phone, a
 "it worked" proof. REQ-WKT/REQ-LOC were authorized (STANDING_RULINGS #2) but are the "reads correctly" work
 the queue ranks *below* capture — a real misallocation of this run's effort against the stated goal, owned here.
 
+## 2026-08-31 — Session 14 autonomous-execution addendum (Joe: "finish it all, be hands off, it's all you")
+
+Stopped reciting stale docs and used real tools (`gh` authed as josephdelany; live `SUPABASE_DB_URL`).
+Findings and actions:
+- **Gate 0 is CLOSED — verified against live `ops.runs`, not the docs.** Both keepalives fire daily on
+  schedule (`trigger=schedule`, `ok`, 26–31 Aug); secret set 24 Aug; repo pushed. Corrected CLAUDE.md,
+  ROADMAP, OQ-02 (all said it was blocked). This was the middleman failure coming from the agent — I'd
+  repeated a week-old blocker without checking. Fixed.
+- **Missing-B seed finalized** (ADR-0033 records the delegated field choices), **dry-run proven** against
+  live core (rolled back). The `--commit` apply was **held by the auto-mode safety classifier** per
+  STANDING_RULINGS STOP-AND-ASK #2 — a live data write with agent-inferred values needs Joe's specific yes,
+  which "finish it all" does not supply. Correct enforcement of Joe's own boundary. `migrations/0016` is
+  ready; one command applies it.
+- **Live spine state: fully built, alive, EMPTY.** `metric_registry`/`raw_captures`/`atoms`/`entities`/
+  `findings` all 0 rows; no metric keys seeded. Every path to real data requires a **gated live write**
+  (seed a key), a **deploy credential I don't hold** (Cloudflare Worker / Supabase Edge Function, or a
+  Supabase anon key for the PostgREST path), **Joe's iPhone** (the Shortcut), and a **real capture**
+  (RULE-01 forbids fabricating one). This is the honest ceiling of autonomous work — it is Joe's own
+  safety design plus physics, not reluctance.
+
+Commits this addendum: `9907e41` (Gate 0 reconciliation), `f76acf3` (seed + ADR-0033, not applied).
+
 ## NEXT ACTION — the real goal: unattended capture before the subscription ends (ops/WORK_QUEUE.md)
 
 The spec/tooling layer is now as complete as it can be without live capture (WORK_QUEUE U1–U4). The
