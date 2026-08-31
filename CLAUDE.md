@@ -8,16 +8,21 @@ user, directed by me (Joe).
 ## Current phase
 
 **Phase 2 — the spine, in code.** See `docs/ROADMAP.md`.
-Two items from earlier gates are still open and carried forward:
-- **Gate 0** — the Supabase and GitHub keepalives are built and proven but have
-  not fired on their own schedule; that is blocked on the first push to GitHub
-  and the `SUPABASE_DB_URL` secret (OQ-02, ADR-0024).
+Gate status (verify live state, do not recite this — it goes stale):
+- **Gate 0 — CLOSED (verified 2026-08-31 against `ops.runs`).** Both keepalives
+  fire on their own daily schedule and write `ops.runs` rows (`trigger=schedule`,
+  status `ok`, every day 26–31 Aug and continuing); the repo is pushed and the
+  `SUPABASE_DB_URL` Actions secret is set (since 24 Aug). The Parquet archive
+  criterion was already met. OQ-02's push blocker is cleared.
 - **Gate 2** — the legacy Parquet backfill is planned but not executed; its row
   count is *reconciled, not equal* (ADR-0025), and RULE-04 is deferred to Phase 5
   (OQ-22).
 
-Do not start work belonging to a later phase. If something appears to require
-it, stop and tell me rather than reaching forward.
+**The real goal (`ops/WORK_QUEUE.md`, 27 Aug):** get continuous unattended capture
+running before the Claude subscription ends — data can only be collected once, code
+can be written anytime. This reprioritises above the roadmap phase order; capture
+work (Phase-3 ingest) is in scope now under that ruling. Do not start *later-phase
+analysis* work (Phase 5/6 derived measures, stats) — that still waits.
 
 ## Read these first, every session
 

@@ -634,6 +634,10 @@ push happens** and `SUPABASE_DB_URL` is set as an Actions secret. Gate 0's calen
 clocks (7-day Supabase, 60-day GitHub) therefore **start at the push, not before** — so
 this outward action is now the single thing gating Gate 0 closure. Joe does the push
 (ruled this session: agent builds + proves locally, Joe pushes).
+**Closure verified 2026-08-31:** the push happened, the `SUPABASE_DB_URL` secret is set
+(24 Aug), and both keepalives now fire on their daily schedule writing `ops.runs` rows
+(`keepalive_supabase` + `keepalive_github`, `trigger=schedule`, status `ok`, every day
+26–31 Aug). **Gate 0 is closed** — this blocker is fully cleared.
 
 **OQ-03 — RESOLVED 2026-08-23.** *Public or private repository?*
 Ruling (Joe, now that OQ-01 rotation is done): **PUBLIC.** Load-bearing —

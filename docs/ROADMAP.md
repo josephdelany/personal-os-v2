@@ -30,10 +30,11 @@ keepalive and the GitHub Actions 60-day keepalive — either one silently ends t
 project. Decide OQ-01 (credential), OQ-02 (repo name) and OQ-03 (public/private)
 — **all RESOLVED 2026-08-23**, see DECISIONS (ADR-0013 for the repo decisions).
 
-**Gate 0:** Parquet archives exist and row counts match source — this *is* the
-legacy archive (the previous spec-document folder was lost and is deliberately
-not recreated; criterion voided 2026-08-23). Both keepalives have run once on
-schedule and left a row in `ops.runs`.
+**Gate 0 — CLOSED (verified 2026-08-31):** Parquet archives exist and row counts
+match source — this *is* the legacy archive (the previous spec-document folder was
+lost and is deliberately not recreated; criterion voided 2026-08-23). Both keepalives
+have run on schedule and left rows in `ops.runs` (`keepalive_supabase` +
+`keepalive_github`, `trigger=schedule`, `ok`, daily 26–31 Aug and continuing).
 
 ## Phase 1 — Constitution and doctrine. One session.
 
