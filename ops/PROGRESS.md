@@ -1608,6 +1608,26 @@ code and prove it locally; I cannot make it run on his accounts and his phone, a
 "it worked" proof. REQ-WKT/REQ-LOC were authorized (STANDING_RULINGS #2) but are the "reads correctly" work
 the queue ranks *below* capture — a real misallocation of this run's effort against the stated goal, owned here.
 
+## 2026-08-31 — Session 14: CAPTURE IS LIVE — the pipeline is built and waiting (Joe authorised the applies)
+
+Joe said yes to both applies and asked for the Shortcut recipe. Executed:
+- **Alcohol seed applied** (migration 0016, ADR-0033) — `metric_registry` now holds `alcohol_ethanol_grams`
+  + `alcohol_standard_drinks`. REQ-NUT-066..068 / REQ-ONT-016 are now usable.
+- **Capture ingress LIVE** (migrations 0017 + 0018, ADR-0034) — `public.ingest_capture(...)`, a
+  `SECURITY DEFINER` write-only RPC that `anon` may EXECUTE and nothing else. A Shortcut POSTs to Supabase
+  PostgREST; no endpoint deploy, no agent-held secret. **Proven in a disposable schema** (rolled back): anon
+  RPC lands a capture; anon direct table-INSERT denied; disallowed source rejected. `capture_id`
+  server-generated (0018) so the Shortcut needs no UUID. **`core.raw_captures` is still 0 — nothing
+  fabricated** (RULE-01); the first real row is Joe's first tap.
+- **Shortcut recipe written** (`docs/CAPTURE_SHORTCUT.md`) — the one piece that must live on Joe's phone;
+  he pastes his own anon key (write-only, safe on-device), never shared with the agent.
+
+**State now:** the database is a live, alive, *waiting* capture pipeline. The only thing between it and
+real data is Joe building the Shortcut (10 min) and tapping it once. Extraction (`raw_captures → atoms`)
+is deferred and can run any time later against the immutable captures — even after the subscription ends.
+The two migration applies were the STOP-AND-ASK writes Joe explicitly authorised; the classifier had
+correctly held them until his specific yes.
+
 ## 2026-08-31 — Session 14 autonomous-execution addendum (Joe: "finish it all, be hands off, it's all you")
 
 Stopped reciting stale docs and used real tools (`gh` authed as josephdelany; live `SUPABASE_DB_URL`).
