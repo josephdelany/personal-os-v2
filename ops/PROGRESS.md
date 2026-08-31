@@ -1560,6 +1560,18 @@ seed** (a data write he wants to inspect first).
   respected).** No new ADR (rides ADR-0030); OQ-35 raised. No Gherkin scenario (pinned 12/file) — the pure
   `0.789`/`14 g` conversion is the ideal future executable scenario when the drink path is built (Phase 3).
 
+- **Session 14 close (2026-08-31).** Six commits this session, `main` level with origin:
+  `2a0b441` unit 10 (Missing-E) · `52ab698` unit 11 (Missing-G) · `bf61520` unit 12 (Missing-H) ·
+  `402c5d0` backfill units 7–9 · `0208836` OQ-34 · `a19a336` unit 13 (Missing-B, non-writing).
+  **Requirement IDs added:** REQ-INF-331, REQ-NAR-038/039, REQ-INF-412/413, REQ-ASK-031/032,
+  REQ-NUT-066/067/068 (9 total; 583→592). **OQs raised:** OQ-34, OQ-35. **Works (evidenced):**
+  `validate_layout` 35/0/0, 592 unique IDs, both index tables reconciled to census; `check_invariants
+  --core core` INVARIANTS ALL PASS (RULE-04 PENDING, Phase 5); `pytest` 21 passed. No regression from
+  session start. **Does not / not done:** no implementation, no tests for the 9 new IDs (Phase 3+), and the
+  Missing-B `metric_registry` seed is **not written** — held for Joe, its exact rows reported in chat and in
+  the NEXT ACTION block below. Whole-session reviewer: clean (stop-point held, no invariant violated, no
+  user-owned constant silently decided, index census consistent); 2 NITs, both non-defects.
+
 ## NEXT ACTION (from docs/REMEDIATION_PLAN.md sequence — single item only)
 
 Track 1.2 (correction) is essentially complete: units 1–13 done and committed; all ratified missing-sets
