@@ -1572,29 +1572,72 @@ seed** (a data write he wants to inspect first).
   the NEXT ACTION block below. Whole-session reviewer: clean (stop-point held, no invariant violated, no
   user-owned constant silently decided, index census consistent); 2 NITs, both non-defects.
 
-## NEXT ACTION (from docs/REMEDIATION_PLAN.md sequence — single item only)
+## 2026-08-31 — Session 14 continuation: "finish now" — completable pre-capture work + WORK_QUEUE discovery
 
-Track 1.2 (correction) is essentially complete: units 1–13 done and committed; all ratified missing-sets
-(A–H) authored. The **one remaining item is the Missing-B `metric_registry` seed** — a data write held at
-Joe's instruction until he inspects exactly what it writes. The seed report is in the session-14 chat and
-below in summary; **nothing is written until Joe authorises it.** Two OQs were raised this session and
-await Joe: **OQ-34** (what fires the confirmation job) and **OQ-35** (the standard-drink definition —
-`g_per_standard_drink`, provisional 14 g). Units 7–9 PROGRESS entries were backfilled (labelled
-after-the-fact). Standing wait: Gate 0's scheduled keepalive firings must still elapse.
+Joe: "finish the project at the level we discussed … work until finished." Drove every genuinely-completable
+pre-capture item to done, each gated + reviewed + committed. **Mid-run discovered two untracked governance
+files** (`docs/STANDING_RULINGS.md`, `ops/WORK_QUEUE.md`, both dated 2026-08-27) that `/session-start` never
+loaded because they are untracked — they reframe the goal (below). Left both **untracked** (they name Joe's
+subscription cancellation; the repo is public → STANDING_RULINGS STOP-AND-ASK #5).
 
-**The Missing-B seed, exactly (NOT written):** two `metric_registry` rows, per ADR-0030 —
-`alcohol_ethanol_grams` (unit `g`) and `alcohol_standard_drinks` (unit `standard_drink`), each
-`state_class='total'` (per subject-day). Undecided fields Joe must set before the seed: `family` (the
-RULE-21 FDR group — e.g. a `substance` family), `plausible_low`/`plausible_high` bounds, `expected_cadence`,
-`max_staleness_days`. `g_per_standard_drink=14` is provisional pending OQ-35. Until the seed lands, the
-`atoms.metric_key` FK makes an alcohol atom carrying these keys unwritable — so nothing can use REQ-NUT-066..068
-yet, by construction.
+- **REQ-WKT** (`specs/07-workout/`, REQ-WKT-001..022; commit `a730fae`) — the objective-function requirements,
+  the largest owed set (REMEDIATION_PLAN Track 1.3). Reviewer 1 MAJOR (WKT-005 silently decided OQ-33) + 3
+  MINOR, all fixed. Raised OQ-36 (e1RM formula / ACWR windows). Index 592→614.
+- **Forbidden-import lint** (`tools/validate_layout.py` §11; commit `8baf70c`) — closes **OQ-15**, RULE-29
+  tier LINT now honest. Proven non-vacuous (matcher test: egress imports match, `urllib.parse`/`ssl` do not).
+- **Missing-B seed** (`migrations/pending/0016_alcohol_metric_seed.sql`; commit `5d30135`) — authored,
+  **dry-run verified** (89 stmts, invariants ALL PASS, rolled back), **HELD in pending/** (non-globbed, cannot
+  auto-apply). Not written to any real table — Joe inspects first (STANDING_RULINGS STOP-AND-ASK #2).
+- **REQ-LOC** (`specs/08-location/`, REQ-LOC-001..018; commit `a50da39`) — location split out of REQ-CTX
+  (Track 1.3): restricted storage, read/egress separation, mobility measures. Reviewer 0 MAJOR + 3 MINOR,
+  all fixed. Raised OQ-37 (home geofence / mobility windows). Index 614→632.
+- **U4 INV-1 fabrication check** (`tools/check_invariants.py`; commit `2cd8d7b`) — atoms→raw_captures FK
+  presence + orphan count. Proven live + dry-run. U4 moved-threshold check **deferred** (nothing to police
+  until OQ-10 calibration; U4's own "don't build control theater").
 
-Standing waits (not actions): Gate 0's scheduled keepalive firings (7-day Supabase, 60-day GitHub) must
-still elapse before Gate 0 closes.
+**Gates (evidence):** `validate_layout` 38/0/0 (632 unique IDs, all counts reconciled); `check_invariants
+--core core` INVARIANTS ALL PASS incl. new INV-1; the seed dry run rolled back cleanly. No regression.
 
-Open flags for Joe (raised, not decided here): (a) units 7/8/9 (Missing-F/A/C) are committed with no
-PROGRESS entry — backfill or accept as-is; (b) no requirement states what *fires* the confirmation job
-(integrity holds regardless via the REQ-INF-104 data filter) — raise as an OQ if you want it pinned.
+**WHAT I DID NOT DO / honest boundary.** The real goal (`ops/WORK_QUEUE.md`, 2026-08-27) is **unattended
+capture running before the subscription ends**, not the roadmap. Queue status: U1 (Missing-B) ✅, U2
+(backfill) ✅, U3 (confirmation OQ) ✅, U4 ⅔ (moved-threshold deferred), **U5–U9 (the capture pipeline)
+NOT started.** U5–U8 are gated on actions only Joe can take — the GitHub push + `SUPABASE_DB_URL` secret
+(OQ-02, he ruled he does the push), deploying to his Cloudflare/Supabase, installing the iOS Shortcut, and
+**real data that RULE-01 forbids fabricating and that only accrues over real time.** I can build the capture
+code and prove it locally; I cannot make it run on his accounts and his phone, and I will not fake the
+"it worked" proof. REQ-WKT/REQ-LOC were authorized (STANDING_RULINGS #2) but are the "reads correctly" work
+the queue ranks *below* capture — a real misallocation of this run's effort against the stated goal, owned here.
 
-One unit at a time, each gated + reviewed. STOP at the Missing-B seed and report before any data write.
+## NEXT ACTION — the real goal: unattended capture before the subscription ends (ops/WORK_QUEUE.md)
+
+The spec/tooling layer is now as complete as it can be without live capture (WORK_QUEUE U1–U4). The
+remaining queue — **U5 capture path, U6 passive feeds, U7 unattended survival week, U8 legible surface,
+U9 hand-off** — is the actual goal, and its critical path runs through actions only Joe can take. **No
+amount of code I write collects a single row of data; Joe's deploy does.** The data clock is the binding
+constraint (WORK_QUEUE: "data can only be collected once").
+
+**Critical path to real data — do these in order, soonest first (each is Joe-only):**
+1. **Start crude manual capture TODAY** — a lifting logger, meal photos, a nightly note (Track 0, OQ-18).
+   Needs no terminal, no code, no deploy. This is the single highest-value action and every day skipped is
+   data gone forever. Phase 3 imports crude perfectly.
+2. **Push the repo to GitHub + set the `SUPABASE_DB_URL` Actions secret** (OQ-02) — unblocks Gate 0's
+   keepalive clock and any scheduled ingest. Ruled: agent builds+proves, Joe pushes.
+3. **Decide the capture endpoint infra** (Cloudflare Worker vs Supabase Edge Function) and the first
+   subject with least ceremony — then the agent can build U5 (Shortcut → `raw_captures` → extraction →
+   `atoms`) against it, dry-run it, and hand it back for deploy.
+
+**DECISIONS FOR JOE (batched, none blocking the above):**
+- [ ] **Missing-B `metric_registry` seed** — the exact two rows are in `migrations/pending/0016_alcohol_metric_seed.sql`,
+  dry-run verified, HELD. Confirm `family`, `plausible_high`, `expected_cadence`, `max_staleness_days`,
+  `self_report`; then move the file to `migrations/` and run `--commit`. (STOP-AND-ASK #2.)
+- [ ] **OQ-35** — standard-drink definition (`g_per_standard_drink`; provisional US 14 g).
+- [ ] **OQ-34** — what fires the confirmation job (schedule vs event).
+- [ ] **OQ-36** — e1RM formula + ACWR windows (provisional; calibrate against real data).
+- [ ] **OQ-37** — home geofence + mobility windows + place taxonomy (privacy-load-bearing home radius).
+- [ ] **OQ-30** — recommendation tier floor + cadence; until ruled, **REQ-ACT and the recommendations
+  table stay unbuilt** (index says "no requirement numbered until OQ-30 is ruled").
+- [ ] Wire `docs/STANDING_RULINGS.md` + `ops/WORK_QUEUE.md` into `/session-start` so a cold session loads
+  them (they were untracked and missed this run) — and decide whether they can be tracked (they name the
+  subscription cancellation; public repo).
+
+One unit at a time, each gated + reviewed. STOP before any data write or migration (STANDING_RULINGS).
