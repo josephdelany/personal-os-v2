@@ -22,7 +22,7 @@ response is observable. Numbers, never adjectives.
 
 ---
 
-## Current coverage — 614 requirements, 36 scenarios
+## Current coverage — 632 requirements, 36 scenarios
 
 | Prefix | Count | Subsystem | File |
 |---|---|---|---|
@@ -36,8 +36,10 @@ response is observable. Numbers, never adjectives.
 | `REQ-NAR` | 29 | Narration — numeral templates, vocabulary linting, degradation | `specs/04-reasoning/requirements.md` |
 | `REQ-ASK` | 25 | Open-ended question answering — the PHIA loop; out-of-registry-operation and causal-routing completeness (REQ-ASK-031/032, Missing-H) | `specs/04-reasoning/requirements.md` |
 | `REQ-WKT` | 22 | Workout — the objective function: per-set capture, deterministic e1RM/volume/ACWR, plain progression | `specs/07-workout/requirements.md` |
+| `REQ-LOC` | 18 | Location — restricted coordinate storage, read/egress separation, place resolution, mobility metrics (dwell/visit/radius-of-gyration/entropy/commute/transit) | `specs/08-location/requirements.md` |
 
-**Gherkin acceptance scenarios: 12 per file, 36 total.** These are the artifact
+**Gherkin acceptance scenarios: 12 in each of the three original subsystem files
+(capture, finance, reasoning), 36 total.** These are the artifact
 Joe verifies against, because they are readable without reading code and they
 either pass or fail visibly.
 
@@ -47,7 +49,7 @@ either pass or fail visibly.
 |---|---|---|
 | `REQ-BOD` | Body composition — Kalman weight and TDEE, lean mass | ADR-0005 |
 | `REQ-SLP` | Sleep and recovery | — |
-| `REQ-CTX` | Context — location, media, alcohol, screen time | Extraction from archived `08` (location storage unblocked by ADR-0029 / the reworded RULE-29) |
+| `REQ-CTX` | Context — media and screen time (location split out to `REQ-LOC`; alcohol handled in `REQ-NUT` §D.6) | Extraction from archived `08`; lower priority, scope-and-defer |
 | `REQ-ACT` | Action — the *generation* machinery for recommendations: when to recommend (proactive vs on-demand), cadence, the scored-prediction/auto-demotion loop applied to recommendations, the action vocabulary, an optional "what to do today" digest | **Authoring opened (ADR-0029).** Must **reconcile with, not duplicate, REQ-TIER-047/048/049**, which already specify the recommendation *disclosure contract* (session-end reviewer, ADR-0029 addendum). Scope in ADR-0029 §D4 / `docs/CONSTITUTION_RESTRUCTURE_PROPOSAL.md` §4. Blocked on OQ-30 (residual tier floor + REQ-FIN-190/198 reconciliation) and the tier-labelling surface (RULE-17). No requirement numbered until OQ-30 is ruled |
 | `REQ-UI` | Interface | Phase 7, deliberately last |
 

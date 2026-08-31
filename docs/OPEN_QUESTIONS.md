@@ -589,6 +589,20 @@ Settles it: a calibration once real training data exists — Joe (or the data) c
 the ACWR window/smoothing, recorded in the metric registry and moved to RESOLVED. Not blocking authoring;
 blocking only the numbers. Raised 2026-08-31 (session 14), REQ-WKT authoring.
 
+**OQ-37 — The location placeholders: home-geofence definition, mobility-metric windows, and place taxonomy.**
+Why open: REQ-LOC-008 designates a home place but the radius and dwell threshold that decide what counts as
+"home" are not set; REQ-LOC-013 computes mobility metrics (radius of gyration, location entropy, commute,
+transit load) over window lengths that are provisional; and the place-taxonomy granularity is not fixed.
+These are the location analogue of OQ-36's workout placeholders and OQ-10's threshold set — modelling
+choices that should be set against Joe's real location data, not guessed before it exists, and every figure
+they gate says so until then. The home-geofence one is privacy-load-bearing: it decides which coordinates
+fall under the absolute home egress ban (REQ-LOC-002), so it must be set conservatively (a larger home
+radius errs safe). Depends on it: every mobility number, and the boundary of the home egress ban. Settles
+it: a calibration once real location data exists — Joe setting the home geofence, the mobility windows, and
+the place taxonomy, recorded in the metric registry / a location ADR and moved to RESOLVED. Not blocking
+authoring; blocking the numbers and the location table (Phase 4). Raised 2026-08-31 (session 14), REQ-LOC
+authoring.
+
 ---
 
 ## RESOLVED
