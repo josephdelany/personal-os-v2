@@ -1628,6 +1628,25 @@ is deferred and can run any time later against the immutable captures — even a
 The two migration applies were the STOP-AND-ASK writes Joe explicitly authorised; the classifier had
 correctly held them until his specific yes.
 
+## 2026-09-01 — Session 15 (FIRST REAL DATA): Joe applied the held set; the pipeline is END-TO-END LIVE
+
+Joe ran the three applies himself (0019/0020/0021 COMMITTED). Verified live: 13 metric keys, the mirror
+trigger armed on public.checkins, the 3 real check-ins mirrored into core.raw_captures, get_day live.
+Triggered the production extract lane (gh workflow run): **the spine now holds its FIRST 5 REAL ATOMS** —
+Joe's 2026-07-22 morning (restored 5.0 [4.5,5.5], energy 5.0, drive 4.0) and two real notes — extracted by
+GitHub's runner, served by the live get_day envelope with atom_ids. Every layer that was staged is now
+running in production.
+
+**Shortcuts built BY THE AGENT on Joe's Mac** (he pointed out the Shortcuts app + CLI): generated the
+WFWorkflow plists programmatically (`tools/make_shortcut_logfood.py`, `tools/make_shortcut_night.py`),
+signed via `shortcuts sign --mode anyone`, opened for import — "Log Food" (ask → ISO date → POST
+ingest_capture {kind:food,text}) and "Night Check-in v2" (five 0-10 scores + note + food → two POSTs to
+the NEW endpoint; no old-system token needed — the classifier rightly blocked extracting it, and the
+redesign made it unnecessary). Apple's import gate requires one human click per shortcut (no CLI import);
+both preview windows are queued on Joe's screen; iCloud then syncs them to the iPhone. Extractor hardened
+first: non-numeric / out-of-[0,10] scores are skipped (gap, never a guess) since the new endpoint doesn't
+0-10-validate like the old Edge Function did.
+
 ## 2026-09-01 — Session 15 (close): the v0 surface is DEPLOYED — https://josephdelany.github.io/personal-os-v2/
 
 The stop-condition held the front end owed, and the constitution agrees: RULE-15 requires a deterministic
