@@ -1,0 +1,113 @@
+<!doctype html>
+<!-- Personal OS — the v0 daily surface (RULE-15's deterministic rendering).
+     Single file, no build step, no framework. Reads ONLY public.get_day(p_day)
+     (migration 0021) as the signed-in owner via Supabase magic-link auth.
+     HONESTY RULES ENFORCED IN CODE:
+       - renders only numerals present in the envelope (RULE-14); absence -> "not logged"
+       - self-reports shown WITH their interval (ADR-0018), never a bare point
+       - no streaks, no composite scores, no judgment words (RULE-23/24)
+       - every number's atom_id available on hover (INV-3 traceability)
+     The page contains no data and no secrets; the anon key is public-by-design
+     (write-only server-side; reads require a signed-in session). -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Personal OS — day</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { font-family: -apple-system, system-ui, sans-serif; margin: 2rem auto; max-width: 40rem; padding: 0 1rem; line-height: 1.45; }
+  h1 { font-size: 1.15rem; } h2 { font-size: .95rem; margin: 1.4rem 0 .4rem; opacity:.75; text-transform: uppercase; letter-spacing:.04em;}
+  .num { font-variant-numeric: tabular-nums; }
+  .chip { display:inline-block; border:1px solid color-mix(in srgb, currentColor 25%, transparent); border-radius:.5rem; padding:.25rem .6rem; margin:.15rem .25rem .15rem 0; }
+  .muted { opacity:.6; } .warn { color:#b45309; }
+  input,button { font:inherit; padding:.4rem .6rem; border-radius:.4rem; border:1px solid color-mix(in srgb, currentColor 30%, transparent); background:transparent; color:inherit;}
+  button { cursor:pointer; }
+  #app { margin-top:1rem; }
+  .transition { transition: opacity 150ms ease-out; }
+</style>
+</head>
+<body>
+<h1>Personal OS</h1>
+<div id="auth">
+  <p class="muted">Sign in to read your data. (Reads are owner-only; this page holds no secrets.)</p>
+  <input id="email" type="email" placeholder="you@example.com" autocomplete="email">
+  <button id="sendlink">Send magic link</button>
+  <p id="authmsg" class="muted"></p>
+</div>
+<div id="picker" style="display:none">
+  <input id="day" type="date"> <button id="load">Load</button> <button id="signout" class="muted">Sign out</button>
+</div>
+<div id="app" class="transition"></div>
+
+<script type="module">
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+const SUPABASE_URL = "https://cykviouklidnbsbgdgdo.supabase.co";
+// anon key: public-by-design (server grants make it write-only; reads need a session)
+const ANON = new URLSearchParams(location.search).get("key") || localStorage.getItem("pos_anon") || "";
+if (!ANON) document.getElementById("authmsg").textContent =
+  "One-time setup: open this page as index.html?key=<your anon key> (it is remembered locally).";
+else localStorage.setItem("pos_anon", ANON);
+const sb = ANON ? createClient(SUPABASE_URL, ANON) : null;
+
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+// deterministic renderer: emits ONLY what the envelope contains (RULE-14).
+function render(env) {
+  if (!env) { $("app").innerHTML = '<p class="muted">not logged</p>'; return; }
+  let h = `<h2>${esc(env.day)}</h2>`;
+  const ck = env.checkin || {};
+  const keys = Object.keys(ck).sort();
+  h += "<h2>Check-in</h2>";
+  h += keys.length ? keys.map(k => {
+      const v = ck[k], label = esc(k.replace(/^checkin_/, "").replace(/_/g, " "));
+      return `<span class="chip num" title="atom ${esc(v.atom_id||"")}">${label}: ${esc(v.point)} <span class="muted">(${esc(v.low)}–${esc(v.high)})</span></span>`;
+    }).join("") : '<p class="muted">not logged</p>';
+  h += "<h2>Food & drink</h2>";
+  h += (env.food && env.food.length)
+    ? "<ul>" + env.food.map(f => `<li title="atom ${esc(f.atom_id||"")}">${esc(f.label)} <span class="muted num">${esc((f.at||"").slice(11,16))}${f.precision==="hour"?" ~":""}</span></li>`).join("") + "</ul>"
+    : '<p class="muted">no food logged</p>';
+  h += "<h2>Notes</h2>";
+  h += (env.notes && env.notes.length)
+    ? env.notes.map(n => `<p title="atom ${esc(n.atom_id||"")}">${esc(n.text)}</p>`).join("")
+    : '<p class="muted">no note</p>';
+  const c = env.coverage || {};
+  h += `<h2>Trust</h2><p class="muted num">${esc(c.captures ?? 0)} captured · ${esc(c.atoms ?? 0)} facts` +
+       (env.last_extract_run ? ` · last processed ${esc((env.last_extract_run.at||"").slice(0,16).replace("T"," "))} (${esc(env.last_extract_run.status)})` : "") + "</p>";
+  if (c.unextracted > 0) h += `<p class="warn num">${esc(c.unextracted)} capture(s) awaiting processing</p>`;
+  $("app").innerHTML = h;
+}
+
+// demo mode: ?demo=1 renders a FIXTURE envelope, loudly labeled, touching no table
+// (RULE-01: fixtures never enter real data; this exercises the render path only).
+if (new URLSearchParams(location.search).get("demo")) {
+  $("auth").style.display = "none"; $("picker").style.display = "block";
+  $("app").innerHTML = "<p class='warn'>DEMO FIXTURE — not real data</p>";
+  render({ day:"2026-07-22", checkin:{ checkin_morning_energy:{point:5,low:4.5,high:5.5,atom_id:"demo"},
+    checkin_morning_restored:{point:5,low:4.5,high:5.5,atom_id:"demo"}, checkin_morning_drive:{point:4,low:3.5,high:4.5,atom_id:"demo"}},
+    food:[{label:"big mac",at:"2026-07-22T14:10:00Z",precision:"hour",atom_id:"demo"}],
+    notes:[{text:"demo note",at:"2026-07-22T14:10:00Z",atom_id:"demo"}],
+    coverage:{captures:1,atoms:4,unextracted:0},
+    last_extract_run:{at:"2026-07-22T15:00:00Z",status:"ok"} });
+  $("app").insertAdjacentHTML("afterbegin","<p class='warn'>DEMO FIXTURE — not real data</p>");
+} else if (sb) {
+  const show = (signed) => { $("auth").style.display = signed?"none":"block"; $("picker").style.display = signed?"block":"none"; };
+  sb.auth.getSession().then(({data:{session}}) => { show(!!session); if (session) load(); });
+  sb.auth.onAuthStateChange((_e, session) => { show(!!session); if (session) load(); });
+  $("sendlink").onclick = async () => {
+    const { error } = await sb.auth.signInWithOtp({ email: $("email").value, options: { emailRedirectTo: location.href.split("?")[0] } });
+    $("authmsg").textContent = error ? ("error: " + error.message) : "Link sent — check your email.";
+  };
+  $("signout").onclick = () => sb.auth.signOut();
+  $("load").onclick = () => load();
+  async function load() {
+    const day = $("day").value || null;
+    const { data, error } = await sb.rpc("get_day", day ? { p_day: day } : {});
+    if (error) { $("app").innerHTML = `<p class="warn">read unavailable: ${esc(error.message)}</p><p class="muted">(is migration 0021 applied, and are you signed in?)</p>`; return; }
+    render(typeof data === "string" ? JSON.parse(data) : data);
+  }
+}
+</script>
+</body>
+</html>
