@@ -32,6 +32,27 @@ health, capture counts, what's waiting. Read-only, safe to run.
 - **Alcohol metric keys** seeded (`alcohol_ethanol_grams`, `alcohol_standard_drinks`;
   ADR-0033, migration 0016).
 
+## 2b. Update 2026-09-01 — the check-in bridge era
+
+The old workspace was found intact (`~/Documents/Claude/Projects/Personal Survilance`
+— specs, all collectors, the deployed Edge Function sources). Built on it:
+- **The extraction lane is LIVE**: `extract.yml` runs hourly on GitHub Actions
+  against the live DB (proven: run 2026-09-01, ops.runs heartbeat `extract_checkins`).
+  Deterministic, $0, no model call.
+- **THE HELD SET — three staged migrations awaiting Joe's explicit authorization**
+  (the permission layer requires his own command; prose directives don't clear it):
+  - `0019` check-in metric keys (0-10 scale, evidence: the deployed function source)
+  - `0020` the bridge — public.checkins → core.raw_captures (fail-open trigger +
+    one-time mirror of the 3 real check-ins). THE moment this applies, every
+    morning/night check-in feeds both systems from one tap, no phone changes.
+  - `0021` the read API `get_day` (authenticated-only envelope for the front end)
+  Apply each: `PYTHONPATH=. python3 tools/run_migration.py --core core --ops ops --only NNNN --commit`
+- **Phone recipes ready**: `docs/FOOD_SHORTCUT.md` (works now — the ingress is live),
+  `docs/NIGHT_CHECKIN_UPGRADE.md`, `docs/CAPTURE_SHORTCUT.md`.
+- **Front end**: `docs/LOVABLE_FRONTEND.md` is the paste-ready package; build it
+  after ~2 weeks of captures are flowing, not before.
+- ADRs 0033–0036; OQ-38/39 raised. The old system keeps running untouched (OQ-17).
+
 ## 3. THE ONE THING BETWEEN HERE AND REAL DATA
 
 Build the capture Shortcut on the phone (`docs/CAPTURE_SHORTCUT.md`, ~10 min) and tap it.

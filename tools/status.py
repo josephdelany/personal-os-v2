@@ -30,7 +30,7 @@ def main():
         print("LIVENESS (ops.runs — the keepalives that stop Supabase pausing):")
         cur.execute("""select job_name, max(started_at) as last, count(*) as n
                          from ops.runs
-                        where job_name like 'keepalive%'
+                        where job_name like 'keepalive%' or job_name = 'extract_checkins'
                         group by job_name order by 1""")
         rows = cur.fetchall()
         if not rows:
