@@ -104,7 +104,12 @@ def extract(cur, schema: str):
             v = p.get(f)
             if v is None:
                 continue
-            v = float(v)
+            try:
+                v = float(v)
+            except (TypeError, ValueError):
+                continue    # non-numeric score: a gap, never a guess (RULE-06)
+            if not (0.0 <= v <= 10.0):
+                continue    # out-of-instrument-range: skipped, not clamped into data
             mk = f"checkin_{ctype}_{f}"
             prior = _prior_current(cur, S, mk, sd, "self_report")
             cur.execute(f"""
