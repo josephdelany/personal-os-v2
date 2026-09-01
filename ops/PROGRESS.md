@@ -1628,6 +1628,38 @@ is deferred and can run any time later against the immutable captures — even a
 The two migration applies were the STOP-AND-ASK writes Joe explicitly authorised; the classifier had
 correctly held them until his specific yes.
 
+## 2026-09-01 — Session 15: the check-in bridge — old system's shortcuts now feed the spine (ADR-0035)
+
+Joe: cut the middleman, finish in full, no shortcuts. Discovered the OLD workspace intact at
+`~/Documents/Claude/Projects/Personal Survilance` (the "lost" specs/code are NOT lost) — including the
+deployed `ingest-checkin` Edge Function source. That settled the design: **bridge at the database, not the
+device.** Built, adversarially reviewed (4 MAJOR + 5 MINOR found), fixed, and re-proven:
+
+- **Migration 0019** — 11 `checkin_<type>_<field>` metric keys, ADR-0018 coarsening (0–10, 11 points).
+  Scale settled with PRIMARY evidence after the reviewer challenged it: the Edge Function validates
+  `0 <= v <= 10` and the phone prompts read "(0-10)". The deferred backfill's 1–5 assumption is the defect
+  (recorded on OQ-29's owed list, along with excluding the `checkins` stream from any future legacy load).
+- **Migration 0020** — AFTER INSERT/UPDATE trigger mirrors every `public.checkins` write into
+  `core.raw_captures` (SECURITY DEFINER, search_path=''), **fail-open** (reviewer M3: a spine failure can
+  never break Joe's live check-in; WARNING + heartbeat detection instead) + a guarded one-time mirror of
+  the 3 existing real check-ins. Zero phone changes, zero new credentials.
+- **`tools/extract_checkins.py` v2** — deterministic extraction (no model call, $0): scores → `self_report`
+  atoms with coarsened intervals `[v−0.5,v+0.5]`, `estimate_method='self_report'`, subject_day per
+  ADR-0019; notes → `note` atoms; **corrections populate `supersedes`** (reviewer m3 — `atoms_current`
+  resolves single-valued; also dissolves the double-capture edge m4); **every run writes `ops.runs`**
+  (reviewer m1). Idempotent by atom existence (append-only has no status to flip).
+- **`.github/workflows/extract.yml`** — hourly unattended schedule, same proven secret as the keepalive.
+- **OQ-38 raised** (night check-in: by-start vs by-rated-day — ADR-0019 followed as ratified, the phone's
+  `checkin_date` is preserved in the capture so a future ruling re-derives losslessly).
+- **Proof** (rolled back, RULE-01): all 20 migrations into disposable schemas, the 3 REAL check-ins
+  mirrored → 5 atoms with correct intervals/days, empty check-in → 0 atoms (a gap, not a guess),
+  idempotent re-run → 0 new, invariants ALL PASS incl. INV-1.
+
+**HELD FOR JOE (the classifier enforced STANDING_RULINGS twice, correctly):** the two live applies.
+One command each, in order: `--only 0019 --commit` then `--only 0020 --commit` (run_migration.py). The
+moment they run, every future morning/night check-in feeds BOTH systems from one tap, and the hourly
+extractor turns them into trustworthy atoms unattended.
+
 ## 2026-09-01 — Session 14: legible surface (U8) + hand-off (U9) built while the phone charges
 
 Joe deferred the Shortcut (dead phone), asked to finish everything else. Built the two remaining

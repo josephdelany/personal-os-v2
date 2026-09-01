@@ -1,0 +1,32 @@
+# extract — the unattended raw_captures -> atoms transform (ADR-0035).
+# Deterministic (check-in captures are pre-structured; no model call, $0).
+# Idempotent by atom existence (raw_captures is append-only; no status flip), so an
+# hourly re-run is safe and a missed hour self-heals on the next.
+name: extract
+on:
+  schedule:
+    - cron: '41 * * * *'    # hourly at :41 (offset from the keepalive's 06:17)
+  workflow_dispatch: {}
+
+concurrency:
+  group: extract
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  extract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - name: deps
+        run: pip install 'pg8000>=1.30,<2'
+      - name: extract check-in captures into atoms (deterministic, idempotent)
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          PYTHONPATH: ${{ github.workspace }}
+        run: python3 tools/extract_checkins.py

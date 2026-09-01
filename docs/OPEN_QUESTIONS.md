@@ -378,6 +378,15 @@ then-current ceiling. Raised 2026-08-23 (ADR-0028).
 trigger/sizing (3.2) and the three loader defects owed before any load (3.3:
 per-night `subject_day` sessionisation, `evidence_span` capture-row gap, dead
 `txn_amount` row + hardcoded bucket constants).
+**Two more loader defects, found by the ADR-0035 reviewer (2026-09-01), owed before
+any load:** (a) `backfill_run.py` seeds the check-in metrics (`energy`/`restored`/
+`drive`) on a **1–5 scale — wrong**: the deployed `ingest-checkin` Edge Function
+validates `0 <= v <= 10` (source read directly) and the shortcut prompts read
+"(0-10)"; the loader's registry tuples and unclamped coarsening must be corrected to
+0–10 before it ever runs. (b) The loader must **exclude the `checkins` stream
+entirely** — the live mirror (migration 0020 / ADR-0035) now owns check-in ingest
+under `checkin_<type>_<field>` keys, and a second load under bare `energy`-style
+keys would double-count the same real measurements in any family aggregate.
 
 **OQ-30 — What evidence-tier floor governs a REQ-ACT recommendation, and how does a
 proactive recommendation fit RULE-27's cadence?**
@@ -602,6 +611,18 @@ it: a calibration once real location data exists — Joe setting the home geofen
 the place taxonomy, recorded in the metric registry / a location ADR and moved to RESOLVED. Not blocking
 authoring; blocking the numbers and the location table (Phase 4). Raised 2026-08-31 (session 14), REQ-LOC
 authoring.
+
+**OQ-38 — Does a night check-in get a "by the day it rates" subject-day exception, like sleep's by-wake-day?**
+Why open: ADR-0019 assigns `subject_day` by start instant (04:00 ET boundary), with one ratified exception
+(sleep → wake day). A night check-in submitted after midnight before 04:00 lands on the prior day — correct,
+that is the day it rates. But a night check-in submitted the NEXT MORNING (a real case exists: 2026-07-23
+08:37 ET) lands by-start on the submission day while rating the previous one, and it diverges from the
+phone's own `checkin_date` field. The extraction (ADR-0035) follows ratified ADR-0019 as-is and carries the
+phone's `checkin_date` in the immutable capture payload, so a future ruling can re-derive under a new
+`rule_version` with zero data loss. Depends on it: which day a night rating counts toward in any daily
+aggregate or lagged analysis. Settles it: Joe ruling whether `night_*` metrics take a rated-day exception
+(like sleep) or stay by-start; then a `rule_version` bump and re-derivation. Raised by the ADR-0035
+reviewer (M4), 2026-09-01.
 
 ---
 
