@@ -45,11 +45,10 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 const SUPABASE_URL = "https://cykviouklidnbsbgdgdo.supabase.co";
 // anon key: public-by-design (server grants make it write-only; reads need a session)
-const ANON = new URLSearchParams(location.search).get("key") || localStorage.getItem("pos_anon") || "";
-if (!ANON) document.getElementById("authmsg").textContent =
-  "One-time setup: open this page as index.html?key=<your anon key> (it is remembered locally).";
-else localStorage.setItem("pos_anon", ANON);
-const sb = ANON ? createClient(SUPABASE_URL, ANON) : null;
+// baked in: the anon key is public-by-design (write-only server-side; every
+// read RPC verifies the signed-in owner). No setup parameter needed.
+const ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN5a3Zpb3VrbGlkbmJzYmdkZ2RvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM5NzA0MzYsImV4cCI6MjA5OTU0NjQzNn0.0YqUtrBMQ-6LOOIGLCj6UcqelccV2WdNVNrbEArGnk0";
+const sb = createClient(SUPABASE_URL, ANON);
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -105,7 +104,8 @@ if (new URLSearchParams(location.search).get("demo")) {
   $("tab-day").onclick = () => load();
   $("tab-insights").onclick = () => loadInsights();
   async function loadInsights() {
-    const { data, error } = await sb.rpc("get_insights");
+    let { data, error } = await sb.rpc("get_insights_guarded");
+    if (error && /does not exist/.test(error.message)) ({ data, error } = await sb.rpc("get_insights"));
     if (error) { $("app").innerHTML = `<p class="warn">insights unavailable: ${esc(error.message)}</p><p class="muted">(is migration 0023 applied?)</p>`; return; }
     const env = typeof data === "string" ? JSON.parse(data) : data;
     let h = `<h2>Insights · ${esc(env.tier)}</h2><p class="muted">${esc(env.disclaimer)}</p>`;
