@@ -36,6 +36,7 @@
   <p id="authmsg" class="muted"></p>
 </div>
 <div id="picker" style="display:none">
+  <button id="tab-day">Day</button> <button id="tab-insights">Insights</button><br><br>
   <input id="day" type="date"> <button id="load">Load</button> <button id="signout" class="muted">Sign out</button>
 </div>
 <div id="app" class="transition"></div>
@@ -101,6 +102,21 @@ if (new URLSearchParams(location.search).get("demo")) {
   };
   $("signout").onclick = () => sb.auth.signOut();
   $("load").onclick = () => load();
+  $("tab-day").onclick = () => load();
+  $("tab-insights").onclick = () => loadInsights();
+  async function loadInsights() {
+    const { data, error } = await sb.rpc("get_insights");
+    if (error) { $("app").innerHTML = `<p class="warn">insights unavailable: ${esc(error.message)}</p><p class="muted">(is migration 0023 applied?)</p>`; return; }
+    const env = typeof data === "string" ? JSON.parse(data) : data;
+    let h = `<h2>Insights · ${esc(env.tier)}</h2><p class="muted">${esc(env.disclaimer)}</p>`;
+    let dom = "";
+    for (const i of (env.insights || [])) {
+      if (i.domain !== dom) { dom = i.domain; h += `<h2>${esc(dom)}</h2>`; }
+      h += `<p class="num"><strong>${esc(i.title)}:</strong> ${esc(i.value)} ${esc(i.unit)} <span class="muted">(n=${esc(i.n)}, ${esc(i.window)})</span></p>`;
+    }
+    h += `<p class="muted">computed live at ${esc((env.computed_at||"").slice(0,16).replace("T"," "))} — every number is a deterministic query over the recorded data.</p>`;
+    $("app").innerHTML = h;
+  }
   async function load() {
     const day = $("day").value || null;
     const { data, error } = await sb.rpc("get_day", day ? { p_day: day } : {});
