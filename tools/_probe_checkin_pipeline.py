@@ -29,9 +29,25 @@ try:
     made2, n2, _ = extract(cur, "core_dryrun")
     print(f"(3) idempotency re-run: {made2} new atoms from {n2} captures (must be 0/0)")
 
+    # food path: a fixture capture into the DISPOSABLE schema only (RULE-01 bounded
+    # exception: rolled back, never committed, never read as data)
+    cur.execute("""insert into core_dryrun.raw_captures
+                     (capture_id, captured_at, source, trust_level, payload)
+                   values (gen_random_uuid(), now(), 'shortcut_text', 'trusted',
+                           '{"kind":"food","text":"big mac, large coke"}'::jsonb)""")
+    made3, _, _ = extract(cur, "core_dryrun")
+    cur.execute("""select evidence_span, kind, presence, time_precision
+                     from core_dryrun.atoms where kind='consume' order by evidence_span""")
+    food_atoms = cur.fetchall()
+    for r in food_atoms:
+        print(f"    consume: {r[0]!r} {r[2]} precision={r[3]}")
+    print(f"(3b) food capture -> {made3} consume atoms (must be 2, no values invented)")
+    cur.execute("select count(*) from core_dryrun.atoms where kind='consume' and value_point is not null")
+    no_invented = cur.fetchone()[0] == 0
+
     print("(4) invariants in-transaction:")
     ok = check_invariants.run_checks(cur, "core_dryrun")
-    good = n_caps >= 3 and made > 0 and made2 == 0 and ok
+    good = n_caps >= 3 and made > 0 and made2 == 0 and made3 == 2 and no_invented and ok
     print("PROBE:", "ALL PASS" if good else "FAIL")
     sys.exit(0 if good else 1)
 finally:

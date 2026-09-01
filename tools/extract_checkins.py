@@ -134,9 +134,86 @@ def extract(cur, schema: str):
                 (cap_id, cap_at, sd, RULE_VERSION, trust, note[:2000],
                  CODE_VERSION, prior))
             n_atoms += 1
+        # food items riding a check-in (the old function folds them into meta.food)
+        meta = p.get("meta") or {}
+        n_atoms += _food_atoms(cur, S, cap_id, cap_at, trust, sd,
+                               (meta.get("food") if isinstance(meta, dict) else None),
+                               dedupe=True)
         made += n_atoms
         print(f"  {cap_at:%Y-%m-%d %H:%M} {ctype:8} -> {n_atoms} atoms")
-    return made, len(rows), skipped
+
+    # standalone food captures (the Log Food shortcut -> ingest_capture, kind='food')
+    cur.execute(f"""
+        select rc.capture_id, rc.captured_at, rc.trust_level, rc.payload
+          from {S}.raw_captures rc
+         where rc.payload->>'kind' = 'food'
+           and not exists (select 1 from {S}.atoms a where a.raw_capture_id = rc.capture_id)
+         order by rc.captured_at""")
+    frows = cur.fetchall()
+    for cap_id, cap_at, trust, payload in frows:
+        p = payload if isinstance(payload, dict) else json.loads(payload)
+        sd = subject_day(cap_at)
+        items = p.get("items")
+        if not isinstance(items, list):
+            # the Log Food shortcut sends one free-text line; a comma-separated
+            # list is split deterministically ("big mac, coke" -> two items)
+            items = [{"label": s.strip()} for s in str(p.get("text") or "").split(",")]
+        n = _food_atoms(cur, S, cap_id, cap_at, trust, sd, items)
+        made += n
+        print(f"  {cap_at:%Y-%m-%d %H:%M} food     -> {n} atoms")
+    return made, len(rows) + len(frows), skipped
+
+
+def _food_atoms(cur, S, cap_id, cap_at, trust, sd, items, dedupe=False):
+    """Each self-reported food/drink item -> one 'consume' atom, deliberately
+    UNRESOLVED: the verbatim label is the evidence span, no nutrient value is
+    stored (REQ-NUT-024's never-guess posture — resolution against a reference
+    source is the Phase-3 nutrition path; a self-logged meal today is a fact with
+    a name, not numbers). occurred_at is the capture instant at 'hour' precision:
+    the meal happened near, not at, the moment it was logged.
+
+    Named limits (reviewer, 2026-09-01): (1) an alcoholic/caffeinated item logged
+    as free text gets NO metric_key yet — REQ-ONT-016's consume+key shape needs
+    classification, which is the Phase-3 resolver's job, not a keyword guess here;
+    the gap is OQ-39 and the immutable capture re-derives losslessly. (2) A
+    re-submitted check-in re-sends its whole food set, so an identical
+    label+day+capture-kind consume atom is SKIPPED (deterministic dedupe — no
+    double-count); an item REMOVED on re-submission leaves its atom current (rare,
+    re-derivable, named residual). (3) An all-empty item list yields no atoms and
+    the capture re-scans each run, same bounded limit as an empty check-in.
+    The dedupe applies ONLY to check-in-riding food (dedupe=True): the check-in
+    re-sends its whole set on every upsert. The standalone Log Food shortcut is
+    ADDITIVE — two separate "coffee" taps are two real coffees, never collapsed."""
+    if not isinstance(items, list):
+        return 0
+    n = 0
+    for it in items:
+        if not isinstance(it, dict):
+            continue
+        label = str(it.get("label") or "").strip()
+        if not label:
+            continue
+        if dedupe:
+            cur.execute(f"""
+                select 1 from {S}.atoms a
+                  join {S}.raw_captures rc on rc.capture_id = a.raw_capture_id
+                 where a.kind = 'consume' and a.subject_day = %s
+                   and a.evidence_span = %s
+                   and rc.payload->>'kind' = 'checkin'
+                   and not exists (select 1 from {S}.atoms b where b.supersedes = a.id)
+                 limit 1""", (sd, label[:200]))
+            if cur.fetchone():
+                continue    # same item already current for this day via a check-in
+        cur.execute(f"""
+            insert into {S}.atoms
+              (raw_capture_id, kind, occurred_at, time_precision,
+               subject_day, subject_day_rule_version, presence,
+               trust_level, provenance, evidence_span, code_version)
+            values (%s, 'consume', %s, 'hour', %s, %s, 'observed',
+                    %s, 'extracted', %s, %s)""",
+            (cap_id, cap_at, sd, RULE_VERSION, trust, label[:200], CODE_VERSION))
+        n += 1
+    return n
 
 
 def log_run(cur, schema: str, status: str, rows_written: int, detail: dict):

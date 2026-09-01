@@ -624,6 +624,22 @@ aggregate or lagged analysis. Settles it: Joe ruling whether `night_*` metrics t
 (like sleep) or stay by-start; then a `rule_version` bump and re-derivation. Raised by the ADR-0035
 reviewer (M4), 2026-09-01.
 
+**OQ-39 — The free-text food path cannot classify alcohol/caffeine, so REQ-ONT-016's consume+metric_key
+shape is unmet for drinks logged as text.**
+Why open: `_food_atoms` (ADR-0035 increment) stores a self-logged item as a bare `consume` atom — verbatim
+label, no nutrient value (REQ-NUT-024 never-guess), and **no `metric_key`**. REQ-ONT-016 requires an
+alcoholic or caffeinated drink to carry a registry key (`alcohol_standard_drinks` etc., seeded in 0016) —
+but assigning one requires *classifying* the free text ("two beers" → alcohol), and a keyword guess here
+would be exactly the fragile shortcut the extraction contract forbids; classification with evidence spans is
+the Phase-3 resolver's job (REQ-CAP-109, REQ-NUT-066..068's ABV path). The capture is immutable, so every
+drink logged meanwhile re-derives losslessly into keyed atoms once the resolver exists — nothing is lost,
+but until then an alcohol atom from this path is indistinguishable from food and no ethanol/standard-drink
+number exists. Depends on it: want-9 alcohol instrumentation coverage for text-logged drinks; any interim
+alcohol query. Settles it: the Phase-3 extraction/resolution slice landing (re-derive `consume` atoms with
+keys from the same captures), or Joe ruling an interim explicit-marker convention (e.g. logging drinks via
+a dedicated prompt) if he wants alcohol keyed sooner. Raised by the ADR-0035 increment reviewer (M1),
+2026-09-01.
+
 ---
 
 ## RESOLVED
