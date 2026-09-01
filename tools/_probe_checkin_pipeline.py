@@ -42,12 +42,26 @@ try:
     for r in food_atoms:
         print(f"    consume: {r[0]!r} {r[2]} precision={r[3]}")
     print(f"(3b) food capture -> {made3} consume atoms (must be 2, no values invented)")
+
+    # workout + health fixtures (disposable schema, rolled back)
+    cur.execute("""insert into core_dryrun.raw_captures
+                     (capture_id, captured_at, source, trust_level, payload)
+                   values (gen_random_uuid(), now(), 'shortcut_text', 'trusted',
+                           '{"kind":"workout","exercise":"bench press","weight_lb":"185","reps":"8","rpe":"7.5"}'::jsonb),
+                          (gen_random_uuid(), now(), 'shortcut_text', 'trusted',
+                           '{"kind":"health","samples":[{"metric":"steps","value":9432},{"metric":"resting_hr","value":58},{"metric":"nonsense","value":1}]}'::jsonb)""")
+    made4, _, _ = extract(cur, "core_dryrun")
+    cur.execute("""select kind, metric_key, value_point, estimate_method, evidence_span
+                     from core_dryrun.atoms where kind in ('workout','activity_sample','vital_sample')
+                    order by metric_key""")
+    for r in cur.fetchall(): print(f"    {r[0]:16} {r[1]:18} {r[2]} ({r[3]}) '{r[4]}'")
+    print(f"(3c) workout+health -> {made4} atoms (must be 5: 3 set attrs + 2 samples; 'nonsense' skipped)")
     cur.execute("select count(*) from core_dryrun.atoms where kind='consume' and value_point is not null")
     no_invented = cur.fetchone()[0] == 0
 
     print("(4) invariants in-transaction:")
     ok = check_invariants.run_checks(cur, "core_dryrun")
-    good = n_caps >= 3 and made > 0 and made2 == 0 and made3 == 2 and no_invented and ok
+    good = n_caps >= 3 and made > 0 and made2 == 0 and made3 == 2 and made4 == 5 and no_invented and ok
     print("PROBE:", "ALL PASS" if good else "FAIL")
     sys.exit(0 if good else 1)
 finally:

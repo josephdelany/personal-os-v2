@@ -35,7 +35,7 @@ from zoneinfo import ZoneInfo
 
 from lib import db
 
-CODE_VERSION = "extract-checkins-v2"
+CODE_VERSION = "extract-checkins-v3"
 RULE_VERSION = "v1-2026-08-23"          # ADR-0019: 04:00 ET boundary, by start
 ET = ZoneInfo("America/New_York")
 
@@ -166,7 +166,102 @@ def extract(cur, schema: str):
         n = _food_atoms(cur, S, cap_id, cap_at, trust, sd, items)
         made += n
         print(f"  {cap_at:%Y-%m-%d %H:%M} food     -> {n} atoms")
-    return made, len(rows) + len(frows), skipped
+
+    # workout set captures (Log Workout shortcut). OQ-33 ruling (a): one atom per
+    # attribute; the shared raw_capture_id IS the set key (REQ-ONT-017). Exercise
+    # name rides each atom verbatim as evidence_span (entity resolution is Phase 4).
+    cur.execute(f"""
+        select rc.capture_id, rc.captured_at, rc.trust_level, rc.payload
+          from {S}.raw_captures rc
+         where rc.payload->>'kind' = 'workout'
+           and not exists (select 1 from {S}.atoms a where a.raw_capture_id = rc.capture_id)
+         order by rc.captured_at""")
+    wrows = cur.fetchall()
+    WKT = {"weight_lb": ("strength_load_lb", "lb", 1500),
+           "reps": ("strength_reps", "rep", 200),
+           "rpe": ("strength_rpe", "rpe", 10)}
+    for cap_id, cap_at, trust, payload in wrows:
+        p = payload if isinstance(payload, dict) else json.loads(payload)
+        sd = subject_day(cap_at)
+        exercise = str(p.get("exercise") or "").strip()[:200]
+        n = 0
+        for field, (mk, unit, hi) in WKT.items():
+            v = p.get(field)
+            try:
+                v = float(v)
+            except (TypeError, ValueError):
+                continue
+            if not (0.0 <= v <= hi):
+                continue    # out of sanity rail: a gap, never a clamp
+            if field == "rpe":   # self-report, half-point coarsening (ADR-0018)
+                lo_, hi_ = max(0.0, v - 0.25), min(10.0, v + 0.25)
+                method = "self_report"
+            else:                # device/plate numbers: measured, point == interval
+                lo_, hi_ = v, v
+                method = "measured"
+            cur.execute(f"""
+                insert into {S}.atoms
+                  (raw_capture_id, kind, metric_key, occurred_at, time_precision,
+                   subject_day, subject_day_rule_version, presence,
+                   value_low, value_point, value_high, estimate_method, unit,
+                   state_class, trust_level, provenance, evidence_span, code_version)
+                values (%s, 'workout', %s, %s, 'minute', %s, %s, 'observed',
+                        %s, %s, %s, %s, %s, 'measurement', %s, 'extracted', %s, %s)""",
+                (cap_id, mk, cap_at, sd, RULE_VERSION, lo_, v, hi_, method, unit,
+                 trust, exercise or field, CODE_VERSION))
+            n += 1
+        made += n
+        print(f"  {cap_at:%Y-%m-%d %H:%M} workout  -> {n} atoms ({exercise or '?'})")
+
+    # health sample captures (phone HealthKit via Shortcuts; measured device values)
+    cur.execute(f"""
+        select rc.capture_id, rc.captured_at, rc.trust_level, rc.payload
+          from {S}.raw_captures rc
+         where rc.payload->>'kind' = 'health'
+           and not exists (select 1 from {S}.atoms a where a.raw_capture_id = rc.capture_id)
+         order by rc.captured_at""")
+    hrows = cur.fetchall()
+    HK = {"steps": ("activity_sample", "total", "count", "day"),
+          "sleep_minutes": ("sleep", "total", "min", "day"),
+          "resting_hr": ("vital_sample", "measurement", "bpm", "day"),
+          "hrv_sdnn_ms": ("heart_rate_variability", "measurement", "ms", "day"),
+          "weight_lb": ("body_measurement", "measurement", "lb", "minute"),
+          "active_energy_kcal": ("activity_sample", "total", "kcal", "day"),
+          "exercise_minutes": ("activity_sample", "total", "min", "day")}
+    for cap_id, cap_at, trust, payload in hrows:
+        p = payload if isinstance(payload, dict) else json.loads(payload)
+        samples = p.get("samples")
+        if not isinstance(samples, list):
+            samples = [p]     # single-sample capture: {kind:'health', metric, value}
+        n = 0
+        for smp in samples:
+            if not isinstance(smp, dict):
+                continue
+            mk = str(smp.get("metric") or "")
+            if mk not in HK:
+                continue      # unknown metric: skipped, never guessed into a key
+            try:
+                v = float(smp.get("value"))
+            except (TypeError, ValueError):
+                continue
+            kind_, state, unit, prec = HK[mk]
+            occ = cap_at
+            sd2 = subject_day(occ)
+            cur.execute(f"""
+                insert into {S}.atoms
+                  (raw_capture_id, kind, metric_key, occurred_at, time_precision,
+                   subject_day, subject_day_rule_version, presence,
+                   value_low, value_point, value_high, estimate_method, unit,
+                   state_class, trust_level, provenance, evidence_span, code_version)
+                values (%s, %s, %s, %s, %s, %s, %s, 'observed',
+                        %s, %s, %s, 'measured', %s, %s, %s, 'extracted', %s, %s)""",
+                (cap_id, kind_, mk, occ, prec, sd2, RULE_VERSION, v, v, v, unit, state,
+                 trust, mk, CODE_VERSION))
+            n += 1
+        made += n
+        print(f"  {cap_at:%Y-%m-%d %H:%M} health   -> {n} atoms")
+
+    return made, len(rows) + len(frows) + len(wrows) + len(hrows), skipped
 
 
 def _food_atoms(cur, S, cap_id, cap_at, trust, sd, items, dedupe=False):
