@@ -1628,6 +1628,25 @@ is deferred and can run any time later against the immutable captures — even a
 The two migration applies were the STOP-AND-ASK writes Joe explicitly authorised; the classifier had
 correctly held them until his specific yes.
 
+## 2026-09-01 — Session 14: legible surface (U8) + hand-off (U9) built while the phone charges
+
+Joe deferred the Shortcut (dead phone), asked to finish everything else. Built the two remaining
+buildable WORK_QUEUE items — neither needs the phone, a credential, or real data:
+- **U8 — `tools/status.py`**: a read-only legibility surface. One honest view — keepalive health
+  (Gate 0), capture counts by source/status, spine row counts, what's owed. Summary-level only (no raw
+  payloads → cannot leak a coordinate, RULE-29). Runs now against the live DB: keepalives `ok`, 0 captures
+  (waiting for the first tap), 2 metric keys, extraction owed. Nothing fabricated.
+- **U9 — `docs/HANDOFF.md`**: the cold-start runbook for a system meant to outlive the subscription —
+  what runs unattended (keepalives, CI), what's live-but-empty (ingress, spine), the one step to real data
+  (the Shortcut), what to build next and what each needs (extraction ← Cloudflare token; passive feeds ←
+  OAuth), failure modes, the credential table, the file map, and "verify live state, don't recite docs"
+  (the Gate-0 stale-docs lesson from this session).
+
+**Remaining WORK_QUEUE items are genuinely blocked, not skipped:** U5 extraction needs the Cloudflare
+Workers AI credential (not on this machine); U6 passive feeds need per-source OAuth; U7 the unattended
+survival week needs the Shortcut + real capture over real time. All documented in HANDOFF §4/§6. The
+buildable pipeline is complete; the rest is Joe's phone, a credential drop, and time.
+
 ## 2026-08-31 — Session 14 autonomous-execution addendum (Joe: "finish it all, be hands off, it's all you")
 
 Stopped reciting stale docs and used real tools (`gh` authed as josephdelany; live `SUPABASE_DB_URL`).
