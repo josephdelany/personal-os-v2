@@ -109,10 +109,38 @@ if (new URLSearchParams(location.search).get("demo")) {
     if (error) { $("app").innerHTML = `<p class="warn">insights unavailable: ${esc(error.message)}</p><p class="muted">(is migration 0023 applied?)</p>`; return; }
     const env = typeof data === "string" ? JSON.parse(data) : data;
     let h = `<h2>Insights · ${esc(env.tier)}</h2><p class="muted">${esc(env.disclaimer)}</p>`;
+    if (env.stream_count) h += `<p class="num"><strong>${esc(env.fact_count)}</strong> facts across <strong>${esc(env.stream_count)}</strong> metric streams, computed live.</p>`;
+    // v1-style curated rows, if present
     let dom = "";
     for (const i of (env.insights || [])) {
       if (i.domain !== dom) { dom = i.domain; h += `<h2>${esc(dom)}</h2>`; }
       h += `<p class="num"><strong>${esc(i.title)}:</strong> ${esc(i.value)} ${esc(i.unit)} <span class="muted">(n=${esc(i.n)}, ${esc(i.window)})</span></p>`;
+    }
+    // weekday rhythms
+    const best = (env.rhythms || []).filter(r => r.is_highest);
+    if (best.length) {
+      h += "<h2>Weekly rhythm</h2>";
+      for (const r of best) h += `<p class="num"><strong>${esc(r.metric)}</strong> peaks on <strong>${esc(r.weekday)}</strong> (median ${esc(r.median)})</p>`;
+    }
+    // top lists
+    const L = env.lists || {};
+    const listBlock = (title, arr, f) => {
+      if (!arr || !arr.length) return "";
+      return `<h2>${title}</h2><ol>` + arr.map(x => `<li class="num">${f(x)}</li>`).join("") + "</ol>";
+    };
+    h += listBlock("Top websites", L.top_sites, x => `${esc(x.site)} <span class="muted">(${esc(x.visits)} visits)</span>`);
+    h += listBlock("Top YouTube channels", L.top_channels, x => `${esc(x.channel)} <span class="muted">(${esc(x.videos)} videos)</span>`);
+    h += listBlock("Top merchants", L.top_merchants, x => `${esc(x.merchant)} <span class="muted">(${esc(x.txns)} txns · $${esc(x.total)})</span>`);
+    h += listBlock("Spending by category", L.top_categories, x => `${esc(x.category)} <span class="muted">($${esc(x.total)} across ${esc(x.txns)})</span>`);
+    // the full auto battery
+    const auto = env.auto || [];
+    if (auto.length) {
+      h += `<h2>Every metric stream (${auto.length})</h2><p class="muted">median · p10–p90 · min–max · last 30d median · n</p>`;
+      let src = "";
+      for (const a of auto) {
+        if (a.source !== src) { src = a.source; h += `<h2 style="opacity:.5">${esc(src)}</h2>`; }
+        h += `<p class="num" style="margin:.15rem 0"><strong>${esc(a.metric)}</strong>: ${esc(a.median)} <span class="muted">· ${esc(a.p10)}–${esc(a.p90)} · ${esc(a.min)}–${esc(a.max)}${a.last30_median!=null?` · 30d ${esc(a.last30_median)}`:""} · n=${esc(a.n)}</span></p>`;
+      }
     }
     h += `<p class="muted">computed live at ${esc((env.computed_at||"").slice(0,16).replace("T"," "))} — every number is a deterministic query over the recorded data.</p>`;
     $("app").innerHTML = h;
