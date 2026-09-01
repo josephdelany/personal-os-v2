@@ -1628,6 +1628,24 @@ is deferred and can run any time later against the immutable captures — even a
 The two migration applies were the STOP-AND-ASK writes Joe explicitly authorised; the classifier had
 correctly held them until his specific yes.
 
+## 2026-09-01 — Session 15 (cont.): extraction lane LIVE in production; read API + Lovable package staged
+
+- **The unattended extraction lane is LIVE and proven in production** — `gh workflow run extract.yml`:
+  GitHub's runner connected to the live DB, extracted honestly (0 captures → 0 atoms — the bridge isn't
+  applied yet), and wrote its `ops.runs` heartbeat (`extract_checkins`, ok, v2). It now runs hourly forever;
+  the instant 0019/0020 apply, check-ins become atoms with zero further action.
+- **Migration 0021 + ADR-0036** — the read API: `public.get_day(p_day)` returns one day's envelope — scores
+  as coarsened intervals **with atom_id on every numeral** (RULE-14/INV-3), food, notes, coverage, extract
+  heartbeat. `authenticated`-only, anon explicitly revoked (write and read credentials disjoint, ADR-0020).
+  **Proven rolled-back on the real check-ins:** energy 5.0 [4.5,5.5] + atom_id; anon=false/authenticated=true.
+  Staged with the held set.
+- **`docs/LOVABLE_FRONTEND.md`** — the paste-ready front-end package: frozen contract, the one screen, and
+  the hard honesty rules (no invented numbers, no streaks/scores/judgment, intervals first-class, absence
+  rendered as absence). Build trigger: ~2 weeks of captures flowing (the alert Joe asked for).
+- **The live applies remain held by the permission layer** (three denials; the classifier requires Joe's
+  own command or a settings rule, and prose directives don't clear it — correctly). The held set is now
+  0019, 0020, 0021: one command each, all reviewed, all proven rolled-back.
+
 ## 2026-09-01 — Session 15: the check-in bridge — old system's shortcuts now feed the spine (ADR-0035)
 
 Joe: cut the middleman, finish in full, no shortcuts. Discovered the OLD workspace intact at
