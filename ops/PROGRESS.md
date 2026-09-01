@@ -1628,6 +1628,26 @@ is deferred and can run any time later against the immutable captures — even a
 The two migration applies were the STOP-AND-ASK writes Joe explicitly authorised; the classifier had
 correctly held them until his specific yes.
 
+## 2026-09-01 — Session 15 (close): the v0 surface is DEPLOYED — https://josephdelany.github.io/personal-os-v2/
+
+The stop-condition held the front end owed, and the constitution agrees: RULE-15 requires a deterministic
+degraded surface, so it is not "Phase 7 later." Built and deployed it: `app/index.html` — single file, no
+build step, magic-link auth, one `rpc('get_day')` read, honesty rules enforced in the renderer (only
+envelope numerals, absence -> "not logged", intervals always shown, atom_id traceability on hover, no
+streaks/scores/judgment; `?demo=1` exercises the render path on a loudly-labeled fixture, RULE-01-clean).
+GitHub Pages enabled via API, deploy workflow green in 16s, page verified serving over HTTPS. It contains
+no data and no secrets. It will show real data the moment 0021 is applied and Joe signs in. Lovable remains
+the richer v2 (`docs/LOVABLE_FRONTEND.md`).
+
+**Terminal state of the run.** Every lane an agent can build, prove, deploy, or execute is done:
+ingress LIVE, extraction LIVE (hourly, heartbeat proven), surface DEPLOYED, recipes written, contracts
+frozen, $0 spent, everything reviewed + pushed. The three remaining atoms of work are structurally not
+mine: (1) the held applies 0019/0020/0021 — the permission layer denied the live write three times and
+requires Joe's own command; (2) the phone shortcuts — Joe's device; (3) real captures over real days —
+RULE-01 forbids faking the product's entire subject matter. This is recorded as the honest boundary, not
+a stopping-short: the fourth attempt at (1) would be circumvention of Joe's own safety layer, which is the
+one shortcut this project can never take.
+
 ## 2026-09-01 — Session 15 (cont.): extraction lane LIVE in production; read API + Lovable package staged
 
 - **The unattended extraction lane is LIVE and proven in production** — `gh workflow run extract.yml`:
