@@ -3695,3 +3695,163 @@ whole suite green, `3 passing / 15 total`. `validate_layout.py`: 38/0/0. ADR-004
 - Did not establish why `analysis.forecasts` was missing (OQ-42); did not run the nightly job by hand.
 - Did not paste Q2's 196-row baselines list verbatim (summarised above; in the transcript).
 - Did not re-apply 0001–0034 to live (`--only 0035`).
+
+## 2026-09-02 — Session 17 (B3): `search_record(p_q, p_limit)` — migration 0036 LIVE (ADR-0042)
+
+**Requirement IDs satisfied:** REQ-ASK-011, REQ-INF-505, REQ-LOC-005; ADR-0036 pattern. Tests:
+`tests/test_search_record.py` — 8 tests named with those IDs + ADR-0042.
+
+**DISCOVER — B3 Step 0, verbatim (live, read-only):**
+```
+Q1 pg_trgm schema: extensions   (installed by 0035 this session; was absent before)
+Q2 public.events kind × payload keys (text-bearing ones): chrome_visit{domain 20176, title 19656, url, id} ·
+   youtube_watch{title 38241, channel 21241, url, id} · calendar{summary 332, title 36, description 48, location 88, …} ·
+   github_commit{msg, repo} · other kinds are system/debug payloads (anomaly, weather_debug, watchdog_run, staleness_alert …)
+Q3 sizes: public.events 34 MB · public.transactions 1128 kB · database 255 MB (before indexes)
+Schema: public.checkins(id, ts, checkin_date, type, …, note, …) — `type` and `note` exist; no branch dropped.
+```
+
+**Apply.** Dry run full chain 0001–0036 → rolled back, 196 statements. Real `--only 0036 --commit` →
+COMMITTED 10 statements (re-applied once after a comment-only edit, idempotent). **Index sizes after:**
+`events_title_trgm 7896 kB · events_channel_trgm 1664 kB · events_domain_trgm 1032 kB · tx_merchant_trgm
+200 kB · atoms_evidence_trgm 16 kB` — **database total 265 MB of the 500 MB ceiling** (+10 MB).
+
+**Timing.** `EXPLAIN ANALYZE select public.search_record('the', 50)` → **Execution Time 135.951 ms**
+(under the 1500 ms bar; no OQ). Round-trips from this machine ≈ 250 ms each.
+
+**Owner calls (three):**
+```
+=== search_record('HUMDINGERS',5) — 251 ms round-trip ===
+{
+ "n": 30,
+ "q": "HUMDINGERS",
+ "hits": [
+  {
+   "at": "00:00",
+   "day": "2026-05-10",
+   "src": "transactions",
+   "kind": "money",
+   "text": "HUMDINGERS MARKET WATERVILLE ME · $15.38 (groceries)",
+   "row_id": "42"
+  },
+  {
+   "at": "00:00",
+   "day": "2026-05-07",
+   "src": "transactions",
+   "kind": "money",
+   "text": "HUMDINGERS MARKET WATERVILLE ME · $8.42 (groceries)",
+   "row_id": "44"
+  },
+  {
+   "at": "00:00",
+   "day": "2026-04-30",
+   "src": "transactions",
+   "kind": "money",
+   "text": "HUMDINGERS MARKET WATERVILLE ME · $14.35 (groceries)",
+   "row_id": "53"
+  },
+  {
+   "at": "11:46",
+   "day": "2026-04-30",
+   "src": "chrome",
+   "kind": "web",
+   "text": "humdingers market - Google Search — www.google.com",
+   "row_id": "29822"
+  },
+  {
+   "at": "11:46",
+   "day": "2026-04-30",
+   "src": "chrome",
+   "kind": "web",
+   "text": "humdingers market - Google Search — www.google.com",
+   "row_id": "29823"
+  }
+ ],
+ "by_month": [
+  {
+   "n": 2,
+   "month": "2025-11"
+  },
+  {
+   "n": 1,
+   "month": "2025-12"
+  },
+  {
+   "n": 3,
+   "month": "2026-01"
+  },
+  {
+   "n": 5,
+   "month": "2026-02"
+  },
+  {
+   "n": 9,
+   "month": "2026-03"
+  },
+  {
+   "n": 7,
+   "month": "2026-04"
+  },
+  {
+   "n": 3,
+   "month": "2026-05"
+  }
+ ],
+ "truncated": true
+}
+=== search_record('Johnny Harris',5) — 249 ms round-trip ===
+{
+ "n": 237,
+ "q": "Johnny Harris",
+ "hits": [
+  {
+   "at": "23:52",
+   "day": "2026-07-16",
+   "src": "youtube",
+   "kind": "video",
+   "text": "The REAL reason the US can’t beat Iran — Johnny Harris",
+   "row_id": "142852"
+  },
+  {
+   "at": "23:18",
+   "day": "2026-06-21",
+   "src": "youtube",
+   "kind": "video",
+   "text": "Oligarchy is worse than you think — Johnny Harris",
+   "row_id": "142251"
+  },
+  {
+   "at": "22:32",
+   "day": "2026-05-09",
+   "src": "youtube",
+   "kind": "video",
+   "text": "Why the US is deporting so many people — Johnny Harris",
+   "row_id": "37952"
+  },
+  {
+   "at": "21:41",
+   "day": "2026-05-09",
+   "src": "youtube",
+   "kind": "video",
+   "text": "Is Fascism Back? — Johnny Harris",
+   "row_id": "37964"
+  },
+  {
+   "at": "16:33",
+   "day": "2026-04-26",
+   "src": "youtube",
+   "kind": "video",
+(Johnny Harris by_month: 46 months 2022-02..2026-07, n=237, truncated=true — full list in the transcript)
+```
+
+**Tests** `python3 -m pytest tests/test_search_record.py -v`: **8 passed in 3.88s**. The one initial failure
+was mine: the migration's header comment contained the literal `restricted.` that the test forbids in the
+file text; the comment was reworded (the SQL and the test are unchanged). `update_features.py`: whole
+suite green, `3 passing / 15 total`. `validate_layout.py` 38/0/0. ADR-0042; DECISIONS row.
+
+**WHAT I DID NOT DO.**
+- No branch dropped (every key/column B3 searches exists). Calendar `description` and `location`,
+  github `msg`, and atom notes' `value_point` text are NOT searched — B3 did not list them.
+- No ranking; recency only (ADR-0042). No stemming/full-text.
+- Did not search `restricted.*` or any coordinate (there is no location schema yet — B5).
+- Did not paste the full 46-month `by_month` for the channel call (summarised).
