@@ -81,9 +81,13 @@ def test_REQ_ASK_003_get_entity_unknown_type_returns_refusal_string_verbatim(cur
 
 
 def test_ADR_0043_get_entity_place_returns_refusal_until_B5(cur):
+    """Before B5 (0037): refusal + 'places arrive with build B5'. After B5.3 (0040): place delegates to
+    get_place, so a key that is not a place_id (uuid) is refused with a note, and an unknown uuid is refused."""
     out = _entity(cur, "place", "anywhere")
     assert out["refusal"] == "I do not track that."
-    assert "B5" in out["note"]
+    assert "B5" in out["note"] or "place_id" in out["note"]
+    cur.execute("select public.get_entity('place', gen_random_uuid()::text)")
+    assert _json(cur.fetchone()[0]) == {"refusal": "I do not track that."}
 
 
 def test_REQ_INF_505_get_entity_unknown_key_returns_n_zero_and_note_only(cur):

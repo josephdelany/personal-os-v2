@@ -4334,3 +4334,56 @@ warnings, 0 failed** (38 → 40). ADR-0045; DECISIONS row.
 - The three `places` `domain_metrics` rows are NOT seeded (self-register on first `away_min` panel row).
 - The hourly `derive_visits` step is committed but has not yet run in GitHub Actions (next :41 run).
 - The coordinate-line lint excludes prose (`.md`): two ADR/PROGRESS lines quote an example `"lat": 51.5231`.
+
+## 2026-09-02 — Session 17 (B5.3): MOVEMENTS read API + Overland receiver — migration 0040 LIVE (ADR-0046)
+
+**DECISION taken as instructed:** Overland (Joe: "the Overland decision is YES, Overland"). Recorded in ADR-0046.
+
+**Requirement IDs satisfied (quoted):** REQ-LOC-002 "never emit any coordinate … into an export, a log line, a git
+commit, or a model prompt"; REQ-LOC-003 "egress a place label rather than the coordinate wherever a label
+suffices"; REQ-LOC-007 "reason over resolved place labels … SHALL NOT include a numeric coordinate in any payload";
+REQ-LOC-012 "surface only the aggregate — never the coordinates it aggregated"; REQ-LOC-013 (provisional windows say
+so); REQ-LOC-015 (coverage reported alongside every aggregate); REQ-LOC-016 (an unknown visit is labelled
+`unknown place`, never the nearest — note: the `observed_absent` presence in REQ-LOC-016's letter is a capture
+semantic with no capture path yet; what B5.3 proves is the unknown-vs-nearest half); REQ-LOC-017 "tier
+`DESCRIPTIVE` … SHALL NOT assert a causal claim"; REQ-LOC-018 "render through the deterministic template path".
+Tests: `tests/test_movements_api.py` — 9, named with those IDs + ADR-0036/0046.
+
+**Overland protocol (verified against the README, fetched this session):** token in `Authorization: Bearer`
+(header only — a `?token=` form is deliberately NOT accepted, ADR-0046); body `{"locations":[Feature…]}`,
+coordinates `[lon, lat]`; reply must be `{"result":"ok"}`. `supabase/functions/location-ingest/index.ts`:
+POST only, constant-time compare against `LOCATION_TOKEN`, forwards the body unchanged to
+`ingest_location_batch` with the service-role client, **never logs the body or a DB message** (only a status
+word and an error code; tested). Not type-checked locally (deno not installed here).
+
+**Apply.** Dry run full chain 0001–0040 → rolled back, 248 statements. Real `--only 0040 --commit` → COMMITTED
+13 statements (`get_movements`, `get_place`, `get_places`, `get_entity` re-created with the place branch
+delegating). Live owner calls (0 fixes yet):
+```
+get_movements(today) → {"day":"2026-09-02","tier":"DESCRIPTIVE","provisional":true,"coverage":{"fixes":0,"status":"none"},"unknown_visits":0}
+get_places()         → {"places":[]}
+get_entity('place','not-a-uuid') → {"refusal":"I do not track that.","note":"a place key is a place_id (uuid)"}
+ACLs: get_movements / get_place / get_places → authenticated (+ service_role, owner-locked inside); anon revoked
+```
+Synthetic-day proof on the twins (rolled back): home 10:00–11:00 · gym 11:30–12:30 · unknown 13:00–13:30 ·
+home 14:00–15:00 ET → 4 visits, labels `Test Home, Test Gym, unknown place, Test Home`, `unknown_visits 1`,
+`home_min 120`, `away_min 90`, `trips 3`, `distinct_places 2`, `first_leave 11:30`, `last_return 14:00`,
+coverage `fresh`/46 fixes; every envelope walked: **no coordinate key at any depth, no number with ≥4 decimals**.
+
+**Tests** `python3 -m pytest tests/test_movements_api.py -v`: **9 passed in 37.94s** (three initial failures were
+test-side: pre-apply, the word "body" in a code comment, and my wrong ET clock expectations). B4's place test
+updated to the post-B5 contract (`tests/test_get_entity.py`, 9/9). `validate_layout.py` 40/0/0.
+`update_features.py`: whole suite green, `3 passing / 15 total`. ADR-0046; DECISIONS row.
+
+**WHAT I DID NOT DO.**
+- **No end-to-end fix from Joe's phone** — the edge function is written, not deployed (needs `supabase login`
+  in a browser, `functions deploy … --no-verify-jwt`, `secrets set LOCATION_TOKEN=…`, Overland configured;
+  all in ADR-0046). `restricted.location_fixes` is 0 rows; `get_movements(today)` shows `coverage none`.
+- No inferred places — only human-registered ones resolve. No transit/commute metrics. No legacy backfill
+  (OQ-43). Battery impact unmeasured.
+- Shortcut fallback (`make_shortcut_location.py`) and "Register this place" Shortcut not built (Overland chosen;
+  register places from THE DESK).
+- Edge function not type-checked or run locally (no deno); its first execution will be the deploy.
+- `unknown_visits: 0` is emitted on an empty day (B5's envelope; a count, not a measure) — flagged, not changed.
+- `get_movements` reads `restricted.location_fixes` directly for coverage and radius of gyration (aggregates
+  only), as B5 specified; the lint allows it because it lives in `migrations/`.
