@@ -36,7 +36,7 @@
   <p id="authmsg" class="muted"></p>
 </div>
 <div id="picker" style="display:none">
-  <button id="tab-today">Today</button> <button id="tab-timeline">Timeline</button> <button id="tab-day">Day</button> <button id="tab-patterns">Patterns</button> <button id="tab-insights">Insights</button><br><br>
+  <button id="tab-today">Today</button> <button id="tab-timeline">Timeline</button> <button id="tab-day">Day</button> <button id="tab-patterns">Patterns</button> <button id="tab-trust">Trust</button> <button id="tab-insights">Insights</button><br><br>
   <input id="day" type="date"> <button id="load">Load</button> <button id="signout" class="muted">Sign out</button>
 </div>
 <div id="app" class="transition"></div>
@@ -102,7 +102,55 @@ if (new URLSearchParams(location.search).get("demo")) {
   $("signout").onclick = () => sb.auth.signOut();
   $("load").onclick = () => load();
   $("tab-day").onclick = () => load();
-  $("tab-today").onclick = () => loadToday();
+  $("tab-today").onclick = () => loadBrief();
+  $("tab-trust").onclick = () => loadTrust();
+  async function loadBrief() {
+    const { data, error } = await sb.rpc("get_today");
+    if (error) { return loadToday(); }   // pre-0032 fallback: state-only view
+    const t = typeof data === "string" ? JSON.parse(data) : data;
+    let h = `<h2>Today · for ${esc(t.for_day)} <span class="muted">(based on ${esc(t.based_on)})</span></h2>`;
+    const s2 = t.state || {};
+    const g = s2.guardian;
+    if (g) h += `<p class="warn num">⚠ ${esc(g.signals_firing)} autonomic signals outside band together — this combination has occurred ${esc(g.fires_historically)}× in your history. Pattern match, not a diagnosis.</p>`;
+    h += "<h2>State</h2>";
+    h += (s2.deviations||[]).slice(0,5).map(d => `<p class="num"><strong>${esc(d.metric)}</strong>: ${esc(d.value)} <span class="muted">(z ${esc(d.z)})</span></p>`).join("") || '<p class="muted">in your normal bands</p>';
+    (s2.streaks||[]).slice(0,3).forEach(x => h += `<p class="num muted">${esc(x.metric)}: ${esc(x.run_days)}d ${esc(x.direction)} band (record ${esc(x.historical_max_run)})</p>`);
+    if (t.connection) { h += `<h2>The connection</h2><p class="num"><span class="warn">[${esc(t.connection.label)}]</span> ${esc(t.connection.sentence)} <span class="muted">(q=${esc(t.connection.q)}, n=${esc(t.connection.n)})</span></p>`; }
+    if ((s2.week_money||[]).length) {
+      h += "<h2>This week vs you</h2>";
+      h += s2.week_money.slice(0,5).map(m => `<p class="num"><strong>${esc(m.name)}</strong>: $${esc(m.this_week)} vs $${esc(m.typical_week)} <strong>(${m.delta>0?"+":""}$${esc(m.delta)})</strong></p>`).join("");
+    }
+    if ((t.watching||[]).length) {
+      h += "<h2>Watching</h2>";
+      h += t.watching.map(w => `<p class="num">⏱ ${esc(w.hypothesis)} — day ${esc(w.day)}/${esc(w.of)} <span class="muted">(${esc(w.status)})</span></p>`).join("");
+    }
+    if ((t.forecast||[]).length) {
+      h += "<h2>Forecast (tomorrow)</h2>";
+      h += t.forecast.map(f => `<p class="num"><strong>${esc(f.metric)}</strong>: ${esc(f.lo)} – ${esc(f.hi)} <span class="muted">(center ${esc(f.point)})</span></p>`).join("");
+      const r = t.forecast_track_record;
+      if (r) h += `<p class="muted num">track record: ${esc(r.inside_band)}/${esc(r.resolved)} inside band (claimed ${esc(r.claimed_coverage)}, achieved ${esc(r.achieved_coverage)})</p>`;
+    }
+    $("app").innerHTML = h;
+  }
+  async function loadTrust() {
+    const { data, error } = await sb.rpc("get_trust");
+    if (error) { $("app").innerHTML = `<p class="warn">trust unavailable: ${esc(error.message)}</p>`; return; }
+    const t = typeof data === "string" ? JSON.parse(data) : data;
+    let h = `<h2>Trust — the system grading itself</h2>`;
+    const f = t.forecasts || {};
+    h += `<h2>Forecasts</h2><p class="num">${esc(f.inside_band??0)}/${esc(f.resolved??0)} inside band · claimed ${esc(f.claimed_coverage)} vs achieved ${esc(f.achieved_coverage??"—")} · mean Brier ${esc(f.mean_brier??"—")} · ${esc(f.pending??0)} pending</p>`;
+    const hy = t.hypotheses || {};
+    h += `<h2>Hypotheses</h2><p class="num">${esc(hy.candidates??0)} exploratory · ${esc(hy.watching??0)} under watch · ${esc(hy.confirmed??0)} confirmed · ${esc(hy.refuted??0)} refuted</p>`;
+    h += "<h2>Scan honesty (observed vs shuffled)</h2>";
+    h += (t.scan_calibration||[]).map(c => `<p class="num">${esc(c.run)}: ${esc(c.observed_sig)} of ${esc(c.tested)} vs ${esc(c.shuffled_null_sig)} shuffled</p>`).join("") || '<p class="muted">no scans yet</p>';
+    h += "<h2>Job heartbeats</h2>";
+    h += (t.job_heartbeats||[]).map(j => `<p class="num muted">${esc(j.job)}: ${esc((j.last||"").slice(0,16).replace("T"," "))} (${esc(j.status)})</p>`).join("");
+    if ((t.coverage_blindspots||[]).length) {
+      h += "<h2>What I cannot currently see</h2>";
+      h += t.coverage_blindspots.map(b => `<p class="warn num">${esc(b.metric)} — no data since ${esc(b.last_day)}</p>`).join("");
+    }
+    $("app").innerHTML = h;
+  }
   $("tab-timeline").onclick = () => loadTimeline();
   $("tab-patterns").onclick = () => loadPatterns();
   async function loadPatterns() {

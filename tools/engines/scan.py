@@ -225,6 +225,8 @@ def run(cur, run_date, stride=1):
         for o in metrics:
             if d == o or _family(d) == _family(o):
                 continue
+            if _family(o) == "weather":
+                continue    # REQ-INF-005: weather is cause-only; behavior cannot move it
             for lag in LAGS:
                 if (d, o, lag) not in seen:
                     tests.append((d, o, lag, False))
