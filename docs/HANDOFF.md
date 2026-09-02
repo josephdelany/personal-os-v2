@@ -1,5 +1,31 @@
 # HAND-OFF — what runs, what's next, how to pick this up cold
 
+## 0. CURRENT STATE — 2026-09-02 (read this first, it supersedes below)
+
+**The system is COMPLETE and LIVE.** Conversation layer shipped (ADR-0038/0039,
+migrations 0026–0033): 7-year panel (111k rows/350 metrics), baselines, the
+contrast scan (19 live patterns, null-calibrated: 123 obs vs null median 87/p95
+102 of 7,062), EXPLORATORY Patterns surface + Watch loop (frozen registrations),
+conformal forecasts + self-scoring, Today brief, Trust page — all on the deployed
+app (https://josephdelany.github.io/personal-os-v2/) and six owner-locked RPCs
+(get_today/get_timeline/get_state/get_patterns+register_watch/get_trust/
+get_insights_guarded/get_day). Adversarially reviewed; 6 MAJORs fixed (tree-FDR,
+n_eff clamp, replicate nulls, no pushed exploratory). docs/SUBMISSION.md = the
+college paper with real numbers. Jobs: keepalives, hourly extract, 6h collectors,
+nightly analysis, weekly Monday scan — all unattended, $0.
+
+**Open items:** (1) Joe may still owe the finisher: migrations 0032→0033 re-apply
++ run_analysis (check `select to_regclass('analysis.forecasts')` — if NULL, run
+RUN sequence in PROGRESS session-16 close). (2) Front end: Joe is designing in
+Cowork; docs/FRONTEND_DESIGN_BRIEF.md + docs/LOVABLE_RESUME.md are his kit; his
+existing Lovable project "My Life Compass" (e410d482…) gets rewired via rounds I
+write and he pastes — round 0 kills the old "Proven" feed. (3) Data gaps: phone
+physiology needs a Health export drop or the 5AM Shortcut automation; check-ins
+need his taps; minute-level web events resume from the revived collectors.
+(4) Deferred+named: HAC in the scan statistic, registry-driven cause/effect
+pruning, E4 event studies, E7 Ask, E8 probes, N6 legacy-render ruling (his call).
+
+
 Written 2026-09-01 so that **Joe alone, or a fresh session with no memory, can operate
 and continue this system** — especially after the Claude subscription ends. Claude is
 needed to *build*, not to *run*: the finished system is Supabase + GitHub Actions + iOS
