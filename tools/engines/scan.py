@@ -207,6 +207,13 @@ def _contrast(drv, out, lag, min_side=None):
             _median(hi) - _median(lo), p, _lag1_rho(ys))
 
 
+def _simes(ps):
+    """Simes combined p for a family. Hoisted to module level (ADR-0050) so the scan's tree FDR and the
+    watch resolver's promotion gate use one implementation; the expression is unchanged."""
+    ps = sorted(ps)
+    return min(p * len(ps) / (k + 1) for k, p in enumerate(ps))
+
+
 def _bh(ps):
     """Benjamini-Hochberg step-up q-values. One owner (RULE-11/12): the scan's
     tree FDR and the watch resolver (ADR-0048) both call this function."""
@@ -278,8 +285,7 @@ def run(cur, run_date, stride=1):
             fams[(_family(r[0]), _family(r[1]))].append(i)
         simes = {}
         for f, idxs in fams.items():
-            ps = sorted(res[i][9] for i in idxs)
-            simes[f] = min(p * len(ps) / (k + 1) for k, p in enumerate(ps))
+            simes[f] = _simes([res[i][9] for i in idxs])      # identical math, one owner (ADR-0050)
         fkeys = sorted(fams)
         fq = bh([simes[f] for f in fkeys])
         selected = {f for f, q in zip(fkeys, fq) if q < Q_CUT}

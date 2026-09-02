@@ -39,11 +39,11 @@ Schema names are parameters so the tests run the identical code against disposab
 import datetime as dt
 import hashlib
 
-from tools.engines import scan
+from tools.engines import scan, speccurve
 from tools.engines.scan import (_load_panel, _dow_demedian, _contrast,   # noqa: F401 — imported, not copied
-                                _mann_whitney_p, _lag1_rho, _median, _bh)
+                                _mann_whitney_p, _lag1_rho, _median, _bh, _simes, _family)
 
-CODE_VERSION = "resolve-v2"
+CODE_VERSION = "resolve-v3"
 MIN_POST_DAYS = 30        # look 1: from the rule text
 EXPIRE_DAYS = 120         # look 2 / expiry: from the rule text (ADR-0048)
 MIN_SIDE = 7              # per-side floor, retained as a separate gate (ADR-0049 h)
@@ -54,10 +54,15 @@ P_PROMOTE_V2 = 0.05       # v2 rule text, look 1 promote
 P_DECIDE_V2 = 0.10        # v2 rule text, refute / look-2 keep
 FORWARD_DAYS = 30         # the forward prediction's window (REQ-INF-301)
 CALIBRATION_MIN = 20      # ruling (b): p_forecast is 0.5 until this many scored resolutions exist
+Q_PROMOTE = 0.05          # REQ-TIER-012: the hierarchical-FDR rejection level at BOTH levels (ADR-0050)
 LOOK_REASONS = ("insufficient_low_n_eff", "insufficient_sign_unstable", "insufficient_low_coverage",
+                "insufficient_fdr_not_rejected", "insufficient_spec_curve_unstable",
+                "insufficient_window_too_short",
                 "kept_promoted_same_sign_p_lt_0_10")   # ledger rows that record a look without ending the watch
 
 VOCAB = {   # resolver reason -> REQ-TIER-018 insufficiency_reason (ADR-0049 c)
+    "insufficient_fdr_not_rejected": "low_n_eff",          # B9: the FDR gate, per ADR-0050
+    "insufficient_spec_curve_unstable": "sign_unstable",   # B9: the specification curve / null gate
     "insufficient_window_too_short": "window_too_short",
     "insufficient_low_n_eff": "low_n_eff",
     "insufficient_sign_unstable": "sign_unstable",
@@ -69,7 +74,8 @@ REASONS = ("promoted_same_sign_q_lt_0_10", "refuted_opposite_sign_q_lt_0_10",
            "promoted_same_sign_p_lt_0_05", "refuted_opposite_sign_p_lt_0_10",
            "kept_promoted_same_sign_p_lt_0_10", "demoted_sign_unstable",
            "insufficient_window_too_short", "insufficient_low_n_eff", "insufficient_sign_unstable",
-           "insufficient_low_coverage", "expired_no_decision_120d")
+           "insufficient_low_coverage", "expired_no_decision_120d",
+           "insufficient_fdr_not_rejected", "insufficient_spec_curve_unstable")
 
 
 def _post_window(dv, data_from, today):
@@ -103,20 +109,22 @@ def _paired_days(drv, out, lag):
 
 
 def _write_ledger(cur, core, h, status_to, reason, post_days, c, q, obs_dir, *,
-                  look, n_eff, rho, coverage, look_day):
+                  look, n_eff, rho, coverage, look_day, gate=None):
     if status_to != h["status"]:
         cur.execute(f"UPDATE {core}.hypothesis_register SET status = %s WHERE hypothesis_id = %s",
                     (status_to, h["hypothesis_id"]))
     cur.execute(f"""INSERT INTO {core}.hypothesis_resolutions
         (hypothesis_id, status_from, status_to, reason, insufficiency_reason, post_days, n_hi, n_lo,
          delta, p_raw, q_fdr, family_m, registered_direction, observed_direction, code_version,
-         look, n_eff, rho_outcome, coverage, look_day)
-        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
+         look, n_eff, rho_outcome, coverage, look_day, share_sig, null_share, q_l1, q_l2, counter_frame_n)
+        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
         (h["hypothesis_id"], h["status"], status_to, reason,
          VOCAB.get(reason) if status_to == "INSUFFICIENT" else None,
          post_days, c[0] if c else None, c[1] if c else None,
          c[4] if c else None, c[5] if c else None, q, h.get("family_m"),
-         h["direction"], obs_dir, CODE_VERSION, look, n_eff, rho, coverage, look_day))
+         h["direction"], obs_dir, CODE_VERSION, look, n_eff, rho, coverage, look_day,
+         (gate or {}).get("share_sig"), (gate or {}).get("null_share"),
+         (gate or {}).get("q_l1"), (gate or {}).get("q_l2"), (gate or {}).get("counter_frame_n")))
     h["status"] = status_to
 
 
@@ -147,18 +155,64 @@ def _write_forward_prediction(cur, core, h, q, snapshot_hash):
         (h["hypothesis_id"], claim, rule, EXPIRE_DAYS - MIN_POST_DAYS, CODE_VERSION, p, snapshot_hash))
 
 
-def _write_progress(cur, schema, h, post_days, calendar_days, coverage, n_eff, c, next_look, look_done):
+def _write_progress(cur, schema, h, post_days, calendar_days, coverage, n_eff, c, next_look, look_done,
+                    gate=None):
+    g = gate or {}
     cur.execute(f"""INSERT INTO {schema}.watch_progress
         (hypothesis_id, post_days, calendar_days, coverage, n_eff, n_hi, n_lo, next_look, look_done,
-         code_version, computed_at)
-        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s, clock_timestamp())
+         share_sig, null_median_share, fdr_level1_q, fdr_level2_q, counter_frame_n, code_version, computed_at)
+        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s, clock_timestamp())
         ON CONFLICT (hypothesis_id) DO UPDATE SET
             post_days = EXCLUDED.post_days, calendar_days = EXCLUDED.calendar_days,
             coverage = EXCLUDED.coverage, n_eff = EXCLUDED.n_eff, n_hi = EXCLUDED.n_hi,
             n_lo = EXCLUDED.n_lo, next_look = EXCLUDED.next_look, look_done = EXCLUDED.look_done,
+            share_sig = coalesce(EXCLUDED.share_sig, {schema}.watch_progress.share_sig),
+            null_median_share = coalesce(EXCLUDED.null_median_share, {schema}.watch_progress.null_median_share),
+            fdr_level1_q = coalesce(EXCLUDED.fdr_level1_q, {schema}.watch_progress.fdr_level1_q),
+            fdr_level2_q = coalesce(EXCLUDED.fdr_level2_q, {schema}.watch_progress.fdr_level2_q),
+            counter_frame_n = coalesce(EXCLUDED.counter_frame_n, {schema}.watch_progress.counter_frame_n),
             code_version = EXCLUDED.code_version, computed_at = EXCLUDED.computed_at""",
         (h["hypothesis_id"], post_days, calendar_days, coverage, n_eff,
-         c[0] if c else None, c[1] if c else None, next_look, look_done, CODE_VERSION))
+         c[0] if c else None, c[1] if c else None, next_look, look_done,
+         g.get("share_sig"), g.get("null_share"), g.get("q_l1"), g.get("q_l2"), g.get("counter_frame_n"),
+         CODE_VERSION))
+
+
+def _tree_fdr(batch_ps, families):
+    """REQ-TIER-012's hierarchical FDR, over the watches looked at tonight (ADR-0050).
+    Level 1: BH within each (driver family -> outcome family) cell. Level 2: BH across the cells'
+    Simes p-values. Both use the scan's own primitives. Returns (q_l1 list, q_l2 list)."""
+    cells = {}
+    for i, f in enumerate(families):
+        cells.setdefault(f, []).append(i)
+    q_l1 = [1.0] * len(batch_ps)
+    for f, idxs in cells.items():
+        for i, q in zip(idxs, _bh([batch_ps[i] for i in idxs])):
+            q_l1[i] = q
+    fkeys = sorted(cells)
+    fq = dict(zip(fkeys, _bh([_simes([batch_ps[i] for i in cells[f]]) for f in fkeys])))
+    q_l2 = [fq[families[i]] for i in range(len(batch_ps))]
+    return q_l1, q_l2
+
+
+def promotion_gate(drv_raw, out_raw, h, q_l1, q_l2):
+    """REQ-TIER-012's three conditions beyond the contrast (ADR-0050). Returns (ok, reason, gate)."""
+    rows, share = speccurve.curve(drv_raw, out_raw, h["lag_days"], h["direction"])
+    null = speccurve.null_share(drv_raw, out_raw, h["lag_days"], h["direction"], h["hypothesis_id"])
+    gate = {"share_sig": share, "null_share": null, "q_l1": round(q_l1, 6), "q_l2": round(q_l2, 6),
+            "counter_frame_n": speccurve.counter_frame_n(drv_raw, out_raw, h["lag_days"]),
+            "spec_rows": rows}
+    if not (q_l1 < Q_PROMOTE and q_l2 < Q_PROMOTE):
+        return False, "insufficient_fdr_not_rejected", gate
+    if null is None:
+        # The window is too short for a circular shift of >= 30 days in EITHER direction, which needs at
+        # least 2*30+1 = 61 paired days. REQ-TIER-012's condition cannot be DEMONSTRATED, which is a
+        # failure to promote, never a pass. Consequence, stated plainly (ADR-0050): the earliest a v2
+        # watch can be promoted is ~61 paired post-registration days, not the 30 of its look-1 rule.
+        return False, "insufficient_window_too_short", gate
+    if not (share > null):
+        return False, "insufficient_spec_curve_unstable", gate
+    return True, None, gate
 
 
 def _decide_v1(h, c, q, obs_dir, look, final):
@@ -208,11 +262,13 @@ def run(cur, today=None, *, core="core", panel_schema="analysis"):
             "confirmation_data_from", "resolution_rule", "status", "rule_version", "looks_done", "promoted_on")
     watches = [dict(zip(cols, r)) for r in cur.fetchall()]
     stats = {"open": len(watches), "looked": 0, "promoted": 0, "kept": 0, "demoted": 0, "refuted": 0,
-             "expired": 0, "undecided": 0, "waiting": 0, "on_clock": 0, "not_evaluable": 0, "final_v1": 0}
+             "expired": 0, "undecided": 0, "waiting": 0, "on_clock": 0, "not_evaluable": 0, "final_v1": 0,
+             "gate_blocked": 0}
     if not watches:
         return stats
     panel = _load_panel(cur, schema=panel_schema)
     batch = []      # (h, c, post_days, snapshot, look, n_eff, rho, coverage, final)
+    drv_by_id = {}  # the raw post-registration series, kept for the promotion gate
     for h in watches:
         data_from = h["confirmation_data_from"].date()
         lag_d = h["lag_days"]
@@ -285,19 +341,34 @@ def run(cur, today=None, *, core="core", panel_schema="analysis"):
                           look=look, n_eff=n_eff, rho=rho, coverage=coverage, look_day=today)
             stats["expired" if gate == "expired_no_decision_120d" else ("demoted" if h["status"] == "INSUFFICIENT" and final else "undecided")] += 1
             continue
+        drv_by_id[h["hypothesis_id"]] = (drv_raw, out_raw)
         batch.append((h, c, post_days, _snapshot_hash(drv_raw, out_raw), look, n_eff, rho, coverage, final))
     if batch:
         qs = _bh([c[5] for _, c, *_ in batch])
-        for (h, c, post_days, snap, look, n_eff, rho, coverage, final), q in zip(batch, qs):
+        families = [(_family(h["exposure_metric"]), _family(h["outcome_metric"])) for h, *_ in batch]
+        q_l1s, q_l2s = _tree_fdr([c[5] for _, c, *_ in batch], families)
+        for idx, ((h, c, post_days, snap, look, n_eff, rho, coverage, final), q) in enumerate(zip(batch, qs)):
             h["family_m"] = len(batch)
             obs_dir = "positive" if c[4] > 0 else "negative"
-            before = h["status"]
             if h["rule_version"] == "v1":
                 status_to, reason = _decide_v1(h, c, q, obs_dir, look, final)
             else:
                 status_to, reason = _decide_v2(h, c, c[5], obs_dir, look, final)
+            gate = None
+            if status_to == "PROMOTED" and reason.startswith("promoted") and h["rule_version"] != "v1":
+                # REQ-TIER-012: a contrast is not a promotion. The specification curve, its
+                # circular-shift null and hierarchical FDR at both levels decide (ADR-0050).
+                ok, gate_reason, gate = promotion_gate(drv_by_id[h["hypothesis_id"]][0],
+                                                       drv_by_id[h["hypothesis_id"]][1],
+                                                       h, q_l1s[idx], q_l2s[idx])
+                speccurve.store(cur, panel_schema, h["hypothesis_id"], look, gate.pop("spec_rows"))
+                if not ok:
+                    status_to, reason = "INSUFFICIENT", gate_reason
             _write_ledger(cur, core, h, status_to, reason, post_days, c, q, obs_dir,
-                          look=look, n_eff=n_eff, rho=rho, coverage=coverage, look_day=today)
+                          look=look, n_eff=n_eff, rho=rho, coverage=coverage, look_day=today, gate=gate)
+            if gate:
+                _write_progress(cur, panel_schema, h, post_days, None, coverage, n_eff, c, None,
+                                look, gate=gate)
             if reason.startswith("promoted"):
                 _write_forward_prediction(cur, core, h, q, snap); stats["promoted"] += 1
             elif reason.startswith("kept"):
@@ -308,6 +379,9 @@ def run(cur, today=None, *, core="core", panel_schema="analysis"):
                 stats["refuted"] += 1
             elif reason.startswith("expired"):
                 stats["expired"] += 1
+            elif reason in ("insufficient_fdr_not_rejected", "insufficient_spec_curve_unstable",
+                            "insufficient_window_too_short"):
+                stats["gate_blocked"] += 1
             else:
                 stats["undecided"] += 1
     return stats

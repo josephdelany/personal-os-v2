@@ -4972,3 +4972,113 @@ file is committed — the twin fixture has no notion of "uncommitted".
 - The three-surface identity is proven on nine synthetic watches; live it is proven only at zero.
 - `insufficient_window_too_short` remains in the reason CHECK and is still written by no code path (the on-the-clock
   state is surfaced by `_watching_rows`, not ledgered).
+
+## 2026-09-02 — Session 20 (B9): the confirmation gate — migrations 0046 LIVE (ADR-0050, ADR-0051)
+
+**Requirement IDs satisfied (quoted at the start):** REQ-TIER-012 "WHEN a CANDIDATE hypothesis passes
+hierarchical-FDR rejection at every level of its branch, has a specification curve computed over at least 50
+defensible specifications, and has a circular-shift null showing its significant-specification share exceeds the
+null median … SHALL promote it to PROMOTED"; REQ-TIER-013 "WHEN a PROMOTED hypothesis is estimated on
+post-registration data only, with a minimal sufficient adjustment set computed from the DAG, Newey–West HAC
+standard errors, a computed E-value at both the point estimate and the interval limit nearest the null, all
+negative-control checks passed, and all DoWhy refutation tests passed … SHALL assign tier
+CONFIRMED_OBSERVATIONAL"; REQ-TIER-014 (either failure → REFUTED + a DESCRIPTIVE statement naming the check);
+REQ-TIER-023 (adjustment set, E-value and negative control in the same payload); REQ-TIER-024 (absolute units);
+REQ-TIER-028 (counter-frame); REQ-TIER-040 (no skipped promotion), -041 (any demotion in one step), -042 (the job
+id), -043 (surfaced by name), -044 (no human approval); RULE-20 (the forward prediction is scored); RULE-21;
+RULE-11/12. Tests: `tests/test_confirmation_gate.py` — 15, named with those IDs.
+
+**DISCOVER (live, read-only):**
+```
+SELECT hypothesis_id, status, rule_version FROM core.hypothesis_register WHERE status IN ('PROMOTED','CONFIRMED_OBSERVATIONAL');
+  -> (0 rows)
+analysis.panel (last 365d): 350 metrics, 111,626 rows total, 2019-01-01 .. 2026-09-01
+pip install statsmodels dowhy networkx  -> statsmodels 0.14.6 OK, networkx 3.6.1 OK, **dowhy FAILS**
+```
+
+**Wrong against the environment / the live schema / the spec — said exactly, fixed minimally, recorded:**
+1. **DoWhy does not install.** Every release requires Python < 3.14 (0.14 requires `>=3.9,<3.14`); the only
+   interpreter on this machine is 3.14.3. It would install on the GitHub runner (3.12) — i.e. the check would
+   exist only where Joe cannot run it. The three refuters are implemented in `confirm.refuters` instead,
+   deterministically and seeded, over the same HAC estimator (ADR-0051 §6). B9's test name
+   `test_REQ_TIER_014_dowhy_placebo_failure_refutes` is renamed `..._refutation_test_failure_refutes`, because a
+   test named for DoWhy that does not use DoWhy would be a false name.
+2. **`window` is a reserved word in PostgreSQL.** B9's `analysis.spec_curves` DDL fails to parse; renamed
+   `window_spec`. Found because the uncommitted migration broke 21 twin-based tests in B8's suite run.
+3. **`scan._shift` cannot produce a null on a post-registration window.** It computes the offset as
+   `60 + hash % 241` with no reference to series length, so on any shorter series it returns the input
+   unchanged. Measured: a synthetic pair with a real effect scored `share_sig 1.000` **and**
+   `null_median_share 1.000`. `speccurve.circular_shift` replaces it; `scan` is untouched.
+4. **REQ-TIER-025 forbids what B9's envelope specifies.** B9 renders `effect:{… ci:[lo,hi] …}`; the requirement
+   says the layer "SHALL NOT render a frequentist confidence interval on any user-facing surface". The interval
+   is stored on the ledger (it is needed for the E-value at the limit, and for audit through the trace) and
+   **not rendered**; the envelope carries `prob_direction` instead. A real credible interval waits for B19.
+5. **The data-subset refuter could never fail.** A random 80% subset is nested in the full sample, so its
+   estimate lands inside a 1.96-SE interval essentially always: a clean effect, an estimate carried by four
+   leverage points, and pure noise all scored share-inside 1.00. Replaced with leave-one-contiguous-block-out
+   (5 blocks, >= 80% inside), the right resampling unit for a time series.
+6. **REQ-TIER-012's null moves the earliest promotion from day 30 to ~day 61.** A shift of >= 30 days in either
+   direction needs >= 61 paired days; on a 45-day window every such offset is equivalent to a shift of <= 15 the
+   other way. So a v2 watch now ledgers `insufficient_window_too_short` at look 1 until its window is long
+   enough — which also gives that previously-dead reason its first code path. Shrinking the shift to fit would
+   be weakening the requirement (RULE-00). Look 1 can still refute at 30 days; only promotion waits.
+
+**Built.** `migrations/0046_confirmation_gate.sql` (26 statements, live): `config.dag_edges` (22 seed edges with
+their basis), `analysis.spec_curves`, `analysis.brief_notes`, 20 new ledger columns, 6 new `watch_progress`
+columns, the extended reason CHECK, the REQ-TIER-040 trigger, and the envelopes (`get_findings.promoted[]` /
+`.confirmed[]` full REQ-TIER-023 payload, `history[].run_id`, `get_today.notices[]`).
+`tools/engines/speccurve.py` (108 specifications + the circular-shift null + the counter-frame),
+`tools/engines/confirm.py` (the gate), `tools/run_confirm.py` (stamps `run_id` before the gate runs),
+`tools/engines/resolve.py` → **resolve-v3** (the REQ-TIER-012 promotion gate on the v2 look-1 path only, as B9
+specifies; v1 semantics untouched), `scan._simes` hoisted so both use one Simes implementation,
+`.github/workflows/analysis.yml` (the gate runs nightly after the resolver; the statistics stack pinned).
+
+**Apply.** Dry run full chain 0001–0046 → `ROLLED BACK 327 statements`. Real `--only 0046 --commit` →
+**COMMITTED 26 statements**. Live after apply:
+```
+run_confirm.py -> confirm committed: {'considered': 0, 'confirmed': 0, 'refuted': 0, 'insufficient': 0,
+                                      'rechecked': 0, 'demoted': 0, 'scored': 0, 'not_ready': 0}
+ops.runs        -> ['confirm_gate', 'ok', {... 'code_version': 'confirm-v1'}]
+config.dag_edges -> 22 rows      analysis.spec_curves / analysis.brief_notes -> present
+register triggers -> hypothesis_register_freeze, hypothesis_register_tier_order
+check_invariants.py --core core -> INVARIANTS: ALL PASS
+```
+
+**The honesty number.** `test_ADR_0050_confirmation_on_pure_noise_synthetic_is_below_5_percent`: **3.0%**
+(6/200 seeded AR(1) ρ=0.5 null runs, direction pre-registered), against REQ-TIER-012/013's implied 5%. The same
+measurement with the direction chosen **after** seeing the data gives **6.5%** — that difference is the
+arithmetic value of pre-registration in this system. The test runs in CI.
+
+**WHAT I DID NOT DO (B9).**
+- **DoWhy is not used at all** (it cannot install on Python 3.14). The three refutation tests are mine,
+  implemented over the same estimator; they are faithful in intent, not identical in implementation, and the
+  data-subset one is deliberately different (blocks, not random subsets).
+- **The negative controls cost power.** The future-exposure control refutes at p < 0.20, so on a pair with no
+  relationship it fires about one time in five; a genuine finding therefore has roughly a 20% chance of being
+  refuted by chance at each evaluation. B9 sets that bar; it is not tuned here.
+- **No Bayesian credible interval.** REQ-TIER-025 wants one; the payload carries a probability of direction and
+  no interval at all. B19 owns the real thing.
+- **The DAG is a 22-edge seed.** Nothing can be confirmed that it does not know, so its gaps are silent refusals
+  (`insufficient_no_adjustment_set`), not wrong answers — but they are refusals Joe will only see when a watch
+  matures. Extending it is his, by migration.
+- **The E-value's risk-ratio conversion is an approximation** (Chinn 2000), stated in the payload; it is not a
+  measured risk ratio and there is no relative-risk data behind it.
+- **REQ-TIER-045 is not implemented**: a CONFIRMED finding whose adjustment-set coverage falls below 0.60 in the
+  trailing 90 days should re-render as INSUFFICIENT. It does not; the monthly re-check is the only guard.
+- **REQ-TIER-015 / the EXPERIMENTAL tier and micro-trials are untouched.**
+- **The counter-frame uses the exposure's bottom quartile as "absent"**, which is a proxy. A true absence needs
+  RULE-07's three-valued presence, which `analysis.panel` does not carry.
+- **Nothing has run on a real row.** There are still zero `watch:` rows; the gate has been exercised only on
+  disposable twins and seeded synthetic series. Its first live decision cannot happen before ~November 2026
+  (a watch registered today needs ~61 paired days to promote, then 60 more to be confirmable).
+- The nightly job is materially slower: 108 specifications plus a 20-repetition null per maturing watch.
+  Batching the specification INSERT cut one test module from 21 minutes to about 5; the remaining cost is real
+  computation, and only watches crossing a look boundary pay it.
+
+**Whole suite.** `update_features.py --strict`: **121 passed, 1 failed, 0 errors, 0 skipped of 122**. The one
+failure was again self-inflicted contamination, not a B9 defect: B10's `specs/09-action/requirements.md` was
+written into the tree while the suite ran, and `validate_layout.py` (which a test runs as a subprocess) counts
+every `REQ-*` token in a spec as a declaration — so B10's prose citations of REQ-TIER-047/049 read as duplicate
+IDs, and the REQUIREMENTS_INDEX count went stale. With that file set aside, `validate_layout.py` is **40 passed,
+0 warnings, 0 failed**, and every other test passed with B9 fully applied. Second time the same lesson landed:
+nothing for the next B-file may touch `migrations/` or `specs/` until the current one is committed.

@@ -56,7 +56,7 @@ WATCHES = [
 #   'late2'  : tracks exposure for 45 days (promoted at look 1), then noise -> demoted at look 2
 #   'sparse' : data on even days only over 61 calendar days -> coverage < 0.60 at look 1
 WATCHES_V2 = [
-    ("watch:v2.conf",   "v2.x_conf",   "v2.y_conf",   "positive", 45,  0, "same"),
+    ("watch:v2.conf",   "v2.x_conf",   "v2.y_conf",   "positive", 100, 0, "same"),
     ("watch:v2.noise",  "v2.x_noise",  "v2.y_noise",  "positive", 45,  0, "noise"),
     ("watch:v2.auto",   "v2.x_auto",   "v2.y_auto",   "positive", 45,  0, "auto"),
     ("watch:v2.late2",  "v2.x_late2",  "v2.y_late2",  "positive", 130, 0, "late2"),
@@ -72,7 +72,7 @@ def _series(i, shape):
     x = float((i * 7) % 45)
     if shape == "flat":
         return 1.0, float(i % 10)
-    if shape == "noise" or (shape == "late" and i <= 45) or (shape == "late2" and i > 45):
+    if shape == "noise" or (shape == "late" and i <= 45) or (shape == "late2" and i > 100):
         return x, float((i * 13) % 17)
     if shape == "auto":
         return x, float(i)
@@ -275,7 +275,8 @@ def test_ADR_0048_same_sign_q_below_0_10_promotes_and_writes_ledger_and_predicti
     # PROMOTED row stays under watch (v2: until its look 2); it is ALSO in the promoted list
     assert w["watch:t.conf"]["status"] == "PROMOTED" and w["watch:t.conf"]["post_days"] == 45
     pr = {x["hypothesis_id"]: x for x in env["promoted"]}
-    assert pr["watch:t.conf"]["tier"] == "PROMOTED" and "not a causal claim" in pr["watch:t.conf"]["note"]
+    assert pr["watch:t.conf"]["tier"] == "PROMOTED"
+    assert "causal claim" in pr["watch:t.conf"]["note"]      # the note disclaims causality (B9 rewords it)
     assert env["counts"]["watching"] == len(env["watching"])
     hist = [h for h in env["history"] if h["hypothesis_id"] == "watch:t.conf"]
     assert len(hist) == 1 and hist[0]["tier"] == "PROMOTED"
@@ -457,11 +458,11 @@ def test_ADR_0049_v2_look1_requires_p_lt_0_05_and_n_eff_20(cur):
 
 
 def test_ADR_0049_v2_look2_demotes_sign_unstable(cur):
-    # look 1 at day 45: the first 45 days track the exposure -> PROMOTED, look_day recorded
-    _run(cur, LATE_D0 + dt.timedelta(days=45))
+    # look 1 at day 100: the first 100 days track the exposure -> PROMOTED, look_day recorded
+    _run(cur, LATE_D0 + dt.timedelta(days=100))
     (r1,) = _ledger(cur, "watch:v2.late2")
     assert r1["reason"] == "promoted_same_sign_p_lt_0_05" and r1["look"] == 1
-    assert r1["look_day"] == LATE_D0 + dt.timedelta(days=45)
+    assert r1["look_day"] == LATE_D0 + dt.timedelta(days=100)
     # look 2 at 130 paired days: the post-promotion window is noise -> demoted, INSUFFICIENT(sign_unstable)
     s2 = _run(cur, TODAY)
     rows = sorted(_ledger(cur, "watch:v2.late2"), key=lambda r: r["look"])
