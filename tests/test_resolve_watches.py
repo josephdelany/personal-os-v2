@@ -37,12 +37,16 @@ FROZEN = ("exposure_metric", "outcome_metric", "lag_days", "direction", "transfo
 #   shape 'flat'     : exposure constant                        -> no contrast possible (q1 == q3)
 # Pre-registration days ALWAYS carry the opposite pattern, strongly and in bulk, so that a resolver
 # which read them would flip the sign (REQ-INF-107 is proven by the confirm case surviving them).
+#   shape 'noise'    : outcome unrelated to exposure (p ~ 0.62 single-look) -> evaluated, not resolved
+#   shape 'absent'   : no panel rows at all                                 -> window never fills
 WATCHES = [
     ("watch:t.conf",   "t.x_conf",   "t.y_conf",   "positive", 45,  200, "same"),
     ("watch:t.ref",    "t.x_ref",    "t.y_ref",    "positive", 45,  200, "opposite"),
     ("watch:t.short",  "t.x_short",  "t.y_short",  "positive", 20,  200, "same"),
     ("watch:t.expire", "t.x_expire", "t.y_expire", "positive", 130, 0,   "flat"),
     ("watch:t.clock",  "t.x_clock",  "t.y_clock",  "positive", 60,  0,   "flat"),
+    ("watch:t.noise",  "t.x_noise",  "t.y_noise",  "positive", 45,  0,   "noise"),
+    ("watch:t.absent", "t.x_absent", "t.y_absent", "positive", 130, 0,   "absent"),
 ]
 
 
@@ -50,6 +54,8 @@ def _series(i, shape):
     x = float((i * 7) % 45)
     if shape == "flat":
         return 1.0, float(i % 10)
+    if shape == "noise":
+        return x, float((i * 13) % 17)
     y = x + float((i * 3) % 5) if shape == "same" else 100.0 - x
     return x, y
 
@@ -66,12 +72,16 @@ def _seed(cur):
             (wid, xm, ym, direction,
              dt.datetime.combine(d0, dt.time(0, 0), dt.timezone.utc),
              dt.datetime.combine(d0, dt.time(0, 0), dt.timezone.utc), RULE))
+        if shape == "absent":
+            continue                            # a watch whose metrics never reach the panel
         rows = []
         for i in range(1, n_post + 1):
             x, y = _series(i, shape)
             rows += [(d0 + dt.timedelta(days=i), xm, x), (d0 + dt.timedelta(days=i), ym, y)]
-        for j in range(1, n_pre + 1):          # pre-registration: the OPPOSITE pattern, in bulk
-            x, y = _series(j, "opposite" if shape == "same" else "same")
+        # the registration day itself (j = 0) and the days before it carry the OPPOSITE pattern, in
+        # bulk: `day > confirmation_data_from` must exclude day 0 too (reviewer mutant M1)
+        for j in range(0, n_pre + 1) if n_pre else ():
+            x, y = _series(j + 1, "opposite" if shape == "same" else "same")
             rows += [(d0 - dt.timedelta(days=j), xm, x), (d0 - dt.timedelta(days=j), ym, y)]
         cur.execute(f"INSERT INTO {ANALYSIS_TWIN}.panel (day, metric, value, src, code_version) VALUES "
                     + ",".join(["(%s,%s,%s,'fixture','test')"] * len(rows)),
@@ -116,14 +126,14 @@ def _status(cur, wid):
 
 def _ledger(cur, wid=None):
     q = (f"SELECT hypothesis_id, status_from, status_to, reason, post_days, n_hi, n_lo, delta, "
-         f"p_raw, q_fdr, registered_direction, observed_direction, code_version "
+         f"p_raw, q_fdr, family_m, registered_direction, observed_direction, code_version "
          f"FROM {CORE}.hypothesis_resolutions")
     if wid:
         cur.execute(q + " WHERE hypothesis_id=%s", (wid,))
     else:
         cur.execute(q)
     cols = ("hypothesis_id", "status_from", "status_to", "reason", "post_days", "n_hi", "n_lo",
-            "delta", "p_raw", "q_fdr", "registered_direction", "observed_direction", "code_version")
+            "delta", "p_raw", "q_fdr", "family_m", "registered_direction", "observed_direction", "code_version")
     return [dict(zip(cols, r)) for r in cur.fetchall()]
 
 
@@ -157,10 +167,13 @@ def test_REQ_INF_107_resolver_ignores_days_before_confirmation_data_from(cur):
     # 200 pre-registration days carry the OPPOSITE sign in bulk; only the 45 post days agree with
     # the registration. Reading pre-registration data would refute; the rule confirms.
     _run(cur)
-    assert _status(cur, "watch:t.conf") == "CONFIRMED_OBSERVATIONAL"
+    assert _status(cur, "watch:t.conf") == "PROMOTED"
     (row,) = _ledger(cur, "watch:t.conf")
-    assert row["post_days"] == 45                    # not 245
+    assert row["post_days"] == 45                    # not 246 (200 pre days + day 0 + 45)
     assert row["observed_direction"] == "positive"
+    cur.execute(f"SELECT count(*) FROM {ANALYSIS_TWIN}.panel WHERE metric='t.x_conf' AND day = "
+                f"(SELECT confirmation_data_from::date FROM {CORE}.hypothesis_register WHERE hypothesis_id='watch:t.conf')")
+    assert cur.fetchone()[0] == 1                    # day 0 exists in the panel and was excluded
     # and the direct check: the resolver's own window helper drops every pre-registration day
     cur.execute(f"SELECT confirmation_data_from FROM {CORE}.hypothesis_register WHERE hypothesis_id='watch:t.conf'")
     d0 = cur.fetchone()[0].date()
@@ -174,7 +187,7 @@ def test_REQ_INF_103_resolver_changes_only_status(cur):
                 f"WHERE hypothesis_id LIKE 'watch:%%' ORDER BY 1")
     before = cur.fetchall()
     stats = _run(cur)
-    assert stats["confirmed"] + stats["refuted"] + stats["expired"] >= 3   # changes did happen
+    assert stats["promoted"] + stats["refuted"] + stats["expired"] >= 3   # changes did happen
     cur.execute(f"SELECT hypothesis_id, {', '.join(FROZEN)} FROM {CORE}.hypothesis_register "
                 f"WHERE hypothesis_id LIKE 'watch:%%' ORDER BY 1")
     assert cur.fetchall() == before
@@ -191,34 +204,47 @@ def test_REQ_INF_103_resolver_changes_only_status(cur):
     cur.execute("SAVEPOINT t")
 
 
-def test_ADR_0048_same_sign_q_below_0_10_confirms_and_writes_ledger_and_prediction(cur):
+def test_ADR_0048_same_sign_q_below_0_10_promotes_and_writes_ledger_and_prediction(cur):
+    # PROMOTED, not CONFIRMED_OBSERVATIONAL: REQ-TIER-013's gate (DAG adjustment set, HAC, E-value,
+    # negative controls) is not built, so the causal tier is never assigned here (ADR-0048 amendment)
     stats = _run(cur)
-    assert stats["confirmed"] >= 1
-    assert _status(cur, "watch:t.conf") == "CONFIRMED_OBSERVATIONAL"
+    assert stats["promoted"] >= 1 and stats["evaluated"] == 5      # conf, ref, noise, expire, clock (>=30 paired days)
+    assert _status(cur, "watch:t.conf") == "PROMOTED"
+    cur.execute(f"SELECT count(*) FROM {CORE}.hypothesis_register WHERE status='CONFIRMED_OBSERVATIONAL'")
+    assert cur.fetchone()[0] == 0
     (row,) = _ledger(cur, "watch:t.conf")
-    assert row["status_from"] == "INSUFFICIENT" and row["status_to"] == "CONFIRMED_OBSERVATIONAL"
-    assert row["reason"] == "confirmed_same_sign_q_lt_0_10"
+    assert row["status_from"] == "INSUFFICIENT" and row["status_to"] == "PROMOTED"
+    assert row["reason"] == "promoted_same_sign_q_lt_0_10"
     assert float(row["q_fdr"]) < 0.10 and float(row["delta"]) > 0
+    # BH was applied across the batch of three (REQ-INF-106): q is corrected, not the raw p
+    assert row["family_m"] == 3
+    assert float(row["p_raw"]) < float(row["q_fdr"]) <= 3 * float(row["p_raw"])
     assert row["registered_direction"] == row["observed_direction"] == "positive"
     assert min(row["n_hi"], row["n_lo"]) >= resolve.MIN_SIDE
     assert row["code_version"] == resolve.CODE_VERSION
     # REQ-INF-301 / RULE-20: a forward prediction in the same transaction
     cur.execute(f"""SELECT evidence_tier, model_version, p_forecast, outcome_bool, resolves_at > created_at,
-                           resolution_rule, claim_text, forecast_distribution
+                           resolution_rule, claim_text, forecast_distribution, feature_snapshot_hash
                       FROM {CORE}.predictions WHERE hypothesis_id='watch:t.conf'""")
     (p,) = cur.fetchall()
-    assert p[0] == "CONFIRMED_OBSERVATIONAL" and p[1] == resolve.CODE_VERSION
+    assert p[0] == "PROMOTED" and p[1] == resolve.CODE_VERSION
     assert float(p[2]) == round(1.0 - resolve.Q_CONFIRM, 4) and p[3] is None and p[4] is True
-    assert p[5] == RULE and "t.x_conf -> t.y_conf" in p[6] and p[7] is None
-    # surfaced: get_findings (twin) lists it as CONFIRMED, in history, and the prediction as pending
+    assert "positive" in p[5] and "t.x_conf -> t.y_conf" in p[6] and p[7] is None
+    assert re.fullmatch(r"[0-9a-f]{64}", p[8])                     # REQ-INF-307: a real snapshot hash
+    # surfaced: get_findings (twin) keeps it under watching (status PROMOTED), in history with the
+    # claim named, and the prediction as pending; `confirmed` stays absent — nothing is confirmed
     env = _findings(cur)
-    assert "watch:t.conf" in {c["hypothesis_id"] for c in env["confirmed"]}
+    assert "confirmed" not in env
+    w = {x["hypothesis_id"]: x for x in env["watching"]}
+    assert w["watch:t.conf"]["status"] == "PROMOTED"
     hist = [h for h in env["history"] if h["hypothesis_id"] == "watch:t.conf"]
-    assert len(hist) == 1 and hist[0]["tier"] == "CONFIRMED_OBSERVATIONAL"
+    assert len(hist) == 1 and hist[0]["tier"] == "PROMOTED"
+    assert hist[0]["exposure"] == "t.x_conf" and hist[0]["outcome"] == "t.y_conf" and hist[0]["direction"] == "positive"
     assert hist[0]["trace"]["table"] == "core.hypothesis_resolutions" and hist[0]["reason"] == row["reason"]
     assert "watch:t.conf" in {p["hypothesis_id"] for p in env["predictions_pending"]}
-    for c in env["confirmed"]:
-        assert "e_value" not in c and "negative_control" not in c     # still absent, never a placeholder
+    # the noise watch was evaluated and NOT resolved: no row, still open, still on the page
+    assert _ledger(cur, "watch:t.noise") == [] and _status(cur, "watch:t.noise") == "INSUFFICIENT"
+    assert "watch:t.noise" in w
 
 
 def test_ADR_0048_opposite_sign_q_below_0_10_refutes(cur):
@@ -238,7 +264,7 @@ def test_ADR_0048_opposite_sign_q_below_0_10_refutes(cur):
 
 def test_ADR_0048_no_decision_after_120_days_expires_to_insufficient_with_reason(cur):
     stats = _run(cur)
-    assert stats["expired"] == 1 and stats["still_watching"] == 1
+    assert stats["expired"] == 2 and stats["still_watching"] == 2      # expire + absent; clock + noise
     assert _status(cur, "watch:t.expire") == "INSUFFICIENT"
     (row,) = _ledger(cur, "watch:t.expire")
     assert row["reason"] == "expired_no_decision_120d" and row["post_days"] >= resolve.EXPIRE_DAYS
@@ -267,12 +293,14 @@ def test_REQ_TIER_043_every_status_change_has_a_ledger_row(cur):
     assert len(ledger) == len(changed) + stats["expired"]        # expiry keeps INSUFFICIENT but is still recorded
     assert len(ledger) == len(set(by_id))                          # one row per change
     assert {r["reason"] for r in ledger} <= set(resolve.REASONS)
-    # every change is surfaced by name with its reason (REQ-TIER-043)
+    # every change is surfaced by name — the claim (exposure, outcome, direction) and its reason (REQ-TIER-043)
     env = _findings(cur)
     assert {h["hypothesis_id"] for h in env["history"]} == set(by_id)
-    # idempotent: a second run changes nothing and writes nothing
+    for h in env["history"]:
+        assert h["exposure"] and h["outcome"] and h["direction"] and h["reason"] and "tier" in h
+    # idempotent: a second run changes nothing and writes nothing (a PROMOTED row is final for v1)
     stats2 = _run(cur)
-    assert stats2["confirmed"] == stats2["refuted"] == stats2["expired"] == 0
+    assert stats2["promoted"] == stats2["refuted"] == stats2["expired"] == 0
     assert len(_ledger(cur)) == len(ledger)
     # the ledger is append-only even for the owner (0012 trigger attached in 0042)
     with pytest.raises(Exception) as exc:
@@ -280,3 +308,14 @@ def test_REQ_TIER_043_every_status_change_has_a_ledger_row(cur):
     assert "append-only" in str(exc.value)
     cur.execute("ROLLBACK TO SAVEPOINT t")
     cur.execute("SAVEPOINT t")
+
+
+def test_ADR_0048_watch_whose_metrics_never_reach_the_panel_expires_by_the_calendar(cur):
+    _run(cur)
+    assert _status(cur, "watch:t.absent") == "INSUFFICIENT"
+    (row,) = _ledger(cur, "watch:t.absent")
+    assert row["reason"] == "expired_no_decision_120d" and row["post_days"] == 0
+    assert row["n_hi"] is None and row["delta"] is None and row["q_fdr"] is None
+    env = _findings(cur)
+    assert "watch:t.absent" not in {w["hypothesis_id"] for w in env.get("watching", [])}
+    assert {i["hypothesis_id"]: i["reason"] for i in env["insufficient"]}["watch:t.absent"] == "expired_no_decision_120d"

@@ -4503,3 +4503,176 @@ Until 0042 is applied, the nightly workflow step will fail on the missing table 
 - `PROMOTED` is read as an open status but never assigned. `EXPERIMENTAL` untouched.
 - MIN_SIDE 7 and EXPIRE_DAYS 120 are unratified placeholders (ADR-0048; OQ-44).
 - The workflow step is unexercised in CI until the next scheduled run after apply.
+
+### Session 18 addendum — adversarial review of 4e45bef, and what changed because of it
+
+**Requirement IDs corrected:** RULE-20 is **not** satisfied by B7 (a prediction is emitted; nothing scores it; nothing
+demotes) — the 4e45bef commit header listed it; this addendum withdraws that claim. REQ-INF-301 is satisfied for
+`PROMOTED` (the tier now assigned), not for `CONFIRMED_OBSERVATIONAL`.
+
+**The reviewer's findings, verbatim (reviewer subagent, 2026-09-02, on `git show 4e45bef`):**
+
+> ### 1. The nightly cadence destroys the type-I error control the frozen rule promises. CRITICAL
+> `tools/engines/resolve.py:86-152` + `.github/workflows/analysis.yml:24-28`
+> The rule text is "median delta same sign with q<0.10 on **>=30** post-registration days". The resolver evaluates it **every night** from post-day 30 onward, and the *first* night the statistic crosses 0.10 the watch is irreversibly written to `CONFIRMED_OBSERVATIONAL` or `REFUTED` (`resolve.py:137-145`). Nothing corrects for the repeated looks. This is textbook optional stopping, and B7 line 26 forbids exactly this kind of reinterpretation ("It **may not** be reinterpreted per row") — but "any night ≥30" versus "at day 30" is itself an interpretation, and the code picked the one that maximises false resolutions.
+> Measured, using `scan._dow_demedian` / `scan._contrast(min_side=7)` / `scan._bh` — i.e. the resolver's own code path — on independent null series, decision replayed nightly for days 30…120:
+> | series | P(resolve at day 30, single look) | P(resolve on some night, 30→120) |
+> |---|---|---|
+> | iid null (2000 sims) | **0.137** | **0.581** |
+> | AR(1) ρ=0.5 (500 sims) | **0.199** | **0.742** |
+> | AR(1) ρ=0.7 (500 sims) | — | **0.862** |
+> Failure scenario: Joe presses "Watch this" on a pattern that is pure noise. Real daily metrics (sleep minutes, HRV, RHR) are autocorrelated at ρ≈0.5–0.7. Within four months there is a **74–86% chance** the watch resolves, and by symmetry of the null roughly half of those match the registered direction — so a **~37–43% chance a noise pattern is stamped `CONFIRMED_OBSERVATIONAL`**, permanently (ADR-0048: "a CONFIRMED row stays CONFIRMED"). The pre-registration apparatus — the whole point of RULE-19 and `confirmation_data_from` — is defeated not by a leak but by the schedule.
+> Note the constitution names this exact number class in RULE-21: "the naive false-positive rate is ~0.78 versus ~0.07 at ρ = 0.5."
+>
+> ### 2. Even a single look is anticonservative, and the weekday demedian on a 30-day window makes it worse. HIGH
+> `tools/engines/resolve.py:115-116`, `123`
+> At the nominal 0.10 gate, one look at day 30 gives 0.1065 (iid, no demedian), **0.137 with the demedian applied**, and **0.199 at ρ=0.5**. Two separate causes, both measured:
+> * `_dow_demedian` on a 30-day window estimates each weekday median from 4–5 points and subtracts it from the same data used for the test. On the scan's 7-year window that median has ~365 points and is harmless; here it costs ~3 percentage points of false-positive rate.
+> * `_mann_whitney_p` is a normal approximation with no continuity correction on ~8 observations per side, and no autocorrelation adjustment at all. `_contrast` returns ρ as `c[6]`; `resolve.py` never reads it. There is no `n_eff`, no Kish deflation, no Newey–West. RULE-21 mandates HAC standard errors and says "any surface reporting `n` without `n_eff` fails" — `core.hypothesis_resolutions` stores `n_hi`/`n_lo` (`0042:20-21`) and no `n_eff` column, unlike `analysis.contrasts` which has `n_eff_hi`/`n_eff_lo`.
+> The ledger reason `insufficient_low_n_eff` (`0042:17`) is a misnomer: no `n_eff` is ever computed anywhere in the resolver.
+>
+> ### 3. The workflow step is live and the table it needs does not exist. HIGH
+> `.github/workflows/analysis.yml:24-28`; verified live: `select to_regclass('core.hypothesis_resolutions')` → **NULL**
+> Migration 0042 was not applied (held by the classifier), but the workflow step was committed anyway. `resolve.run`'s very first statement (`resolve.py:89-96`) joins `hypothesis_resolutions` in a `NOT EXISTS`, so it raises `UndefinedTable`, `run_resolve.py:29-38` writes an `ops.runs` error row and re-raises, and the step exits non-zero.
+> PROGRESS discloses "the nightly workflow step will fail on the missing table … visible, not silent." What it does not say is the consequence: the step is in job `refresh`, and job `scan` declares `needs: refresh` (`analysis.yml:33`). **A failed resolve step fails the whole `refresh` job and skips the `scan` job every day, including Monday.** So an unapplied migration silently disables the weekly contrast scan, and the only visible symptom is a red workflow that also happens to be the Gate-0 evidence surface. Live `ops.runs` currently shows `contrast_scan` last ran 2026-09-02; the next scheduled run (08:23 UTC tonight) will not happen.
+>
+> ### 4. The tests do not constrain the engine. Four defect-injections pass 8/8. HIGH
+> `tests/test_resolve_watches.py`
+> I copied the tree to a scratchpad, injected one defect at a time, and ran the file against the same disposable twins. Baseline: 8 passed in 49.06s.
+> | mutant | change | result |
+> |---|---|---|
+> | M1 | `resolve.py:54` `data_from < d` → `data_from <= d` (pre-registration day admitted) | **8 passed** |
+> | M2 | `resolve.py:134` `_bh([...])` → identity (no BH at all, q = raw p) | **8 passed** |
+> | M3 | `resolve.py:42` `MIN_SIDE = 7` → `1` | **8 passed** |
+> | M4 | `resolve.py:115-116` remove both `_dow_demedian` calls (the registered `transformation`, adjustment set `["day_of_week"]`) | **8 passed** |
+> | M5 | `EXPIRE_DAYS = 120` → `300` | 2 failed (caught) |
+> | M6 | invert the sign logic at `resolve.py:136` | 3 failed (caught) |
+> | M7 | drop the post-window filter entirely | 5 failed (caught) |
+> Specific consequences:
+> * **M1**: `test_REQ_INF_107_resolver_ignores_days_before_confirmation_data_from` cannot detect the off-by-one it is named for. The fixture (`tests:69-75`) writes panel rows at `d0±1…n` and **never at `d0` itself**, so `<` and `<=` are indistinguishable. Since `confirmation_data_from = now()`, the registration day contains hours of data that pre-existed the registration — the exact leak REQ-INF-107/RULE-19 exist to stop — and the test proving it is blind to it.
+> * **M2**: nothing anywhere asserts BH was applied. The only BH assertion is `resolve._bh is scan._bh` (`tests:138`), an object-identity check that a function which never calls it still passes. The "q" in "q<0.10" is unproven to be a q. (It is also, with the usual batch size of one watch, arithmetically identical to the raw p — see #6.)
+> * **M4**: the registered `transformation` can be silently dropped with a green suite.
+> * The fixture itself (`tests:49-54`, `y = x + (i*3)%5`) makes the outcome an almost exact copy of the exposure; the resulting p is ~1e-12, so `assert float(row["q_fdr"]) < 0.10` (`tests:201`) passes under any transformation of the statistic. No test exercises a watch that is evaluated and *not* resolved (q ≥ 0.10) — the `still_watching` branch at `resolve.py:150-151` and the batch-expiry branch at `146-149` are both dead in the test suite; the only expiry path exercised is the degenerate `c is None` one.
+> Separately: `pytestmark = skipif(not SUPABASE_DB_URL)` (`tests:22-25`) and **no workflow runs pytest at all** (`grep pytest .github/workflows` → nothing; `gates.yml` runs only `validate_layout.py` and `test_guard.sh`). Every TEST-tier rule in the constitution — including RULE-11, RULE-20, RULE-13, RULE-15 — is enforced only when someone runs pytest by hand.
+>
+> ### 5. `CONFIRMED_OBSERVATIONAL` is assigned without a single condition REQ-TIER-013 requires, and skips `PROMOTED`. HIGH
+> `tools/engines/resolve.py:137-141`
+> REQ-TIER-013 (specs/04-reasoning/requirements.md:87): the tier is assigned WHEN a **`PROMOTED`** hypothesis is estimated on post-registration data "with a minimal sufficient adjustment set computed from the DAG, Newey–West HAC standard errors, a computed E-value at both the point estimate and the interval limit nearest the null, all negative-control checks passed, and all DoWhy refutation tests passed." REQ-TIER-012 requires a ≥50-specification curve and a circular-shift null before `PROMOTED`.
+> The resolver assigns that tier from `INSUFFICIENT` on one quartile Mann-Whitney contrast: no adjustment set beyond weekday, no HAC, no E-value, no negative control, no refutation tests, no specification curve, no `PROMOTED` step. The ADR discloses the E-value/negative-control absence and lists "`PROMOTED` as an intermediate status" under "Not built", which is honest — but disclosure does not convert a skipped gate into a passed one (RULE-00). `CONFIRMED_OBSERVATIONAL` is the tier that unlocks causal vocabulary downstream (REQ-TIER-021, requirements.md:882, `0035_get_domain.sql:46`), and it is now reachable by a rule whose measured false-resolution rate is item #1.
+> Also: no interval is ever stored (`0042:22` `delta NUMERIC`, no lo/hi), so the "E-value at the interval limit nearest the null" REQ-TIER-013 demands can never be computed from what the ledger keeps.
+>
+> ### 6. REQ-INF-106's family size is never persisted, and the batch is usually one. MEDIUM-HIGH
+> `tools/engines/resolve.py:134`; `migrations/0042_hypothesis_resolutions.sql:9-28`
+> REQ-INF-106: "SHALL apply Benjamini–Hochberg across the set of registered hypotheses evaluated in a given confirmation run, **and SHALL persist that family size**." `hypothesis_resolutions` has no `family_m` column (`analysis.contrasts` has one, `scan.py:347`). Concrete consequence: a stored `q_fdr = 0.04` cannot be audited or reproduced — you cannot tell whether it came from a batch of 1 (where q ≡ p and there is no multiplicity correction whatsoever) or a batch of 12. Since watches are created one at a time by hand, the common case is m=1, and the "q<0.10" gate the whole design rests on is then a bare uncorrected p<0.10 — which is measured at 0.137–0.199 actual (#2).
+>
+> ### 7. `p_forecast = 0.90` is not a forecast, and nothing can ever score it — yet the commit claims RULE-20. MEDIUM-HIGH
+> `tools/engines/resolve.py:70-83`; ADR-0048 §9; commit message header
+> * **The number.** 0.90 is `1 - Q_CONFIRM`, justified in the ADR as "the bound the rule itself licenses". That is a category error: a BH FDR bound is a property of the *rejection set* in the discovery run, not the probability that *this* claim reproduces on the *next* 30 days. With m=1 it is not even an FDR. It is a constant: every confirmation ever made will carry p_forecast = 0.90 regardless of effect size, n, or q, so the resulting reliability diagram measures nothing.
+> * **The predicate.** `claim_text` predicts a *sign* on the next 30 days (`resolve.py:75-76`); `resolution_rule` is stored as the frozen sentence "median delta same sign with **q<0.10** on >=30 post-registration days" (`resolve.py:82`) — a strictly harder predicate than the claim, and free text. REQ-INF-304 requires "a machine-evaluable predicate over stored metrics **with no free text**"; REQ-INF-305 requires rejecting such a prediction at insert. If a future scorer honours `resolution_rule`, the probability of re-crossing q<0.10 on a fresh 30 days is far below 0.90, so confirmations would be systematically scored false at Brier 0.81 each — and under RULE-20/REQ-INF-320 auto-demoted.
+> * **Nothing scores it.** `tools/engines/forecast.py:103-111` selects predictions by joining `claim_text` against `analysis.forecasts`; a `resolve-v1` row matches nothing, so it is never resolved and never counted as unresolvable (REQ-INF-329). Meanwhile `get_findings.predictions_pending` (`0042:129-135`) selects `outcome_bool IS NULL AND model_version NOT LIKE 'forecast-%'` — so every confirmation adds a row that appears in "pending predictions" **forever**, with a `resolves_at` date that recedes into the past.
+> The commit message header lists `RULE-20` among the satisfied IDs. RULE-20 is "Findings whose predictions fail are **demoted automatically**". No scoring, no demotion, no test named `RULE_20`. The ADR and PROGRESS both say so plainly under "Not built" / "WHAT I DID NOT DO"; the commit message does not.
+>
+> ### 8. Three other read surfaces were not updated and now disagree with `get_findings`. MEDIUM
+> `migrations/0033_review_fixes.sql:43-50` (`get_today`), `0033:160` (`get_trust`), `0031_patterns_watch_api.sql` (`get_patterns.watch_progress`)
+> 0042 taught `get_findings` about resolution and expiry. Nothing else was told.
+> * `get_today().watching` (0033:43-50) selects **every** `watch:%` row with no status filter and renders `'day', current_date - preregistered_at::date, 'of', 30`. The morning after a watch confirms, the TODAY page says *"day 31 of 30"* for a hypothesis the FINDINGS page lists as CONFIRMED. At day 200 it says "day 200 of 30".
+> * `get_trust().hypotheses.watching` (0033:160) counts `status='INSUFFICIENT'` with no expiry-ledger exclusion, while `get_findings().counts.watching` (0042:122-125) excludes expired rows. After one expiry the two surfaces return different integers for the same named quantity — the precise failure RULE-12 ("two screens agree by construction rather than by coincidence") exists to prevent. `tests:253` asserts internal consistency of `get_findings` only.
+>
+> ### 9. Off-by-one (actually off-by-several) between the displayed clock and the resolver's gate. MEDIUM
+> `resolve.py:52-54, 117-119` vs `0042:67` (`'days_elapsed', current_date - h.preregistered_at::date, 'days_needed', 30`)
+> The UI counts calendar days since `preregistered_at`. The resolver requires 30 **paired** days that are strictly after `confirmation_data_from` *and* have the outcome present at `d + lag_days`. So the true requirement is `elapsed >= 31 + lag_days`, plus panel-build latency (`analysis.panel` max day is currently 2026-09-01, one day behind), plus any missing day in either metric. For a `lag=7` watch the page will read "day 30 of 30", then "day 37 of 30", while the resolver reports `on_clock` and writes nothing. Under RULE-14/INV-3 the rendered "30" does not correspond to any stored computation the resolver performs.
+>
+> ### 10. A watch whose metric leaves the panel never resolves and never expires. MEDIUM
+> `tools/engines/resolve.py:112-114`
+> `if not drv_raw or not out_raw: stats["on_clock"] += 1; continue` — the expiry check is downstream of the contrast, so it is unreachable for a watch with an empty window. Failure scenario: a device stops reporting, or a metric is renamed in `panel.py`'s canon map, and `panel.get(h["exposure_metric"], {})` returns `{}`. The watch sits in `get_findings.watching` at "day 400 of 30" indefinitely, and `EXPIRE_DAYS = 120` — the ADR's stated defence against exactly this ("without it a watch that is never significant is WATCHING forever") — never fires. Same hole for any watch stuck below 30 paired days.
+>
+> ### 11. `MIN_SIDE = 7` is inert; ADR-0048 §4 describes a decision that has no effect. MEDIUM-LOW
+> `resolve.py:42, 123-124`; `scan.py:194-203`
+> With 30 pairs, `_contrast` sets `q1 = xs[7]`, `q3 = xs[22]`, then `hi = x >= q3` (indices 22–29) and `lo = x <= q1` (indices 0–7): both sides are **always ≥ 8** by construction. The `len(pairs) < 4*min_side` floor is 28, below the 30 the `MIN_POST_DAYS` gate already enforced. So `min_side=7` can never bind, and the only way `_contrast` returns `None` is `q1 == q3` (a constant/near-constant exposure). The explicit re-check at `resolve.py:124` (`min(c[0], c[1]) < MIN_SIDE`) is dead code. The `insufficient_low_n_eff` path therefore only ever triggers on a degenerate series — which is also the only expiry path any test exercises (`WATCHES` entries `t.expire`/`t.clock` are both `shape="flat"`).
+>
+> ### 12. The confirmation reads a non-point-in-time panel, and nothing records which panel state decided it. MEDIUM
+> `resolve.py:106` → `scan._load_panel`; `tools/engines/panel.py:49` (`delete from analysis.panel`, full nightly rebuild); `resolve.py:83`
+> * REQ-INF-104 has two clauses: `subject_day >= confirmation_data_from` **and** `ingested_at >= confirmation_data_from`. `analysis.panel` carries no `recorded_at`/`ingested_at`, so the second clause is not enforced and cannot be. REQ-INF-105's mandated response to a leak (abort + write `pipeline_violations`) does not exist anywhere in the codebase.
+> * REQ-INF-108 requires every confirmation feature to come through a point-in-time `f_daily_panel(as_of)`. The resolver reads the current full-rebuild snapshot directly, so a late-arriving or revised value for a past day changes the answer between nights.
+> * `feature_snapshot_hash` — the column whose whole purpose (REQ-INF-307) is making a prediction reproducible against the feature state — is filled with `json.dumps({"q_fdr_at_confirmation": q})` (`resolve.py:83`). It is not a hash and identifies no snapshot. After a panel rebuild there is no way to reconstruct the data that produced a CONFIRMED verdict.
+>
+> ### 13. `resolved_at` is the transaction timestamp, so a run's ledger rows are indistinguishable in time. LOW
+> `migrations/0042_hypothesis_resolutions.sql:12` (`DEFAULT now()`), `:99-101`, `:110-118`
+> `now()` is transaction start, so every resolution written by one nightly run shares an identical `resolved_at`. Consequences: the `history` block's `ORDER BY resolved_at DESC LIMIT 50` (`0042:118`) breaks ties arbitrarily — a run resolving more than 50 watches would truncate non-deterministically, and repeat calls could return different sets; and the `insufficient.reason` subquery `ORDER BY r.resolved_at DESC LIMIT 1` (`0042:99-101`) has no defined winner if a hypothesis ever acquires two rows in one transaction. `clock_timestamp()` would order them.
+>
+> ### 14. `scan.py` was modified and nothing tests `scan`. MEDIUM
+> `tools/engines/scan.py:127-133, 180-207, 210-221, 270`
+> The commit asserts "Additive: scan behaviour is unchanged" in a docstring (`scan.py:183-184`), the ADR (§3), the commit message, and PROGRESS. There is **no test file anywhere that imports `scan`** — the only exerciser is `tools/_probe_scan.py`, a manual rolled-back probe, and PROGRESS does not record it being re-run this session. The claim rests entirely on reading the diff. I read it too and it does look behaviour-preserving (`min_side=None` defaults to `MIN_SIDE`; `_load_panel(cur)` still emits the identical SQL; `bh = _bh` is byte-identical to the removed closure) — but "I read it" is precisely the standard CLAUDE.md rejects.
+>
+> ### 15. REQ-TIER-043 is quoted in PROGRESS but the surfaced record omits what the requirement asks for. LOW-MEDIUM
+> `migrations/0042_hypothesis_resolutions.sql:110-118`; `tests:256-282`
+> The requirement: "WHEN a finding is demoted … SHALL surface the demotion to Joe **within the next brief**, naming **the previous claim** and the reason it no longer holds." The `history` entries carry `hypothesis_id`, `status_from/to`, `reason`, `post_days`, `delta`, `q_fdr` — no claim sentence, no exposure/outcome, no effect description — and `get_findings` is a page, not the brief. The test named for the ID asserts that a ledger row exists and that ids appear in `history`; it does not test either clause of the requirement. Related: the spec's named table for this is `tier_history` (REQ-TIER-042, which also requires "the ID of the job that performed it"); `hypothesis_resolutions` records `code_version` but no `run_id`, so a ledger row cannot be tied to its `ops.runs` heartbeat.
+>
+> ### 16. The new append-only table is not covered by any CI invariant. LOW-MEDIUM
+> `tools/check_invariants.py:88-99`
+> I ran the full CI invariant suite live. [output: INVARIANTS: ALL PASS — identical to the session-start run above.]
+> `hypothesis_resolutions_append_only` is absent from the checker's expected-trigger list, so the ADR's claim that the ledger is "append-only via the 0012 statement-level trigger (owner included)" has no live CI proof — only a twin-schema assertion (`tests:278-280`) that, per #4, is not run by any workflow.
+>
+> ### 17. The error path can persist derived personal values into `ops.runs`. LOW
+> `tools/run_resolve.py:31-36`
+> `json.dumps({"error": str(e)[:400]})`. pg8000 stringifies the whole server error dict; a CHECK or constraint violation includes `'D'` = `Failing row contains (…)`. A failed `hypothesis_resolutions` insert would write the metric names and the observed `delta`/`p_raw` into `ops.runs.detail` — a table whose own header comment declares "These are operational, not personal data" (`0011_ops.sql:4`). Not an egress and not a credential leak (the DSN is read before the try block), but it is derived personal data landing in a table classified as non-personal.
+>
+> ### 18. Definition-of-Done item 4 not met. LOW
+> `ops/features.json` is untouched by the commit. PROGRESS states the ledger stays at "3 passing / 15 total" because no existing entry's requirement ID is carried by a B7 test — honest, and it means the first mechanism in the system that can move a hypothesis up the tier ladder has no entry in the feature ledger at all (F-009 "Claim ladder computed and stored on the finding row", REQ-TIER-001, remains `failing` with `proving_test: null`). Related: `core.findings` is never written by the resolver, so REQ-INF-301/302 and REQ-TIER-013/014 — all phrased in terms of a `findings` row — are satisfied only by analogy to `hypothesis_register.status`.
+>
+> ### Checks that came back clean
+> * **RULE-01 (fabrication)** — clean. Live: `core.hypothesis_register` = 34 rows, all `CANDIDATE`, all from the scan; `core.predictions` = 0 rows; `core.hypothesis_resolutions` absent. The commit writes no rows to any real table. Test fixtures go to `core_pytest`/`ops_pytest`/`analysis_pytest` inside a rolled-back transaction (ADR-0022 exception), and the series are deterministic integer sequences, not plausible personal data.
+> * **RULE-30 / RULE-22 / RULE-09** — no `getUserMedia`, no forbidden-method import, no model output on any numeric path; there is no model in this commit at all.
+> * **Cost/privacy** — no new dependency, no egress, no coordinate, no credential in any added line. `validate_layout.py`: 40 passed, 0 warnings, 0 failed.
+> * **RULE-13** — the lag, window and adjustment set come from frozen register columns, not from a model.
+> * The `count(*) FILTER (WHERE … NOT EXISTS (…))` construct in `0042:122-125` — I was unsure Postgres permits a correlated subquery inside an aggregate FILTER; I verified against the live server that it does.
+>
+> ### What I could not check, and why
+> * **Migration 0042 applied live.** It is not applied (`to_regclass` → NULL), so I could not observe the real `get_findings` envelope, the real trigger, the real RLS state, or whether the `CREATE OR REPLACE FUNCTION` cleanly replaces 0041's version in production. Everything I say about 0042's behaviour comes from the twin-schema test run and from reading the SQL.
+> * **End-to-end behaviour on a real watch.** `core.hypothesis_register` holds zero `watch:%` rows, so no line of the resolver has ever executed against real data. Every statistical statement above is either a simulation using the resolver's own functions or an analysis of the code; the actual distribution of Joe's metrics (ties, missingness, weekday structure) could move the measured false-positive rates in either direction. What would settle it: register 3–5 watches on deliberately unrelated metric pairs and let the resolver run for 120 days as a live negative control — which is also the cheapest possible calibration study.
+> * **The "97 passed" whole-suite claim.** I ran `tests/test_resolve_watches.py` (8 passed, 49s, reproduced) and seven mutants of it. I did not run the other 12 test files, so I cannot confirm that the `scan.py` edits leave the rest of the suite green — though, per #14, no test in the suite imports `scan` anyway.
+> * **Whether the nightly workflow has already failed.** I read `ops.runs` (no `resolve_watches` rows yet — the step has not had a scheduled run since the commit) but I did not query the GitHub Actions API for run history or check the `scan` job's skip status. The first scheduled run is 08:23 UTC.
+> * **`_probe_scan.py` on the refactored scan.** Running it would touch `analysis.contrasts` and `core.hypothesis_register` inside a transaction it rolls back; I judged that beyond read-only access for a reviewer and did not run it. It is the artifact that would actually prove "scan behaviour unchanged".
+> * **The Lovable/PWA render layer.** `docs/build/L*.md` describe client rendering of `get_findings`; I did not open the client, so I cannot say how `history`, the stripped-null `q_fdr`/`delta`, or the "day N of 30" string are rendered, nor whether RULE-14's numeral-template rule holds there.
+> * **Whether Joe intended nightly evaluation.** Finding #1 is a statistical fact; whether the frozen sentence "on >=30 post-registration days" was meant as a single test at day 30 is a question of intent I cannot resolve from the documents. B7 line 94 explicitly chose nightly ("a watch that crosses 30 days should resolve the next morning") without pricing the multiplicity, and OQ-44 does not raise it.
+
+**Disposition, finding by finding (F = fixed in this addendum's commit; R = ruling needed, recorded in OQ-44; N = noted, not fixed):**
+1. **R — agree, and it is the most likely thing to be wrong with B7.** Not changed unilaterally: "one look at 30" vs "any night ≥30" is a reading of Joe's frozen sentence, and B7 line 94 chose nightly explicitly. Recorded as OQ-44(d) with a recommendation (one look at first ≥30 paired days, one last at 120, Kish `n_eff` stored and gated). Nothing can mature before ~2 Oct even if 0042 is applied today, so the ruling can precede the first resolution.
+2. **N/R** — agree on the demedian and the missing `n_eff`; both go with (1). `insufficient_low_n_eff` is a misnomer: never written; kept in the CHECK set, said so in the ADR.
+3. **F** — the resolver is now its own workflow job (`needs: refresh`); `scan` still `needs: refresh` only, so a resolve failure cannot skip the Monday scan. It will still write a visible `error` row nightly until 0042 is applied.
+4. **F (M1, M2, still-watching branch) / N (M3, M4, CI).** The fixture now writes the registration day itself with the opposite pattern (M1 would fail); `family_m == 3` and `p_raw < q_fdr <= 3·p_raw` are asserted (M2 would fail); a seventh watch with an unrelated outcome (p ≈ 0.62) exercises "evaluated, not resolved". M3 is inert by construction (see #11), M4 (dropping the demedian) is still undetected — noted. No workflow runs pytest: pre-existing, OQ-44(g).
+5. **F — the resolver assigns PROMOTED, not CONFIRMED_OBSERVATIONAL** (ADR-0048 §9 amendment). I agree with the reviewer: the causal tier without REQ-TIER-013's gate is a weakened gate (RULE-00), and it unlocks causal vocabulary downstream. This diverges from B7 as written; Joe may overrule (OQ-44e). `PROMOTED` is final for resolve-v1; `get_findings.confirmed` stays empty.
+6. **F** — `family_m` column, persisted per row; the "batch of one → q ≡ p" fact is now readable from the row.
+7. **F (predicate, hash, claim) / N (the constant).** The prediction's `resolution_rule` is now the same sign predicate as its claim; `feature_snapshot_hash` is a SHA-256 of the post-window pairs; RULE-20 withdrawn from the satisfied list. `p_forecast = 0.90` stays a stated constant — the reviewer is right that it is not a forecast; REQ-INF-301 requires a row and no calibrated number exists (OQ-44b). `predictions_pending` will show it until something scores it (OQ-44a).
+8. **N/R** — agree it is a RULE-12 divergence once anything resolves; `get_today` / `get_trust` (0033) untouched here — a B8 item, OQ-44(f). Mild disagreement on immediacy: no watch exists, so no surface disagrees today.
+9. **N/R** — agree; the displayed clock is calendar days, the gate is paired days + lag; OQ-44(f).
+10. **F** — a window that never fills expires by calendar days since `confirmation_data_from`; new test `..._expires_by_the_calendar`.
+11. **N** — agree it is inert at 30 pairs (sides ≥ 8 by construction); kept as the stated floor with a comment; ADR says so.
+12. **F (hash) / N (point-in-time).** `analysis.panel` has no `recorded_at`, so REQ-INF-104's `ingested_at` clause and REQ-INF-108's `f_daily_panel(as_of)` cannot be honoured by any consumer of the panel today — a pre-existing gap of the panel, now named in the ADR.
+13. **F** — `resolved_at DEFAULT clock_timestamp()`, `resolution_id` as the tiebreaker in both ORDER BYs.
+14. **F (evidence)** — `tools/_probe_scan.py` (rolled back) re-run on the refactored scan this session; output below.
+15. **F (claim named) / N (brief, run_id).** `history` rows now carry exposure, outcome, lag, direction; the test asserts them. There is no brief to surface into and no `run_id` column — noted.
+16. **F** — `check_invariants.py` checks `hypothesis_resolutions_append_only`, PENDING until 0042 is applied, MISSING after.
+17. **F** — only the server message field reaches `ops.runs`, never the failing-row detail.
+18. **N** — agree; unchanged (no ledger entry maps to a B7 test).
+
+**Evidence for the addendum's changes (all executed 2026-09-02):**
+```
+python3 -m pytest tests/test_resolve_watches.py -q             -> 9 passed in 54.08s
+run_migration.py --core core_dryrun --ops ops_dryrun           -> ROLLED BACK 264 statements; 0042 = 12 statements
+validate_layout.py                                            -> 40 passed, 0 warnings, 0 failed
+check_invariants.py --core core                               -> [ADR-0048 trigger] hypothesis_resolutions_append_only: PENDING — migration 0042 not applied
+                                                                 INVARIANTS: ALL PASS
+tools/_probe_scan.py (refactored scan, rolled back)           -> (3) CANDIDATE rows: 52 · calibration: observed 31 vs null-median 12 of 909
+                                                                 (4) freeze trigger rejects prereg-column UPDATE: True
+                                                                 PROBE: ALL PASS / rolled back — nothing persisted
+update_features.py (whole suite)                              -> pytest: 98 passed, 0 failed, 0 errors, 0 skipped of 98 collected
+                                                                 3 passing / 15 total (unchanged; no entry maps to a B7 test)
+```
+Commits: 4e45bef (B7 as first built), then this addendum. **Still held for Joe:** the live apply of 0042 and the first
+live `run_resolve.py` (commands in the session-18 entry above) — and the OQ-44(d) cadence ruling should come before
+the first watch matures.
+
+**Single most likely thing to be wrong:** the resolver re-tests every night from day 30 with no correction for
+repeated looks, so on Joe's autocorrelated daily metrics a noise watch has roughly a three-in-four chance of being
+stamped PROMOTED or REFUTED within four months — the pre-registration is defeated by the schedule, not by a leak.

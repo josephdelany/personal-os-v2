@@ -21,7 +21,18 @@ jobs:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
           PYTHONPATH: ${{ github.workspace }}
         run: python3 tools/run_analysis.py
-      - name: resolve matured watches (ADR-0048; nightly, after the panel, before the scan)
+  resolve:
+    # ADR-0048: nightly watch resolver — after the panel refresh; its own job so a failure
+    # (e.g. migration 0042 not yet applied) cannot take the Monday scan down with it.
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: refresh
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - run: pip install 'pg8000>=1.30,<2'
+      - name: resolve matured watches
         env:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
           PYTHONPATH: ${{ github.workspace }}

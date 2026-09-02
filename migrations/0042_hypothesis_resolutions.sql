@@ -9,11 +9,11 @@
 CREATE TABLE IF NOT EXISTS __CORE__.hypothesis_resolutions (
     resolution_id        UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     hypothesis_id        TEXT NOT NULL REFERENCES __CORE__.hypothesis_register(hypothesis_id),
-    resolved_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+    resolved_at          TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp(),   -- statement time, so one run's rows order
     status_from          TEXT NOT NULL,
     status_to            TEXT NOT NULL,
     reason               TEXT NOT NULL CHECK (reason IN (
-                             'confirmed_same_sign_q_lt_0_10', 'refuted_opposite_sign_q_lt_0_10',
+                             'promoted_same_sign_q_lt_0_10', 'refuted_opposite_sign_q_lt_0_10',
                              'insufficient_window_too_short', 'insufficient_low_n_eff',
                              'insufficient_sign_unstable', 'expired_no_decision_120d')),
     post_days            INTEGER NOT NULL,       -- paired days with both metrics after confirmation_data_from
@@ -22,6 +22,7 @@ CREATE TABLE IF NOT EXISTS __CORE__.hypothesis_resolutions (
     delta                NUMERIC,
     p_raw                NUMERIC,
     q_fdr                NUMERIC,
+    family_m             INTEGER,                -- REQ-INF-106: the BH family size q was computed in
     registered_direction TEXT NOT NULL,
     observed_direction   TEXT,
     code_version         TEXT NOT NULL
@@ -98,7 +99,7 @@ BEGIN
                  'registered_at', h.preregistered_at::date,
                  'reason', (SELECT r.reason FROM __CORE__.hypothesis_resolutions r
                              WHERE r.hypothesis_id = h.hypothesis_id
-                             ORDER BY r.resolved_at DESC LIMIT 1),
+                             ORDER BY r.resolved_at DESC, r.resolution_id LIMIT 1),
                  'trace', jsonb_build_object('table','core.hypothesis_register','hypothesis_id',h.hypothesis_id))
                ORDER BY h.preregistered_at DESC)
           FROM __CORE__.hypothesis_register h
@@ -110,12 +111,15 @@ BEGIN
       'history', (
         SELECT jsonb_agg(jsonb_build_object(
                  'hypothesis_id', r.hypothesis_id, 'tier', r.status_to,
+                 'exposure', h.exposure_metric, 'outcome', h.outcome_metric, 'lag_days', h.lag_days,
+                 'direction', h.direction,                      -- the previous claim, named (REQ-TIER-043)
                  'resolved_at', r.resolved_at, 'status_from', r.status_from, 'status_to', r.status_to,
-                 'reason', r.reason, 'post_days', r.post_days,
+                 'reason', r.reason, 'post_days', r.post_days, 'family_m', r.family_m,
                  'delta', round(r.delta, 4), 'q_fdr', round(r.q_fdr, 4),
                  'trace', jsonb_build_object('table','core.hypothesis_resolutions','resolution_id',r.resolution_id))
-               ORDER BY r.resolved_at DESC)
-          FROM (SELECT * FROM __CORE__.hypothesis_resolutions ORDER BY resolved_at DESC LIMIT 50) r),
+               ORDER BY r.resolved_at DESC, r.resolution_id)
+          FROM (SELECT * FROM __CORE__.hypothesis_resolutions ORDER BY resolved_at DESC, resolution_id LIMIT 50) r
+          JOIN __CORE__.hypothesis_register h ON h.hypothesis_id = r.hypothesis_id),
       'counts', (
         SELECT jsonb_build_object(
             'candidates', count(*) FILTER (WHERE status='CANDIDATE'),

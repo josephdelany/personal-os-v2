@@ -98,6 +98,16 @@ def run_checks(cur, core: str):
         present = want in trigs
         print(f"[ADR-0010 trigger] {want[1]} on {want[0]}: {'present' if present else 'MISSING'}")
         ok = ok and present
+    # ADR-0048: the resolver's ledger is append-only too. PENDING (not a failure) until
+    # migration 0042 is applied; MISSING once the table exists without its trigger.
+    cur.execute("select to_regclass(%s)", (f"{core}.hypothesis_resolutions",))
+    if cur.fetchone()[0] is None:
+        print("[ADR-0048 trigger] hypothesis_resolutions_append_only: PENDING — migration 0042 not applied")
+    else:
+        present = ("hypothesis_resolutions", "hypothesis_resolutions_append_only") in trigs
+        print(f"[ADR-0048 trigger] hypothesis_resolutions_append_only on hypothesis_resolutions: "
+              f"{'present' if present else 'MISSING'}")
+        ok = ok and present
 
     # ---- INV-1 (no fabrication): every atom traces to a real raw_captures row.
     # WORK_QUEUE U4 fabrication check — a derived row with no capture origin is

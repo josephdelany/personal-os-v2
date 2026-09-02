@@ -730,6 +730,20 @@ Depends on it: whether a CONFIRMED row can ever be demoted without a human (RULE
 whether the FINDINGS page can show a Brier record for confirmations.
 Settles it: Joe ruling on (b) and the two constants; a B8 build order for (a) and (c). Opened
 2026-09-02, session 18 (B7).
+*Extended the same day after the adversarial review (findings verbatim in PROGRESS session 18):*
+**(d) — the binding one — nightly evaluation from day 30 is optional stopping.** Replaying the
+resolver's own functions on null series: P(resolve at one look, day 30) ≈ 0.14 iid / 0.20 at ρ=0.5;
+P(resolve on some night, days 30–120) ≈ 0.58 iid / 0.74 at ρ=0.5 / 0.86 at ρ=0.7, roughly half in
+the registered direction. Recommended reading of the frozen sentence: one look on the first night
+with ≥30 paired days and one last look at day 120, with Kish `n_eff` from the ρ `_contrast` already
+returns stored and gated (RULE-21). Nothing can mature before ~2 Oct 2026, so this can be ruled
+before the first resolution. **(e)** B7 said CONFIRMED_OBSERVATIONAL; the build assigns PROMOTED
+because REQ-TIER-013's gate is unbuilt (ADR-0048 §9) — confirm or overrule. **(f)** `get_today.watching`
+and `get_trust.hypotheses.watching` (0033) ignore resolution and expiry, so after the first
+resolution TODAY will say "day 31 of 30" for a row FINDINGS lists as PROMOTED, and the two
+`watching` counts diverge (RULE-12); the displayed clock is calendar days while the gate is paired
+days after `confirmation_data_from` plus lag. Fix belongs with B8. **(g)** No workflow runs pytest;
+every TEST-tier rule is enforced only by hand (pre-existing; surfaced by the review).
 
 ## RESOLVED
 
