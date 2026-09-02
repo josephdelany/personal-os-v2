@@ -30,3 +30,8 @@ jobs:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
           PYTHONPATH: ${{ github.workspace }}
         run: python3 tools/extract_checkins.py
+      - name: derive visits from the last 3 days of fixes (in-database; Python never reads a coordinate)
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          PYTHONPATH: ${{ github.workspace }}
+        run: python3 tools/run_sql_scalar.py "select restricted.derive_visits(current_date - 3)" derive_visits

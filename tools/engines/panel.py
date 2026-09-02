@@ -98,6 +98,27 @@ def build(cur):
           from core.atoms_current a where a.kind='workout'
          group by 1
         on conflict (day, metric) do nothing""", (CODE_VERSION,))
+    # 5) mobility — from analysis.visits_public ONLY (labels/minutes; never a coordinate — REQ-LOC-012).
+    #    A day with no visit gets no row: absent means absent (REQ-LOC-015, REQ-INF-505).
+    cur.execute("""
+        insert into analysis.panel (day, metric, value, src, code_version)
+        select subject_day, 'away_min', sum(dwell_min) filter (where not coalesce(is_home, false)), 'visits', %s
+          from analysis.visits_public group by 1
+        having sum(dwell_min) filter (where not coalesce(is_home, false)) is not null
+        on conflict (day, metric) do nothing""", (CODE_VERSION,))
+    cur.execute("""
+        insert into analysis.panel (day, metric, value, src, code_version)
+        select subject_day, 'home_min', sum(dwell_min) filter (where is_home), 'visits', %s
+          from analysis.visits_public group by 1
+        having sum(dwell_min) filter (where is_home) is not null
+        on conflict (day, metric) do nothing""", (CODE_VERSION,))
+    cur.execute("""
+        insert into analysis.panel (day, metric, value, src, code_version)
+        select subject_day, 'places_distinct', count(distinct place_id), 'visits', %s
+          from analysis.visits_public group by 1
+        on conflict (day, metric) do nothing""", (CODE_VERSION,))
+    # the places domain's config rows register themselves the first night the panel has away_min (ADR-0045)
+    cur.execute("select config.ensure_places_metrics()")
     cur.execute("select count(*) from analysis.panel")
     return cur.fetchone()[0]
 

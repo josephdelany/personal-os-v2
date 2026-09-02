@@ -262,6 +262,71 @@ try:
 except Exception as e:
     warn(f"could not run the forbidden-import lint: {e}")
 
+# ---------- 12. REQ-LOC-005 / ADR-0044: no code outside migrations/ names the location store ----------
+# The restricted schema is readable only by SECURITY DEFINER SQL inside the database. If a Python job,
+# a workflow or a client could name one of its tables, a coordinate could reach a log, an export or a
+# prompt. So the schema-qualified token may appear only in migrations/ and docs/ — plus two exact,
+# allowlisted occurrences: the hourly derivation call in the workflow (the statement text lives there
+# so tools/run_sql_scalar.py never names a table) and B3's test asserting the token is ABSENT.
+# Scans the working tree (not just tracked files) so the tripwire fires before a commit, not after.
+LOC_TOKEN = "restricted" + "."
+LOC_ALLOW = {
+    ".github/workflows/extract.yml": LOC_TOKEN + "derive_visits(",
+    "tests/test_search_record.py": '"' + LOC_TOKEN + '" not in text',
+}
+SKIP_DIRS = (".git", "_legacy_snapshot", "__pycache__", ".venv", "node_modules", ".pytest_cache")
+def _walk_code():
+    for p in ROOT.rglob("*"):
+        if not p.is_file():
+            continue
+        rel = p.relative_to(ROOT)
+        if any(part in SKIP_DIRS for part in rel.parts):
+            continue
+        rels = str(rel)
+        if rels == SELF or not rels.lower().endswith(CODE_EXT):
+            continue
+        try:
+            yield rels, p.read_text(errors="ignore")
+        except Exception:
+            continue
+try:
+    loc_offenders = []
+    for rels, txt in _walk_code():
+        if rels.startswith(("migrations/", "docs/")):
+            continue
+        if rels in LOC_ALLOW:
+            txt = txt.replace(LOC_ALLOW[rels], "")
+        if LOC_TOKEN in txt:
+            loc_offenders.append(rels)
+    if loc_offenders:
+        for o in loc_offenders:
+            fail(f"REQ-LOC-005: code outside migrations/ names the location store: {o}")
+    else:
+        ok("no code outside migrations/ names the location store (REQ-LOC-005 / ADR-0044; 2 allowlisted call sites)")
+except Exception as e:
+    warn(f"could not run the location-store reference lint: {e}")
+
+# ---------- 13. REQ-LOC-005: a coordinate literal on a lat/lon line, or a literal home flag ----------
+# Complements check 10 (which looks for key:value / pair / WKT shapes): any 4+-decimal number on a line
+# that also names lat/lon/lng (word-bounded, so "late"/"clone" do not trip it) or sets is_home = true.
+# Scans every code file in the working tree including migrations/ and tests/; prose (.md) is excluded.
+COORD_ANY = re.compile(r'-?\d{1,3}\.\d{4,}')
+LATLON_WORD = re.compile(r'\b(?:lat|lon|lng|latitude|longitude)\b', re.I)
+HOME_FLAG = re.compile(r'is_home\s*=\s*true', re.I)
+try:
+    coord_line_offenders = []
+    for rels, txt in _walk_code():
+        for lineno, line in enumerate(txt.split("\n"), 1):
+            if COORD_ANY.search(line) and (LATLON_WORD.search(line) or HOME_FLAG.search(line)):
+                coord_line_offenders.append(f"{rels}:{lineno}")
+    if coord_line_offenders:
+        for o in coord_line_offenders:
+            fail(f"REQ-LOC-005: coordinate literal on a lat/lon or home line: {o}")
+    else:
+        ok("no coordinate literal on a lat/lon line and no literal home flag anywhere in code (REQ-LOC-005)")
+except Exception as e:
+    warn(f"could not run the coordinate-line lint: {e}")
+
 # ---------- report ----------
 for m in passes: print(f"PASS  {m}")
 for m in warns: print(f"WARN  {m}")

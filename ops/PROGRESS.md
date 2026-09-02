@@ -4289,3 +4289,48 @@ was the grants assert counting the owner's implicit grants; scoped to the app ro
 - Did not build the B5.2 lint, derivation, view or panel metrics (next unit); the schema is live and EMPTY.
 - Did not exercise `ingest_location` from a phone or the edge function (B5.3); only from the twins.
 - Did not set `radius_m` / thresholds from evidence (75 m default is OQ-37's placeholder).
+
+## 2026-09-02 — Session 17 (B5.2): in-database visit derivation, the public view, the lint — migration 0039 LIVE (ADR-0045)
+
+**Requirement IDs satisfied (quoted):** REQ-LOC-011 "compute every mobility metric deterministically with exactly one
+owner and one `code_version` … the language layer SHALL NOT compute it"; REQ-LOC-012 "derive every mobility metric
+from the restricted coordinate store within the read/egress boundary … surface only the aggregate — never the
+coordinates"; REQ-LOC-013 "fixed window lengths … the specific windows are provisional placeholders (OQ-37)";
+REQ-LOC-015 "SHALL NOT impute a missing location — an unlogged interval is not a stay at the last known place";
+REQ-LOC-006 (human correction outranks, RULE-10); REQ-LOC-009 (unknown, never nearest); REQ-LOC-005 (the lint).
+Tests: `tests/test_derive_visits.py` — 6, named with those IDs + ADR-0045.
+
+**Built.** `restricted.visit_params` (provisional thresholds, OQ-37) · `restricted.derive_visits(p_from)` (greedy
+stay detection; NULL place unless inside a registered radius; gaps are not stays; human assignments survive
+rebuilds) · `analysis.visits_public` (the ONLY outside view; no coordinate column) · `tools/run_sql_scalar.py`
+(one statement from argv, `ops.runs` row, never names a table) · hourly step in `.github/workflows/extract.yml`
+(`derive_visits(current_date - 3)`) · `tools/engines/panel.py` writes `away_min` / `home_min` /
+`places_distinct` from the view only · `config.domains.places.hero_metric = away_min` · two new lints in
+`tools/validate_layout.py` (REQ-LOC-005): **no code outside migrations/ names the location store** (working-tree
+scan; two allowlisted call sites) and **no coordinate literal on a lat/lon line or literal home flag**.
+
+**Reconciled, not silent (ADR-0045 §2):** B5.2 says seed the three `places` `domain_metrics` rows now; B1's
+ratified rule and test (ADR-0040: every seeded metric exists in the panel) forbids it until a visit exists. The
+rows self-register through `config.ensure_places_metrics()` at the end of every panel build, the first night
+the panel carries `away_min`. No test weakened; no config row ahead of its data.
+
+**Apply.** Dry run full chain 0001–0039 → rolled back, 235 statements. Real `--only 0039 --commit` → COMMITTED
+9 statements. Live checks: `analysis.visits_public` columns = visit_id, subject_day, arrive_at, depart_at,
+dwell_min, n_fixes, place_id, label, kind, is_home, code_version (no coordinate); `visit_params` =
+max_accuracy_m 150 · max_gap_min 45 · min_dwell_min 10 · stay_radius_m 100; places hero = away_min/min;
+places `domain_metrics` rows = 0 (as designed); app-role grants on restricted = []; `derive_visits(current_date-3)`
+on live → 0 (no fixes yet).
+
+**Tests** `python3 -m pytest tests/test_derive_visits.py -v`: **6 passed in 113s** (each test rebuilds the twins;
+two initial failures were test-side — the view-shape test compared to a live view that did not exist before
+the apply, and a JSON-string id compared to the driver's UUID object). **`validate_layout.py`: 40 passed, 0
+warnings, 0 failed** (38 → 40). ADR-0045; DECISIONS row.
+
+**WHAT I DID NOT DO.**
+- No inferred places — only human-registered ones resolve; everything else is `unknown`.
+- No transit/commute metrics, no radius-of-gyration or location-entropy registry metrics (REQ-LOC-010 is
+  Phase 5's `derived_measures`).
+- No legacy backfill (OQ-43). Battery impact unmeasured (Overland runs on Joe's phone, B5.3).
+- The three `places` `domain_metrics` rows are NOT seeded (self-register on first `away_min` panel row).
+- The hourly `derive_visits` step is committed but has not yet run in GitHub Actions (next :41 run).
+- The coordinate-line lint excludes prose (`.md`): two ADR/PROGRESS lines quote an example `"lat": 51.5231`.
