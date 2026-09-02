@@ -3855,3 +3855,376 @@ suite green, `3 passing / 15 total`. `validate_layout.py` 38/0/0. ADR-0042; DECI
 - No ranking; recency only (ADR-0042). No stemming/full-text.
 - Did not search `restricted.*` or any coordinate (there is no location schema yet — B5).
 - Did not paste the full 46-month `by_month` for the channel call (summarised).
+
+## 2026-09-02 — Session 17 (B4): `get_entity(p_type, p_key)` — migration 0037 LIVE (ADR-0043)
+
+**Requirement IDs satisfied:** REQ-ASK-003, REQ-ASK-011, REQ-INF-505, REQ-INF-109, REQ-LOC-005; ADR-0036
+pattern. Tests: `tests/test_get_entity.py` — 9 tests named with those IDs + ADR-0043. No DISCOVER step in B4;
+`__EXERCISE_EXPR__` reuses B2's decision (`evidence_span`, ADR-0041 (c)).
+
+**Apply.** Dry run full chain 0001–0037 → rolled back, 200 statements. Real `--only 0037 --commit` →
+COMMITTED 4 statements. (`WITH rows AS` parsed fine on PG 17 — no rename needed.)
+
+**Owner calls (top merchant, top category, top channel, a nonsense type, `place`) — lists truncated to 2+2:**
+```
+=== get_entity('merchant','NON-CHASE ATM FEE-WITH') ===
+{
+ "n": 56,
+ "key": "NON-CHASE ATM FEE-WITH",
+ "type": "merchant",
+ "unit": "$",
+ "as_of": "2026-09-01",
+ "n_90d": 0,
+ "trace": {
+  "key": {
+   "key": "NON-CHASE ATM FEE-WITH",
+   "type": "merchant"
+  },
+  "tables": "public.transactions"
+ },
+ "recent": [
+  {
+   "at": "00:00",
+   "day": "2026-03-29",
+   "src": "transactions",
+   "text": "NON-CHASE ATM FEE-WITH · $3.00 (bank_fee)",
+   "row_id": "87"
+  },
+  {
+   "at": "00:00",
+   "day": "2026-03-24",
+   "src": "transactions",
+   "text": "NON-CHASE ATM FEE-WITH · $3.00 (bank_fee)",
+   "row_id": "3"
+  },
+  "... 16 more ...",
+  {
+   "at": "00:00",
+   "day": "2025-04-06",
+   "src": "transactions",
+   "text": "NON-CHASE ATM FEE-WITH · $3.00 (bank_fee)",
+   "row_id": "508"
+  },
+  {
+   "at": "00:00",
+   "day": "2025-04-01",
+   "src": "transactions",
+   "text": "NON-CHASE ATM FEE-WITH · $3.00 (bank_fee)",
+   "row_id": "515"
+  }
+ ],
+ "by_hour": [
+  {
+   "n": 56,
+   "hour": 0
+  }
+ ],
+ "by_month": [
+  {
+   "n": 1,
+   "month": "2024-05",
+   "amount": 3.0
+  },
+  {
+   "n": 1,
+   "month": "2024-06",
+   "amount": 3.0
+  },
+  "... 14 more ...",
+  {
+   "n": 2,
+   "month": "2026-02",
+   "amount": 6.0
+  },
+  {
+   "n": 3,
+   "month": "2026-03",
+   "amount": 9.0
+  }
+ ],
+ "last_seen": "2026-03-30",
+ "by_weekday": [
+  {
+   "n": 21,
+   "dow": 1
+  },
+  {
+   "n": 7,
+   "dow": 2
+  },
+  {
+   "n": 7,
+   "dow": 3
+  },
+  {
+   "n": 9,
+   "dow": 4
+  },
+  {
+   "n": 12,
+   "dow": 5
+  }
+ ],
+ "first_seen": "2024-05-20",
+ "amount_total": 172.0,
+ "days_since_last": 155
+}
+=== get_entity('category','bank_fee') ===
+{
+ "n": 189,
+ "key": "bank_fee",
+ "type": "category",
+ "unit": "$",
+ "as_of": "2026-09-01",
+ "n_90d": 0,
+ "trace": {
+  "key": {
+   "key": "bank_fee",
+   "type": "category"
+  },
+  "tables": "public.transactions"
+ },
+ "recent": [
+  {
+   "at": "00:00",
+   "day": "2026-05-04",
+   "src": "transactions",
+   "text": "INTEREST PAYMENT · $0.01",
+   "row_id": "1"
+  },
+  {
+   "at": "00:00",
+   "day": "2026-04-13",
+   "src": "transactions",
+   "text": "CHASE CREDIT CRD AUTOPAY · $125.76",
+   "row_id": "70"
+  },
+  "... 16 more ...",
+  {
+   "at": "00:00",
+   "day": "2026-02-12",
+   "src": "transactions",
+   "text": "AUTOMATIC PAYMENT - THANK · $248.53",
+   "row_id": "919"
+  },
+  {
+   "at": "00:00",
+   "day": "2026-01-13",
+   "src": "transactions",
+   "text": "CHASE CREDIT CRD AUTOPAY · $212.37",
+   "row_id": "180"
+  }
+ ],
+ "by_hour": [
+  {
+   "n": 189,
+   "hour": 0
+  }
+ ],
+ "by_month": [
+  {
+   "n": 3,
+   "month": "2024-05",
+   "amount": 90.5
+  },
+  {
+   "n": 2,
+   "month": "2024-06",
+   "amount": 105.5
+  },
+  "... 21 more ...",
+  {
+   "n": 3,
+   "month": "2026-04",
+   "amount": 251.53
+  },
+  {
+   "n": 1,
+   "month": "2026-05",
+   "amount": 0.01
+  }
+ ],
+ "last_seen": "2026-05-05",
+ "by_weekday": [
+  {
+   "n": 69,
+   "dow": 1
+  },
+  {
+   "n": 30,
+   "dow": 2
+  },
+  {
+   "n": 24,
+   "dow": 3
+  },
+  {
+   "n": 27,
+   "dow": 4
+  },
+  {
+   "n": 37,
+   "dow": 5
+  },
+  {
+   "n": 2,
+   "dow": 7
+  }
+ ],
+ "first_seen": "2024-05-20",
+ "amount_total": 8982.95,
+ "days_since_last": 119
+}
+=== get_entity('channel','Al Jazeera English') ===
+{
+ "n": 242,
+ "key": "Al Jazeera English",
+ "type": "channel",
+ "unit": "events",
+ "as_of": "2026-09-01",
+ "n_90d": 31,
+ "trace": {
+  "key": {
+   "key": "Al Jazeera English",
+   "type": "channel"
+  },
+  "tables": "public.events"
+ },
+ "recent": [
+  {
+   "at": "21:58",
+   "day": "2026-07-27",
+   "src": "youtube",
+   "text": "US-Iran Talks Begin As Trump Warns Of More Military Action",
+   "row_id": "143200"
+  },
+  {
+   "at": "10:05",
+   "day": "2026-07-24",
+   "src": "youtube",
+   "text": "Latest: IRAN-US conflict escalates as Kuwait border crossing hit and strait of Hormuz tensions rise.",
+   "row_id": "143097"
+  },
+  "... 16 more ...",
+  {
+   "at": "20:21",
+   "day": "2026-06-22",
+   "src": "youtube",
+   "text": "Ralph Wilde on the ICJ & why Israeli occupation must end | Centre Stage",
+   "row_id": "142283"
+  },
+  {
+   "at": "20:15",
+   "day": "2026-06-22",
+   "src": "youtube",
+   "text": "Who profits from the war on Iran? | This is America",
+   "row_id": "142281"
+  }
+ ],
+ "by_hour": [
+  {
+   "n": 13,
+   "hour": 0
+  },
+  {
+   "n": 7,
+   "hour": 1
+  },
+  "... 19 more ...",
+  {
+   "n": 10,
+   "hour": 22
+  },
+  {
+   "n": 5,
+   "hour": 23
+  }
+ ],
+ "by_month": [
+  {
+   "n": 1,
+   "month": "2022-07"
+  },
+  {
+   "n": 1,
+   "month": "2023-09"
+  },
+  "... 27 more ...",
+  {
+   "n": 23,
+   "month": "2026-06"
+  },
+  {
+   "n": 8,
+   "month": "2026-07"
+  }
+ ],
+ "last_seen": "2026-07-28",
+ "by_weekday": [
+  {
+   "n": 38,
+   "dow": 1
+  },
+  {
+   "n": 36,
+   "dow": 2
+  },
+  {
+   "n": 31,
+   "dow": 3
+  },
+  {
+   "n": 29,
+   "dow": 4
+  },
+  {
+   "n": 30,
+   "dow": 5
+  },
+  {
+   "n": 39,
+   "dow": 6
+  },
+  {
+   "n": 39,
+   "dow": 7
+  }
+ ],
+ "first_seen": "2022-07-10",
+ "days_since_last": 35
+}
+=== get_entity('planet','mars') ===
+{
+ "nearest": [
+  "merchant",
+  "category",
+  "site",
+  "channel",
+  "exercise",
+  "place"
+ ],
+ "refusal": "I do not track that."
+}
+=== get_entity('place','home?') ===
+{
+ "note": "places arrive with build B5",
+ "refusal": "I do not track that."
+}
+```
+
+**Tests** `python3 -m pytest tests/test_get_entity.py -v`: **9 passed in 4.66s**. One initial failure was my
+test's ordering proxy, not the function: `recent` is ordered by the source timestamp, and a row after
+midnight belongs to the previous subject day with a later clock time, so `(day, at)` is not timestamp
+order; the test now compares `row_id`s against the table's own `ORDER BY ts DESC`. `update_features.py`:
+whole suite green, `3 passing / 15 total`. `validate_layout.py` 38/0/0. ADR-0043; DECISIONS row.
+
+**WHAT I DID NOT DO.**
+- No `core.entities` linkage — v1 entities are `(type, key)` over the legacy tables (ADR-0043).
+- `place` deferred: returns the refusal + "places arrive with build B5" until 0040 rewires it to `get_place`.
+- Co-occurrence (what else happens on this entity's days) not built.
+- No merchant normalisation: raw bank strings are the keys (e.g. `NON-CHASE ATM FEE-WITH`), so one
+  merchant under two spellings is two entities until Phase-4 resolution.
+- The `exercise` type is live but unexercised: zero workout atoms exist; its `n` will count atoms
+  (three per set), not sets — noted in ADR-0043.
+- B3's `search_record` ordering test uses the same `(day, at)` proxy and passed only because no
+  post-midnight hit fell in its page; not changed in this commit (it is not wrong today), flagged here.
