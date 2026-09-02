@@ -40,8 +40,8 @@
       "id": "F-006",
       "description": "Bitemporal atoms table, append-only",
       "requirement": "REQ-ONT-001",
-      "status": "failing",
-      "proving_test": null
+      "status": "passing",
+      "proving_test": "tests.test_spine_insert_paths::test_REQ_ONT_001_kind_taxonomy_enforced"
     },
     {
       "id": "F-007",
@@ -96,15 +96,15 @@
       "id": "F-014",
       "description": "Supabase keepalive",
       "requirement": "REQ-NFR-001",
-      "status": "failing",
-      "proving_test": null
+      "status": "passing",
+      "proving_test": "tests.test_keepalive::test_REQ_NFR_001_supabase_keepalive_period_within_7_days"
     },
     {
       "id": "F-015",
       "description": "GitHub Actions 60-day keepalive",
       "requirement": "REQ-NFR-002",
-      "status": "failing",
-      "proving_test": null
+      "status": "passing",
+      "proving_test": "tests.test_keepalive::test_REQ_NFR_002_stale_commit_fires_before_the_60_day_limit"
     }
   ]
 }

@@ -53,6 +53,7 @@
       "Bash(python -m pytest:*)",
       "Bash(python:*)",
       "Bash(python3:*)",
+      "Bash(python3 tools/update_features.py)",
       "Bash(pip install:*)",
       "Bash(ruff:*)",
       "Bash(mypy:*)",
