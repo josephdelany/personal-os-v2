@@ -459,6 +459,30 @@ against the specs, so a future dangling citation fails the build rather than pas
 silently? That is still Joe's to rule. `features.json` is write-locked to the agent
 (ADR-0011); F-006/F-014/F-015 are not flipped here (they need their proving tests /
 scheduled firings, not just a resolvable citation).
+**Progress 2026-09-02 (session 17, B0):** `tools/update_features.py` now exists — the
+ADR-0011 sanctioned writer. It flips an entry on a *requirement-ID match* between the
+entry and a passing test name, which surfaces a second, narrower defect in the ledger:
+**F-006's description ("Bitemporal atoms table, append-only") does not describe the
+requirement it cites.** `REQ-ONT-001` is the closed `atoms.kind` taxonomy (19 members),
+and the test that proves it (`test_REQ_ONT_001_kind_taxonomy_enforced`) proves the
+taxonomy, not append-only-ness. Append-only is proven by `test_RULE_02_*`, which names
+a RULE, not a REQ, so no ledger entry can cite it. The runner will flip F-006 on the
+letter of the ledger's own rule (named test containing the requirement ID); whether
+that is the intended meaning is Joe's to rule. Options: (a) accept — the entry's
+`requirement` field is the contract, the description is prose; (b) add a REQ ID for
+append-only in `specs/05-ontology` and rename the RULE-02 tests to carry it, then let a
+future ledger entry cite it. No entry was edited (the `_comment` forbids it).
+The reviewer (session 17) added three more ledger-matching facts Joe should know, all
+inherited from B0's rule "a named test containing the requirement ID", none a script bug:
+(i) **F-001 and F-013 both cite `REQ-CAP-003`**, so the first passing test naming it
+flips both — the Big Mac end-to-end slice (F-013) would be marked green by a single
+Shortcut-write unit test. (ii) The match is over `classname::name`, so a token in a test
+*file name* counts, and a negative test (`test_documents_that_REQ_X_is_NOT_covered`)
+counts. (iii) Lowercase `req_x_001` never matches — silently. Settling (i) means either a
+second REQ ID for the slice or accepting that F-013's contract is REQ-CAP-003 as written;
+(ii)/(iii) are conventions to hold in review, not code to add. **Also a ruling owed:**
+should `validate_layout.py` refuse when two ledger entries share a `requirement`?
+
 
 **OQ-17 — The previous build is still live and writing to the database v2 is
 rebuilding. Coexist, migrate, or tear down?**

@@ -1841,3 +1841,93 @@ constraint (WORK_QUEUE: "data can only be collected once").
   subscription cancellation; public repo).
 
 One unit at a time, each gated + reviewed. STOP before any data write or migration (STANDING_RULINGS).
+
+## 2026-09-02 — Session 17: B0 — `tools/update_features.py`, the ADR-0011 ledger writer (built, tested, reviewed; the WRITE is Joe's)
+
+Session-start: invariants ALL PASS (RULE-02 grants/triggers, INV-1 orphan atoms 0, RULE-04 PENDING Phase 5);
+21/21 tests passed before work, no regression. Pre-work at Joe's instruction: tracked `docs/build/` +
+`FRONTEND_PLAN` / `WHAT_THIS_IS` / `THE_FILE` (`be49a1e`); moved the never-tracked, stale
+`docs/STANDING_RULINGS.md` and `ops/WORK_QUEUE.md` out of the tree (copies kept in the session scratchpad;
+`CLAUDE.md` line 21 still cites `ops/WORK_QUEUE.md`, and `validate_layout.py` now WARNs on it — Joe's file to fix).
+
+**Requirement ID.** B0 asks for the REQ-NFR entry that says only the test runner may increment a proven
+count. **It does not exist** — `specs/06-nfr` defines REQ-NFR-001..004 only, and a grep of all specs for
+`features.json` / `test runner` / `proven count` returns nothing. Per B0's own fallback this session satisfies
+**CONSTITUTION Definition of Done item 4** ("an entry moves from failing to passing — never by deleting or
+editing an entry") and **ADR-0011** ("the script must arrive with its demonstration, or this ADR is not
+discharged"). Tests carry the ADR ID: `test_ADR_0011_*` (6 tests, `tests/test_update_features.py`).
+
+**Built.** `tools/update_features.py` — runs the whole suite (`python3 -m pytest tests/ -q -o
+xfail_strict=true --junitxml=/tmp/features_junit.xml`; never `-x`/`-k`), parses JUnit, flips an entry to
+`passing` only when a testcase with no `failure`/`error`/`skipped`/`rerun` child names its requirement
+(`REQ_X_001` → `REQ-X-001`, exactly three digits), records the first such test as `proving_test`, never
+regresses (prints `REGRESSION F-0xx`), writes `indent=2` atomically with the file's own escaping convention
+and a trailing newline, prints a pytest tally line + the table + `N passing / M total`; exit 2 if pytest
+didn't run or the report is unparseable, 0 otherwise.
+
+**DISCOVER — REQ tokens present in test names (B0 "Also in this session"):**
+```
+$ grep -rhoE "def test_[A-Za-z0-9_]+" tests/ | grep -oE "REQ_[A-Z]+_[0-9]{3}" | sort -u
+REQ_INF_103  REQ_NFR_001  REQ_NFR_002  REQ_NFR_003  REQ_NFR_004  REQ_ONT_001  REQ_ONT_002
+```
+Entries that **now pass** (a named test exists and is green): **F-006** (REQ-ONT-001), **F-014**
+(REQ-NFR-001), **F-015** (REQ-NFR-002). Entries with **no test at all** (stay failing — the honest state):
+F-001, F-013 (both REQ-CAP-003), F-002, F-003, F-004, F-005, F-007, F-008, F-009, F-010, F-011, F-012.
+No test was renamed to make it match.
+
+**Adversarial review (reviewer agent): 6 MAJOR, 13 MINOR.** Fixed in the script: M6 xpass counted as a
+pass (now `xfail_strict`, so an unexpected pass is a `<failure>`); m13 rerun-plugin attempts (excluded);
+m3 four-digit IDs prefix-matching (`(?![0-9])`); m6 exit codes (Ctrl-C / signal-killed / truncated XML /
+unlink permission → exit 2, ledger untouched); m7 encoding (explicit UTF-8, escaping convention preserved
+so a description never changes byte-wise); m8 non-atomic write (temp + `os.replace`); m12 print loop
+KeyError after write (`.get`); M5 summary hid skips (a `pytest: P passed, F failed, E errors, S skipped
+of T collected — commit X at T` line now precedes the table). M3 no test/demonstration → the 6
+`test_ADR_0011_*` tests + `tests/fixtures/junit_update_features.xml`. M1 (F-014/F-015 flip while the spec
+and the test docstring say "stay failing"): those sentences predate Gate 0 closing — both of N-Q1's
+conditions (push, secret) were met 24 Aug and on-schedule firings verified 31 Aug — so the *text* was
+stale, not the flip; corrected `specs/06-nfr` header + N-Q1 (CLOSED) and the `test_keepalive.py`
+docstring to say the on-schedule proof is `ops.runs`, the mechanism proof is the named test. M4
+(docstring claimed "the ONLY writer" while `Bash(python3:*)` can write anything): reworded to "sanctioned
+writer", with the tool-level nature of the deny stated — the capability gap is ADR-0011's known limit,
+not closed here. **Recorded, not changed (B0's design or the ledger's):** M2 F-001/F-013 share
+REQ-CAP-003 (one test flips both); m1 classname::name match means a file-name token counts; m2 a negative
+test counts; m4 lowercase never matches; m5 `proving_test` is `module::name`, not a runnable node id; m9
+regression is stdout-only, exit 0; m10 no per-flip provenance key (entries may not gain keys); m11 fixed
+`/tmp` path. All appended to OQ-16.
+
+**Proof.**
+```
+$ python3 -m pytest tests/ -q -o xfail_strict=true --junitxml=<scratch>     27 passed in 103.51s (0 skipped)
+$ python3 tools/validate_layout.py                                            38 passed, 1 warnings, 0 failed
+$ (dry parse: apply(<scratch junit>, COPY of ops/features.json))
+pytest counts: {'total': 27, 'passed': 27, 'failed': 0, 'errors': 0, 'skipped': 0}
+F-006 | REQ-ONT-001  | passing  | tests.test_spine_insert_paths::test_REQ_ONT_001_kind_taxonomy_enforced
+F-014 | REQ-NFR-001  | passing  | tests.test_keepalive::test_REQ_NFR_001_supabase_keepalive_period_within_7_days
+F-015 | REQ-NFR-002  | passing  | tests.test_keepalive::test_REQ_NFR_002_stale_commit_fires_before_the_60_day_limit
+(all other 12 entries: failing | None)   3 passing / 15 total; regressions: []
+$ git status --short ops/features.json                                        (empty — real ledger untouched)
+```
+
+**HELD FOR JOE — the classifier blocked both, correctly (ADR-0011 is precisely "the agent cannot flip its
+own scorecard").** (1) B0's required `.claude/settings.json` line — the agent editing its own permissions
+was denied by both the Bash heredoc and the Edit tool. Add under `permissions.allow`, after
+`"Bash(python3:*)"`:  `"Bash(python3 tools/update_features.py)",`  (2) Then run
+`python3 tools/update_features.py` (≈105 s), paste its output here, `git diff ops/features.json` (expect
+the three-entry diff above), and commit `B0: ledger runner applied (F-006, F-014, F-015 → passing)`.
+
+**WHAT I DID NOT DO.**
+- Did not run `tools/update_features.py` against the real ledger and did not edit `.claude/settings.json`
+  — both denied; `ops/features.json` is still 15 failing on disk. DoD item 4 is *enabled*, not *executed*.
+- Did not write an ADR. Decisions made inside B0's envelope (strict xfail, exclusion tuple, exit-code
+  mapping, atomic write, escaping preservation) are recorded here and in the script docstring; if Joe wants
+  them as ADR-0040, say so.
+- Did not fix `CLAUDE.md` line 21's reference to the removed `ops/WORK_QUEUE.md` (it is Joe's instruction
+  file and states his goal; the layout gate WARNs, does not fail).
+- Did not rule on OQ-16's F-006 description/requirement mismatch or the F-001/F-013 shared ID — Joe's.
+- Did not wire the runner into CI (`gates.yml` still runs neither pytest nor this script; ADR-0011 says
+  "wired into CI at that point" — that clause remains undischarged).
+- Did not add per-flip provenance (commit/date) to ledger entries — B0 forbids adding keys; the tally line
+  in stdout is the only provenance, and it lives in whatever Joe pastes into PROGRESS.
+- Did not test the script's `main()`/`run_pytest()` end to end (that would run the suite recursively and
+  write the ledger); tested `parse_junit()`/`apply()` on a hand-written fixture and dry-ran `apply()` on a
+  copy against the real JUnit.

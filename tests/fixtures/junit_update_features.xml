@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Fixture for tests/test_update_features.py (ADR-0011). Hand-written in the shape pytest
+     9.x emits (xunit2 family). Never touches a real table; exercises the parser only. -->
+<testsuites>
+  <testsuite name="pytest" errors="1" failures="1" skipped="2" tests="9" time="0.1">
+    <testcase classname="tests.test_a" name="test_REQ_AAA_001_genuine_pass" time="0.001"/>
+    <testcase classname="tests.test_a" name="test_REQ_AAA_001_second_pass_same_req" time="0.001"/>
+    <testcase classname="tests.test_a" name="test_REQ_BBB_002_fails" time="0.001">
+      <failure message="assert 1 == 2">AssertionError</failure>
+    </testcase>
+    <testcase classname="tests.test_a" name="test_REQ_CCC_003_errors_in_setup" time="0.001">
+      <error message="fixture blew up">RuntimeError</error>
+    </testcase>
+    <testcase classname="tests.test_a" name="test_REQ_DDD_004_skipped_no_db" time="0.0">
+      <skipped type="pytest.skip" message="SUPABASE_DB_URL not set"/>
+    </testcase>
+    <testcase classname="tests.test_a" name="test_REQ_EEE_005_xfail_that_failed" time="0.0">
+      <skipped type="pytest.xfail" message="not built yet"/>
+    </testcase>
+    <testcase classname="tests.test_a" name="test_REQ_FFF_006_rerun_attempt" time="0.001">
+      <rerun message="flaky">AssertionError</rerun>
+    </testcase>
+    <testcase classname="tests.test_a" name="test_REQ_GGG_0017_four_digit_id" time="0.001"/>
+    <testcase classname="tests.test_a" name="test_no_requirement_named" time="0.001"/>
+  </testsuite>
+</testsuites>

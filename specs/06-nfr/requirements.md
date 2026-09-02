@@ -7,9 +7,10 @@ would silently end the project — the Supabase Free **7-day inactivity pause** 
 GitHub Actions **60-day scheduled-workflow disable** — and the `ops.runs` evidence that
 proves a keepalive fired. This is the `REQ-NFR` half of OQ-16 (previously a dangling
 prefix cited by F-014/F-015).
-**Blocking:** the *first scheduled firing* is blocked on the repository's first push to
-GitHub (OQ-02) and on the `SUPABASE_DB_URL` Actions secret; until both exist, no clock
-is running and REQ-NFR-001/002 are proven only as mechanism, not as a scheduled event.
+**Blocking:** nothing, since 2026-08-31 — the repository is pushed (OQ-02), the
+`SUPABASE_DB_URL` Actions secret is set, and unattended scheduled firings are verified in
+`ops.runs` (Gate 0 CLOSED). REQ-NFR-001/002 are proven as mechanism (named tests) and as
+a scheduled event (`trigger=schedule` rows). See N-Q1 below.
 **Grammar:** EARS (Mavin & Wilkinson). SHALL is binding. SHOULD is not used.
 **ID scheme:** `REQ-NFR-nnn` (non-functional — reliability here; cost and privacy NFRs
 already live in `CONSTITUTION.md` §V and RULE-28/RULE-29, and performance budgets are
@@ -83,8 +84,11 @@ be, and as a failed run when the database itself is unreachable.
 
 ## UNRESOLVED QUESTIONS
 
-- **N-Q1** — the first *scheduled* firing cannot occur until the repository is pushed to
-  GitHub (OQ-02) and `SUPABASE_DB_URL` is set as an Actions secret. Until then
-  REQ-NFR-001/002 are proven as *mechanism* (named tests + a workflow-schedule check)
-  but not as an on-schedule event, so features F-014/F-015 stay `failing`. Tracked
-  under OQ-02; not a new open question.
+- **N-Q1 — CLOSED 2026-09-02.** Its two conditions (repository pushed, OQ-02;
+  `SUPABASE_DB_URL` Actions secret set) were both met by 24 Aug, and the first
+  unattended scheduled firings were verified against `ops.runs` on 2026-08-31 (Gate 0
+  CLOSED; PROGRESS session 14 addendum). REQ-NFR-001/002 are therefore proven both as
+  *mechanism* (the named tests) and as an *on-schedule event* (`trigger=schedule` rows).
+  F-014/F-015 no longer need to stay `failing`; the ledger runner (`tools/update_features.py`,
+  ADR-0011) flips them on the named tests. The ledger's `proving_test` names the mechanism
+  test; the on-schedule evidence lives in `ops.runs`, not in a test.

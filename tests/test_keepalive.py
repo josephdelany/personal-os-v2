@@ -5,8 +5,10 @@ What these prove and what they cannot:
     the Supabase cron period is <= 3 days, and the stale-commit check period PLUS the
     50-day threshold is < 60 (the real invariant that keeps the schedule alive — a
     monthly check would allow 81 days and disable the workflow). They CANNOT prove an
-    on-schedule firing — that needs the repo pushed (OQ-02) and the SUPABASE_DB_URL
-    secret, so F-014/F-015 stay failing.
+    on-schedule firing — that evidence is the `trigger=schedule` rows in `ops.runs`
+    (Gate 0 CLOSED, verified 2026-08-31; PROGRESS session 14 addendum). Until that
+    date F-014/F-015 stayed failing; the ledger runner (tools/update_features.py,
+    ADR-0011) now flips them on these named tests, with ops.runs as the on-schedule proof.
   - REQ-NFR-003 (success) and REQ-NFR-004 (failure) are proven BEHAVIOURALLY against a
     disposable ops_pytest schema inside a transaction that is ROLLED BACK (ADR-0022),
     plus a no-DB test that an unreachable database exits non-zero.
