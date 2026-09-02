@@ -102,12 +102,17 @@ interface. The system cannot be argued with — only out-predicted.
 
 ## 3 · Evaluation (real runs on real data)
 
-**Scan calibration (published on-surface every run).** Stride-sampled proof
-run under the final (v2) methodology: **31 significant observed vs a
-shuffled-null median of 12 (p95 below observed) across 909 tested pair-lags,
-five null replicates** — the null distribution is displayed beside every result
-set, making residual false-discovery risk a number the user reads, not a
-footnote. (Development iterations tell the honest story: the naive first run's
+**Scan calibration (published on-surface every run).** Full live sweep under
+the final (v2) methodology, 2026-09-02 — the run of record: **7,062 pair-lags
+tested; 123 significant observed vs a shuffled-null median of 87 (null p95:
+102) across five replicate nulls; 19 patterns registered from the extreme
+tail.** Read plainly: the observed discovery count exceeds the null's 95th
+percentile, but the excess is modest (~36 above the null median) — most
+marginal "significance" at this scale is autocorrelation structure, which is
+exactly why only the tail survives to the Patterns surface and why the null
+distribution is displayed beside every result set. The system's honesty is not
+that it finds much; it is that it tells the user precisely how little the
+finding-count means. (Development iterations tell the honest story: the naive first run's
 "discoveries" were tautologies and shared seasonality — the shuffled null BEAT
 the observed set 54 : 35 — and the pipeline refused to ship itself until
 construct-family guards and deseasonalization collapsed the null. An
