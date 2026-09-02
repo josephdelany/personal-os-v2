@@ -27,6 +27,7 @@ Next session, the same line with the next file. `/session-end` at the end of eac
 | B4 | `B4_get_entity.md` | `get_entity(p_type, p_key)` — merchants, categories, sites, channels, exercises | 0037 | 0.5 |
 | B5 | `B5_movements.md` | restricted location store, ingress, in-DB place resolution, `get_movements` / `get_place` / `get_places` | 0038–0040 | 2–3 |
 | B6 | `B6_get_findings.md` | `get_findings()` — the WATCHING / CONFIRMED / REFUTED / INSUFFICIENT lists | 0041 | 0.5 |
+| B7 | `B7_resolve_watches.md` | the nightly resolver that turns a 30-day watch into CONFIRMED / REFUTED — without it the ladder never climbs | 0042 | 1 |
 | L0 | `L0_lovable_round0.md` | Lovable Round 0: kill + rewire + seven-section shell | — | after B1 |
 | L1 | `L1_lovable_round1.md` | Round 1: the SOURCES page on `get_domain` | — | after B2 |
 | L2 | `L2_lovable_round2.md` | Round 2: the index finished + the entity page | — | after B4 |
