@@ -1667,6 +1667,40 @@ RULE-01 forbids faking the product's entire subject matter. This is recorded as 
 a stopping-short: the fourth attempt at (1) would be circumvention of Joe's own safety layer, which is the
 one shortcut this project can never take.
 
+## 2026-09-02 — Session 16: THE CONVERSATION LAYER — built, proven, LIVE (ADR-0038/0039)
+
+Joe approved the full blueprint (archived docs/PLAN_CONVERSATION_LAYER.md) after five drafts ("build the
+plan you'd build if I prodded you 10 more times"). Executed T1→U8 in one continuous run; every unit
+rolled-back-proven on real data before Joe's one-command applies. All LIVE now:
+
+- **T1** (7ff74ef): `analysis` schema (panel/baselines/contrasts/calibration), CANDIDATE status widening
+  (ADR-0039, REQ-INF-401/TIER-053), 7-year legacy loader. Full-sequence dry-run 133 stmts clean.
+- **T2** (7ef0daf): panel engine (111,626 rows / 350 metrics / 2019–2026; signals+legacy+atoms with
+  precedence; hand-check: steps 2019-09-04 == CSV 4564, two sources agree) + baselines port (median/MAD,
+  EWMA-14d, dual-z 7/28d, p10–p90 bands, streaks; batched writes; winsorized z documented).
+- **T3** (4808856): get_timeline (2025-03-04 → 41 real moments) + get_state (deviations/streaks/guardian
+  2-of-N w/ base rate/week-money). Owner-locked; no-JWT refused (verified).
+- **T4** (b78e25f): Today+Timeline tabs deployed; nightly analysis.yml; RUN_TONIGHT.sh. **Joe activated:
+  2,381 legacy days, panel+baselines committed live.**
+- **U5** (c4fc97f): the contrast scan — seeded manifest + cross-family discovery; deseasonalize(month-
+  demedian)+EWMA+weekday-demedian BOTH sides (REQ-INF-409); quartile contrasts, tie-corrected
+  Mann-Whitney, BH-FDR, 0.3-MAD effect floor, construct-family tautology guards, per-pair circular-shift
+  null twin → published calibration. **Iteration story (honesty working): naive run's "discoveries" were
+  tautologies+seasonality (null 54 vs obs 35!); after family guards + deseasonalization: 15 obs vs 2 null
+  (probe).** EXPLORATORY Patterns surface + RULE-17 proof BEFORE scan ship (only-CANDIDATE, zero
+  confirmed-tier verbs, other surfaces structurally blind) + register_watch loop (NEW frozen row, status
+  INSUFFICIENT until 30 post-reg days; freeze trigger verified). **Joe ran the live full sweep: 9,072
+  tested, 93 obs vs 50 null, 30 kept** — incl. info-consumption⇄steps (Δ≈1,300 steps, q≈0), entertainment-
+  video→purchases(+2d), temp→spend(+2d). Weekly Monday scan job scheduled.
+- **U8** (c91d01d): conformal forecasts (adaptive-alpha port, stateless) → core.predictions rows (XOR
+  honored; REQ-INF-303 rejected a time-traveling backtest — schema enforcing itself); resolver
+  (clock_timestamp; in-tx now() freeze found+fixed) → Brier+coverage; probe backtest 4/4 in-band. REQ-
+  INF-005 direction pruning added (weather cause-only). get_today 7-slot brief (deterministic rotation
+  novelty), get_trust (calibration ledger/scorecard/heartbeats/blindspots). App: full Today + Trust tabs.
+
+**docs/SUBMISSION.md drafted** (thesis: structural honesty; evaluation on real runs). Adversarial
+reviewer running on the whole layer; findings land before submission. Cut-lines honored: E4 event-window
+engine, E7 Ask, E8 probes deferred per the approved plan's ✂ order (named, not silent).
 ## 2026-09-01 — Session 15 (cont.): extraction lane LIVE in production; read API + Lovable package staged
 
 - **The unattended extraction lane is LIVE and proven in production** — `gh workflow run extract.yml`:
