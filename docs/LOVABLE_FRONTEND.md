@@ -1,82 +1,135 @@
-# Lovable front end — the paste-ready build package
+# Lovable build package — Personal OS front end (v2, current)
 
-**When to use this:** after ~2 weeks of captures are flowing (the alert I'll give
-you). Everything below is ready now so that "time for the front end" is one paste
-into Lovable, zero thinking. The backend contract is frozen; fields get added,
-never renamed.
-
-**Before pasting:** migration 0021 (`get_day`) must be applied, and Supabase Auth
-needs one user (you) — Dashboard → Authentication → Add user (your email). The old
-dashboard already used magic-link auth; this is the same pattern.
+**How to use:** paste everything below the line into Lovable as your first prompt.
+When it asks about Supabase, use Lovable's native Supabase integration with your
+project (`cykviouklidnbsbgdgdo`) and your anon key from the dashboard. The whole
+backend is done and frozen — six RPCs, owner-locked, every envelope stable
+(fields get added, never renamed). Your job in Lovable is purely visual.
 
 ---
 
-## The prompt (paste into Lovable)
+Build "Personal OS" — a personal life-analytics app for one user (me), React +
+Tailwind, dark-first, on my EXISTING Supabase backend. Do not create tables. Do
+not compute anything client-side. Every screen is one RPC call rendering one
+JSON envelope. Design language: calm, editorial, generous whitespace, tabular
+numerals for all numbers, subtle 150ms ease-out transitions only — think a
+premium reading app (Whoop's polish, a newspaper's restraint). No streaks, no
+badges, no rings, no confetti, no gamification of any kind, ever.
 
-Build a single-page personal daily log — React, on my existing Supabase backend.
-Do NOT create tables. Connect:
+## Auth
+Supabase Auth, email magic-link (signInWithOtp). Every RPC is server-locked to
+my identity — an error string "owner only" or a permission error means "sign
+in", not a bug. No service keys client-side.
 
-- Project URL: `https://cykviouklidnbsbgdgdo.supabase.co`
-- Use the **anon publishable key** I provide in Lovable's Supabase integration.
-- **Supabase Auth, email magic-link.** Every read is the RPC below, which is
-  EXECUTE-granted to `authenticated` only — an unauthenticated call returns a
-  permission error, and that is correct behaviour, not a bug to fix. No service
-  key in the client, ever.
+## Screens (bottom tab bar or left rail): Today · Timeline · Patterns · Trust · Insights · Log
 
-### The one read
-
-`supabase.rpc('get_day', { p_day: '2026-09-01' })` (or `p_day` omitted for today)
-returns:
-
+### 1 · TODAY — `supabase.rpc('get_today')`
+Envelope:
 ```json
-{
-  "day": "2026-09-01",
-  "checkin": {
-    "checkin_morning_energy":  { "point": 5.0, "low": 4.5, "high": 5.5, "atom_id": "…" },
-    "checkin_night_day_rating":{ "point": 7.0, "low": 6.5, "high": 7.5, "atom_id": "…" }
-  },
-  "food":  [ { "label": "big mac", "at": "…", "precision": "hour", "atom_id": "…" } ],
-  "notes": [ { "text": "…", "at": "…", "atom_id": "…" } ],
-  "coverage": { "captures": 3, "atoms": 9, "unextracted": 0 },
-  "last_extract_run": { "at": "…", "status": "ok" }
-}
+{ "for_day":"2026-09-03","based_on":"2026-09-02",
+  "state":{ "deviations":[{"metric":"hrv_sdnn","value":41,"z":-1.8,"band":[44,71]}],
+            "streaks":[{"metric":"rhr","run_days":3,"direction":"above","historical_max_run":8}],
+            "guardian":{"signals_firing":2,"threshold":2,"fires_historically":9},
+            "week_money":[{"name":"HUMDINGERS","grain":"merchant","this_week":94,"typical_week":24,"delta":70}]},
+  "patterns_waiting":{"count":19,"note":"exploratory patterns await on the Patterns tab (pull to read)"},
+  "watching":[{"hypothesis":"screen_binge_min|sleep_asleep_min|L1","registered":"2026-09-02","day":4,"of":30,"status":"INSUFFICIENT"}],
+  "forecast":[{"metric":"sleep_asleep_min","lo":206,"point":370,"hi":535}],
+  "forecast_track_record":{"resolved":12,"inside_band":11,"claimed_coverage":0.9,"achieved_coverage":0.92} }
 ```
+Layout: a hero card for state (calm if no deviations: "in your normal bands");
+guardian as an amber banner ONLY if present, verbatim: "N autonomic signals
+outside band together — this combination has occurred X times in your history.
+A pattern match, not a diagnosis." Deviations as quiet metric rows with the
+personal band drawn as a subtle range bar and the value's position on it.
+Week-money as delta chips (+$70 emphasized, merchant name, "vs $24 typical").
+Watching as progress bars labeled "day 4 of 30 — verdict pending". Forecast as
+range bars with the track-record line underneath in small print. The
+patterns_waiting count is a single tappable line that navigates to Patterns —
+never render pattern content here (hard rule).
 
-Any key may be absent (no data that day) — render the absence honestly ("not
-logged"), never a zero, never a placeholder value.
+### 2 · TIMELINE — `supabase.rpc('get_timeline',{p_day:'2025-03-04'})`
+```json
+{ "day":"2025-03-04","sleep_text":"slept 6h12m","n":41,
+  "entries":[{"at":"00:50","kind":"video","text":"…","src":"youtube","row_id":"…"}] }
+```
+A date picker (support any date 2019→today) + a beautiful vertical time axis.
+kind → icon: web 🌐 video ▶ money 💵 calendar 📅 checkin 📝 consume 🍽 note ✏️
+workout 🏋 self_report 📝. Group tight clusters; money entries slightly
+emphasized. Show sleep_text as the day's subheader. Empty day: "nothing
+recorded" — never invent. A "random day" shuffle button is welcome.
 
-### The screen
+### 3 · PATTERNS — `supabase.rpc('get_patterns')` + `supabase.rpc('register_watch',{p_hypothesis_id})`
+```json
+{ "tier":"EXPLORATORY","disclaimer":"…","calibration":{"run_date":"2026-09-02",
+  "pairs_tested":7062,"observed_significant":123,"shuffled_null_significant":87,"null_p95":102},
+  "keystone":[{"driver":"steps","outcome_families":2,"patterns":4}],
+  "patterns":[{"hypothesis_id":"scan:…","label":"EXPLORATORY","driver":"…","outcome":"…",
+    "lag_days":1,"seeded":false,"sentence":"On your highest-… days, … This may reflect a pattern; it is exploratory and unverified.",
+    "n_hi":210,"n_lo":208,"n_eff":[180.5,178.2],"q":0.0021,"watched":false,
+    "watch_progress":null}] }
+```
+HARD RULES (these ARE the product): text and labels only — NO charts, plots, or
+graphs anywhere on this screen. Every card wears a visible EXPLORATORY badge.
+Render the sentence verbatim; show n/n_eff/q in small print. The calibration
+line renders at top, verbatim numbers: "123 significant of 7,062 tested vs 87
+median (102 p95) on shuffled data — read accordingly." Watch button per card →
+register_watch → re-fetch; watched cards show the day/30 clock. Keystone as a
+compact leaderboard ("appears in 4 patterns across 2 life domains — exploratory").
+Prettify metric names for display (strip prefixes, title-case: 
+"screen_binge_min" → "Screen binges (min)") but keep the raw name in a tooltip.
 
-One day view with a date picker (default today):
-1. **Check-in scores** — morning row and night row of labelled chips
-   ("Energy 5 (4.5–5.5)"). Show the interval; the point alone overstates
-   precision. Metric label = the key minus `checkin_<type>_`, title-cased.
-2. **Food** — a plain list of labels with times. No calories are in the data;
-   show none. If the list is empty: "no food logged".
-3. **Notes** — the note text, verbatim.
-4. **Footer** — "`captures` captured · `atoms` facts · last processed
-   `last_extract_run.at`" and, if `unextracted > 0`, "`unextracted` awaiting
-   processing".
+### 4 · TRUST — `supabase.rpc('get_trust')`
+```json
+{ "scan_calibration":[{"run":"2026-09-02","tested":7062,"observed_sig":123,
+   "shuffled_null_sig":87,"null_p95":102,"null_reps":5}],
+  "forecasts":{"resolved":12,"inside_band":11,"achieved_coverage":0.92,
+   "claimed_coverage":0.9,"mean_brier":0.03,"pending":5},
+  "hypotheses":{"candidates":19,"watching":2,"confirmed":0,"refuted":0},
+  "job_heartbeats":[{"job":"extract_checkins","last":"…","status":"ok"}],
+  "coverage_blindspots":[{"metric":"hrv_sdnn","last_day":"2026-07-28"}] }
+```
+This is the system grading itself — design it like an audit page: claimed vs
+achieved coverage side by side, the scan honesty ledger as a table, hypothesis
+lifecycle counts, green/amber heartbeat dots, and "what I cannot currently see"
+as a plain amber list. Refutations and misses must be exactly as visible as
+successes.
 
-### Hard rules (these are the product, not styling preferences)
+### 5 · INSIGHTS — `supabase.rpc('get_insights_guarded')`
+```json
+{ "tier":"DESCRIPTIVE","disclaimer":"…","stream_count":223,"fact_count":1338,
+  "rhythms":[{"metric":"sleep (min)","weekday":"Tuesday","median":404,"is_highest":true}],
+  "lists":{"top_sites":[{"site":"google.com","visits":1454}],
+           "top_channels":[{"channel":"Al Jazeera English","videos":242}],
+           "top_merchants":[{"merchant":"…","txns":25,"total":747}],
+           "top_categories":[{"category":"dining","txns":130,"total":2584}]},
+  "auto":[{"source":"apple_sleep","metric":"efficiency","n":84,"median":0.96,
+           "p10":0.89,"p90":0.99,"min":0.6,"max":1.0,"last30_median":null}] }
+```
+Header: "1,338 facts across 223 streams, computed live." Rhythms as headline
+cards ("Your sleep peaks on Tuesdays — 6h44m median"). Top-lists as ranked
+lists. The auto battery as a searchable/filterable table grouped by source:
+median · typical range (p10–p90) · extremes · last-30d · n. Every number shows
+its n. Missing last30 renders as "—", never 0.
 
-- **Never invent, estimate, or round a number.** Render only numerals present in
-  the envelope. If a value is missing, say "not logged" — never 0, never a guess.
-- **No streaks, no scores-of-scores, no badges, no celebratory animation, no
-  compliance %.** A displayed number is an intervention; keep it plain.
-- **No judgment language** — never "good/bad day", "too much", "unhealthy",
-  "necessary". Label numbers with what they are, not verdicts.
-- **Intervals are first-class** — a self-report is shown with its range.
-- Motion: 150 ms ease-out, opacity/transform only. Nothing celebratory.
-- Typography: tabular numerals for all numbers.
-- This is a single-user private app; there is no sharing, no social, no export
-  button in v1.
+### 6 · LOG (capture status) — `supabase.rpc('get_day',{p_day})`
+The capture view: check-in scores AS INTERVALS ("Energy 5 (4.5–5.5)"), food
+list, notes, workout sets, and the coverage footer ("3 captured · 9 facts ·
+last processed …"; unextracted count in amber). Absence = "not logged".
 
----
+## Non-negotiable honesty rules (bake into components, not habits)
+1. Render ONLY numerals present in envelopes — never compute, never round
+   beyond display, never invent. Missing key → "not logged"/"—", never 0.
+2. Self-reports always show their interval, never a bare point.
+3. No judgment language anywhere: never "good/bad", "too much", "unhealthy",
+   "wasteful". Numbers get labels, not verdicts.
+4. EXPLORATORY content lives ONLY on Patterns. The Today count-link is the
+   maximum allowed elsewhere.
+5. No charts on Patterns (text/labels only). Charts allowed on Insights/Log for
+   DESCRIPTIVE data only, always below their text, never for exploratory items.
+6. Errors render as honest states ("read unavailable — are you signed in?"),
+   never as fake empty data.
+7. Tabular numerals everywhere; motion 150ms ease-out opacity/transform only.
 
-## What v2 adds (do not build yet)
-
-Trends (e1RM, weight) come from `derived_measures` (Phase 5) via further RPCs of
-the same envelope pattern. Recommendations, findings, and anything with an
-evidence tier waits for the tier-labelling surface (RULE-17 sequencing). The
-EXPLORATORY surface, when it comes, is text/labels only — no charts (ADR-0032).
+## v2 later (do not build now)
+Zoom levels (week/month/year), the Ask box, serendipity feed, probe prompts —
+the backend contracts will arrive as new RPCs in this same envelope style.
