@@ -1,8 +1,8 @@
 # ADR-0048: The watch resolver — a frozen rule, evaluated on post-registration days only, resolving to PROMOTED / REFUTED with an append-only ledger
 
 ## Status
-Accepted (code and tests merged; the live apply of migration 0042 was held by the auto-mode
-classifier on 2026-09-02 — see PROGRESS session 18 for the two commands that finish it)
+Accepted. Migration 0042 applied live 2026-09-02 (session 19); amended the same day with the two-look
+ruling (§12, migration 0043).
 
 ## Date
 2026-09-02
@@ -84,16 +84,30 @@ later resolves it". This is E11, built under `docs/build/B7_resolve_watches.md`.
 11. **Nothing computes an E-value or a negative control.** A CONFIRMED row is observational;
     `get_findings` keeps those keys absent and the UI says so (ADR-0047).
 
-## Known statistical defect, not fixed here (reviewer #1/#2 — Joe's ruling needed, OQ-44a)
+12. **Two looks only (Joe's ruling, 2026-09-02, OQ-44(d): "YES, the reviewer's recommendation";
+    migration 0043).** A watch is tested on the first night it has ≥ 30 paired post-registration
+    days (look 1) and once more when it has ≥ 120 (look 2), never on the nights between. Every
+    look writes a ledger row (`look` 1 or 2), so a look is never repeated and the ledger is the
+    schedule. At each look the Kish effective sample size `n_eff = post_days·(1−ρ)/(1+ρ)` (ρ =
+    the outcome's lag-1 autocorrelation from `_contrast`, deflating only) is stored with ρ and
+    gated at `N_EFF_MIN = 20` — REQ-TIER-017's floor, itself a placeholder (OQ-10) — giving
+    `insufficient_low_n_eff`. Look 1 with q ≥ 0.10 records `insufficient_sign_unstable` (the
+    sign is not established at this look) and waits; look 2 with no decision, or a first look
+    already past day 120, or a window that never fills within 120 calendar days, expires. With
+    ~30 paired days and ρ ≈ 0.5 the gate blocks look 1 (n_eff ≈ 10), so on autocorrelated
+    metrics the first real test is at day 120 with n_eff ≈ 40 — by design, not by accident.
+    `get_findings.watching` reports `looks_done`; `history` reports `look` and `n_eff` (RULE-21).
+
+## Statistical defect — ruled and fixed the same day (reviewer #1/#2 → §12)
 Evaluating the rule **every night** from day 30 is optional stopping. The reviewer replayed the
 resolver's own functions on null series: P(resolve | one look at day 30) ≈ 0.14 iid / 0.20 at
 ρ=0.5; P(resolve on some night, days 30–120) ≈ 0.58 iid / 0.74 at ρ=0.5 / 0.86 at ρ=0.7 —
 about half of those in the registered direction. The weekday demedian on a 30-day window
 (4–5 points per weekday) and the absence of any n_eff / HAC adjustment add to it. Nothing
-matures before ~2 October even if applied today, so the ruling can precede the first
-resolution. Recommended: one look at the first night with ≥30 paired days, and one last look at
-day 120, with `n_eff` (Kish, from the ρ `_contrast` already returns) stored and gated. The
-frozen sentence "on >=30 post-registration days" does not say which reading was intended.
+matures before ~2 October. Joe ruled the reviewer's recommendation: one look at the first night
+with ≥30 paired days and one last look at day 120, with Kish `n_eff` stored and gated (§12).
+Two looks give a worst-case family of two tests per watch; the n_eff gate removes the
+autocorrelation-driven inflation the reviewer measured.
 
 ## Consequences
 - The ladder can climb one rung: a 30-day watch becomes PROMOTED or REFUTED the morning after it

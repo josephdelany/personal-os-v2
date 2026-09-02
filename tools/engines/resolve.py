@@ -14,12 +14,20 @@ reinterprets it:
   * fewer than MIN_POST_DAYS paired days: still on the clock, nothing written;
   * the quartile contrast is the scan's own `_contrast` (imported, not copied:
     RULE-11/12 one owner) with a side floor of MIN_SIDE for the short window;
-  * q is Benjamini-Hochberg across the watches evaluated in this run (`scan._bh`);
+  * TWO LOOKS ONLY (Joe's ruling 2026-09-02 on OQ-44(d); ADR-0048 §12): look 1 on
+    the first night a watch has >= MIN_POST_DAYS paired days, look 2 once it has
+    >= EXPIRE_DAYS paired days. Every look writes one ledger row, so a look is
+    never repeated — re-testing every night was optional stopping (measured
+    0.58-0.86 false resolution on nulls by day 120);
+  * at each look: Kish effective sample size n_eff = post_days*(1-rho)/(1+rho)
+    from the outcome's lag-1 rho (deflate only), stored, and gated at N_EFF_MIN
+    (REQ-TIER-017's floor) -> `insufficient_low_n_eff` if below;
+  * q is Benjamini-Hochberg across the watches looked at in this run (`scan._bh`);
   * q < Q_CONFIRM and observed sign == registered direction -> PROMOTED,
-    opposite sign -> REFUTED; no decision after EXPIRE_DAYS (paired days, or
-    calendar days since confirmation_data_from when the window never fills) ->
-    INSUFFICIENT with reason `expired_no_decision_120d`; otherwise still
-    watching, nothing written.
+    opposite sign -> REFUTED; otherwise look 1 records `insufficient_sign_unstable`
+    (the sign is not established at this look) and waits for look 2; look 2 with
+    no decision, or a window that never fills within EXPIRE_DAYS calendar days ->
+    INSUFFICIENT with reason `expired_no_decision_120d`, final.
 
 Why PROMOTED and not CONFIRMED_OBSERVATIONAL (ADR-0048 amendment, reviewer #5):
 REQ-TIER-013 assigns CONFIRMED_OBSERVATIONAL only with a DAG adjustment set, HAC
@@ -51,7 +59,9 @@ CODE_VERSION = "resolve-v1"
 MIN_POST_DAYS = 30        # from the frozen rule text (">=30 post-registration days")
 MIN_SIDE = 7              # quartile side floor on a 30-day window (ADR-0048; inert at n>=30 — reviewer #11 — kept as the stated floor)
 Q_CONFIRM = 0.10          # from the frozen rule text ("q<0.10")
-EXPIRE_DAYS = 120         # ADR-0048: no decision after 120 days -> INSUFFICIENT, expired
+EXPIRE_DAYS = 120         # ADR-0048: look 2 at 120 paired days; no decision then -> INSUFFICIENT, expired
+N_EFF_MIN = 20            # REQ-TIER-017's n_eff floor (a placeholder, OQ-10); gated at every look
+LOOK_REASONS = ("insufficient_low_n_eff", "insufficient_sign_unstable")   # a look that decided nothing
 FORWARD_DAYS = 30         # the forward prediction's window (REQ-INF-301)
 OPEN_STATUSES = ("INSUFFICIENT",)   # PROMOTED is final for resolve-v1 (its forward prediction is the next test)
 
@@ -76,17 +86,19 @@ def _snapshot_hash(drv_raw, out_raw):
     return h.hexdigest()
 
 
-def _write_resolution(cur, core, h, status_to, reason, post_days, c, q, obs_dir):
+def _write_resolution(cur, core, h, status_to, reason, post_days, c, q, obs_dir,
+                      look=None, n_eff=None, rho=None):
     cur.execute(f"UPDATE {core}.hypothesis_register SET status = %s WHERE hypothesis_id = %s",
                 (status_to, h["hypothesis_id"]))
     cur.execute(f"""INSERT INTO {core}.hypothesis_resolutions
         (hypothesis_id, status_from, status_to, reason, post_days, n_hi, n_lo,
-         delta, p_raw, q_fdr, family_m, registered_direction, observed_direction, code_version)
-        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
+         delta, p_raw, q_fdr, family_m, registered_direction, observed_direction, code_version,
+         look, n_eff, rho_outcome)
+        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
         (h["hypothesis_id"], h["status"], status_to, reason, post_days,
          c[0] if c else None, c[1] if c else None,
          c[4] if c else None, c[5] if c else None, q, h.get("family_m"),
-         h["direction"], obs_dir, CODE_VERSION))
+         h["direction"], obs_dir, CODE_VERSION, look, n_eff, rho))
 
 
 def _write_forward_prediction(cur, core, h, q, snapshot_hash):
@@ -107,28 +119,39 @@ def _write_forward_prediction(cur, core, h, q, snapshot_hash):
          CODE_VERSION, round(1.0 - Q_CONFIRM, 4), snapshot_hash))
 
 
+def _kish_n_eff(post_days, rho):
+    """Kish effective sample size; rho deflates only (scan's M2: a negative rho never inflates)."""
+    r = max(0.0, rho)
+    return round(post_days * (1 - r) / (1 + r), 1)
+
+
 def run(cur, today=None, *, core="core", panel_schema="analysis"):
-    """Evaluate every open watch. Returns run counts for the ops.runs heartbeat."""
+    """Evaluate every open watch at its due look. Returns run counts for the ops.runs heartbeat."""
     today = today or dt.datetime.now(dt.timezone.utc).date()
-    cur.execute(f"""SELECT hypothesis_id, exposure_metric, outcome_metric, lag_days, direction,
-                          confirmation_data_from, resolution_rule, status
-                     FROM {core}.hypothesis_register
-                    WHERE hypothesis_id LIKE %s AND status = ANY(%s)
+    cur.execute(f"""SELECT h.hypothesis_id, h.exposure_metric, h.outcome_metric, h.lag_days, h.direction,
+                          h.confirmation_data_from, h.resolution_rule, h.status,
+                          (SELECT count(*) FROM {core}.hypothesis_resolutions r
+                            WHERE r.hypothesis_id = h.hypothesis_id AND r.reason = ANY(%s)) AS looks_done
+                     FROM {core}.hypothesis_register h
+                    WHERE h.hypothesis_id LIKE %s AND h.status = ANY(%s)
                       AND NOT EXISTS (SELECT 1 FROM {core}.hypothesis_resolutions r
-                                       WHERE r.hypothesis_id = hypothesis_register.hypothesis_id
+                                       WHERE r.hypothesis_id = h.hypothesis_id
                                          AND r.reason = 'expired_no_decision_120d')
-                    ORDER BY preregistered_at""", ("watch:%", list(OPEN_STATUSES)))
+                    ORDER BY h.preregistered_at""",
+                (list(LOOK_REASONS), "watch:%", list(OPEN_STATUSES)))
     # an expired watch keeps status INSUFFICIENT (the CHECK has no 'EXPIRED'); its expiry ledger
-    # row is what closes it, here and in get_findings — otherwise it would expire again nightly
+    # row is what closes it, here and in get_findings. looks_done counts the ledger rows that
+    # recorded a look with no decision: 0 -> look 1 is due at MIN_POST_DAYS, 1 -> look 2 at
+    # EXPIRE_DAYS, 2 cannot happen (look 2 always writes a final row).
     cols = ("hypothesis_id", "exposure_metric", "outcome_metric", "lag_days", "direction",
-            "confirmation_data_from", "resolution_rule", "status")
+            "confirmation_data_from", "resolution_rule", "status", "looks_done")
     watches = [dict(zip(cols, r)) for r in cur.fetchall()]
-    stats = {"evaluated": 0, "promoted": 0, "refuted": 0, "expired": 0,
-             "still_watching": 0, "on_clock": 0}
+    stats = {"looked": 0, "promoted": 0, "refuted": 0, "expired": 0,
+             "undecided": 0, "waiting": 0, "on_clock": 0}
     if not watches:
         return stats
     panel = _load_panel(cur, schema=panel_schema)
-    batch = []      # (h, c, post_days, snapshot_hash)
+    batch = []      # (h, c, post_days, snapshot_hash, look, n_eff, rho)
     for h in watches:
         data_from = h["confirmation_data_from"].date()
         calendar_days = (today - data_from).days
@@ -136,47 +159,54 @@ def run(cur, today=None, *, core="core", panel_schema="analysis"):
         out_raw = _post_window(panel.get(h["outcome_metric"], {}), data_from, today)
         lag = dt.timedelta(days=h["lag_days"])
         post_days = sum(1 for d in drv_raw if (d + lag) in out_raw)
-        if post_days < MIN_POST_DAYS:
-            if calendar_days >= EXPIRE_DAYS:
+        look = h["looks_done"] + 1
+        due = MIN_POST_DAYS if look == 1 else EXPIRE_DAYS
+        if post_days < due:
+            if look == 1 and calendar_days >= EXPIRE_DAYS:
                 # the window never filled (metric gone, device silent): expire by the calendar,
                 # otherwise it would be WATCHING forever (reviewer #10)
                 _write_resolution(cur, core, h, "INSUFFICIENT", "expired_no_decision_120d",
-                                  post_days, None, None, None)
+                                  post_days, None, None, None, look=look)
                 stats["expired"] += 1
-            else:
+            elif look == 1:
                 stats["on_clock"] += 1      # REQ-INF-107: window_too_short, rule not evaluated
+            else:
+                stats["waiting"] += 1       # looked once, undecided; look 2 is due at EXPIRE_DAYS
             continue
-        stats["evaluated"] += 1
+        stats["looked"] += 1
+        final = look >= 2 or post_days >= EXPIRE_DAYS      # look 2, or a first look already past day 120
         drv = _dow_demedian(drv_raw)
         out = _dow_demedian(out_raw)
         c = _contrast(drv, out, h["lag_days"], min_side=MIN_SIDE)
-        if c is None or min(c[0], c[1]) < MIN_SIDE:
-            if post_days >= EXPIRE_DAYS:
-                _write_resolution(cur, core, h, "INSUFFICIENT", "expired_no_decision_120d",
-                                  post_days, c, None, None)
-                stats["expired"] += 1
-            else:
-                stats["still_watching"] += 1     # no contrast possible yet; keep watching
+        rho = c[6] if c else None
+        n_eff = _kish_n_eff(post_days, rho) if c else None
+        if c is None or min(c[0], c[1]) < MIN_SIDE or n_eff < N_EFF_MIN:
+            reason = "expired_no_decision_120d" if final else "insufficient_low_n_eff"
+            _write_resolution(cur, core, h, "INSUFFICIENT", reason, post_days, c, None, None,
+                              look=look, n_eff=n_eff, rho=rho)
+            stats["expired" if final else "undecided"] += 1
             continue
-        batch.append((h, c, post_days, _snapshot_hash(drv_raw, out_raw)))
+        batch.append((h, c, post_days, _snapshot_hash(drv_raw, out_raw), look, n_eff, rho, final))
     if batch:
-        qs = _bh([c[5] for _, c, _, _ in batch])
-        for (h, c, post_days, snap), q in zip(batch, qs):
+        qs = _bh([c[5] for _, c, _, _, _, _, _, _ in batch])
+        for (h, c, post_days, snap, look, n_eff, rho, final), q in zip(batch, qs):
             h["family_m"] = len(batch)          # REQ-INF-106: the BH family size, persisted
             obs_dir = "positive" if c[4] > 0 else "negative"
             if q < Q_CONFIRM and obs_dir == h["direction"]:
-                _write_resolution(cur, core, h, "PROMOTED",
-                                  "promoted_same_sign_q_lt_0_10", post_days, c, q, obs_dir)
+                _write_resolution(cur, core, h, "PROMOTED", "promoted_same_sign_q_lt_0_10",
+                                  post_days, c, q, obs_dir, look=look, n_eff=n_eff, rho=rho)
                 _write_forward_prediction(cur, core, h, q, snap)
                 stats["promoted"] += 1
             elif q < Q_CONFIRM and obs_dir != h["direction"]:
                 _write_resolution(cur, core, h, "REFUTED", "refuted_opposite_sign_q_lt_0_10",
-                                  post_days, c, q, obs_dir)
+                                  post_days, c, q, obs_dir, look=look, n_eff=n_eff, rho=rho)
                 stats["refuted"] += 1
-            elif post_days >= EXPIRE_DAYS:
+            elif final:
                 _write_resolution(cur, core, h, "INSUFFICIENT", "expired_no_decision_120d",
-                                  post_days, c, q, obs_dir)
+                                  post_days, c, q, obs_dir, look=look, n_eff=n_eff, rho=rho)
                 stats["expired"] += 1
             else:
-                stats["still_watching"] += 1
+                _write_resolution(cur, core, h, "INSUFFICIENT", "insufficient_sign_unstable",
+                                  post_days, c, q, obs_dir, look=look, n_eff=n_eff, rho=rho)
+                stats["undecided"] += 1
     return stats

@@ -18,7 +18,7 @@ def main() -> int:
     conn = db.connect(); cur = conn.cursor()
     try:
         stats = resolve.run(cur)
-        changed = stats["promoted"] + stats["refuted"] + stats["expired"]
+        changed = stats["promoted"] + stats["refuted"] + stats["expired"] + stats["undecided"]
         cur.execute("""insert into ops.runs (job_name, finished_at, status, rows_written, detail)
                        values ('resolve_watches', now(), 'ok', %s, %s)""",
                     (changed, json.dumps(stats | {"code_version": resolve.CODE_VERSION})))

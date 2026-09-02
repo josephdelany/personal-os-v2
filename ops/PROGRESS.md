@@ -4676,3 +4676,47 @@ the first watch matures.
 **Single most likely thing to be wrong:** the resolver re-tests every night from day 30 with no correction for
 repeated looks, so on Joe's autocorrelated daily metrics a noise watch has roughly a three-in-four chance of being
 stamped PROMOTED or REFUTED within four months — the pre-registration is defeated by the schedule, not by a leak.
+
+## 2026-09-02 — Session 19 (close-out): 0042 + 0043 LIVE, resolver ran live, two-look ruling implemented (ADR-0048 §12)
+
+**Step 1 — the held items, executed (the classifier allowed them on the second session):**
+```
+run_migration.py --core core --ops ops --only 0042 --commit   -> COMMITTED 12 statements to core/ops
+run_resolve.py --dry-run   -> DRY RUN {'evaluated': 0, 'promoted': 0, 'refuted': 0, 'expired': 0, 'still_watching': 0, 'on_clock': 0} — rolled back
+run_resolve.py             -> resolve committed: {…all 0…}; ops.runs: ['resolve_watches', 'ok', 0, {…, 'code_version': 'resolve-v1'}, 2026-09-02 18:03:57 UTC]
+check_invariants.py        -> [ADR-0048 trigger] hypothesis_resolutions_append_only on hypothesis_resolutions: present · INVARIANTS: ALL PASS
+get_findings() live        -> {"as_of":"2026-09-02","counts":{"refuted":0,"watching":0,"confirmed":0,"candidates":34}}   (history absent: 0 ledger rows)
+tests/test_get_findings.py -> 5 passed (B6 contract intact on the re-created function)
+```
+
+**Step 2 — OQ-44(d) ruled (Joe: "YES, the reviewer's recommendation") and implemented.** `resolve.py` now takes **two
+looks only**: look 1 on the first night a watch has ≥30 paired post-registration days, look 2 once it has ≥120; every
+look writes a ledger row (`look` 1|2), so a look is never repeated and the ledger is the schedule. At each look the Kish
+`n_eff = post_days·(1−ρ)/(1+ρ)` (ρ = outcome lag-1 autocorrelation from `_contrast`, deflating only) is **stored**
+(`n_eff`, `rho_outcome`) and **gated** at `N_EFF_MIN = 20` (REQ-TIER-017's floor; a placeholder, OQ-10) →
+`insufficient_low_n_eff`. Look 1 with q ≥ 0.10 → `insufficient_sign_unstable`, waits; look 2 undecided, or a first look
+already past day 120, or a window that never fills within 120 calendar days → `expired_no_decision_120d`, final.
+Migration `0043_resolver_two_looks.sql` (3 columns; `get_findings` gains `watching[].looks_done`, `history[].look`,
+`history[].n_eff`; additive). Requirement IDs: REQ-TIER-017 (n_eff floor → INSUFFICIENT), REQ-TIER-018 (machine-readable
+reason on every INSUFFICIENT outcome), RULE-21 (no `n` without `n_eff`), REQ-INF-107, REQ-INF-106.
+Tests: `tests/test_resolve_watches.py` **12 passed in 96.76s** — new: `test_OQ_44d_a_look_is_never_repeated_two_looks_only`
+(same night, +1, +30, +60 days: no second look), `test_OQ_44d_second_look_at_120_paired_days_decides_or_expires` (look 1
+at day 45 undecided on noise; look 2 at 130 paired days promotes), `test_REQ_TIER_017_low_n_eff_is_stored_and_gated_to_insufficient`
+(a ramp outcome, ρ > 0.5, n_eff < 20 → gated, stored, surfaced in history).
+```
+run_migration.py dry run (0001–0043)   -> ROLLED BACK 270 statements; 0043 = 6 statements
+run_migration.py --only 0043 --commit  -> COMMITTED 6 statements to core/ops
+run_resolve.py (live, post-0043)       -> resolve committed: {'looked': 0, 'promoted': 0, 'refuted': 0, 'expired': 0, 'undecided': 0, 'waiting': 0, 'on_clock': 0}
+live columns                           -> ['look', 'n_eff', 'rho_outcome']
+validate_layout.py                     -> 40 passed, 0 warnings, 0 failed
+update_features.py (whole suite)       -> pytest: 101 passed, 0 failed, 0 errors, 0 skipped of 101 collected · 3 passing / 15 total (unchanged)
+```
+ADR-0048 §12 added; OQ-44(d) marked RESOLVED in place; DECISIONS row updated.
+
+**WHAT I DID NOT DO (steps 1–2).** `N_EFF_MIN = 20` is the spec's placeholder, not calibrated (OQ-10); with ~30 paired
+days and ρ ≈ 0.5 it blocks look 1 outright, so on autocorrelated metrics the first real test is day 120 — by design, but
+unratified as a number. `t.clock`'s look 2 can never come due by paired days when the panel stops at 60 days and the
+calendar path applies only before look 1 — a watch whose data stops *after* look 1 waits forever (noted; the calendar
+expiry could be extended to look 2 in a later build). `insufficient_sign_unstable` is used as "not established at this
+look", a reading of REQ-TIER-018's `sign_unstable`. Nothing scores the forward prediction (OQ-44a); `get_today` /
+`get_trust` still ignore resolution (OQ-44f); no ledger entry moved (no B7 test carries an entry's ID).
