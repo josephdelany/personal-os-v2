@@ -4720,3 +4720,12 @@ calendar path applies only before look 1 — a watch whose data stops *after* lo
 expiry could be extended to look 2 in a later build). `insufficient_sign_unstable` is used as "not established at this
 look", a reading of REQ-TIER-018's `sign_unstable`. Nothing scores the forward prediction (OQ-44a); `get_today` /
 `get_trust` still ignore resolution (OQ-44f); no ledger entry moved (no B7 test carries an entry's ID).
+
+**Step 3 — pushed and confirmed on GitHub.** `git push origin main` → `d3ef355..f0bc45d` (16 commits). `gates` on f0bc45d:
+success. `analysis.yml` on main has jobs `refresh` → `resolve` → `scan`; `extract.yml` has the `derive_visits` step
+(hourly runs succeeding). This morning's two scheduled `analysis` runs (02:29, 12:50 UTC, on d3ef355) had **failed**
+with `relation "analysis.forecasts" does not exist` — both ran before migration 0035 re-created the table (OQ-42);
+the table exists now. Dispatched `analysis.yml` on f0bc45d to confirm: run 33667042662 **success** — refresh / resolve /
+scan all green; `ops.runs`: `panel_build 111654`, `baselines_build 104176`, `forecast_nightly 4` (the first forecasts),
+`analysis_refresh ok`, `resolve_watches ok` (from CI), `contrast_scan kept 22`. Supabase CLI 2.116.0 installed via
+`brew install supabase/tap/supabase` ($0). Step 4 paused for Joe's `supabase login`.
