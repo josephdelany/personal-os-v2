@@ -1994,3 +1994,780 @@ index c74ee80..305ec46 100644
 38 passed, 1 warnings, 0 failed
 **DoD item 4 is now executed, not merely enabled.** The WHAT I DID NOT DO list above shrinks by its first
 bullet; every other bullet stands.
+
+## 2026-09-02 — Session 17 (B1): `config.domains` + `get_domains()` — migration 0034 LIVE (ADR-0040)
+
+Pre-work at Joe's instruction: `CLAUDE.md` line 21 no longer cites the removed `ops/WORK_QUEUE.md`
+(now: "ruled 27 Aug, recorded in `ops/PROGRESS.md`; build order in `docs/build/README.md`"); layout
+gate 38/0/0. New build-pack files (B6, L2–L7, RUNBOOK_NO_CLAUDE, README order) committed `1e8ea47`.
+No ADR-0040 was written for the features runner; B1 owns that number.
+
+**Requirement IDs satisfied:** REQ-INF-505, REQ-INF-109, REQ-ASK-003 (the refusal path is B2's;
+B1 exposes only enabled keys), REQ-NAR-014, REQ-NAR-015, REQ-LOC-005; ADR-0036 pattern. Tests:
+`tests/test_get_domains.py` — 7 tests named with those IDs + ADR-0040.
+
+**DISCOVER — B1 Step 0, five queries, verbatim output (live DB, read-only, rolled back):**
+<details><summary>Q1 analysis.panel metric×src (358 rows) · Q2 public.signals · Q3 public.events · Q4 transactions · Q5 atoms_current</summary>
+
+```
+=== Q1 analysis.panel metric×src ===
+active_kcal | legacy_daily | 209 | 2023-01-14 | 2026-07-17
+activity.dev_active_hours | signals:activity | 45 | 2026-03-25 | 2026-06-19
+airnow.aqi_ozone | signals:airnow | 1 | 2026-07-23 | 2026-07-23
+airnow.aqi_pm2_5 | signals:airnow | 1 | 2026-07-23 | 2026-07-23
+airnow.us_aqi | signals:airnow | 1 | 2026-07-23 | 2026-07-23
+apple_circadian.cos_acrophase | signals:apple_circadian | 104 | 2023-02-23 | 2026-07-28
+apple_circadian.cos_amp | signals:apple_circadian | 104 | 2023-02-23 | 2026-07-28
+apple_circadian.cos_mesor | signals:apple_circadian | 104 | 2023-02-23 | 2026-07-28
+apple_circadian.hr_amplitude | signals:apple_circadian | 116 | 2023-02-22 | 2026-07-28
+apple_circadian.hr_nadir | signals:apple_circadian | 116 | 2023-02-22 | 2026-07-28
+apple_circadian.hr_nadir_hour | signals:apple_circadian | 116 | 2023-02-22 | 2026-07-28
+apple_circadian.is | signals:apple_circadian | 103 | 2023-02-26 | 2026-07-28
+apple_circadian.iv | signals:apple_circadian | 103 | 2023-02-26 | 2026-07-28
+apple_circadian.l5 | signals:apple_circadian | 104 | 2023-02-23 | 2026-07-28
+apple_circadian.m10 | signals:apple_circadian | 104 | 2023-02-23 | 2026-07-28
+apple_circadian.ra | signals:apple_circadian | 104 | 2023-02-23 | 2026-07-28
+apple_gait.walking_asymmetry | signals:apple_gait | 1635 | 2021-02-20 | 2026-07-27
+apple_gait.walking_double_support | signals:apple_gait | 1838 | 2021-02-20 | 2026-07-27
+apple_gait.walking_speed | signals:apple_gait | 1846 | 2021-02-20 | 2026-07-27
+apple_gait.walking_steadiness | signals:apple_gait | 215 | 2022-06-02 | 2026-07-20
+apple_gait.walking_step_length | signals:apple_gait | 1846 | 2021-02-20 | 2026-07-27
+apple_hrv.dfa_a1 | signals:apple_hrv | 99 | 2023-02-23 | 2026-07-28
+apple_hrv.hf | signals:apple_hrv | 100 | 2023-02-23 | 2026-07-28
+apple_hrv.hrv_deep_rem_ratio | signals:apple_hrv | 18 | 2026-06-23 | 2026-07-28
+apple_hrv.lf | signals:apple_hrv | 100 | 2023-02-23 | 2026-07-28
+apple_hrv.lf_hf | signals:apple_hrv | 100 | 2023-02-23 | 2026-07-28
+apple_hrv.n_beats | signals:apple_hrv | 102 | 2023-02-23 | 2026-07-28
+apple_hrv.n_windows | signals:apple_hrv | 102 | 2023-02-23 | 2026-07-28
+apple_hrv.pnn50 | signals:apple_hrv | 102 | 2023-02-23 | 2026-07-28
+apple_hrv.rmssd | signals:apple_hrv | 102 | 2023-02-23 | 2026-07-28
+apple_hrv.rmssd_deep | signals:apple_hrv | 19 | 2026-06-23 | 2026-07-28
+apple_hrv.rmssd_rem | signals:apple_hrv | 18 | 2026-06-23 | 2026-07-28
+apple_hrv.sampen | signals:apple_hrv | 100 | 2023-02-23 | 2026-07-28
+apple_hrv.sd_ratio | signals:apple_hrv | 102 | 2023-02-23 | 2026-07-28
+apple_hrv.sd1 | signals:apple_hrv | 102 | 2023-02-23 | 2026-07-28
+apple_hrv.sd2 | signals:apple_hrv | 102 | 2023-02-23 | 2026-07-28
+apple_hrv.sdnn | signals:apple_hrv | 102 | 2023-02-23 | 2026-07-28
+apple_hrv.sdnn_deep | signals:apple_hrv | 19 | 2026-06-23 | 2026-07-28
+apple_hrv.sdnn_rem | signals:apple_hrv | 18 | 2026-06-23 | 2026-07-28
+apple_load.hr_peak | signals:apple_load | 138 | 2023-02-22 | 2026-07-28
+apple_load.hr_samples_n | signals:apple_load | 138 | 2023-02-22 | 2026-07-28
+apple_load.hr_z1_frac | signals:apple_load | 138 | 2023-02-22 | 2026-07-28
+apple_load.hr_z2_frac | signals:apple_load | 138 | 2023-02-22 | 2026-07-28
+apple_load.hr_z3_frac | signals:apple_load | 138 | 2023-02-22 | 2026-07-28
+apple_load.hr_z4_frac | signals:apple_load | 138 | 2023-02-22 | 2026-07-28
+apple_load.hr_z5_frac | signals:apple_load | 138 | 2023-02-22 | 2026-07-28
+apple_overnight.hrv_overnight | signals:apple_overnight | 56 | 2023-02-23 | 2025-12-04
+apple_sleep.asleep_min | signals:apple_sleep | 84 | 2023-02-23 | 2026-07-28
+apple_sleep.core_min | signals:apple_sleep | 84 | 2023-02-23 | 2026-07-28
+apple_sleep.deep_first_half_frac | signals:apple_sleep | 82 | 2023-02-23 | 2026-07-28
+apple_sleep.deep_min | signals:apple_sleep | 84 | 2023-02-23 | 2026-07-28
+apple_sleep.deep_pct | signals:apple_sleep | 84 | 2023-02-23 | 2026-07-28
+apple_sleep.efficiency | signals:apple_sleep | 84 | 2023-02-23 | 2026-07-28
+apple_sleep.inbed_min | signals:apple_sleep | 84 | 2023-02-23 | 2026-07-28
+apple_sleep.longest_wake_min | signals:apple_sleep | 84 | 2023-02-23 | 2026-07-28
+apple_sleep.midpoint_clock | signals:apple_sleep | 84 | 2023-02-23 | 2026-07-28
+apple_sleep.n_awakenings | signals:apple_sleep | 84 | 2023-02-23 | 2026-07-28
+apple_sleep.onset_latency_min | signals:apple_sleep | 84 | 2023-02-23 | 2026-07-28
+apple_sleep.rem_latency_min | signals:apple_sleep | 82 | 2023-02-23 | 2026-07-28
+apple_sleep.rem_min | signals:apple_sleep | 84 | 2023-02-23 | 2026-07-28
+apple_sleep.rem_pct | signals:apple_sleep | 84 | 2023-02-23 | 2026-07-28
+apple_sleep.span_min | signals:apple_sleep | 84 | 2023-02-23 | 2026-07-28
+apple_sleep.waso_min | signals:apple_sleep | 84 | 2023-02-23 | 2026-07-28
+apple_trimp.trimp_load | signals:apple_trimp | 108 | 2023-02-22 | 2025-12-07
+apple_vitals.resp_night | signals:apple_vitals | 84 | 2023-02-23 | 2026-07-28
+apple_vitals.rhr_min_clock | signals:apple_vitals | 80 | 2023-02-23 | 2026-07-28
+apple_vitals.rhr_night | signals:apple_vitals | 80 | 2023-02-23 | 2026-07-28
+apple_vitals.wrist_temp_f | signals:apple_vitals | 47 | 2023-02-23 | 2026-07-23
+apple_watch.active_energy_kcal | signals:apple_watch | 30 | 2026-07-10 | 2026-08-21
+apple_watch.apple_stand_hour | signals:apple_watch | 28 | 2026-07-10 | 2026-08-21
+apple_watch.apple_stand_time | signals:apple_watch | 28 | 2026-07-10 | 2026-08-21
+apple_watch.basal_energy_kcal | signals:apple_watch | 39 | 2026-07-07 | 2026-08-21
+apple_watch.cycling_distance | signals:apple_watch | 1 | 2026-08-08 | 2026-08-08
+apple_watch.environmental_audio_exposure | signals:apple_watch | 32 | 2026-07-08 | 2026-08-21
+apple_watch.exercise_min | signals:apple_watch | 28 | 2026-07-10 | 2026-08-21
+apple_watch.flights_climbed | signals:apple_watch | 55 | 2026-07-07 | 2026-08-30
+apple_watch.headphone_audio_exposure | signals:apple_watch | 33 | 2026-07-08 | 2026-08-30
+apple_watch.hr | signals:apple_watch | 32 | 2026-07-08 | 2026-08-21
+apple_watch.hrv_sdnn | signals:apple_watch | 32 | 2026-07-08 | 2026-08-21
+apple_watch.physical_effort | signals:apple_watch | 32 | 2026-07-08 | 2026-08-21
+apple_watch.respiratory_rate | signals:apple_watch | 25 | 2026-07-09 | 2026-08-14
+apple_watch.rhr | signals:apple_watch | 27 | 2026-07-08 | 2026-08-21
+apple_watch.six_minute_walking_test_distance | signals:apple_watch | 6 | 2026-07-10 | 2026-08-16
+apple_watch.sleep_asleep | signals:apple_watch | 21 | 2026-07-09 | 2026-08-14
+apple_watch.sleep_awake | signals:apple_watch | 21 | 2026-07-09 | 2026-08-14
+apple_watch.sleep_core | signals:apple_watch | 21 | 2026-07-09 | 2026-08-14
+apple_watch.sleep_deep | signals:apple_watch | 21 | 2026-07-09 | 2026-08-14
+apple_watch.sleep_in_bed | signals:apple_watch | 20 | 2026-07-10 | 2026-08-14
+apple_watch.sleep_onset_min | signals:apple_watch | 20 | 2026-07-10 | 2026-08-14
+apple_watch.sleep_rem | signals:apple_watch | 21 | 2026-07-09 | 2026-08-14
+apple_watch.sleep_wake_min | signals:apple_watch | 20 | 2026-07-10 | 2026-08-14
+apple_watch.sleeping_wrist_temp | signals:apple_watch | 7 | 2026-07-23 | 2026-08-08
+apple_watch.spo2 | signals:apple_watch | 31 | 2026-07-08 | 2026-08-21
+apple_watch.stair_speed_down | signals:apple_watch | 24 | 2026-07-09 | 2026-08-21
+apple_watch.stair_speed_up | signals:apple_watch | 24 | 2026-07-09 | 2026-08-21
+apple_watch.steps | signals:apple_watch | 55 | 2026-07-07 | 2026-08-30
+apple_watch.time_in_daylight | signals:apple_watch | 26 | 2026-07-09 | 2026-08-21
+apple_watch.walking_asymmetry_percentage | signals:apple_watch | 42 | 2026-07-07 | 2026-08-30
+apple_watch.walking_double_support_percentage | signals:apple_watch | 55 | 2026-07-07 | 2026-08-30
+apple_watch.walking_hr_avg | signals:apple_watch | 23 | 2026-07-09 | 2026-08-21
+apple_watch.walking_running_distance | signals:apple_watch | 55 | 2026-07-07 | 2026-08-30
+apple_watch.walking_speed | signals:apple_watch | 55 | 2026-07-07 | 2026-08-30
+apple_watch.walking_step_length | signals:apple_watch | 55 | 2026-07-07 | 2026-08-30
+attention.acrophase_hr | signals:attention | 322 | 2021-07-19 | 2026-07-28
+attention.binge_minutes | signals:attention | 1364 | 2021-07-02 | 2026-07-28
+attention.binge_runs | signals:attention | 1364 | 2021-07-02 | 2026-07-28
+attention.chrome_events | signals:attention | 1364 | 2021-07-02 | 2026-07-28
+attention.cos_amp | signals:attention | 322 | 2021-07-19 | 2026-07-28
+attention.max_binge_len | signals:attention | 1364 | 2021-07-02 | 2026-07-28
+attention.screen_active_min | signals:attention | 2 | 2026-07-28 | 2026-09-01
+attention.screen_evening_min | signals:attention | 2 | 2026-07-28 | 2026-09-01
+attention.screen_late_min | signals:attention | 2 | 2026-07-28 | 2026-09-01
+attention.session_count | signals:attention | 1364 | 2021-07-02 | 2026-07-28
+attention.yt_events | signals:attention | 1364 | 2021-07-02 | 2026-07-28
+checkin_morning_drive | atoms | 1 | 2026-07-22 | 2026-07-22
+checkin_morning_energy | atoms | 1 | 2026-07-22 | 2026-07-22
+checkin_morning_restored | atoms | 1 | 2026-07-22 | 2026-07-22
+checkin.morning_drive | signals:checkin | 1 | 2026-07-22 | 2026-07-22
+checkin.morning_energy | signals:checkin | 1 | 2026-07-22 | 2026-07-22
+checkin.morning_restored | signals:checkin | 1 | 2026-07-22 | 2026-07-22
+chrome_events | signals:attention | 1364 | 2021-07-02 | 2026-07-28
+derived.day_state | signals:derived | 143 | 2023-02-22 | 2026-07-26
+engine.active_energy_kcal_cp_prob | signals:engine | 1 | 2026-07-26 | 2026-07-26
+engine.active_energy_kcal_days_in_regime | signals:engine | 1 | 2026-07-26 | 2026-07-26
+engine.activity_consistency_14d | signals:engine | 431 | 2025-06-16 | 2026-09-01
+engine.anomaly_score | signals:engine | 763 | 2023-01-19 | 2026-07-14
+engine.cognitive_strain | signals:engine | 1365 | 2021-07-02 | 2026-07-28
+engine.conformal_hrv_sdnn | signals:engine | 1 | 2026-07-28 | 2026-07-28
+engine.conformal_readiness | signals:engine | 1 | 2026-07-28 | 2026-07-28
+engine.energy_bank | signals:engine | 135 | 2023-02-22 | 2026-08-21
+engine.hr_rest_elevation | signals:engine | 49 | 2025-07-20 | 2026-08-21
+engine.hrv_cv_28d | signals:engine | 64 | 2025-08-08 | 2026-08-30
+engine.hrv_sdnn_cp_prob | signals:engine | 1 | 2026-07-26 | 2026-07-26
+engine.hrv_sdnn_days_in_regime | signals:engine | 1 | 2026-07-26 | 2026-07-26
+engine.hrv_trend | signals:engine | 136 | 2023-02-22 | 2026-08-21
+engine.illness_watch | signals:engine | 53 | 2023-02-28 | 2026-08-21
+engine.lever_skill_attention_binge_minutes | signals:engine | 1 | 2026-07-28 | 2026-07-28
+engine.lever_skill_attention_binge_runs | signals:engine | 1 | 2026-07-28 | 2026-07-28
+engine.lever_skill_attention_max_binge_len | signals:engine | 1 | 2026-07-28 | 2026-07-28
+engine.lever_skill_entity_spend_other | signals:engine | 1 | 2026-07-28 | 2026-07-28
+engine.lever_skill_health_history_spo2 | signals:engine | 1 | 2026-07-28 | 2026-07-28
+engine.lever_skill_information_repeat_frac | signals:engine | 1 | 2026-07-28 | 2026-07-28
+engine.lever_skill_information_yt_news_frac | signals:engine | 1 | 2026-07-28 | 2026-07-28
+engine.lever_skill_screen_late_night_frac | signals:engine | 1 | 2026-07-28 | 2026-07-28
+engine.lever_skill_screen_morning_events | signals:engine | 1 | 2026-07-28 | 2026-07-28
+engine.lever_skill_screen_screen_events | signals:engine | 1 | 2026-07-28 | 2026-07-28
+engine.lever_skill_spend_freq_7d | signals:engine | 1 | 2026-07-28 | 2026-07-28
+engine.lever_skill_spend_monetary_30d | signals:engine | 1 | 2026-07-28 | 2026-07-28
+engine.overnight_coverage | signals:engine | 65 | 2026-05-18 | 2026-09-01
+engine.readiness | signals:engine | 159 | 2023-02-22 | 2026-08-21
+engine.readiness_cp_prob | signals:engine | 1 | 2026-07-26 | 2026-07-26
+engine.readiness_days_in_regime | signals:engine | 1 | 2026-07-26 | 2026-07-26
+engine.recovery_score | signals:engine | 4 | 2026-07-14 | 2026-07-17
+engine.resp_trend_28d | signals:engine | 49 | 2025-08-08 | 2026-08-29
+engine.respiratory_rate_cp_prob | signals:engine | 1 | 2026-07-26 | 2026-07-26
+engine.respiratory_rate_days_in_regime | signals:engine | 1 | 2026-07-26 | 2026-07-26
+engine.rhr_cp_prob | signals:engine | 1 | 2026-07-25 | 2026-07-25
+engine.rhr_days_in_regime | signals:engine | 1 | 2026-07-25 | 2026-07-25
+engine.rhr_trend_28d | signals:engine | 66 | 2025-08-07 | 2026-08-31
+engine.seed_lever_high_strain_hrv | signals:engine | 1 | 2026-07-28 | 2026-07-28
+engine.seed_lever_high_strain_recovery | signals:engine | 1 | 2026-07-28 | 2026-07-28
+engine.seed_lever_short_sleep_hrv | signals:engine | 1 | 2026-07-28 | 2026-07-28
+engine.seed_lever_short_sleep_recovery | signals:engine | 1 | 2026-07-28 | 2026-07-28
+engine.sleep_asleep_cp_prob | signals:engine | 1 | 2026-07-26 | 2026-07-26
+engine.sleep_asleep_days_in_regime | signals:engine | 1 | 2026-07-26 | 2026-07-26
+engine.sleep_debt | signals:engine | 129 | 2023-03-01 | 2026-08-22
+engine.sleep_efficiency | signals:engine | 20 | 2026-07-10 | 2026-08-14
+engine.sleep_midpoint | signals:engine | 20 | 2026-07-10 | 2026-08-14
+engine.sleep_pct_awake | signals:engine | 87 | 2023-02-23 | 2026-08-14
+engine.sleep_pct_core | signals:engine | 87 | 2023-02-23 | 2026-08-14
+engine.sleep_pct_deep | signals:engine | 87 | 2023-02-23 | 2026-08-14
+engine.sleep_pct_rem | signals:engine | 87 | 2023-02-23 | 2026-08-14
+engine.sleep_regularity | signals:engine | 106 | 2023-03-05 | 2026-08-16
+engine.sleep_score | signals:engine | 26 | 2026-05-19 | 2026-08-14
+engine.spo2_cp_prob | signals:engine | 1 | 2026-07-26 | 2026-07-26
+engine.spo2_days_in_regime | signals:engine | 1 | 2026-07-26 | 2026-07-26
+engine.steps_cp_prob | signals:engine | 1 | 2026-07-26 | 2026-07-26
+engine.steps_days_in_regime | signals:engine | 1 | 2026-07-26 | 2026-07-26
+engine.steps_vs_typical | signals:engine | 428 | 2025-06-16 | 2026-08-30
+engine.strain | signals:engine | 256 | 2023-01-14 | 2026-08-30
+engine.strain_cp_prob | signals:engine | 1 | 2026-07-26 | 2026-07-26
+engine.strain_days_in_regime | signals:engine | 1 | 2026-07-26 | 2026-07-26
+engine.time_in_bed | signals:engine | 20 | 2026-07-10 | 2026-08-14
+engine.trust_bad_output_day | signals:engine | 1 | 2026-07-28 | 2026-07-28
+engine.trust_hrv_sdnn | signals:engine | 1 | 2026-07-28 | 2026-07-28
+engine.trust_readiness | signals:engine | 1 | 2026-07-28 | 2026-07-28
+engine.vitality | signals:engine | 141 | 2023-02-22 | 2026-08-21
+engine.waso_min | signals:engine | 31 | 2025-07-21 | 2026-08-14
+engine.weight_ewma | signals:engine | 107 | 2026-05-18 | 2026-09-01
+engine.weight_trend_30d | signals:engine | 98 | 2026-05-27 | 2026-09-01
+event_study.late-night_content_binge__hrv_sdnn | signals:event_study | 1 | 2026-07-28 | 2026-07-28
+event_study.late-night_content_binge__readiness | signals:event_study | 1 | 2026-07-28 | 2026-07-28
+event_study.late-night_content_binge__rhr | signals:event_study | 1 | 2026-07-28 | 2026-07-28
+event_study.late-night_content_binge__sleep_asleep | signals:event_study | 1 | 2026-07-28 | 2026-07-28
+events_inferred.confirmed_frac | signals:events_inferred | 121 | 2023-01-19 | 2026-07-23
+events_inferred.health_event_count | signals:events_inferred | 54 | 2023-03-03 | 2026-07-23
+events_inferred.inferred_total | signals:events_inferred | 121 | 2023-01-19 | 2026-07-23
+events_inferred.latent_mood_count | signals:events_inferred | 1 | 2026-07-22 | 2026-07-22
+events_inferred.latent_symptom_count | signals:events_inferred | 2 | 2026-07-22 | 2026-07-23
+events_inferred.latent_topic_count | signals:events_inferred | 1 | 2026-07-22 | 2026-07-22
+events_inferred.latent:mood_count | signals:events_inferred | 1 | 2026-07-22 | 2026-07-22
+events_inferred.latent:symptom_count | signals:events_inferred | 2 | 2026-07-22 | 2026-07-23
+events_inferred.latent:topic_count | signals:events_inferred | 1 | 2026-07-22 | 2026-07-22
+events_inferred.meal_count | signals:events_inferred | 2 | 2026-07-22 | 2026-07-23
+events_inferred.mean_confidence | signals:events_inferred | 121 | 2023-01-19 | 2026-07-23
+events_inferred.social_count | signals:events_inferred | 5 | 2026-01-31 | 2026-06-26
+events_inferred.spend_count | signals:events_inferred | 3 | 2026-07-18 | 2026-07-23
+events_inferred.substance_count | signals:events_inferred | 20 | 2024-06-10 | 2026-06-26
+events_inferred.travel_count | signals:events_inferred | 7 | 2026-07-17 | 2026-07-23
+events_inferred.work_event_count | signals:events_inferred | 7 | 2026-01-26 | 2026-06-29
+events_inferred.workout_count | signals:events_inferred | 62 | 2023-01-19 | 2026-07-22
+exercise_min | legacy_daily | 153 | 2023-02-22 | 2026-07-17
+github.commit_hour | signals:github | 10 | 2026-07-13 | 2026-07-25
+github.commits | signals:github | 10 | 2026-07-13 | 2026-07-25
+github.distinct_repos | signals:github | 10 | 2026-07-13 | 2026-07-25
+github.fix_frac | signals:github | 10 | 2026-07-13 | 2026-07-25
+github.github_commits | signals:github | 11 | 2026-07-13 | 2026-08-05
+github.github_late_night_commits | signals:github | 11 | 2026-07-13 | 2026-08-05
+github.github_lines_added | signals:github | 11 | 2026-07-13 | 2026-08-05
+github.github_lines_deleted | signals:github | 11 | 2026-07-13 | 2026-08-05
+github.github_repos_touched | signals:github | 11 | 2026-07-13 | 2026-08-05
+github.late_night_commits | signals:github | 10 | 2026-07-13 | 2026-07-25
+github.lines_added | signals:github | 10 | 2026-07-13 | 2026-07-25
+github.lines_deleted | signals:github | 10 | 2026-07-13 | 2026-07-25
+github.net_lines | signals:github | 10 | 2026-07-13 | 2026-07-25
+gmail.gmail_avg_response_min | signals:gmail | 2 | 2026-05-26 | 2026-08-25
+gmail.gmail_late_night_sent | signals:gmail | 137 | 2026-04-18 | 2026-09-01
+gmail.gmail_received | signals:gmail | 137 | 2026-04-18 | 2026-09-01
+gmail.gmail_sent | signals:gmail | 137 | 2026-04-18 | 2026-09-01
+gmail.gmail_top_contact_share | signals:gmail | 7 | 2026-04-28 | 2026-08-31
+gmail.gmail_unique_contacts | signals:gmail | 137 | 2026-04-18 | 2026-09-01
+goal.steps | signals:goal | 21 | 2026-07-07 | 2026-07-27
+goal.workout | signals:goal | 13 | 2026-07-10 | 2026-07-26
+health_history.active_energy_kcal | signals:health_history | 204 | 2023-01-14 | 2026-06-24
+health_history.apple_stand_hour | signals:health_history | 115 | 2023-02-22 | 2026-06-23
+health_history.basal_energy_kcal | signals:health_history | 246 | 2023-01-14 | 2026-06-24
+health_history.environmental_audio_exposure | signals:health_history | 113 | 2023-02-22 | 2026-06-24
+health_history.exercise_min | signals:health_history | 148 | 2023-02-22 | 2026-06-23
+health_history.flights_climbed | signals:health_history | 2302 | 2019-09-03 | 2026-06-24
+health_history.headphone_audio_exposure | signals:health_history | 1367 | 2019-12-31 | 2026-06-20
+health_history.hr | signals:health_history | 117 | 2023-02-22 | 2026-06-24
+health_history.hr_max | signals:health_history | 117 | 2023-02-22 | 2026-06-24
+health_history.hr_min | signals:health_history | 117 | 2023-02-22 | 2026-06-24
+health_history.hrv_sdnn | signals:health_history | 104 | 2023-02-22 | 2026-06-24
+health_history.respiratory_rate | signals:health_history | 94 | 2023-02-22 | 2026-06-23
+health_history.rhr | signals:health_history | 93 | 2023-02-22 | 2026-06-23
+health_history.sleep_asleep | signals:health_history | 66 | 2023-02-23 | 2026-06-23
+health_history.sleep_awake | signals:health_history | 66 | 2023-02-23 | 2026-06-23
+health_history.sleep_core | signals:health_history | 66 | 2023-02-23 | 2026-06-23
+health_history.sleep_deep | signals:health_history | 66 | 2023-02-23 | 2026-06-23
+health_history.sleep_rem | signals:health_history | 66 | 2023-02-23 | 2026-06-23
+health_history.spo2 | signals:health_history | 102 | 2023-02-22 | 2026-06-23
+health_history.steps | signals:health_history | 2369 | 2019-09-03 | 2026-06-23
+health_history.vo2max | signals:health_history | 2 | 2025-08-09 | 2025-08-10
+health_history.walking_hr_avg | signals:health_history | 78 | 2023-02-22 | 2026-06-23
+health_history.walking_running_distance | signals:health_history | 2369 | 2019-09-03 | 2026-06-23
+health_history.wrist_temp_f | signals:health_history | 52 | 2023-02-23 | 2026-06-20
+hrv_rmssd | signals:apple_hrv | 102 | 2023-02-23 | 2026-07-28
+hrv_sdnn | legacy_daily | 31 | 2023-02-22 | 2026-07-16
+hrv_sdnn | signals:apple_hrv | 102 | 2023-02-23 | 2026-07-28
+information.content_entropy | signals:information | 1364 | 2021-07-02 | 2026-07-28
+information.cooking_frac | signals:information | 1335 | 2021-07-02 | 2026-07-28
+information.distinct_sources | signals:information | 1364 | 2021-07-02 | 2026-07-28
+information.entertainment_frac | signals:information | 1335 | 2021-07-02 | 2026-07-28
+information.health_frac | signals:information | 1335 | 2021-07-02 | 2026-07-28
+information.health_query_count | signals:information | 1364 | 2021-07-02 | 2026-07-28
+information.info_events | signals:information | 1364 | 2021-07-02 | 2026-07-28
+information.late_night_frac | signals:information | 1364 | 2021-07-02 | 2026-07-28
+information.learn_frac | signals:information | 1335 | 2021-07-02 | 2026-07-28
+information.news_frac | signals:information | 1335 | 2021-07-02 | 2026-07-28
+information.novelty_frac | signals:information | 1364 | 2021-07-02 | 2026-07-28
+information.repeat_frac | signals:information | 1364 | 2021-07-02 | 2026-07-28
+information.social_frac | signals:information | 1335 | 2021-07-02 | 2026-07-28
+information.yt_cooking_frac | signals:information | 1318 | 2021-07-02 | 2026-06-19
+information.yt_entertainment_frac | signals:information | 1318 | 2021-07-02 | 2026-06-19
+information.yt_learning_frac | signals:information | 1318 | 2021-07-02 | 2026-06-19
+information.yt_news_frac | signals:information | 1318 | 2021-07-02 | 2026-06-19
+information.yt_productive_frac | signals:information | 1318 | 2021-07-02 | 2026-06-19
+information.yt_shorts_frac | signals:information | 1318 | 2021-07-02 | 2026-06-19
+information.yt_sports_frac | signals:information | 1318 | 2021-07-02 | 2026-06-19
+information.yt_unknown_frac | signals:information | 1318 | 2021-07-02 | 2026-06-19
+mobility.home_stay_frac | signals:mobility | 9 | 2026-07-16 | 2026-07-24
+mobility.location_entropy | signals:mobility | 9 | 2026-07-16 | 2026-07-24
+mobility.max_dist_home_km | signals:mobility | 9 | 2026-07-16 | 2026-07-24
+mobility.n_clusters | signals:mobility | 9 | 2026-07-16 | 2026-07-24
+mobility.radius_gyration_km | signals:mobility | 9 | 2026-07-16 | 2026-07-24
+mobility.total_distance_km | signals:mobility | 9 | 2026-07-16 | 2026-07-24
+mobility.trip_count | signals:mobility | 9 | 2026-07-16 | 2026-07-24
+mood.mood_valence | signals:mood | 1 | 2026-07-22 | 2026-07-22
+mood.symptom_burden | signals:mood | 2 | 2026-07-22 | 2026-07-23
+mood.topic_load | signals:mood | 2 | 2026-07-22 | 2026-07-23
+resp_night | legacy_daily | 28 | 2023-02-22 | 2026-06-22
+resp_night | signals:apple_vitals | 84 | 2023-02-23 | 2026-07-28
+rhr | legacy_daily | 39 | 2023-02-22 | 2026-07-16
+rhr | signals:apple_vitals | 80 | 2023-02-23 | 2026-07-28
+screen_binge_min | signals:attention | 1364 | 2021-07-02 | 2026-07-28
+screen_max_binge | signals:attention | 1364 | 2021-07-02 | 2026-07-28
+screen_sessions | signals:attention | 1364 | 2021-07-02 | 2026-07-28
+sleep_asleep_min | legacy_daily | 2 | 2026-06-22 | 2026-07-15
+sleep_asleep_min | signals:apple_sleep | 84 | 2023-02-23 | 2026-07-28
+sleep_deep_min | legacy_daily | 70 | 2023-02-23 | 2026-07-15
+sleep_deep_pct | signals:apple_sleep | 84 | 2023-02-23 | 2026-07-28
+sleep_efficiency | signals:apple_sleep | 84 | 2023-02-23 | 2026-07-28
+sleep_inbed_min | legacy_daily | 1 | 2026-07-15 | 2026-07-15
+sleep_inbed_min | signals:apple_sleep | 84 | 2023-02-23 | 2026-07-28
+sleep_midpoint | signals:apple_sleep | 84 | 2023-02-23 | 2026-07-28
+sleep_onset_min | legacy_daily | 1 | 2026-07-15 | 2026-07-15
+sleep_onset_min | signals:apple_sleep | 84 | 2023-02-23 | 2026-07-28
+sleep_rem_min | legacy_daily | 70 | 2023-02-23 | 2026-07-15
+sleep_rem_pct | signals:apple_sleep | 84 | 2023-02-23 | 2026-07-28
+sleep_waso_min | legacy_daily | 1 | 2026-07-15 | 2026-07-15
+sleep_waso_min | signals:apple_sleep | 84 | 2023-02-23 | 2026-07-28
+spend.bar_frac_30d | signals:spend | 797 | 2024-05-15 | 2026-07-27
+spend.category_entropy_30d | signals:spend | 797 | 2024-05-15 | 2026-07-27
+spend.discretionary_frac_30d | signals:spend | 797 | 2024-05-15 | 2026-07-27
+spend.freq_30d | signals:spend | 797 | 2024-05-15 | 2026-07-27
+spend.freq_7d | signals:spend | 797 | 2024-05-15 | 2026-07-27
+spend.merchants_30d | signals:spend | 797 | 2024-05-15 | 2026-07-27
+spend.monetary_30d | signals:spend | 797 | 2024-05-15 | 2026-07-27
+spend.monetary_7d | signals:spend | 797 | 2024-05-15 | 2026-07-27
+spend.recency_days | signals:spend | 797 | 2024-05-15 | 2026-07-27
+steps | legacy_daily | 11 | 2026-07-07 | 2026-07-17
+steps | signals:health_history | 2369 | 2019-09-03 | 2026-06-23
+weather.apparent_temp_f | signals:weather | 47 | 2026-07-17 | 2026-09-01
+weather.cloud_cover_pct | signals:weather | 47 | 2026-07-17 | 2026-09-01
+weather.daylight_delta | signals:weather | 2750 | 2019-01-01 | 2026-07-28
+weather.daylight_hours | signals:weather | 2801 | 2019-01-01 | 2026-09-01
+weather.humidity_pct | signals:weather | 47 | 2026-07-17 | 2026-09-01
+weather.ozone | signals:weather | 47 | 2026-07-17 | 2026-09-01
+weather.pm10 | signals:weather | 47 | 2026-07-17 | 2026-09-01
+weather.pm2_5 | signals:weather | 47 | 2026-07-17 | 2026-09-01
+weather.precip_mm | signals:weather | 47 | 2026-07-17 | 2026-09-01
+weather.precip_sum_mm | signals:weather | 2754 | 2019-01-01 | 2026-07-16
+weather.pressure_delta_24h | signals:weather | 2750 | 2019-01-01 | 2026-07-28
+weather.pressure_delta_3d | signals:weather | 2748 | 2019-01-03 | 2026-07-28
+weather.pressure_hpa | signals:weather | 47 | 2026-07-17 | 2026-09-01
+weather.pressure_mean_hpa | signals:weather | 2801 | 2019-01-01 | 2026-09-01
+weather.temp_f | signals:weather | 47 | 2026-07-17 | 2026-09-01
+weather.temp_max_f | signals:weather | 2801 | 2019-01-01 | 2026-09-01
+weather.temp_mean_f | signals:weather | 2754 | 2019-01-01 | 2026-07-16
+weather.temp_min_f | signals:weather | 2801 | 2019-01-01 | 2026-09-01
+weather.us_aqi | signals:weather | 47 | 2026-07-17 | 2026-09-01
+weather.uv_index | signals:weather | 47 | 2026-07-17 | 2026-09-01
+weather.wind_mph | signals:weather | 47 | 2026-07-17 | 2026-09-01
+withings.basal_metabolic_rate | signals:withings | 24 | 2026-05-18 | 2026-08-23
+withings.bone_mass_kg | signals:withings | 24 | 2026-05-18 | 2026-08-23
+withings.fat_mass_kg | signals:withings | 24 | 2026-05-18 | 2026-08-23
+withings.fat_pct | signals:withings | 24 | 2026-05-18 | 2026-08-23
+withings.height_m | signals:withings | 1 | 2026-05-18 | 2026-05-18
+withings.hr | signals:withings | 11 | 2026-06-28 | 2026-08-23
+withings.hydration_kg | signals:withings | 24 | 2026-05-18 | 2026-08-23
+withings.lean_mass_kg | signals:withings | 24 | 2026-05-18 | 2026-08-23
+withings.metabolic_age | signals:withings | 24 | 2026-05-18 | 2026-08-23
+withings.muscle_mass_kg | signals:withings | 24 | 2026-05-18 | 2026-08-23
+withings.visceral_fat | signals:withings | 24 | 2026-05-18 | 2026-08-23
+withings.weight_kg | signals:withings | 29 | 2026-05-18 | 2026-08-23
+wrist_temp_f | signals:apple_vitals | 47 | 2023-02-23 | 2026-07-23
+yt_events | signals:attention | 1364 | 2021-07-02 | 2026-07-28
+=== Q2 public.signals source×metric ===
+activity | dev_active_hours | 45
+airnow | aqi_ozone | 2
+airnow | aqi_pm2_5 | 2
+airnow | us_aqi | 2
+apple_circadian | cos_acrophase | 104
+apple_circadian | cos_amp | 104
+apple_circadian | cos_mesor | 104
+apple_circadian | hr_amplitude | 116
+apple_circadian | hr_nadir | 116
+apple_circadian | hr_nadir_hour | 116
+apple_circadian | is | 103
+apple_circadian | iv | 103
+apple_circadian | l5 | 104
+apple_circadian | m10 | 104
+apple_circadian | ra | 104
+apple_gait | walking_asymmetry | 1635
+apple_gait | walking_double_support | 1838
+apple_gait | walking_speed | 1846
+apple_gait | walking_steadiness | 215
+apple_gait | walking_step_length | 1846
+apple_hrv | dfa_a1 | 99
+apple_hrv | hf | 100
+apple_hrv | hrv_deep_rem_ratio | 18
+apple_hrv | lf | 100
+apple_hrv | lf_hf | 100
+apple_hrv | n_beats | 102
+apple_hrv | n_windows | 102
+apple_hrv | pnn50 | 102
+apple_hrv | rmssd | 102
+apple_hrv | rmssd_deep | 19
+apple_hrv | rmssd_rem | 18
+apple_hrv | sampen | 100
+apple_hrv | sd_ratio | 102
+apple_hrv | sd1 | 102
+apple_hrv | sd2 | 102
+apple_hrv | sdnn | 102
+apple_hrv | sdnn_deep | 19
+apple_hrv | sdnn_rem | 18
+apple_load | hr_peak | 138
+apple_load | hr_samples_n | 138
+apple_load | hr_z1_frac | 138
+apple_load | hr_z2_frac | 138
+apple_load | hr_z3_frac | 138
+apple_load | hr_z4_frac | 138
+apple_load | hr_z5_frac | 138
+apple_overnight | hrv_overnight | 56
+apple_sleep | asleep_min | 84
+apple_sleep | core_min | 84
+apple_sleep | deep_first_half_frac | 82
+apple_sleep | deep_min | 84
+apple_sleep | deep_pct | 84
+apple_sleep | efficiency | 84
+apple_sleep | inbed_min | 84
+apple_sleep | longest_wake_min | 84
+apple_sleep | midpoint_clock | 84
+apple_sleep | n_awakenings | 84
+apple_sleep | onset_latency_min | 84
+apple_sleep | rem_latency_min | 82
+apple_sleep | rem_min | 84
+apple_sleep | rem_pct | 84
+apple_sleep | span_min | 84
+apple_sleep | waso_min | 84
+apple_trimp | trimp_load | 108
+apple_vitals | resp_night | 84
+apple_vitals | rhr_min_clock | 80
+apple_vitals | rhr_night | 80
+apple_vitals | wrist_temp_f | 47
+apple_watch | active_energy_kcal | 30
+apple_watch | apple_stand_hour | 28
+apple_watch | apple_stand_time | 28
+apple_watch | basal_energy_kcal | 39
+apple_watch | cycling_distance | 1
+apple_watch | environmental_audio_exposure | 32
+apple_watch | exercise_min | 28
+apple_watch | flights_climbed | 55
+apple_watch | headphone_audio_exposure | 33
+apple_watch | hr | 32
+apple_watch | hrv_sdnn | 32
+apple_watch | physical_effort | 32
+apple_watch | respiratory_rate | 25
+apple_watch | rhr | 27
+apple_watch | six_minute_walking_test_distance | 6
+apple_watch | sleep_asleep | 21
+apple_watch | sleep_awake | 21
+apple_watch | sleep_core | 21
+apple_watch | sleep_deep | 21
+apple_watch | sleep_in_bed | 20
+apple_watch | sleep_onset_min | 20
+apple_watch | sleep_rem | 21
+apple_watch | sleep_wake_min | 20
+apple_watch | sleeping_wrist_temp | 7
+apple_watch | spo2 | 31
+apple_watch | stair_speed_down | 24
+apple_watch | stair_speed_up | 24
+apple_watch | steps | 55
+apple_watch | time_in_daylight | 26
+apple_watch | walking_asymmetry_percentage | 42
+apple_watch | walking_double_support_percentage | 55
+apple_watch | walking_hr_avg | 23
+apple_watch | walking_running_distance | 55
+apple_watch | walking_speed | 55
+apple_watch | walking_step_length | 55
+attention | acrophase_hr | 322
+attention | binge_minutes | 1364
+attention | binge_runs | 1364
+attention | chrome_events | 1364
+attention | cos_amp | 322
+attention | max_binge_len | 1364
+attention | screen_active_min | 3
+attention | screen_evening_min | 3
+attention | screen_late_min | 3
+attention | session_count | 1364
+attention | yt_events | 1364
+checkin | morning_drive | 1
+checkin | morning_energy | 1
+checkin | morning_restored | 1
+derived | day_state | 143
+engine | active_energy_kcal_cp_prob | 1
+engine | active_energy_kcal_days_in_regime | 1
+engine | activity_consistency_14d | 431
+engine | anomaly_score | 763
+engine | cognitive_strain | 1365
+engine | conformal_hrv_sdnn | 1
+engine | conformal_readiness | 1
+engine | energy_bank | 135
+engine | guardian_leadtime | 1
+engine | hr_rest_elevation | 49
+engine | hrv_cv_28d | 64
+engine | hrv_sdnn_cp_prob | 1
+engine | hrv_sdnn_days_in_regime | 1
+engine | hrv_trend | 136
+engine | illness_watch | 53
+engine | lever_skill_attention_binge_minutes | 1
+engine | lever_skill_attention_binge_runs | 1
+engine | lever_skill_attention_max_binge_len | 1
+engine | lever_skill_entity_spend_other | 1
+engine | lever_skill_health_history_spo2 | 1
+engine | lever_skill_information_repeat_frac | 1
+engine | lever_skill_information_yt_news_frac | 1
+engine | lever_skill_screen_late_night_frac | 1
+engine | lever_skill_screen_morning_events | 1
+engine | lever_skill_screen_screen_events | 1
+engine | lever_skill_spend_freq_7d | 1
+engine | lever_skill_spend_monetary_30d | 1
+engine | overnight_coverage | 65
+engine | readiness | 183
+engine | readiness_cp_prob | 1
+engine | readiness_days_in_regime | 1
+engine | recovery_score | 4
+engine | resp_trend_28d | 49
+engine | respiratory_rate_cp_prob | 1
+engine | respiratory_rate_days_in_regime | 1
+engine | rhr_cp_prob | 1
+engine | rhr_days_in_regime | 1
+engine | rhr_trend_28d | 66
+engine | seed_lever_high_strain_hrv | 1
+engine | seed_lever_high_strain_recovery | 1
+engine | seed_lever_short_sleep_hrv | 1
+engine | seed_lever_short_sleep_recovery | 1
+engine | sleep_asleep_cp_prob | 1
+engine | sleep_asleep_days_in_regime | 1
+engine | sleep_debt | 129
+engine | sleep_efficiency | 20
+engine | sleep_midpoint | 20
+engine | sleep_pct_awake | 87
+engine | sleep_pct_core | 87
+engine | sleep_pct_deep | 87
+engine | sleep_pct_rem | 87
+engine | sleep_regularity | 106
+engine | sleep_score | 26
+engine | spo2_cp_prob | 1
+engine | spo2_days_in_regime | 1
+engine | steps_cp_prob | 1
+engine | steps_days_in_regime | 1
+engine | steps_vs_typical | 428
+engine | strain | 256
+engine | strain_cp_prob | 1
+engine | strain_days_in_regime | 1
+engine | time_in_bed | 20
+engine | trust_bad_output_day | 1
+engine | trust_hrv_sdnn | 1
+engine | trust_readiness | 1
+engine | trust_sleep_asleep | 1
+engine | vitality | 141
+engine | waso_min | 31
+engine | weight_ewma | 107
+engine | weight_trend_30d | 98
+event_study | late-night_content_binge__hrv_sdnn | 1
+event_study | late-night_content_binge__readiness | 1
+event_study | late-night_content_binge__rhr | 1
+event_study | late-night_content_binge__sleep_asleep | 1
+events_inferred | confirmed_frac | 121
+events_inferred | health_event_count | 54
+events_inferred | inferred_total | 121
+events_inferred | latent_mood_count | 1
+events_inferred | latent_symptom_count | 2
+events_inferred | latent_topic_count | 1
+events_inferred | latent:mood_count | 1
+events_inferred | latent:symptom_count | 2
+events_inferred | latent:topic_count | 1
+events_inferred | meal_count | 2
+events_inferred | mean_confidence | 121
+events_inferred | social_count | 5
+events_inferred | spend_count | 3
+events_inferred | substance_count | 20
+events_inferred | travel_count | 7
+events_inferred | work_event_count | 7
+events_inferred | workout_count | 62
+github | commit_hour | 10
+github | commits | 10
+github | distinct_repos | 10
+github | fix_frac | 10
+github | github_commits | 11
+github | github_late_night_commits | 11
+github | github_lines_added | 11
+github | github_lines_deleted | 11
+github | github_repos_touched | 11
+github | late_night_commits | 10
+github | lines_added | 10
+github | lines_deleted | 10
+github | net_lines | 10
+gmail | gmail_avg_response_min | 2
+gmail | gmail_late_night_sent | 138
+gmail | gmail_received | 138
+gmail | gmail_sent | 138
+gmail | gmail_top_contact_share | 8
+gmail | gmail_unique_contacts | 138
+goal | steps | 21
+goal | workout | 13
+health_history | active_energy_kcal | 204
+health_history | apple_stand_hour | 115
+health_history | basal_energy_kcal | 246
+health_history | environmental_audio_exposure | 113
+health_history | exercise_min | 148
+health_history | flights_climbed | 2302
+health_history | headphone_audio_exposure | 1367
+health_history | hr | 117
+health_history | hr_max | 117
+health_history | hr_min | 117
+health_history | hrv_sdnn | 104
+health_history | respiratory_rate | 94
+health_history | rhr | 93
+health_history | sleep_asleep | 66
+health_history | sleep_awake | 66
+health_history | sleep_core | 66
+health_history | sleep_deep | 66
+health_history | sleep_rem | 66
+health_history | spo2 | 102
+health_history | steps | 2369
+health_history | vo2max | 2
+health_history | walking_hr_avg | 78
+health_history | walking_running_distance | 2369
+health_history | wrist_temp_f | 52
+information | content_entropy | 1364
+information | cooking_frac | 1335
+information | distinct_sources | 1364
+information | entertainment_frac | 1335
+information | health_frac | 1335
+information | health_query_count | 1364
+information | info_events | 1364
+information | late_night_frac | 1364
+information | learn_frac | 1335
+information | news_frac | 1335
+information | novelty_frac | 1364
+information | repeat_frac | 1364
+information | social_frac | 1335
+information | yt_cooking_frac | 1318
+information | yt_entertainment_frac | 1318
+information | yt_learning_frac | 1318
+information | yt_news_frac | 1318
+information | yt_productive_frac | 1318
+information | yt_shorts_frac | 1318
+information | yt_sports_frac | 1318
+information | yt_unknown_frac | 1318
+mobility | home_stay_frac | 9
+mobility | location_entropy | 9
+mobility | max_dist_home_km | 9
+mobility | n_clusters | 9
+mobility | radius_gyration_km | 9
+mobility | total_distance_km | 9
+mobility | trip_count | 9
+mood | mood_valence | 1
+mood | symptom_burden | 2
+mood | topic_load | 2
+spend | bar_frac_30d | 797
+spend | category_entropy_30d | 797
+spend | discretionary_frac_30d | 797
+spend | freq_30d | 797
+spend | freq_7d | 797
+spend | merchants_30d | 797
+spend | monetary_30d | 797
+spend | monetary_7d | 797
+spend | recency_days | 797
+weather | apparent_temp_f | 325
+weather | cloud_cover_pct | 325
+weather | daylight_delta | 2750
+weather | daylight_hours | 2802
+weather | humidity_pct | 325
+weather | ozone | 322
+weather | pm10 | 322
+weather | pm2_5 | 322
+weather | precip_mm | 325
+weather | precip_sum_mm | 2754
+weather | pressure_delta_24h | 2750
+weather | pressure_delta_3d | 2748
+weather | pressure_hpa | 325
+weather | pressure_mean_hpa | 2802
+weather | temp_f | 325
+weather | temp_max_f | 2802
+weather | temp_mean_f | 2754
+weather | temp_min_f | 2802
+weather | us_aqi | 322
+weather | uv_index | 325
+weather | wind_mph | 325
+withings | basal_metabolic_rate | 28
+withings | bone_mass_kg | 28
+withings | fat_mass_kg | 28
+withings | fat_pct | 28
+withings | height_m | 1
+withings | hr | 11
+withings | hydration_kg | 28
+withings | lean_mass_kg | 28
+withings | metabolic_age | 28
+withings | muscle_mass_kg | 28
+withings | visceral_fat | 28
+withings | weight_kg | 35
+=== Q3 public.events kind ===
+anomaly | 50 | 2023-02-23 05:00:00+00:00 | 2026-06-22 04:00:00+00:00
+brief_sent | 3 | 2026-07-14 04:00:00+00:00 | 2026-07-16 04:00:00+00:00
+weather_debug | 323 | 2026-07-17 01:26:29.841447+00:00 | 2026-09-02 11:16:29.462298+00:00
+watchdog_run | 48 | 2026-07-18 11:03:02.813776+00:00 | 2026-09-02 14:06:45.429441+00:00
+github_commit | 69 | 2026-07-14 03:31:22+00:00 | 2026-08-05 20:35:25+00:00
+brief_llm_request | 47 | 2026-07-17 15:55:00.114227+00:00 | 2026-09-01 15:55:00.304834+00:00
+ingest_debug | 2 | 2026-07-17 21:10:49.903000+00:00 | 2026-07-17 22:50:31.153000+00:00
+youtube_watch | 38241 | 2021-07-02 12:25:53+00:00 | 2026-07-28 04:45:30+00:00
+inference_correction | 4 | 2026-07-22 16:43:31.483055+00:00 | 2026-07-25 15:00:45.949679+00:00
+changepoint | 29 | 2020-03-21 04:00:00+00:00 | 2025-10-08 04:00:00+00:00
+air_quality_alert | 9 | 2026-07-17 10:58:06.373463+00:00 | 2026-08-10 21:57:09.492245+00:00
+data_quarantine | 6418 | 2022-01-18 05:00:00+00:00 | 2026-07-15 04:00:00+00:00
+location_quarantine | 1 | 2026-07-28 20:00:00+00:00 | 2026-07-28 20:00:00+00:00
+ingest_quarantine | 2 | 2026-07-15 04:00:00+00:00 | 2026-07-17 04:00:00+00:00
+gmail_top_contacts | 48 | 2026-07-17 19:46:36.900721+00:00 | 2026-09-02 13:41:58.263678+00:00
+calendar | 369 | 2015-08-16 04:00:00+00:00 | 2026-09-22 04:00:00+00:00
+brief_topic | 3 | 2026-07-15 12:11:05.088486+00:00 | 2026-07-16 12:16:26.116445+00:00
+staleness_alert | 179 | 2026-07-13 22:36:22.446986+00:00 | 2026-09-02 13:15:00.299108+00:00
+chrome_visit | 20176 | 2026-03-25 22:56:51+00:00 | 2026-07-28 14:08:45.262463+00:00
+day_narrative_request | 1 | 2026-07-25 13:00:00.164354+00:00 | 2026-07-25 13:00:00.164354+00:00
+=== Q4 public.transactions ===
+1049 | 2024-05-15 04:00:00+00:00 | 2026-08-30 20:49:00+00:00
+=== Q5 core.atoms_current kind×metric_key ===
+note | None | 2
+self_report | checkin_morning_drive | 1
+self_report | checkin_morning_energy | 1
+self_report | checkin_morning_restored | 1
+```
+</details>
+
+**Seed-vs-panel reconciliation (B1 Step 0 rule).** Of the 37 `domain_metrics` rows B1 lists, **25 have
+their metric in `analysis.panel`** and were seeded; **12 do not and were removed** (listed under WHAT I
+DID NOT DO). All 14 `config.domains` rows seeded regardless (`hero_metric` kept as written) so the
+index shows "never captured → capture action". No panel row was inserted (RULE-01).
+
+**Wrong against live SQL semantics, fixed minimally (README rule 12):** B1's `get_domains()` keyed
+`density` and `days_with_data` on `s.days IS NULL`, but `count(DISTINCT p.day)` over zero rows is `0`,
+not NULL — a never-captured domain would have rendered `density='weeks'` and `days_with_data=0`
+(a fabricated-looking zero, REQ-INF-505). Both now key on `s.last_day IS NULL`; envelope matches B1
+Step 2's example (`{"status":"never_captured","density":"none"}`). Recorded in ADR-0040 §2.
+
+**Apply.** Dry run: full chain 0001–0034 → `core_dryrun/ops_dryrun`, `ROLLED BACK 176 statements …
+schema executed end to end, nothing persisted`. Real: `--only 0034 --commit` → `COMMITTED 12
+statements to core/ops` (ADR-0040 §3 records why `--only`, not README rule 4's full-chain re-apply).
+
+**`select public.get_domains()` as owner — 14 domains; coverage counts `{'not_logged': 8,
+'never_captured': 6}`** (as_of 2026-09-01; the panel's newest day is 2026-07-28, so every captured
+domain is 35–46 days stale → `not_logged`; nothing is `fresh` or `stale` today — that is the true
+state of capture, not a bug). Full JSON (heroes: sleep 371 min · recovery 71 ms · vitals 46 bpm ·
+money $44 · content 1 event · activity 851 steps; body/food/drink/calendar/workouts/places
+never_captured with no hero, density none; attention and mood have coverage but no hero because
+their hero metric is absent from the panel):
+(envelope JSON is in the session transcript; re-run: select public.get_domains() as owner)
+
+**Tests** `python3 -m pytest tests/test_get_domains.py -v`: **7 passed in 7.40s** (one initial failure
+was a driver type mismatch — pg8000 returns `()` not `[]` — fixed in the assert, not the gate).
+`python3 tools/update_features.py`: 34/34 passed, 0 skipped, `3 passing / 15 total` (no new REQ token
+maps to a ledger entry). `python3 tools/validate_layout.py`: 38 passed, 0 warnings, 0 failed.
+ADR-0040 written; DECISIONS row added; **OQ-40** opened (coverage thresholds provisional).
+
+**WHAT I DID NOT DO.**
+- 12 `domain_metrics` rows NOT seeded (metric absent from `analysis.panel` on 2026-09-02):
+  `body/weight_lb`, `workouts/strength_volume`, `food/meals_logged`, `drink/alcohol_standard_drinks`,
+  `drink/alcohol_ethanol_grams`, `attention/screen_active_hours`, `mood/checkin_night_mood`,
+  `mood/checkin_night_energy`, `mood/checkin_night_stress`, `mood/checkin_night_day_rating`,
+  `mood/checkin_morning_mood`, `mood/checkin_morning_sleep_feel`. Consequence: `body`, `workouts`,
+  `food`, `drink` have no metrics at all; `attention` and `mood` have `why` rows but no `hero` row, so
+  their `hero` is absent while coverage is populated. They return when the panel gains the metric
+  (`weight_lb` exists in signals as `withings.weight_kg`; `screen_active_min` exists with 3 rows —
+  neither is mapped to the seed's names; a panel-side rename is not this file's to make).
+- Did not re-apply 0001–0033 to live (used `--only 0034`); did not set per-domain thresholds (OQ-40).
+- Did not build the REQ-ASK-003 refusal path (B2's) or `capture_shortcut` (B2 adds the column).
+- Did not paste the envelope's 14-domain JSON verbatim above if the scratch copy was missing; the
+  numbers quoted are from the live call in this session.

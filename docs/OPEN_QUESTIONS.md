@@ -666,6 +666,18 @@ a dedicated prompt) if he wants alcohol keyed sooner. Raised by the ADR-0035 inc
 
 ---
 
+**OQ-40 — Coverage-vocabulary thresholds (`fresh ≤ 1 day`, `stale ≤ 30 days`) are provisional.**
+Why open: `config.coverage_thresholds` (migration 0034, ADR-0040) seeds `fresh_max_days=1`
+and `stale_max_days=30` so `get_domains()` can render `fresh / stale / not_logged /
+never_captured`. Neither number has evidence behind it (STOP-AND-ASK #8: never invent a
+threshold silently). A weekly Apple Health export makes every body domain "stale" six
+days in seven; a nightly check-in makes "stale" mean something different.
+Depends on it: every coverage badge on the SOURCES index and on `get_domain` (B2).
+Settles it: Joe setting the two numbers against the real capture cadence once a month
+of unattended capture exists — possibly per-domain (a column on `config.domains`)
+rather than global. Until then the values are read from the table, never hardcoded,
+and the envelope says nothing about how they were chosen. Opened 2026-09-02, session 17.
+
 ## RESOLVED
 
 **OQ-01 — RESOLVED 2026-08-23.** *Is the Supabase credential rotated?*

@@ -18,7 +18,7 @@ Gate status (verify live state, do not recite this — it goes stale):
   count is *reconciled, not equal* (ADR-0025), and RULE-04 is deferred to Phase 5
   (OQ-22).
 
-**The real goal (`ops/WORK_QUEUE.md`, 27 Aug):** get continuous unattended capture
+**The real goal (ruled 27 Aug, recorded in `ops/PROGRESS.md`; build order in `docs/build/README.md`):** get continuous unattended capture
 running before the Claude subscription ends — data can only be collected once, code
 can be written anytime. This reprioritises above the roadmap phase order; capture
 work (Phase-3 ingest) is in scope now under that ruling. Do not start *later-phase
