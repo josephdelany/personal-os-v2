@@ -36,7 +36,7 @@
   <p id="authmsg" class="muted"></p>
 </div>
 <div id="picker" style="display:none">
-  <button id="tab-today">Today</button> <button id="tab-timeline">Timeline</button> <button id="tab-day">Day</button> <button id="tab-insights">Insights</button><br><br>
+  <button id="tab-today">Today</button> <button id="tab-timeline">Timeline</button> <button id="tab-day">Day</button> <button id="tab-patterns">Patterns</button> <button id="tab-insights">Insights</button><br><br>
   <input id="day" type="date"> <button id="load">Load</button> <button id="signout" class="muted">Sign out</button>
 </div>
 <div id="app" class="transition"></div>
@@ -104,6 +104,38 @@ if (new URLSearchParams(location.search).get("demo")) {
   $("tab-day").onclick = () => load();
   $("tab-today").onclick = () => loadToday();
   $("tab-timeline").onclick = () => loadTimeline();
+  $("tab-patterns").onclick = () => loadPatterns();
+  async function loadPatterns() {
+    const { data, error } = await sb.rpc("get_patterns");
+    if (error) { $("app").innerHTML = `<p class="warn">patterns unavailable: ${esc(error.message)}</p><p class="muted">(is migration 0031 applied and a scan run?)</p>`; return; }
+    const env = typeof data === "string" ? JSON.parse(data) : data;
+    let h = `<h2>Patterns · <span class="warn">${esc(env.tier)}</span></h2><p class="muted">${esc(env.disclaimer)}</p>`;
+    const c = env.calibration;
+    if (c) h += `<p class="num muted">honesty check (run ${esc(c.run_date)}): ${esc(c.observed_significant)} significant of ${esc(c.pairs_tested)} tested vs ${esc(c.shuffled_null_significant)} on shuffled data.</p>`;
+    if ((env.keystone||[]).length) {
+      h += "<h2>Keystone drivers</h2>";
+      h += env.keystone.map(k => `<p class="num"><strong>${esc(k.driver)}</strong> appears in ${esc(k.patterns)} patterns across ${esc(k.outcome_families)} life domains <span class="warn">(exploratory)</span></p>`).join("");
+    }
+    h += "<h2>Exploratory associations</h2>";
+    h += (env.patterns||[]).map(p => {
+      let w = "";
+      if (p.watched && p.watch_progress) {
+        const wp = p.watch_progress;
+        w = ` <span class="muted num">⏱ watching: day ${esc(wp.days_elapsed)}/${esc(wp.days_needed)} (${esc(wp.status)})</span>`;
+      } else if (!p.watched) {
+        w = ` <button data-watch="${esc(p.hypothesis_id)}" class="watchbtn">Watch this</button>`;
+      }
+      return `<p class="num"><span class="warn">[${esc(p.label)}]</span> ${esc(p.sentence)} <span class="muted">(n=${esc(p.n_hi)}/${esc(p.n_lo)}, n_eff≈${esc(p.n_eff?.[0])}/${esc(p.n_eff?.[1])}, q=${esc(p.q)}${p.seeded?", seeded":""})</span>${w}</p>`;
+    }).join("") || '<p class="muted">no patterns surfaced yet — the weekly scan populates this.</p>';
+    h += `<p class="muted">text only, by design: an exploratory association gets a sentence you must read, never a chart you can over-believe.</p>`;
+    $("app").innerHTML = h;
+    document.querySelectorAll(".watchbtn").forEach(b => b.onclick = async () => {
+      b.disabled = true; b.textContent = "registering…";
+      const { error } = await sb.rpc("register_watch", { p_hypothesis_id: b.dataset.watch });
+      if (error) { b.textContent = "error"; return; }
+      loadPatterns();
+    });
+  }
   async function loadToday() {
     const day = $("day").value || null;
     const { data, error } = await sb.rpc("get_state", day ? { p_day: day } : {});
