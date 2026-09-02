@@ -4387,3 +4387,36 @@ updated to the post-B5 contract (`tests/test_get_entity.py`, 9/9). `validate_lay
 - `unknown_visits: 0` is emitted on an empty day (B5's envelope; a count, not a measure) — flagged, not changed.
 - `get_movements` reads `restricted.location_fixes` directly for coverage and radius of gyration (aggregates
   only), as B5 specified; the lint allows it because it lives in `migrations/`.
+
+## 2026-09-02 — Session 17 (B6): `get_findings()` — the lifecycle lists, migration 0041 LIVE (ADR-0047)
+
+**Requirement IDs satisfied:** REQ-TIER-005 (tier + trace with every item), REQ-TIER-023 (adjustment set verbatim
+on a CONFIRMED row; E-value / negative control absent, not computed), REQ-TIER-035 (never a CANDIDATE row),
+REQ-TIER-043 (demotions surfaced by name — only as far as the register records them: rows currently REFUTED);
+ADR-0036 pattern. Tests: `tests/test_get_findings.py` — 5, named with those IDs + ADR-0047.
+
+**DISCOVER (live, read-only):** `core.hypothesis_register` columns = hypothesis_id, exposure_metric,
+outcome_metric, lag_days, direction, transformation, adjustment_set, test_statistic, preregistered_at,
+confirmation_data_from, resolution_rule, status, mined_from_preexisting — every column B6 names exists.
+Status CHECK = CANDIDATE | PROMOTED | CONFIRMED_OBSERVATIONAL | EXPERIMENTAL | REFUTED | INSUFFICIENT. Rows:
+CANDIDATE 34, none with the `watch:` prefix. `core.predictions` pending non-forecast rows: 0. `evidence_tier`,
+`claim_text`, `resolves_at`, `prediction_id` exist as named (checked in B2's schema pass).
+
+**Apply.** Dry run full chain 0001–0041 → rolled back, 252 statements. Real `--only 0041 --commit` → COMMITTED 4
+statements. **Owner call:**
+```
+{"as_of":"2026-09-02","counts":{"candidates":34,"watching":0,"confirmed":0,"refuted":0}}
+```
+(the four lists and `predictions_pending` are absent — nothing to list; absence, not `[]`, per the ADR-0036
+`jsonb_strip_nulls` pattern B6 specified).
+
+**Tests** `python3 -m pytest tests/test_get_findings.py -v`: **5 passed in 2.41s**. `validate_layout.py` 40/0/0.
+`update_features.py`: whole suite green, `3 passing / 15 total`. ADR-0047; DECISIONS row.
+
+**WHAT I DID NOT DO.**
+- E-value and negative control not computed (keys absent on a CONFIRMED row; none exist today).
+- No demotion-history table: REQ-TIER-043 is satisfied only for rows currently REFUTED.
+- `EXPERIMENTAL` status rows are neither listed nor counted (B6's lists omit the tier; zero rows exist).
+- The lists are unexercised on real data: the register holds only CANDIDATE rows, so every list branch
+  ran against zero rows (the tests assert structure and the no-CANDIDATE invariant; they cannot yet prove
+  a WATCHING row's clock arithmetic on a live row).
