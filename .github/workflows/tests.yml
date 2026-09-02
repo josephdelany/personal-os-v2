@@ -1,0 +1,42 @@
+# tests — the full pytest suite against the live database, nightly and on every push to main (ADR-0049 (g)).
+# Runs the sanctioned ledger writer (tools/update_features.py --strict), which runs the WHOLE suite, moves
+# ops/features.json entries failing -> passing only on a named passing test, and exits 1 on any failure.
+# If the ledger changed, a bot commit records it (same pattern as keepalive's heartbeat commit).
+name: tests
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '0 9 * * *'    # nightly 09:00 UTC, after the analysis refresh
+  workflow_dispatch: {}
+concurrency: { group: tests, cancel-in-progress: false }
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write        # only for the ops/features.json ledger commit
+    steps:
+      - uses: actions/checkout@v4
+        with: {fetch-depth: 0}
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - run: pip install 'pg8000>=1.30,<2' 'pytest>=8,<9'
+      - name: full suite via the ledger writer (fails on any test failure)
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          PYTHONPATH: ${{ github.workspace }}
+        run: python3 tools/update_features.py --strict
+      - name: commit the ledger if it moved
+        if: always()
+        run: |
+          set -euo pipefail
+          if ! git diff --quiet -- ops/features.json; then
+            git config user.name  "features-bot"
+            git config user.email "features@users.noreply.github.com"
+            git add ops/features.json
+            git commit -m "chore: features ledger moved by a named passing test (tools/update_features.py, ADR-0011)"
+            git push
+          else
+            echo "ledger unchanged"
+          fi

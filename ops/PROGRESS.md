@@ -4879,3 +4879,96 @@ update_features.py (whole suite)                 -> pytest: 101 passed, 0 failed
 **Single most likely thing to be wrong (session 19):** the two-look resolver still resolves about one noise watch in five
 (family of one, so q is the raw p; n_eff is gated, never used to deflate p), and half of those land as PROMOTED — the
 frozen rule text promises 0.10 and the code delivers ~0.20, until OQ-44(i) is ruled.
+
+## 2026-09-02 — Session 20 (B8): consistency & the OQ-44 rulings — migration 0045 LIVE (ADR-0049)
+
+**Requirement IDs satisfied (quoted at the start, per the chain rules):** RULE-12 "Compute happens exactly once, in one
+place, stamped … this is why two screens agree by construction rather than by coincidence" — the three `watching`
+surfaces now read one predicate; REQ-TIER-017 "WHEN coverage … is below 0.60 over the analysis window, **or** `n_eff` is
+below 20, the reasoning layer SHALL assign tier `INSUFFICIENT`" — both clauses now implemented; REQ-TIER-018 "SHALL
+record on every `INSUFFICIENT` finding a machine-readable `insufficiency_reason` from the closed set"; RULE-20 (the
+forward prediction gets a scorer — B9 wires it; B8 records the ruling and stops claiming RULE-20); RULE-22 "A CI check
+greps imports and fails on any of them" — the grep the constitution describes now exists; REQ-INF-103 (frozen columns
+untouched: `rule_version` is not one of the ten the trigger guards, and v1 rows keep v1 semantics forever).
+Tests: `tests/test_resolve_watches.py` — 18, six new and named for ADR-0049 / REQ-TIER-017 / REQ-TIER-018 / RULE-12.
+
+**DISCOVER (live, read-only, before the migration):**
+```
+core.hypothesis_resolutions constraints -> look CHECK (1,2); reason CHECK (6 v1 values); FK to hypothesis_register; pkey
+core.hypothesis_register columns        -> hypothesis_id, exposure_metric, outcome_metric, lag_days, direction, transformation,
+                                           adjustment_set, test_statistic, preregistered_at, confirmation_data_from,
+                                           resolution_rule, status, mined_from_preexisting     (no rule_version — added by 0045)
+register_watch                          -> exists, inserts status INSUFFICIENT
+analysis.watch_progress                 -> NULL (absent)
+scored resolve-* predictions            -> 0
+get_today.watching   (0033:43-50)       -> every 'watch:%' row, no status filter, 'day' = current_date - preregistered_at, 'of' 30
+get_trust.hypotheses.watching (0033:160)-> count FILTER (hypothesis_id LIKE 'watch:%' AND status='INSUFFICIENT')
+```
+Both surfaces disagreed with `get_findings` by construction (the second review's finding 8). That is what B8 fixes.
+
+**The rulings** are recorded verbatim in ADR-0049, each closing an OQ-44 letter; OQ-44 is marked RESOLVED with its
+original text kept. Where the ruling text left a gap, ADR-0049 §"How B8 read the rulings" states the reading rather than
+choosing silently — eight of them, the load-bearing one being that a v2 look 2 on a PROMOTED row tests the
+**post-promotion** window (that is what ruling (a) scores), so look 2 is due only once that window itself holds 30 paired
+days. The idempotence test found the first version re-looking a late promotion on an empty window the same night.
+
+**Built.** `migrations/0045_consistency.sql` (27 statements): `rule_version` on the register; `insufficiency_reason` /
+`coverage` / `look_day` on the ledger with the reason CHECK extended to the v2 vocabulary; `analysis.watch_progress`;
+`public._watching_rows()` (SECURITY DEFINER, EXECUTE revoked from anon **and** authenticated — only the three RPCs call
+it); `register_watch` re-created with the v2 rule text and `rule_version='v2'`, every other line as 0031; `get_today`,
+`get_trust`, `get_findings` re-created to read the shared predicate. `tools/engines/resolve.py` → **resolve-v2**: rule
+semantics dispatched on `rule_version`, coverage and n_eff gates ledgered with the REQ-TIER-018 vocabulary,
+`watch_progress` written nightly for every open watch, `p_forecast` 0.5 with the calibrated path coded behind
+`CALIBRATION_MIN = 20`. `tools/update_features.py --strict` (additive: exit 1 on any failure; the ledger is still written
+first). `.github/workflows/tests.yml` (push to main + nightly 09:00 UTC + dispatch; bot-commits the ledger if it moved).
+`.github/workflows/gates.yml` + the RULE-22 import grep.
+
+**Apply.** Dry run full chain 0001–0045 → `ROLLED BACK 301 statements`, 0045 = 27. Real `--only 0045 --commit` →
+**COMMITTED 27 statements**. Live after apply:
+```
+run_resolve.py -> resolve committed: {'open': 0, 'looked': 0, 'promoted': 0, 'kept': 0, 'demoted': 0, 'refuted': 0,
+                                      'expired': 0, 'undecided': 0, 'waiting': 0, 'on_clock': 0, 'not_evaluable': 0, 'final_v1': 0}
+check_invariants.py --core core -> INVARIANTS: ALL PASS
+get_today.watching              -> absent (no watches)          get_trust.hypotheses -> {'watching': 0, 'candidates': 37, ...}
+get_findings.watching           -> absent; counts.watching 0     analysis.watch_progress -> 0 rows
+core.hypothesis_register.rule_version -> present    _watching_rows ACL -> {postgres=X, service_role=X}  (anon and authenticated revoked)
+```
+All three surfaces agree at zero, which is the only agreement the live data can currently exhibit; the three-surface
+identity is proven on nine synthetic watches in the twin (`test_RULE_12_three_surfaces_report_identical_watching_sets`).
+
+**Tests** `python3 -m pytest tests/test_resolve_watches.py -q` → **18 passed in 254.81s**. New: v1 rows keep v1
+semantics (and a v1 PROMOTED row is final a year on); v2 look 1 requires p<0.05 and n_eff≥20 (with the noise and
+autocorrelated fixtures proving each gate); v2 look 2 demotes on an unstable sign, `status_from` PROMOTED →
+INSUFFICIENT, surfaced by name; coverage < 0.60 → INSUFFICIENT(low_coverage) with the reason on the ledger and the
+watching row; the three surfaces return identical watching sets and the TODAY clock reads paired days from
+`watch_progress`; every INSUFFICIENT ledger row carries a REQ-TIER-018 vocabulary reason and every non-INSUFFICIENT row
+carries none. `validate_layout.py` 40/0/0. RULE-22 grep: no match (exit 1), as required.
+
+**Whole suite.** `update_features.py --strict`: **106 passed, 1 failed, 0 errors, 0 skipped of 107**. The one
+failure was self-inflicted and is not a B8 defect: B9's migration 0046 was already in the working tree (untracked),
+`tests/_location_fixture.py` applies *every* file in `migrations/` to the twins, and 0046 rewords the `promoted[]`
+note that a B8 test asserts verbatim. Two things came out of that contamination, both fixed:
+- `analysis.spec_curves` in 0046 declared a column named `window`, which is a **reserved word in PostgreSQL**; the
+  CREATE TABLE failed to parse and 21 twin-based tests errored. Renamed `window_spec`. B9's DDL as written does not
+  apply; that is recorded in ADR-0050.
+- With 0046 set aside, `python3 -m pytest tests/test_resolve_watches.py -q` → **18 passed in 267.55s**, and every
+  other module had already passed under the stricter configuration (0046 present). `validate_layout.py` 40/0/0.
+The authoritative green for this commit is the `tests.yml` run it triggers on `main`, which checks out the commit
+without B9's files. Lesson recorded: do not write the next file's migration into `migrations/` before the current
+file is committed — the twin fixture has no notion of "uncommitted".
+
+**WHAT I DID NOT DO (B8).**
+- `p_forecast`'s calibrated path is coded but unreachable: it needs 20 scored resolutions and there are 0.
+- Nothing scores a forward prediction yet (ruling (a) assigns that to B9's look 2); RULE-20 is still not satisfied
+  by this file and is not claimed.
+- `_watching_rows()` returns `post_days` from `analysis.watch_progress`, which only the resolver writes; on a watch
+  registered between two nightly runs the clock reads "clock not yet computed" until the next run. Correct, but it
+  means the surface depends on the job having run.
+- `next_look` is a projection at one paired day per calendar day, labelled `~` on the surface; it is not a promise.
+- v1 semantics are retained in code but no v1 row exists live and none can be created (register_watch now writes v2),
+  so the v1 path is proven only by the twin fixture, never by production data.
+- REQ-TIER-017's coverage clause is implemented in the resolver; it is NOT implemented in `get_domain`,
+  `get_period` or any other surface that reports an aggregate.
+- The three-surface identity is proven on nine synthetic watches; live it is proven only at zero.
+- `insufficient_window_too_short` remains in the reason CHECK and is still written by no code path (the on-the-clock
+  state is surfaced by `_watching_rows`, not ledgered).

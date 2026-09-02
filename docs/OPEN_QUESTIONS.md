@@ -714,7 +714,9 @@ Settles it: Joe ruling migrate (agent writes a one-off `--only` migration with a
 a redacted capture row per fix, dry-run first) or discard (the table stays where it is, untouched, until
 the previous build is retired). Opened 2026-09-02, session 17 (B5.1).
 
-**OQ-44 — Who scores a `resolve-v1` forward prediction, and what do its `p_forecast` and the ledger's reason vocabulary mean?**
+**OQ-44 — RESOLVED 2026-09-02 (ADR-0049; migration 0045; session 20, B8).** Every letter ruled by Joe via the advisor and recorded verbatim in ADR-0049: (a) the second look scores the forward prediction (wired by B9); (b) p_forecast 0.5 until 20 scored resolutions, then the empirical rate; (c) REQ-TIER-018 vocabulary column on the ledger; (d) two looks (earlier); (e) PROMOTED not CONFIRMED; (f) one `_watching_rows()` predicate and a paired-day clock; (g) tests in CI + the RULE-22 grep; (h) paired-day n_eff with the per-side 7 kept; (i) v2 rule template for new registrations; (j) coverage < 0.60 gates; (k) Joe rotates the token. Original text kept below for the record.
+
+*Was:* **OQ-44 — Who scores a `resolve-v1` forward prediction, and what do its `p_forecast` and the ledger's reason vocabulary mean?**
 Why open: ADR-0048 makes a CONFIRMED watch insert one forward prediction (the same rule on the next
 30 days, `p_forecast` = 0.90, the FDR bound the frozen rule licenses). Nothing scores it: the
 forecast resolver (`tools/engines/forecast.py`) matches only `forecast-%` rows, and B7 explicitly

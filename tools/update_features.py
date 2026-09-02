@@ -21,7 +21,9 @@ Exit 0 when pytest ran (whatever the tests did). Exit 2 when pytest itself faile
 to start or produce a parseable report (interpreter missing, usage/internal error,
 interrupted, truncated XML).
 
-Run:  python3 tools/update_features.py
+Run:  python3 tools/update_features.py [--strict]
+  --strict: exit 1 when any test failed or errored (CI, ADR-0049 (g)); the ledger
+            is still written first, exactly as without the flag.
 """
 import datetime as _dt
 import json
@@ -157,6 +159,8 @@ def main():
               f"{str(e.get('status')):<{widths[2]}} | {e.get('proving_test')}")
     n_pass = sum(1 for e in features if e.get("status") == "passing")
     print(f"{n_pass} passing / {len(features)} total")
+    if "--strict" in sys.argv and (counts["failed"] or counts["errors"]):
+        return 1
     return 0
 
 

@@ -52,38 +52,54 @@ WATCHES = [
     ("watch:t.auto",   "t.x_auto",   "t.y_auto",   "positive", 45,  0,   "auto"),
     ("watch:t.late",   "t.x_late",   "t.y_late",   "positive", 130, 0,   "late"),
 ]
+# v2 rows (rule_version 'v2', the 0045 register_watch template; ADR-0049 (i)):
+#   'late2'  : tracks exposure for 45 days (promoted at look 1), then noise -> demoted at look 2
+#   'sparse' : data on even days only over 61 calendar days -> coverage < 0.60 at look 1
+WATCHES_V2 = [
+    ("watch:v2.conf",   "v2.x_conf",   "v2.y_conf",   "positive", 45,  0, "same"),
+    ("watch:v2.noise",  "v2.x_noise",  "v2.y_noise",  "positive", 45,  0, "noise"),
+    ("watch:v2.auto",   "v2.x_auto",   "v2.y_auto",   "positive", 45,  0, "auto"),
+    ("watch:v2.late2",  "v2.x_late2",  "v2.y_late2",  "positive", 130, 0, "late2"),
+    ("watch:v2.sparse", "v2.x_sparse", "v2.y_sparse", "positive", 60,  0, "sparse"),
+]
 LATE_D0 = TODAY - dt.timedelta(days=131)
+V2_RULE = ("Look 1 at the first night with >=30 paired post-registration days: promote if same sign as registered "
+           "and p<0.05 with n_eff>=20; refute if opposite sign and p<0.10. Look 2 at day 120: keep PROMOTED only if "
+           "same sign and p<0.10, else demote to INSUFFICIENT(sign_unstable); refute if opposite sign and p<0.10.")
 
 
 def _series(i, shape):
     x = float((i * 7) % 45)
     if shape == "flat":
         return 1.0, float(i % 10)
-    if shape == "noise" or (shape == "late" and i <= 45):
+    if shape == "noise" or (shape == "late" and i <= 45) or (shape == "late2" and i > 45):
         return x, float((i * 13) % 17)
     if shape == "auto":
         return x, float(i)
-    y = x + float((i * 3) % 5) if shape in ("same", "late") else 100.0 - x
+    y = x + float((i * 3) % 5) if shape in ("same", "late", "late2", "sparse") else 100.0 - x
     return x, y
 
 
 def _seed(cur):
-    for wid, xm, ym, direction, n_post, n_pre, shape in WATCHES:
+    for wid, xm, ym, direction, n_post, n_pre, shape, rv in \
+            [w + ("v1",) for w in WATCHES] + [w + ("v2",) for w in WATCHES_V2]:
         d0 = TODAY - dt.timedelta(days=n_post + 1)
-        assert shape != "late" or d0 == LATE_D0
+        assert shape not in ("late", "late2") or d0 == LATE_D0
         cur.execute(f"""INSERT INTO {CORE}.hypothesis_register
             (hypothesis_id, exposure_metric, outcome_metric, lag_days, direction, transformation,
              adjustment_set, test_statistic, preregistered_at, confirmation_data_from,
-             resolution_rule, status, mined_from_preexisting)
+             resolution_rule, status, mined_from_preexisting, rule_version)
             VALUES (%s,%s,%s,0,%s,'dow_demedian','["day_of_week"]','quartile_contrast_mannwhitney',
-                    %s,%s,%s,'INSUFFICIENT',false)""",
+                    %s,%s,%s,'INSUFFICIENT',false,%s)""",
             (wid, xm, ym, direction,
              dt.datetime.combine(d0, dt.time(0, 0), dt.timezone.utc),
-             dt.datetime.combine(d0, dt.time(0, 0), dt.timezone.utc), RULE))
+             dt.datetime.combine(d0, dt.time(0, 0), dt.timezone.utc), RULE if rv == "v1" else V2_RULE, rv))
         if shape == "absent":
             continue                            # a watch whose metrics never reach the panel
         rows = []
         for i in range(1, n_post + 1):
+            if shape == "sparse" and i % 2:
+                continue                        # every other day missing -> coverage ~0.49
             x, y = _series(i, shape)
             rows += [(d0 + dt.timedelta(days=i), xm, x), (d0 + dt.timedelta(days=i), ym, y)]
         # the registration day itself (j = 0) and the days before it carry the OPPOSITE pattern, in
@@ -135,14 +151,14 @@ def _status(cur, wid):
 def _ledger(cur, wid=None):
     q = (f"SELECT hypothesis_id, status_from, status_to, reason, post_days, n_hi, n_lo, delta, "
          f"p_raw, q_fdr, family_m, registered_direction, observed_direction, code_version, "
-         f"look, n_eff, rho_outcome FROM {CORE}.hypothesis_resolutions")
+         f"look, n_eff, rho_outcome, insufficiency_reason, coverage, look_day FROM {CORE}.hypothesis_resolutions")
     if wid:
         cur.execute(q + " WHERE hypothesis_id=%s", (wid,))
     else:
         cur.execute(q)
     cols = ("hypothesis_id", "status_from", "status_to", "reason", "post_days", "n_hi", "n_lo",
             "delta", "p_raw", "q_fdr", "family_m", "registered_direction", "observed_direction", "code_version",
-            "look", "n_eff", "rho_outcome")
+            "look", "n_eff", "rho_outcome", "insufficiency_reason", "coverage", "look_day")
     return [dict(zip(cols, r)) for r in cur.fetchall()]
 
 
@@ -162,7 +178,8 @@ def test_RULE_11_resolver_imports_contrast_from_scan_not_a_copy():
     src = inspect.getsource(resolve)
     for name in ("_contrast", "_bh", "_mann_whitney_p", "_dow_demedian", "_load_panel", "_median"):
         assert not re.search(rf"^def {name}\(", src, re.M), f"{name} re-implemented in resolve.py"
-    assert resolve.Q_CONFIRM == 0.10 and resolve.MIN_POST_DAYS == 30      # the frozen rule's numbers
+    assert resolve.Q_CONFIRM_V1 == 0.10 and resolve.MIN_POST_DAYS == 30   # the v1 frozen rule's numbers
+    assert resolve.P_PROMOTE_V2 == 0.05 and resolve.P_DECIDE_V2 == 0.10 and resolve.COVERAGE_MIN == 0.60
     assert resolve.N_EFF_MIN == 20 and resolve.EXPIRE_DAYS == 120           # REQ-TIER-017 floor; look 2
 
 
@@ -220,7 +237,10 @@ def test_ADR_0048_same_sign_q_below_0_10_promotes_and_writes_ledger_and_predicti
     stats = _run(cur)
     # looked: conf, ref, noise, auto, late (>=30 paired days AND a contrast possible);
     # expire/clock are flat exposures: no contrast, no look spent (reviewer #4)
-    assert stats["promoted"] == 2 and stats["looked"] == 5 and stats["not_evaluable"] == 1   # conf + late(first look past 120); clock
+    # v1: conf + late (first look past 120) promote; v2: conf promotes, late2 promotes at its first look (past 120,
+    # so final: kept? no — an INSUFFICIENT row at a final first look gets the look-1 criterion: it promotes)
+    assert stats["promoted"] == 4 and stats["not_evaluable"] == 1                    # clock: flat exposure
+    assert stats["looked"] == 10          # v1: conf ref noise auto late · v2: conf noise auto late2 sparse
     assert _status(cur, "watch:t.conf") == "PROMOTED"
     cur.execute(f"SELECT count(*) FROM {CORE}.hypothesis_register WHERE status='CONFIRMED_OBSERVATIONAL'")
     assert cur.fetchone()[0] == 0
@@ -229,8 +249,9 @@ def test_ADR_0048_same_sign_q_below_0_10_promotes_and_writes_ledger_and_predicti
     assert row["reason"] == "promoted_same_sign_q_lt_0_10"
     assert float(row["q_fdr"]) < 0.10 and float(row["delta"]) > 0
     # BH was applied across the batch (REQ-INF-106): q is corrected, not the raw p
-    assert row["family_m"] == 4                                   # conf, ref, noise, late — auto is gated before BH
-    assert float(row["p_raw"]) < float(row["q_fdr"]) <= 4 * float(row["p_raw"])
+    assert row["family_m"] == 7                                   # v1 conf ref noise late + v2 conf noise late2; auto/sparse gated before BH
+    assert float(row["p_raw"]) < float(row["q_fdr"]) <= 7 * float(row["p_raw"])
+    assert row["look_day"] == TODAY and row["coverage"] is not None and float(row["coverage"]) >= 0.6
     assert row["look"] == 1 and float(row["n_eff"]) >= resolve.N_EFF_MIN      # stored and gated (RULE-21)
     assert row["registered_direction"] == row["observed_direction"] == "positive"
     assert min(row["n_hi"], row["n_lo"]) >= resolve.MIN_SIDE
@@ -241,7 +262,8 @@ def test_ADR_0048_same_sign_q_below_0_10_promotes_and_writes_ledger_and_predicti
                       FROM {CORE}.predictions WHERE hypothesis_id='watch:t.conf'""")
     (p,) = cur.fetchall()
     assert p[0] == "PROMOTED" and p[1] == resolve.CODE_VERSION
-    assert float(p[2]) == round(1.0 - resolve.Q_CONFIRM, 4) and p[3] is None and p[4] is True
+    assert float(p[2]) == 0.5 and p[3] is None and p[4] is True           # ruling (b): uninformative until calibrated
+    assert "uninformative until the calibration ledger holds >= 20" in p[6]
     assert "positive" in p[5] and "t.x_conf -> t.y_conf" in p[6] and p[7] is None
     assert re.fullmatch(r"[0-9a-f]{64}", p[8])                     # REQ-INF-307: a real snapshot hash
     # surfaced: get_findings (twin) keeps it under watching (status PROMOTED), in history with the
@@ -249,7 +271,9 @@ def test_ADR_0048_same_sign_q_below_0_10_promotes_and_writes_ledger_and_predicti
     env = _findings(cur)
     assert "confirmed" not in env
     w = {x["hypothesis_id"]: x for x in env["watching"]}
-    assert "watch:t.conf" not in w                                # PROMOTED leaves WATCHING (reviewer #7)
+    # ruling (f): the watching predicate is status IN (INSUFFICIENT, PROMOTED) minus refuted/expired, so a
+    # PROMOTED row stays under watch (v2: until its look 2); it is ALSO in the promoted list
+    assert w["watch:t.conf"]["status"] == "PROMOTED" and w["watch:t.conf"]["post_days"] == 45
     pr = {x["hypothesis_id"]: x for x in env["promoted"]}
     assert pr["watch:t.conf"]["tier"] == "PROMOTED" and "not a causal claim" in pr["watch:t.conf"]["note"]
     assert env["counts"]["watching"] == len(env["watching"])
@@ -287,7 +311,7 @@ def test_ADR_0048_opposite_sign_q_below_0_10_refutes(cur):
 
 def test_ADR_0048_no_decision_after_120_days_expires_to_insufficient_with_reason(cur):
     stats = _run(cur)
-    assert stats["expired"] == 2 and stats["undecided"] == 2      # expire + absent; noise + auto
+    assert stats["expired"] == 2 and stats["undecided"] == 5      # expire + absent; v1 noise auto · v2 noise auto sparse
     assert _status(cur, "watch:t.expire") == "INSUFFICIENT"
     (row,) = _ledger(cur, "watch:t.expire")
     assert row["reason"] == "expired_no_decision_120d" and row["post_days"] >= resolve.EXPIRE_DAYS
@@ -314,7 +338,7 @@ def test_REQ_TIER_043_every_status_change_has_a_ledger_row(cur):
     changed = {k for k in before if before[k] != after[k]}
     for wid in changed:
         assert wid in by_id and by_id[wid]["status_from"] == before[wid] and by_id[wid]["status_to"] == after[wid]
-    assert len(ledger) == len(changed) + stats["expired"] + stats["undecided"]   # INSUFFICIENT outcomes are recorded too
+    assert len(ledger) == len(changed) + stats["expired"] + stats["undecided"] + stats["kept"]   # looks are recorded too
     assert len(ledger) == len(set(by_id))                          # one row per watch in a single run
     assert {r["reason"] for r in ledger} <= set(resolve.REASONS)
     # every change is surfaced by name — the claim (exposure, outcome, direction) and its reason (REQ-TIER-043)
@@ -325,6 +349,11 @@ def test_REQ_TIER_043_every_status_change_has_a_ledger_row(cur):
     # idempotent: a second run the same night changes nothing and writes nothing (a look is never repeated)
     stats2 = _run(cur)
     assert stats2["looked"] == stats2["promoted"] == stats2["refuted"] == stats2["expired"] == stats2["undecided"] == 0
+    # REQ-TIER-018: every INSUFFICIENT ledger row carries a vocabulary reason
+    for r in ledger:
+        if r["status_to"] == "INSUFFICIENT":
+            assert r["insufficiency_reason"] in ("low_coverage", "low_n_eff", "informative_missingness",
+                                                 "no_adjustment_set", "sign_unstable", "metric_absent", "window_too_short"), r
     assert len(_ledger(cur)) == len(ledger)
     # the ledger is append-only even for the owner (0012 trigger attached in 0042)
     with pytest.raises(Exception) as exc:
@@ -398,3 +427,93 @@ def test_REQ_TIER_017_low_n_eff_is_stored_and_gated_to_insufficient(cur):
     env = _findings(cur)
     (h,) = [x for x in env["history"] if x["hypothesis_id"] == "watch:t.auto"]
     assert h["look"] == 1 and "n_eff" in h and h["post_days"] == 45        # RULE-21: n never without n_eff
+
+
+# ---------------------------------------------------------------- B8 / ADR-0049 ----------------------------------
+
+def test_ADR_0049_v1_rows_keep_v1_semantics(cur):
+    _run(cur)
+    cur.execute(f"SELECT rule_version FROM {CORE}.hypothesis_register WHERE hypothesis_id='watch:t.conf'")
+    assert cur.fetchone()[0] == "v1"
+    (row,) = _ledger(cur, "watch:t.conf")
+    assert row["reason"] == "promoted_same_sign_q_lt_0_10"          # the v1 sentence, q-gated, not p<0.05
+    # a v1 PROMOTED row is final: replayed a year on it is neither re-looked nor expired
+    s = _run(cur, TODAY + dt.timedelta(days=365))
+    assert len(_ledger(cur, "watch:t.conf")) == 1 and _status(cur, "watch:t.conf") == "PROMOTED"
+    assert s["final_v1"] >= 1
+
+
+def test_ADR_0049_v2_look1_requires_p_lt_0_05_and_n_eff_20(cur):
+    _run(cur)
+    (c,) = _ledger(cur, "watch:v2.conf")
+    assert c["reason"] == "promoted_same_sign_p_lt_0_05" and float(c["p_raw"]) < 0.05 and float(c["n_eff"]) >= 20
+    assert _status(cur, "watch:v2.conf") == "PROMOTED"
+    (n,) = _ledger(cur, "watch:v2.noise")                            # p ~ 0.6: not promoted, waits
+    assert n["reason"] == "insufficient_sign_unstable" and n["insufficiency_reason"] == "sign_unstable"
+    (a,) = _ledger(cur, "watch:v2.auto")                             # n_eff < 20: gated before any decision
+    assert a["reason"] == "insufficient_low_n_eff" and a["insufficiency_reason"] == "low_n_eff" and float(a["n_eff"]) < 20
+    cur.execute(f"SELECT resolution_rule FROM {CORE}.hypothesis_register WHERE hypothesis_id='watch:v2.conf'")
+    assert "p<0.05 with n_eff>=20" in cur.fetchone()[0]
+
+
+def test_ADR_0049_v2_look2_demotes_sign_unstable(cur):
+    # look 1 at day 45: the first 45 days track the exposure -> PROMOTED, look_day recorded
+    _run(cur, LATE_D0 + dt.timedelta(days=45))
+    (r1,) = _ledger(cur, "watch:v2.late2")
+    assert r1["reason"] == "promoted_same_sign_p_lt_0_05" and r1["look"] == 1
+    assert r1["look_day"] == LATE_D0 + dt.timedelta(days=45)
+    # look 2 at 130 paired days: the post-promotion window is noise -> demoted, INSUFFICIENT(sign_unstable)
+    s2 = _run(cur, TODAY)
+    rows = sorted(_ledger(cur, "watch:v2.late2"), key=lambda r: r["look"])
+    assert [r["look"] for r in rows] == [1, 2]
+    assert rows[1]["reason"] == "demoted_sign_unstable" and rows[1]["insufficiency_reason"] == "sign_unstable"
+    assert rows[1]["status_from"] == "PROMOTED" and rows[1]["status_to"] == "INSUFFICIENT"
+    assert _status(cur, "watch:v2.late2") == "INSUFFICIENT" and s2["demoted"] >= 1
+    # the demotion is surfaced by name (REQ-TIER-043) and the row has left the promoted list
+    env = _findings(cur)
+    assert "watch:v2.late2" not in {p["hypothesis_id"] for p in env.get("promoted", [])}
+    assert any(h["hypothesis_id"] == "watch:v2.late2" and h["reason"] == "demoted_sign_unstable" for h in env["history"])
+
+
+def test_REQ_TIER_017_low_coverage_is_insufficient_with_reason(cur):
+    _run(cur)
+    (r,) = _ledger(cur, "watch:v2.sparse")
+    assert r["reason"] == "insufficient_low_coverage" and r["insufficiency_reason"] == "low_coverage"
+    assert float(r["coverage"]) < 0.60 and r["post_days"] >= 30
+    assert _status(cur, "watch:v2.sparse") == "INSUFFICIENT"
+    env = _findings(cur)
+    w = {x["hypothesis_id"]: x for x in env["watching"]}
+    assert float(w["watch:v2.sparse"]["coverage"]) < 0.60 and w["watch:v2.sparse"]["last_look_reason"] == "insufficient_low_coverage"
+
+
+def test_RULE_12_three_surfaces_report_identical_watching_sets(cur):
+    _run(cur)
+    env = _findings(cur)
+    findings_ids = {w["hypothesis_id"] for w in env["watching"]}
+    cur.execute("select public.get_today()")
+    today = cur.fetchone()[0]; today = today if isinstance(today, dict) else json.loads(today)
+    today_ids = {w["hypothesis_id"] for w in today["watching"]}
+    cur.execute("select public.get_trust()")
+    trust = cur.fetchone()[0]; trust = trust if isinstance(trust, dict) else json.loads(trust)
+    assert findings_ids == today_ids and len(findings_ids) == env["counts"]["watching"] == trust["hypotheses"]["watching"]
+    # refuted and expired rows are in none of them; PROMOTED-under-watch rows are in all of them
+    assert "watch:t.ref" not in findings_ids and "watch:t.expire" not in findings_ids
+    assert "watch:v2.conf" in findings_ids
+    # the clock is paired days from the resolver's own table, never calendar days
+    t = {w["hypothesis_id"]: w for w in today["watching"]}
+    assert t["watch:t.short"]["day"] == 20 and t["watch:t.short"]["of"] == 30 and "next look" in t["watch:t.short"]["text"]
+    cur.execute(f"SELECT post_days, coverage, n_eff FROM {ANALYSIS_TWIN}.watch_progress WHERE hypothesis_id='watch:t.short'")
+    assert cur.fetchone()[0] == 20
+
+
+def test_REQ_TIER_018_every_insufficient_ledger_row_has_vocabulary_reason(cur):
+    _run(cur, LATE_D0 + dt.timedelta(days=45)); _run(cur); _run(cur, TODAY + dt.timedelta(days=200))
+    rows = _ledger(cur)
+    assert rows
+    for r in rows:
+        if r["status_to"] == "INSUFFICIENT":
+            assert r["insufficiency_reason"] in ("low_coverage", "low_n_eff", "informative_missingness",
+                                                 "no_adjustment_set", "sign_unstable", "metric_absent", "window_too_short"), r
+        else:
+            assert r["insufficiency_reason"] is None, r
+    assert {r["insufficiency_reason"] for r in rows if r["status_to"] == "INSUFFICIENT"} >= {"low_coverage", "low_n_eff", "sign_unstable", "window_too_short"}

@@ -11,3 +11,12 @@ jobs:
         run: python3 tools/validate_layout.py
       - name: Destructive-command guard behavioural test
         run: ./tools/test_guard.sh
+      - name: RULE-22 forbidden methods (the constitution's import grep)
+        # RULE-22: NOTEARS / DYNOTEARS, DSEM, convergent cross-mapping, multivariate transfer entropy,
+        # model-X knockoffs. "A CI check greps imports and fails on any of them."
+        run: |
+          set -euo pipefail
+          if grep -rniE '^\s*(from|import)\s+[A-Za-z0-9_.]*(notears|dynotears|dsem|ccm|cross_?map|transfer_?entropy|knockoff)' --include='*.py' . ; then
+            echo "RULE-22: a forbidden method is imported"; exit 1
+          fi
+          echo "RULE-22: no forbidden import"

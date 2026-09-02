@@ -23,7 +23,7 @@ LOC_SCHEMA = "restricted_pytest"
 ANALYSIS_TWIN = "analysis_pytest"
 
 _LOC_WORD = re.compile(r"\brestricted\b")            # the schema name, wherever it appears
-_VIEW = re.compile(r"\banalysis\.visits_public\b")
+_VIEW = re.compile(r"\banalysis\.(visits_public|watch_progress|spec_curves|brief_notes)\b")
 
 
 def apply_chain(cur):
@@ -34,7 +34,7 @@ def apply_chain(cur):
     for f in files:
         sql = f.read_text().replace("__CORE__", CORE).replace("__OPS__", OPS)
         sql = _LOC_WORD.sub(LOC_SCHEMA, sql)
-        sql = _VIEW.sub(f"{ANALYSIS_TWIN}.visits_public", sql)
+        sql = _VIEW.sub(lambda m: f"{ANALYSIS_TWIN}.{m.group(1)}", sql)
         for s in run_migration.split_statements(sql):
             cur.execute(s)
             n += 1
