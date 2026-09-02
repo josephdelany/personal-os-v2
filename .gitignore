@@ -24,3 +24,5 @@ node_modules/
 # Local, uncommitted staging for the legacy archive (Phase 0). Never committed
 # until OQ-01 (credential rotated) and OQ-03 (repo public/private) are settled.
 _legacy_snapshot/
+# Supabase CLI scratch state (reviewer session 19 #15)
+supabase/.temp/

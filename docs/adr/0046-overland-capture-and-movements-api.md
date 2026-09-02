@@ -56,6 +56,15 @@ Overland settings: endpoint `https://cykviouklidnbsbgdgdo.functions.supabase.co/
 the same token as Access Token, tracking "Significant location changes", send interval 5 min,
 batching on. The token is typed into the phone and the secret — never into chat or git.
 
+## Cost (RULE-28; added 2026-09-02 after the deploy — should have preceded it)
+Supabase Edge Functions on the Free plan: 500,000 invocations/month, 500 MB egress; at the limit
+the function returns errors — the Free plan has no overage billing, it fails closed. Projected use:
+Overland at a 5-minute send interval ≈ 288 requests/day ≈ 8,640/month (1.7 % of the allowance);
+each request is a few KB. `npm:@supabase/supabase-js@2` is bundled at deploy time (no runtime
+fetch); the Supabase CLI is Homebrew-installed, $0. The older `ingest-location` function from the
+previous build is also ACTIVE on the project and shares the allowance; it is not ours to remove
+here (ADR-0017).
+
 ## Not built / unmeasured
 Shortcut fallback; "Register this place" Shortcut (use THE DESK); battery impact; no end-to-end
 fix from Joe's phone in this session (needs the deploy above); inferred places; transit metrics.

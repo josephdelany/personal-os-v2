@@ -106,8 +106,32 @@ about half of those in the registered direction. The weekday demedian on a 30-da
 (4–5 points per weekday) and the absence of any n_eff / HAC adjustment add to it. Nothing
 matures before ~2 October. Joe ruled the reviewer's recommendation: one look at the first night
 with ≥30 paired days and one last look at day 120, with Kish `n_eff` stored and gated (§12).
-Two looks give a worst-case family of two tests per watch; the n_eff gate removes the
-autocorrelation-driven inflation the reviewer measured.
+**What two looks actually buy (second review, same day, executed replay on AR(1) nulls, 4000
+trials per cell): P(false resolution over both looks) ≈ 0.19–0.21 at every ρ from 0 to 0.7** —
+down from 0.58–0.86 under nightly re-testing, but not the 0.10 the frozen sentence implies,
+because (a) with watches registered on different days the BH family is almost always one, so
+q = p; (b) `n_eff` is gated but never deflates p; (c) the gate at ρ = 0.7 blocks look 1 and
+passes look 2 (n_eff 21.2), moving the false positives rather than removing them. Which fix —
+accept ~0.20 (half of it PROMOTED, then facing the forward prediction), tighten new
+registrations' rule text to q < 0.05, or deflate p by n_eff — is Joe's ruling, OQ-44(i).
+
+13. **Second-review fixes (same day, migration 0044).** A degenerate contrast (`_contrast`
+    returns None: an exposure with no spread) is *not a test*: no p, no look consumed, nothing
+    written; the watch is re-checked nightly until testable or the calendar expires it — the
+    earlier code burned look 1 and wrote a false `insufficient_low_n_eff`. The calendar expiry
+    (120 days without reaching the next look) now applies after look 1 as well, so a watch whose
+    data stops after its first look expires instead of waiting forever. `n_eff` and ρ are computed
+    from the paired outcome series whether or not a contrast exists, so no ledger row reports
+    `post_days` without `n_eff` (RULE-21). `get_findings`: `looks_done` = max(`look`) from the
+    ledger (one definition); a PROMOTED watch leaves `watching` (which is now status
+    INSUFFICIENT only) and appears in a new `promoted` list carrying the note that it is not a
+    causal claim; `days_needed` is the paired days to the *next* look (30, then 120); a watch on
+    the clock carries `insufficiency_reason: window_too_short` (REQ-INF-107); `history` rows carry
+    `status_changed`. **`n_eff` is on the paired-day count, not the per-side count the scan
+    deflates** (the scan's `n_eff_hi` on 30 paired days is ~8; the resolver's is ~30): the same
+    floor of 20 applied to quantities that differ by ~4×. Stated here, not silently; which `n`
+    REQ-TIER-017's floor governs is OQ-44(h). Two test assertions loosened to `>=` in session 19's
+    first commit were re-pinned to exact values.
 
 ## Consequences
 - The ladder can climb one rung: a 30-day watch becomes PROMOTED or REFUTED the morning after it

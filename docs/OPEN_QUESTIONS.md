@@ -745,6 +745,19 @@ resolution TODAY will say "day 31 of 30" for a row FINDINGS lists as PROMOTED, a
 `watching` counts diverge (RULE-12); the displayed clock is calendar days while the gate is paired
 days after `confirmation_data_from` plus lag. Fix belongs with B8. **(g)** No workflow runs pytest;
 every TEST-tier rule is enforced only by hand (pre-existing; surfaced by the review).
+*Second review, 2026-09-02 (session 19; findings verbatim in PROGRESS):* **(h)** which `n` does
+REQ-TIER-017's floor of 20 govern — the paired-day count (the resolver: ~30 at look 1, ~120 at look 2)
+or the per-side count the scan deflates (~8 and ~30)? Per-side at 20 would block look 2 whenever ρ > 0.2,
+i.e. nearly always; paired-day at 20 lets an 8-vs-8 contrast through. **(i)** the executed false-resolution
+rate of the two-look policy on nulls is ≈ 0.20 at every ρ (family of one → q = p; n_eff gates but never
+deflates p). Options: accept it (half lands PROMOTED and then faces the forward prediction); tighten the
+rule text for new registrations to q < 0.05 (existing rows are frozen); or deflate p by n_eff (a
+Newey–West-flavoured correction, RULE-21). **(j)** `rho` is the paired-index autocorrelation, biased low
+under sparse coverage (50 % coverage inflates n_eff ~64 %); REQ-TIER-017's coverage clause (< 0.60 →
+INSUFFICIENT) is not implemented — `post_days` has no denominator. **(k)** the Overland bearer token was
+printed once into the session transcript at Joe's instruction ("print the token once"), against
+CLAUDE.md's "never echoed into a log"; the disagreement is recorded, not hidden — rotating it after
+Overland is configured is one `supabase secrets set` and re-typing it on the phone.
 
 ## RESOLVED
 

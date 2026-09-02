@@ -20,14 +20,22 @@ reinterprets it:
     never repeated — re-testing every night was optional stopping (measured
     0.58-0.86 false resolution on nulls by day 120);
   * at each look: Kish effective sample size n_eff = post_days*(1-rho)/(1+rho)
-    from the outcome's lag-1 rho (deflate only), stored, and gated at N_EFF_MIN
-    (REQ-TIER-017's floor) -> `insufficient_low_n_eff` if below;
+    from the outcome's lag-1 rho over the paired window (deflate only), stored,
+    and gated at N_EFF_MIN (REQ-TIER-017's floor) -> `insufficient_low_n_eff` if
+    below. n_eff is on the PAIRED-DAY count, not the per-side count the scan
+    deflates — which n the floor of 20 applies to is Joe's ruling (OQ-44(h));
+  * a degenerate contrast (exposure with no spread: `_contrast` returns None) is
+    not a test — no p, no look consumed, nothing written; the watch is re-checked
+    the next night (no multiplicity: no statistic was computed) until it can be
+    tested or the calendar expires it;
   * q is Benjamini-Hochberg across the watches looked at in this run (`scan._bh`);
   * q < Q_CONFIRM and observed sign == registered direction -> PROMOTED,
     opposite sign -> REFUTED; otherwise look 1 records `insufficient_sign_unstable`
     (the sign is not established at this look) and waits for look 2; look 2 with
-    no decision, or a window that never fills within EXPIRE_DAYS calendar days ->
-    INSUFFICIENT with reason `expired_no_decision_120d`, final.
+    no decision, a first look already past day 120, or a window that has not
+    reached its next look within EXPIRE_DAYS calendar days (before OR after
+    look 1: data that stops after look 1 must not wait forever) -> INSUFFICIENT
+    with reason `expired_no_decision_120d`, final.
 
 Why PROMOTED and not CONFIRMED_OBSERVATIONAL (ADR-0048 amendment, reviewer #5):
 REQ-TIER-013 assigns CONFIRMED_OBSERVATIONAL only with a DAG adjustment set, HAC
@@ -125,6 +133,15 @@ def _kish_n_eff(post_days, rho):
     return round(post_days * (1 - r) / (1 + r), 1)
 
 
+def _outcome_rho(drv, out, lag):
+    """Lag-1 autocorrelation of the demedianed outcome over the paired window, in day order —
+    the same series `_contrast` uses, computed here so n_eff exists even when no contrast
+    is possible (RULE-21: never post_days without n_eff)."""
+    off = dt.timedelta(days=lag)
+    ys = [out[d + off] for d in sorted(drv) if (d + off) in out]
+    return _lag1_rho(ys) if ys else 0.0
+
+
 def run(cur, today=None, *, core="core", panel_schema="analysis"):
     """Evaluate every open watch at its due look. Returns run counts for the ops.runs heartbeat."""
     today = today or dt.datetime.now(dt.timezone.utc).date()
@@ -147,7 +164,7 @@ def run(cur, today=None, *, core="core", panel_schema="analysis"):
             "confirmation_data_from", "resolution_rule", "status", "looks_done")
     watches = [dict(zip(cols, r)) for r in cur.fetchall()]
     stats = {"looked": 0, "promoted": 0, "refuted": 0, "expired": 0,
-             "undecided": 0, "waiting": 0, "on_clock": 0}
+             "undecided": 0, "waiting": 0, "on_clock": 0, "not_evaluable": 0}
     if not watches:
         return stats
     panel = _load_panel(cur, schema=panel_schema)
@@ -161,26 +178,36 @@ def run(cur, today=None, *, core="core", panel_schema="analysis"):
         post_days = sum(1 for d in drv_raw if (d + lag) in out_raw)
         look = h["looks_done"] + 1
         due = MIN_POST_DAYS if look == 1 else EXPIRE_DAYS
+        drv = _dow_demedian(drv_raw) if drv_raw else {}
+        out = _dow_demedian(out_raw) if out_raw else {}
+        rho = _outcome_rho(drv, out, h["lag_days"]) if post_days else 0.0
+        n_eff = _kish_n_eff(post_days, rho)
         if post_days < due:
-            if look == 1 and calendar_days >= EXPIRE_DAYS:
-                # the window never filled (metric gone, device silent): expire by the calendar,
-                # otherwise it would be WATCHING forever (reviewer #10)
+            if calendar_days >= EXPIRE_DAYS:
+                # the window has not reached this look within 120 calendar days (metric gone,
+                # device silent — before or after look 1): expire by the calendar, otherwise it
+                # would be WATCHING forever (reviewers #10, #5)
                 _write_resolution(cur, core, h, "INSUFFICIENT", "expired_no_decision_120d",
-                                  post_days, None, None, None, look=look)
+                                  post_days, None, None, None, look=look, n_eff=n_eff, rho=rho)
                 stats["expired"] += 1
             elif look == 1:
                 stats["on_clock"] += 1      # REQ-INF-107: window_too_short, rule not evaluated
             else:
                 stats["waiting"] += 1       # looked once, undecided; look 2 is due at EXPIRE_DAYS
             continue
+        c = _contrast(drv, out, h["lag_days"], min_side=MIN_SIDE)
+        if c is None:
+            # no contrast possible tonight (exposure without spread): not a test, no look spent
+            if calendar_days >= EXPIRE_DAYS:
+                _write_resolution(cur, core, h, "INSUFFICIENT", "expired_no_decision_120d",
+                                  post_days, None, None, None, look=look, n_eff=n_eff, rho=rho)
+                stats["expired"] += 1
+            else:
+                stats["not_evaluable"] += 1
+            continue
         stats["looked"] += 1
         final = look >= 2 or post_days >= EXPIRE_DAYS      # look 2, or a first look already past day 120
-        drv = _dow_demedian(drv_raw)
-        out = _dow_demedian(out_raw)
-        c = _contrast(drv, out, h["lag_days"], min_side=MIN_SIDE)
-        rho = c[6] if c else None
-        n_eff = _kish_n_eff(post_days, rho) if c else None
-        if c is None or min(c[0], c[1]) < MIN_SIDE or n_eff < N_EFF_MIN:
+        if n_eff < N_EFF_MIN:
             reason = "expired_no_decision_120d" if final else "insufficient_low_n_eff"
             _write_resolution(cur, core, h, "INSUFFICIENT", reason, post_days, c, None, None,
                               look=look, n_eff=n_eff, rho=rho)

@@ -218,7 +218,9 @@ def test_ADR_0048_same_sign_q_below_0_10_promotes_and_writes_ledger_and_predicti
     # PROMOTED, not CONFIRMED_OBSERVATIONAL: REQ-TIER-013's gate (DAG adjustment set, HAC, E-value,
     # negative controls) is not built, so the causal tier is never assigned here (ADR-0048 amendment)
     stats = _run(cur)
-    assert stats["promoted"] >= 1 and stats["looked"] == 7      # conf, ref, noise, expire, clock, auto, late (>=30 paired days)
+    # looked: conf, ref, noise, auto, late (>=30 paired days AND a contrast possible);
+    # expire/clock are flat exposures: no contrast, no look spent (reviewer #4)
+    assert stats["promoted"] == 2 and stats["looked"] == 5 and stats["not_evaluable"] == 1   # conf + late(first look past 120); clock
     assert _status(cur, "watch:t.conf") == "PROMOTED"
     cur.execute(f"SELECT count(*) FROM {CORE}.hypothesis_register WHERE status='CONFIRMED_OBSERVATIONAL'")
     assert cur.fetchone()[0] == 0
@@ -227,8 +229,8 @@ def test_ADR_0048_same_sign_q_below_0_10_promotes_and_writes_ledger_and_predicti
     assert row["reason"] == "promoted_same_sign_q_lt_0_10"
     assert float(row["q_fdr"]) < 0.10 and float(row["delta"]) > 0
     # BH was applied across the batch (REQ-INF-106): q is corrected, not the raw p
-    m = row["family_m"]
-    assert m >= 3 and float(row["p_raw"]) < float(row["q_fdr"]) <= m * float(row["p_raw"])
+    assert row["family_m"] == 4                                   # conf, ref, noise, late — auto is gated before BH
+    assert float(row["p_raw"]) < float(row["q_fdr"]) <= 4 * float(row["p_raw"])
     assert row["look"] == 1 and float(row["n_eff"]) >= resolve.N_EFF_MIN      # stored and gated (RULE-21)
     assert row["registered_direction"] == row["observed_direction"] == "positive"
     assert min(row["n_hi"], row["n_lo"]) >= resolve.MIN_SIDE
@@ -247,7 +249,10 @@ def test_ADR_0048_same_sign_q_below_0_10_promotes_and_writes_ledger_and_predicti
     env = _findings(cur)
     assert "confirmed" not in env
     w = {x["hypothesis_id"]: x for x in env["watching"]}
-    assert w["watch:t.conf"]["status"] == "PROMOTED"
+    assert "watch:t.conf" not in w                                # PROMOTED leaves WATCHING (reviewer #7)
+    pr = {x["hypothesis_id"]: x for x in env["promoted"]}
+    assert pr["watch:t.conf"]["tier"] == "PROMOTED" and "not a causal claim" in pr["watch:t.conf"]["note"]
+    assert env["counts"]["watching"] == len(env["watching"])
     hist = [h for h in env["history"] if h["hypothesis_id"] == "watch:t.conf"]
     assert len(hist) == 1 and hist[0]["tier"] == "PROMOTED"
     assert hist[0]["exposure"] == "t.x_conf" and hist[0]["outcome"] == "t.y_conf" and hist[0]["direction"] == "positive"
@@ -257,6 +262,12 @@ def test_ADR_0048_same_sign_q_below_0_10_promotes_and_writes_ledger_and_predicti
     (nz,) = _ledger(cur, "watch:t.noise")
     assert nz["reason"] == "insufficient_sign_unstable" and nz["look"] == 1 and nz["status_to"] == "INSUFFICIENT"
     assert _status(cur, "watch:t.noise") == "INSUFFICIENT" and w["watch:t.noise"]["looks_done"] == 1
+    assert w["watch:t.noise"]["days_needed"] == 120 and w["watch:t.noise"]["last_look_reason"] == nz["reason"]
+    assert w["watch:t.short"]["looks_done"] == 0 and w["watch:t.short"]["days_needed"] == 30
+    assert w["watch:t.short"]["insufficiency_reason"] == "window_too_short"       # REQ-INF-107
+    # history: every row that reports post_days reports n_eff (RULE-21), and says whether status changed
+    for hrow in env["history"]:
+        assert "n_eff" in hrow and "status_changed" in hrow, hrow
 
 
 def test_ADR_0048_opposite_sign_q_below_0_10_refutes(cur):
@@ -276,14 +287,14 @@ def test_ADR_0048_opposite_sign_q_below_0_10_refutes(cur):
 
 def test_ADR_0048_no_decision_after_120_days_expires_to_insufficient_with_reason(cur):
     stats = _run(cur)
-    assert stats["expired"] >= 2 and stats["undecided"] == 3      # expire + absent; noise + clock + auto
+    assert stats["expired"] == 2 and stats["undecided"] == 2      # expire + absent; noise + auto
     assert _status(cur, "watch:t.expire") == "INSUFFICIENT"
     (row,) = _ledger(cur, "watch:t.expire")
     assert row["reason"] == "expired_no_decision_120d" and row["post_days"] >= resolve.EXPIRE_DAYS
     assert row["n_hi"] is None and row["q_fdr"] is None       # no contrast was possible: absent, not 0
-    # 60 flat days: look 1 finds no contrast -> recorded as low_n_eff, still open, waits for look 2
-    (ck,) = _ledger(cur, "watch:t.clock")
-    assert _status(cur, "watch:t.clock") == "INSUFFICIENT" and ck["reason"] == "insufficient_low_n_eff"
+    assert row["n_eff"] is not None                            # but n_eff is (RULE-21)
+    # 60 flat days: no contrast possible -> not a look, nothing written, re-checked nightly (reviewer #4)
+    assert _status(cur, "watch:t.clock") == "INSUFFICIENT" and _ledger(cur, "watch:t.clock") == []
     env = _findings(cur)
     watching = {w["hypothesis_id"] for w in env.get("watching", [])}
     assert "watch:t.expire" not in watching and "watch:t.clock" in watching and "watch:t.short" in watching
@@ -364,12 +375,17 @@ def test_OQ_44d_second_look_at_120_paired_days_decides_or_expires(cur):
     assert [r["look"] for r in rows] == [1, 2]
     assert rows[1]["reason"] == "promoted_same_sign_q_lt_0_10" and rows[1]["post_days"] == 130
     assert _status(cur, "watch:t.late") == "PROMOTED"
-    # a watch still undecided at its second look expires there: the flat 60-day watch, replayed past 120
-    cur.execute(f"UPDATE {CORE}.hypothesis_register SET status = status WHERE hypothesis_id = 'watch:t.clock'")
-    # (t.clock has only 60 panel days, so its look 2 can never be due by paired days; the calendar path
-    #  does not apply once look 1 happened — it stays 'waiting'. The final-look expiry is proven by t.expire.)
+    # a watch whose data stops AFTER look 1 expires by the calendar too (reviewer #5): the noise watch has
+    # one look and only 45 panel days; 200 days later it must not still be 'waiting'
     s3 = _run(cur, TODAY + dt.timedelta(days=200))
-    assert s3["looked"] == 0 and len(_ledger(cur, "watch:t.clock")) == 1
+    rows = sorted(_ledger(cur, "watch:t.noise"), key=lambda r: r["look"])
+    assert [r["reason"] for r in rows] == ["insufficient_sign_unstable", "expired_no_decision_120d"]
+    assert rows[1]["look"] == 2 and rows[1]["n_eff"] is not None
+    env = _findings(cur)
+    assert "watch:t.noise" not in {w["hypothesis_id"] for w in env.get("watching", [])}
+    # and a watch undecided at look 2 itself expires there: replay t.noise's second look on its own data
+    # (45 paired days never reach 120, so that branch is the calendar one above; the in-look final
+    #  branch is covered by t.late's first look past day 120 in the promote test)
 
 
 def test_REQ_TIER_017_low_n_eff_is_stored_and_gated_to_insufficient(cur):
