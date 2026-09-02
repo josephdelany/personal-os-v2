@@ -28,6 +28,8 @@ def main() -> int:
                        values ('forecast_nightly', now(), 'ok', %s, %s)""",
                     (n_fc, json.dumps({"resolved": n_res, "unresolvable_pending": n_unres,
                                        "code_version": forecast.CODE_VERSION})))
+        cur.execute("""insert into ops.runs (job_name, finished_at, status, rows_written, detail)
+                       values ('analysis_refresh', now(), 'ok', %s, '{}')""", (n_p + n_b,))
         conn.commit()
         print(f"analysis refresh: panel {n_p}, baselines {n_b}, "
               f"forecasts {n_fc}, resolved {n_res}")

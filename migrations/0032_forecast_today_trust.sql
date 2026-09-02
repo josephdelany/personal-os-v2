@@ -84,7 +84,7 @@ BEGIN
     SELECT jsonb_strip_nulls(jsonb_build_object(
       'scan_calibration', (
         SELECT jsonb_agg(jsonb_build_object('run', run_date, 'tested', n_pairs_tested,
-                 'observed_sig', observed_sig, 'shuffled_null_sig', null_sig)
+                 'observed_sig', observed_sig, 'shuffled_null_sig', null_sig, 'null_p95', null_p95)
                ORDER BY run_date DESC)
           FROM analysis.scan_calibration),
       'forecasts', (

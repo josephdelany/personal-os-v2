@@ -115,7 +115,7 @@ if (new URLSearchParams(location.search).get("demo")) {
     h += "<h2>State</h2>";
     h += (s2.deviations||[]).slice(0,5).map(d => `<p class="num"><strong>${esc(d.metric)}</strong>: ${esc(d.value)} <span class="muted">(z ${esc(d.z)})</span></p>`).join("") || '<p class="muted">in your normal bands</p>';
     (s2.streaks||[]).slice(0,3).forEach(x => h += `<p class="num muted">${esc(x.metric)}: ${esc(x.run_days)}d ${esc(x.direction)} band (record ${esc(x.historical_max_run)})</p>`);
-    if (t.connection) { h += `<h2>The connection</h2><p class="num"><span class="warn">[${esc(t.connection.label)}]</span> ${esc(t.connection.sentence)} <span class="muted">(q=${esc(t.connection.q)}, n=${esc(t.connection.n)})</span></p>`; }
+    if (t.patterns_waiting) { h += `<h2>Patterns</h2><p class="num">${esc(t.patterns_waiting.count)} exploratory patterns are waiting — <a href="#" id="go-patterns">read them on the Patterns tab</a>. <span class="muted">(pull, never pushed: exploratory content stays on its own labeled surface)</span></p>`; }
     if ((s2.week_money||[]).length) {
       h += "<h2>This week vs you</h2>";
       h += s2.week_money.slice(0,5).map(m => `<p class="num"><strong>${esc(m.name)}</strong>: $${esc(m.this_week)} vs $${esc(m.typical_week)} <strong>(${m.delta>0?"+":""}$${esc(m.delta)})</strong></p>`).join("");
@@ -131,6 +131,8 @@ if (new URLSearchParams(location.search).get("demo")) {
       if (r) h += `<p class="muted num">track record: ${esc(r.inside_band)}/${esc(r.resolved)} inside band (claimed ${esc(r.claimed_coverage)}, achieved ${esc(r.achieved_coverage)})</p>`;
     }
     $("app").innerHTML = h;
+    const gp = document.getElementById("go-patterns");
+    if (gp) gp.onclick = (e) => { e.preventDefault(); loadPatterns(); };
   }
   async function loadTrust() {
     const { data, error } = await sb.rpc("get_trust");
@@ -142,7 +144,7 @@ if (new URLSearchParams(location.search).get("demo")) {
     const hy = t.hypotheses || {};
     h += `<h2>Hypotheses</h2><p class="num">${esc(hy.candidates??0)} exploratory · ${esc(hy.watching??0)} under watch · ${esc(hy.confirmed??0)} confirmed · ${esc(hy.refuted??0)} refuted</p>`;
     h += "<h2>Scan honesty (observed vs shuffled)</h2>";
-    h += (t.scan_calibration||[]).map(c => `<p class="num">${esc(c.run)}: ${esc(c.observed_sig)} of ${esc(c.tested)} vs ${esc(c.shuffled_null_sig)} shuffled</p>`).join("") || '<p class="muted">no scans yet</p>';
+    h += (t.scan_calibration||[]).map(c => `<p class="num">${esc(c.run)}: ${esc(c.observed_sig)} of ${esc(c.tested)} observed vs shuffled-null median ${esc(c.shuffled_null_sig)}${c.null_p95!=null?` (p95 ${esc(c.null_p95)})`:""}</p>`).join("") || '<p class="muted">no scans yet</p>';
     h += "<h2>Job heartbeats</h2>";
     h += (t.job_heartbeats||[]).map(j => `<p class="num muted">${esc(j.job)}: ${esc((j.last||"").slice(0,16).replace("T"," "))} (${esc(j.status)})</p>`).join("");
     if ((t.coverage_blindspots||[]).length) {
@@ -214,7 +216,7 @@ if (new URLSearchParams(location.search).get("demo")) {
     if (error) { $("app").innerHTML = `<p class="warn">timeline unavailable: ${esc(error.message)}</p>`; return; }
     const t = typeof data === "string" ? JSON.parse(data) : data;
     let h = `<h2>${esc(t.day)} — ${esc(t.n)} moments</h2>`;
-    if (t.sleep?.asleep_min) h += `<p class="muted num">slept ${Math.floor(t.sleep.asleep_min/60)}h${String(Math.round(t.sleep.asleep_min%60)).padStart(2,"0")}m</p>`;
+    if (t.sleep_text) h += `<p class="muted num">${esc(t.sleep_text)}</p>`;
     const icon = {web:"🌐",video:"▶️",money:"💵",calendar:"📅",checkin:"📝",consume:"🍽",note:"✏️",workout:"🏋️",self_report:"📝"};
     h += (t.entries||[]).map(e => `<p class="num" style="margin:.15rem 0">${esc(e.at)} ${icon[e.kind]||"·"} ${esc(e.text)}</p>`).join("") || '<p class="muted">nothing recorded this day</p>';
     $("app").innerHTML = h;

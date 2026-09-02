@@ -12,7 +12,7 @@ empirical coverage — the Trust tab's raw material). Resolution updates ONLY th
 outcome fields of matured rows (REQ-INF-306's write; no re-forecasting)."""
 import datetime as dt
 
-CODE_VERSION = "forecast-v1"
+CODE_VERSION = "forecast-v2"
 METRICS = ("sleep_asleep_min", "hrv_sdnn", "rhr", "steps", "screen_active_hours")
 TARGET = 0.90
 GAMMA = 0.02
@@ -69,6 +69,8 @@ def run(cur, target_day=None, write_predictions=True):
         if not f:
             continue
         lo, pt, hi = (round(x, 2) for x in f)
+        if metric in ("sleep_asleep_min", "hrv_sdnn", "rhr", "steps", "screen_active_hours"):
+            lo = max(0.0, lo)    # N3: physical floor; also keeps coverage claims honest
         cur.execute("""insert into analysis.forecasts (day_target, metric, lo, point, hi, code_version)
                        values (%s,%s,%s,%s,%s,%s)
                        on conflict (day_target, metric) do update
@@ -78,18 +80,20 @@ def run(cur, target_day=None, write_predictions=True):
         if not write_predictions:
             made += 1
             continue
+        # N4: claim_text built in SQL from the forecasts row itself — the resolver
+        # reconstructs it with the identical SQL concat, so formatting can't drift
         cur.execute("""insert into core.predictions
                        (claim_text, resolution_rule, resolves_at, evidence_tier,
                         p_forecast, model_version)
-                       select %s, %s, %s, 'DESCRIPTIVE', %s, %s
-                       where not exists (select 1 from core.predictions
-                                          where claim_text = %s and resolves_at = %s)""",
-                    (f"{metric} on {target_day} within [{lo}, {hi}]",
-                     f"panel value of {metric} on {target_day} in [{lo},{hi}]",
-                     dt.datetime.combine(target_day, dt.time(23, 59), dt.timezone.utc),
-                     TARGET, CODE_VERSION,
-                     f"{metric} on {target_day} within [{lo}, {hi}]",
-                     dt.datetime.combine(target_day, dt.time(23, 59), dt.timezone.utc)))
+                       select f.metric || ' on ' || f.day_target || ' within [' || f.lo || ', ' || f.hi || ']',
+                              'panel value in stored band', %s, 'DESCRIPTIVE', %s, %s
+                         from analysis.forecasts f
+                        where f.day_target = %s and f.metric = %s
+                          and not exists (select 1 from core.predictions p2
+                                           where p2.claim_text = f.metric || ' on ' || f.day_target ||
+                                                 ' within [' || f.lo || ', ' || f.hi || ']')""",
+                    (dt.datetime.combine(target_day, dt.time(23, 59), dt.timezone.utc),
+                     TARGET, CODE_VERSION, target_day, metric))
         made += 1
     return made
 

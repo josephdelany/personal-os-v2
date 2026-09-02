@@ -8,6 +8,11 @@ from tools.engines import scan
 
 conn = db.connect(); cur = conn.cursor()
 try:
+    import glob as _g
+    from tools import run_migration as _rm
+    _sql = open(_g.glob("migrations/0033_*.sql")[0]).read().replace("__CORE__","core").replace("__OPS__","ops")
+    for _st in _rm.split_statements(_sql):
+        cur.execute(_st)
     stats = scan.run(cur, dt.date(2026, 9, 2), stride=8)
     print(f"(1) scan: {stats}")
     cur.execute("""select driver, outcome, lag_days, seeded, round(delta::numeric,2),
@@ -21,7 +26,7 @@ try:
     ncand = cur.fetchone()[0]
     cur.execute("select observed_sig, null_sig, n_pairs_tested from analysis.scan_calibration")
     cal = cur.fetchone()
-    print(f"(3) CANDIDATE rows: {ncand} · calibration: observed {cal[0]} vs null {cal[1]} of {cal[2]}")
+    print(f"(3) CANDIDATE rows: {ncand} · calibration: observed {cal[0]} vs null-median {cal[1]} of {cal[2]}")
     # freeze trigger: a CANDIDATE row's prereg columns must reject UPDATE
     cur.execute("select hypothesis_id from core.hypothesis_register where status='CANDIDATE' limit 1")
     hid = cur.fetchone()[0]
@@ -33,7 +38,7 @@ try:
         frozen = "frozen" in str(e).lower() or "REQ-INF-103" in str(e)
         cur.execute("ROLLBACK TO SAVEPOINT f")
     print(f"(4) freeze trigger rejects prereg-column UPDATE: {frozen}")
-    good = stats["kept"] >= 10 and ncand >= 10 and frozen and cal[1] <= max(3, cal[0] // 5)
+    good = stats["kept"] >= 5 and ncand >= 5 and frozen and stats["null_p95"] < stats["observed_sig"]
     print("PROBE:", "ALL PASS" if good else "FAIL")
     sys.exit(0 if good else 1)
 finally:

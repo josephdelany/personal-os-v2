@@ -68,9 +68,13 @@ is constitutional).
 - *Contrast scan*: for every cross-domain (driver, outcome, lag) pair —
   deseasonalized (calendar-month demedian), detrended (EWMA), weekday-demedianed
   both sides; within-person quartile contrast; tie-corrected Mann-Whitney;
-  Benjamini-Hochberg FDR across the whole family; a minimum-effect floor; and
+  **hierarchical (tree) FDR** — Simes-selected domain-pair families, BH within
+  selected families, family id + size persisted per result; a minimum-effect
+  floor; bidirectional lag-0 associations collapsed to one pattern; and
   **construct-family guards that make the predecessor's tautology class
-  structurally untestable**.
+  structurally untestable**. The null check runs **five replicate shuffled
+  twins** and publishes the null discovery count's median and 95th percentile
+  beside every observed count.
 - *Forecasts*: next-day bands via adaptive conformal inference; every forecast
   writes a prediction row that later resolves and scores (Brier + coverage).
 - *Brief compositor*: a deterministic 7-slot morning page (state, connection,
@@ -98,14 +102,18 @@ interface. The system cannot be argued with — only out-predicted.
 
 ## 3 · Evaluation (real runs on real data)
 
-**Scan calibration (published on-surface every run).** Live full sweep,
-2026-09-01: **9,072 pair-lags tested; 93 significant (q<0.05) observed vs 50 on
-a circular-shift shuffled twin** — the null rate is displayed beside every
-result set, making the residual false-discovery risk a number the user reads,
-not a footnote. (Development iterations tell the honest story: before
-deseasonalization the null *beat* the observed set 54 : 35 — the pipeline
-refused to ship itself until the null collapsed; strided probe after the fix:
-15 observed vs 2 null.)
+**Scan calibration (published on-surface every run).** Stride-sampled proof
+run under the final (v2) methodology: **31 significant observed vs a
+shuffled-null median of 12 (p95 below observed) across 909 tested pair-lags,
+five null replicates** — the null distribution is displayed beside every result
+set, making residual false-discovery risk a number the user reads, not a
+footnote. (Development iterations tell the honest story: the naive first run's
+"discoveries" were tautologies and shared seasonality — the shuffled null BEAT
+the observed set 54 : 35 — and the pipeline refused to ship itself until
+construct-family guards and deseasonalization collapsed the null. An
+adversarial review then forced three further upgrades before submission: flat
+BH → hierarchical tree-FDR, an effective-sample-size formula that could
+inflate, and a single-draw null → a replicate null distribution.)
 
 **Sample discovered patterns (exploratory, q-values shown in-app):** heavy
 information-consumption days run ~1,300 fewer steps the same day (q≈0.0000,

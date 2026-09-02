@@ -11,10 +11,11 @@ from tools.engines import forecast
 
 conn = db.connect(); cur = conn.cursor()
 try:
-    sql = open(glob.glob("migrations/0032_*.sql")[0]).read() \
-        .replace("__CORE__", "core").replace("__OPS__", "ops")
-    for st in run_migration.split_statements(sql):
-        cur.execute(st)
+    for pref in ("0032", "0033"):
+        sql = open(glob.glob(f"migrations/{pref}_*.sql")[0]).read() \
+            .replace("__CORE__", "core").replace("__OPS__", "ops")
+        for st in run_migration.split_statements(sql):
+            cur.execute(st)
     # issue for tomorrow (live path)
     n = forecast.run(cur)
     cur.execute("select metric, lo, point, hi from analysis.forecasts order by metric")

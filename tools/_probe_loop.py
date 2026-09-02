@@ -22,6 +22,11 @@ BANNED = re.compile(r"\b(precedes|predicts|predictive lead|causes|caused|proves|
 
 conn = db.connect(); cur = conn.cursor()
 try:
+    import glob as _g
+    from tools import run_migration as _rm
+    _sql = open(_g.glob("migrations/0033_*.sql")[0]).read().replace("__CORE__","core").replace("__OPS__","ops")
+    for _st in _rm.split_statements(_sql):
+        cur.execute(_st)
     sql = open(glob.glob("migrations/0031_*.sql")[0]).read() \
         .replace("__CORE__", "core").replace("__OPS__", "ops")
     for st in run_migration.split_statements(sql):

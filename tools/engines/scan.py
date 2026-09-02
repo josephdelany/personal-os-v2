@@ -24,7 +24,7 @@ from collections import defaultdict
 
 from tools.engines.panel import SIG_CANON, LEGACY_CANON
 
-CODE_VERSION = "scan-v1"
+CODE_VERSION = "scan-v2"
 MIN_SIDE = 30          # min days per quartile side (REQ posture: n>=30)
 Q_CUT = 0.05
 TOP_K = 3              # per (driver domain, outcome domain)
@@ -232,14 +232,20 @@ def run(cur, run_date, stride=1):
                     tests.append((d, o, lag, False))
     if stride > 1:      # probe mode: deterministic subsample of the discovery sweep
         tests = [t for i, t in enumerate(tests) if t[3] or i % stride == 0]
-    results, null_ps = [], []
+    results = []
     for d, o, lag, seeded in tests:
         r = _contrast(series[d], demed[o], lag)
         if r:
             results.append((d, o, lag, seeded) + r)
-        rn = _contrast(_shift(series[d], f"{d}|{o}|{lag}"), demed[o], lag)
-        if rn:
-            null_ps.append(rn[5])
+    NULL_REPS = 5
+    null_runs = []
+    for rep in range(NULL_REPS):
+        rep_res = []
+        for d, o, lag, seeded in tests:
+            rn = _contrast(_shift(series[d], f"{d}|{o}|{lag}|rep{rep}"), demed[o], lag)
+            if rn:
+                rep_res.append((d, o, lag, seeded) + rn)
+        null_runs.append(rep_res)
 
     def bh(ps):
         m = len(ps)
@@ -252,10 +258,42 @@ def run(cur, run_date, stride=1):
             q[i] = prev
         return q
 
-    qs = bh([r[9] for r in results])
-    null_q = bh(null_ps)
+    # M1 (RULE-21 / REQ-INF-001/002): hierarchical FDR — level 1 selects
+    # domain-pair FAMILIES (Simes p per family, BH across families); level 2
+    # applies BH within each selected family. Family id + size persist per row.
+    def tree_fdr(res):
+        fams = defaultdict(list)
+        for i, r in enumerate(res):
+            fams[(_family(r[0]), _family(r[1]))].append(i)
+        simes = {}
+        for f, idxs in fams.items():
+            ps = sorted(res[i][9] for i in idxs)
+            simes[f] = min(p * len(ps) / (k + 1) for k, p in enumerate(ps))
+        fkeys = sorted(fams)
+        fq = bh([simes[f] for f in fkeys])
+        selected = {f for f, q in zip(fkeys, fq) if q < Q_CUT}
+        qs = [1.0] * len(res)
+        for f in selected:
+            idxs = fams[f]
+            sub_q = bh([res[i][9] for i in idxs])
+            for i, q in zip(idxs, sub_q):
+                qs[i] = q
+        fam_of = {i: (_family(res[i][0]), _family(res[i][1])) for i in range(len(res))}
+        fam_m = {f: len(v) for f, v in fams.items()}
+        return qs, fam_of, fam_m
+    qs, fam_of, fam_m = tree_fdr(results)
+    null_ps_counts = []
+    for rep_res in null_runs:
+        if rep_res:
+            rq, _, _ = tree_fdr(rep_res)
+            null_ps_counts.append(sum(1 for q in rq if q < Q_CUT))
+        else:
+            null_ps_counts.append(0)
     observed_sig = sum(1 for q in qs if q < Q_CUT)
-    null_sig = sum(1 for q in null_q if q < Q_CUT)
+    # M6: replicate null runs -> a null DISTRIBUTION of discovery counts
+    null_counts = sorted(null_ps_counts)
+    null_sig = null_counts[len(null_counts) // 2] if null_counts else 0
+    null_p95 = null_counts[min(len(null_counts) - 1, int(0.95 * len(null_counts)))] if null_counts else 0
 
     mad = {}
     for m, dv in series.items():
@@ -263,11 +301,17 @@ def run(cur, run_date, stride=1):
         dev = sorted(abs(v-md) for v in vals); mad[m] = dev[len(dev)//2] or 1e-9
     ranked = sorted(zip(results, qs), key=lambda t: t[1])
     kept, percell = [], defaultdict(int)
+    seen_unordered = set()   # N2: one bidirectional lag-0 association is ONE pattern
     for (d, o, lag, seeded, n_hi, n_lo, mh, ml, delta, p, rho), q in ranked:
         if q >= Q_CUT:
             break
         if abs(delta) < 0.3 * mad.get(o, 0):
             continue    # statistically clean but practically trivial
+        if lag == 0:
+            key0 = tuple(sorted((d, o)))
+            if key0 in seen_unordered:
+                continue     # reverse direction of an already-kept lag-0 pair
+            seen_unordered.add(key0)
         cell = (_family(d), _family(o))
         if percell[cell] >= TOP_K and not seeded:
             continue
@@ -279,14 +323,17 @@ def run(cur, run_date, stride=1):
     for d, o, lag, seeded, n_hi, n_lo, mh, ml, delta, p, q, rho in kept:
         cid = f"{d}|{o}|L{lag}|{run_date}"
         hyp = f"scan:{d}|{o}|L{lag}"
-        n_eff = lambda n: round(n * (1 - rho) / (1 + rho), 1)
+        rho_d = max(0.0, rho)   # M2: Kish deflates only; negative rho never inflates n_eff
+        n_eff = lambda n: round(n * (1 - rho_d) / (1 + rho_d), 1)
+        fam = (_family(d), _family(o))
         cur.execute("""insert into analysis.contrasts
             (contrast_id, run_date, driver, outcome, lag_days, seeded, n_hi, n_lo,
              med_hi, med_lo, delta, p_raw, q_fdr, n_eff_hi, n_eff_lo, rho_outcome,
-             hypothesis_id, code_version)
-            values (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
+             hypothesis_id, code_version, family_id, family_m)
+            values (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
             (cid, run_date, d, o, lag, seeded, n_hi, n_lo, mh, ml, delta, p, q,
-             n_eff(n_hi), n_eff(n_lo), round(rho, 3), hyp, CODE_VERSION))
+             n_eff(n_hi), n_eff(n_lo), round(rho, 3), hyp, CODE_VERSION,
+             fam[0] + "->" + fam[1], fam_m.get(fam, 0)))
         cur.execute("""insert into core.hypothesis_register
             (hypothesis_id, exposure_metric, outcome_metric, lag_days, direction,
              transformation, adjustment_set, test_statistic, preregistered_at,
@@ -299,11 +346,12 @@ def run(cur, run_date, stride=1):
              "median delta same sign with q<0.10 on >=30 post-registration days"))
         n_cand += 1
     cur.execute("""insert into analysis.scan_calibration
-        (run_date, n_pairs_tested, observed_sig, null_sig, code_version)
-        values (%s,%s,%s,%s,%s)
+        (run_date, n_pairs_tested, observed_sig, null_sig, null_p95, null_reps, code_version)
+        values (%s,%s,%s,%s,%s,%s,%s)
         on conflict (run_date) do update
         set n_pairs_tested=excluded.n_pairs_tested, observed_sig=excluded.observed_sig,
-            null_sig=excluded.null_sig, code_version=excluded.code_version""",
-        (run_date, len(results), observed_sig, null_sig, CODE_VERSION))
+            null_sig=excluded.null_sig, null_p95=excluded.null_p95,
+            null_reps=excluded.null_reps, code_version=excluded.code_version""",
+        (run_date, len(results), observed_sig, null_sig, null_p95, NULL_REPS, CODE_VERSION))
     return {"tested": len(results), "observed_sig": observed_sig,
-            "null_sig": null_sig, "kept": n_cand}
+            "null_median": null_sig, "null_p95": null_p95, "kept": n_cand}
