@@ -26,17 +26,27 @@ Next session, the same line with the next file. `/session-end` at the end of eac
 | B3 | `B3_search_record.md` | `search_record(p_q, p_limit)` — full-text over the record | 0036 | 0.5 |
 | B4 | `B4_get_entity.md` | `get_entity(p_type, p_key)` — merchants, categories, sites, channels, exercises | 0037 | 0.5 |
 | B5 | `B5_movements.md` | restricted location store, ingress, in-DB place resolution, `get_movements` / `get_place` / `get_places` | 0038–0040 | 2–3 |
-| L0 | `L0_lovable_round0.md` | The Lovable paste for Round 0 (kill + rewire + seven-section shell) | — | Joe pastes |
-| L1 | `L1_lovable_round1.md` | The Lovable paste for Round 1 (the SOURCES page on `get_domain`) | — | Joe pastes |
+| B6 | `B6_get_findings.md` | `get_findings()` — the WATCHING / CONFIRMED / REFUTED / INSUFFICIENT lists | 0041 | 0.5 |
+| L0 | `L0_lovable_round0.md` | Lovable Round 0: kill + rewire + seven-section shell | — | after B1 |
+| L1 | `L1_lovable_round1.md` | Round 1: the SOURCES page on `get_domain` | — | after B2 |
+| L2 | `L2_lovable_round2.md` | Round 2: the index finished + the entity page | — | after B4 |
+| L3 | `L3_lovable_round3.md` | Round 3: FINDINGS lifecycle lists + RELIABILITY audit page | — | after B6 |
+| L4 | `L4_lovable_round4.md` | Round 4: ASSESSMENT complete + RECORD search | — | after B3 |
+| L5 | `L5_lovable_round5.md` | Round 5: MOVEMENTS (day, places, place page) | — | after B5 |
+| L6 | `L6_lovable_round6.md` | Round 6: THE DESK capture/correct forms | — | after L5 |
+| L7 | `L7_lovable_round7.md` | Round 7: polish; skippable if credits are short | — | last |
+| — | `RUNBOOK_NO_CLAUDE.md` | How the system runs, and is kept running, with no model at all | — | read once |
 
 **L0 can be pasted as soon as B1 is live.** Everything else it reads is already live
 (`get_today` `get_timeline` `get_day` `get_patterns` `register_watch` `get_trust`
-`get_insights_guarded` `ingest_capture`). L1 needs B2. Rounds 2–7 get their own files
-once B3–B5 are live; do not write them early.
+`get_insights_guarded` `ingest_capture`). Each later round names its precondition.
+The Lovable rounds need no Claude at all — they can be pasted after the subscription
+ends, one per credit window.
 
 **Known gap not in this pack:** there is no *ask* RPC (REQ-ASK-*: a question in, a
 tiered, traced answer out). THE DESK's Ask box stays disabled until it exists. It is a
-larger build than anything here and goes after B5; a `B6_ask.md` will be written then.
+larger build than anything here and goes after B6; it needs a model to design it, and
+`RUNBOOK_NO_CLAUDE.md` §5 names it as the first thing to build when one is available again.
 
 ## Rules that apply to every file here
 
