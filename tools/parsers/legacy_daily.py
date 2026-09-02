@@ -42,10 +42,11 @@ def main() -> int:
     conn = db.connect(); cur = conn.cursor()
     try:
         cur.execute("delete from analysis.legacy_daily")
-        for row in rows:
-            cur.execute(
-                f"""insert into analysis.legacy_daily (day, {', '.join(DB_COLS)})
-                    values ({', '.join(['%s'] * (1 + len(DB_COLS)))})""", row)
+        for i in range(0, len(rows), 500):
+            chunk = rows[i:i+500]
+            ph = ",".join(["(" + ",".join(["%s"] * (1 + len(DB_COLS))) + ")"] * len(chunk))
+            cur.execute(f"insert into analysis.legacy_daily (day, {', '.join(DB_COLS)}) values " + ph,
+                        [x for row in chunk for x in row])
         cur.execute("""insert into ops.runs (job_name, finished_at, status, rows_written, detail)
                        values ('legacy_daily_load', now(), 'ok', %s, %s)""",
                     (len(rows), json.dumps({"source": str(CSV.name), "code_version": CODE_VERSION})))
