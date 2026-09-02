@@ -21,6 +21,11 @@ jobs:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
           PYTHONPATH: ${{ github.workspace }}
         run: python3 tools/run_analysis.py
+      - name: resolve matured watches (ADR-0048; nightly, after the panel, before the scan)
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          PYTHONPATH: ${{ github.workspace }}
+        run: python3 tools/run_resolve.py
   scan:
     runs-on: ubuntu-latest
     timeout-minutes: 45

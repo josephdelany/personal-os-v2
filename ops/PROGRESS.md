@@ -4420,3 +4420,86 @@ statements. **Owner call:**
 - The lists are unexercised on real data: the register holds only CANDIDATE rows, so every list branch
   ran against zero rows (the tests assert structure and the no-CANDIDATE invariant; they cannot yet prove
   a WATCHING row's clock arithmetic on a live row).
+
+## 2026-09-02 — Session 18 (B7): the watch resolver — `tools/engines/resolve.py`, migration 0042 written, tested on twins; LIVE APPLY HELD (ADR-0048)
+
+**State on entry.** B1–B6 were already committed and live (0506967 … 2ecbfdb; migrations 0034–0041). The
+working tree held only the README row for B7 and the new `B7_resolve_watches.md`; committed as 566b44e.
+CLAUDE.md does not cite `ops/WORK_QUEUE.md` (only `docs/HANDOFF.md` does). ADR-0040 is B1's config ADR.
+Session-start: 89 tests passed (369 s), invariants ALL PASS (RULE-04 pending, Phase 5), `validate_layout`
+40/0/0, features 12 failing / 3 passing. B7 is the first unfinished B-file, so it ran.
+
+**Requirement IDs satisfied (quoted):** REQ-INF-103 "reject any UPDATE to [the pre-registration columns]
+after insert, enforced by a database trigger" — the resolver UPDATEs `status` only; REQ-INF-107 "WHILE a
+registered hypothesis has fewer than 30 post-registration observation days … SHALL NOT evaluate its resolution
+rule"; REQ-TIER-043 "WHEN a finding is demoted … surface the demotion … naming the previous claim and the
+reason"; REQ-INF-301 "WHEN a finding is assigned tier … CONFIRMED_OBSERVATIONAL … insert at least one row into
+`predictions` in the same transaction"; RULE-11/12 (one owner: scan helpers imported, asserted by identity);
+RULE-20 (a CONFIRMED row emits a scored-able forward prediction). Tests: `tests/test_resolve_watches.py` — 8,
+named with those IDs + ADR-0048.
+
+**DISCOVER (live, read-only, 2026-09-02):**
+```
+SELECT hypothesis_id, status, preregistered_at::date, confirmation_data_from::date, resolution_rule
+  FROM core.hypothesis_register WHERE hypothesis_id LIKE 'watch:%' ORDER BY preregistered_at;
+  -> (0 rows)
+SELECT count(*) FROM analysis.panel WHERE day > (SELECT min(confirmation_data_from)::date FROM core.hypothesis_register WHERE hypothesis_id LIKE 'watch:%');
+  -> 0   (min is NULL: no watch exists yet)
+register status: CANDIDATE 34 · resolution_rule (uniform, 34): "median delta same sign with q<0.10 on >=30 post-registration days"
+direction: negative 21, positive 13 · analysis.panel: 2019-01-01 .. 2026-09-01, 111,626 rows, 350 metrics
+core.predictions: 0 rows · core.hypothesis_resolutions: absent · register triggers: hypothesis_register_freeze
+predictions CHECKs: resolves_at > created_at; (p_forecast NOT NULL)::int + (forecast_distribution NOT NULL)::int = 1; p_forecast in [0,1]
+```
+
+**Wrong against the live schema (fixed minimally, ADR-0048 §9 and §5):**
+1. B7's predictions insert (`resolves_at = now()`, `outcome_bool` set, no `p_forecast`) violates both CHECKs
+   above. Replaced by a genuine forward prediction on CONFIRMED only (REQ-INF-301's tiers): next-30-day claim,
+   frozen rule text, `resolves_at` = now + 30 d, `p_forecast` = 1 − Q_CONFIRM = 0.90 (the rule's own FDR bound,
+   never 1 − q), `model_version resolve-v1`. REFUTED / expired rows get the ledger row only.
+2. Expiry keeps `status = INSUFFICIENT` (the CHECK has no EXPIRED), so `get_findings` would list an expired watch
+   as "day N of 30" forever, and — caught by the idempotence test on the first run — the resolver would expire it
+   again every night. Fix: the expiry ledger row closes the watch in both places (resolver `NOT EXISTS`;
+   `get_findings` moves it to `insufficient` with `reason`).
+
+**Built.** `tools/engines/resolve.py` (resolve-v1: MIN_POST_DAYS 30, Q_CONFIRM 0.10 from the frozen text;
+MIN_SIDE 7, EXPIRE_DAYS 120 per ADR-0048; demedian on the post window only; BH across the run's batch via
+`scan._bh`); `tools/run_resolve.py` (heartbeat `resolve_watches`); `migrations/0042_hypothesis_resolutions.sql`
+(append-only ledger with the 0012 trigger + RLS + app-role revokes; `get_findings` re-created with `history`,
+expired-watch handling, `reason` on insufficient rows — additive); `.github/workflows/analysis.yml` (+1 step in
+the refresh job, after `run_analysis.py`, before the Monday scan); `tools/engines/scan.py` (additive:
+`_contrast(min_side=None)`, `_load_panel(schema="analysis")`, nested `bh` hoisted to `_bh`, same code).
+
+**Dry run** `run_migration.py --core core_dryrun --ops ops_dryrun` → `ROLLED BACK 264 statements`, 0042 = 12 statements.
+**Tests** `python3 -m pytest tests/test_resolve_watches.py -v` → **8 passed in 47.52s** (first run: 7 passed,
+1 failed — the idempotence assertion above, a real engine defect, fixed in the engine, not the test). The
+synthetic panel lives in `analysis_pytest.panel` / `core_pytest` twins and is rolled back (RULE-01 exception):
+confirm case survives 200 opposite-sign pre-registration days (post_days = 45, not 245); refute; under-30
+untouched; 130 flat days → expired with `n_hi`/`q_fdr` absent; 60 flat days → still on the clock; frozen
+columns byte-identical before/after; the 0012 freeze trigger rejects a `lag_days` change; the ledger rejects
+DELETE with "append-only"; second run writes nothing. `validate_layout.py` 40/0/0.
+`update_features.py` (whole suite): **97 passed, 0 failed, 0 skipped of 97** (423 s); ledger unchanged at
+`3 passing / 15 total` — no entry's requirement ID (F-009 REQ-TIER-001, F-010 REQ-TIER-004) is carried by a B7 test.
+
+**LIVE APPLY HELD.** `python3 tools/run_migration.py --core core --ops ops --only 0042 --commit` was denied by
+the auto-mode classifier (a production migration). Not retried, not worked around. Consequently the live
+`run_resolve.py` did not run either (it reads `core.hypothesis_resolutions`). Joe finishes with:
+```
+PYTHONPATH=. python3 tools/run_migration.py --core core --ops ops --only 0042 --commit
+PYTHONPATH=. python3 tools/run_resolve.py --dry-run      # expected today: {'evaluated': 0, ... 'on_clock': 0} — no watch exists
+PYTHONPATH=. python3 tools/run_resolve.py                # writes one ops.runs row 'resolve_watches'
+```
+Until 0042 is applied, the nightly workflow step will fail on the missing table and write an `error` row to
+`ops.runs` under `resolve_watches` — visible, not silent. ADR-0048; DECISIONS row; OQ-44 opened.
+
+**WHAT I DID NOT DO.**
+- Did not apply 0042 live and did not run the resolver live (held, above). No watch exists, so nothing would
+  have resolved today anyway; the live envelope of `get_findings.history` is unverified.
+- Nothing scores a `resolve-v1` forward prediction; no rolling re-confirmation; a CONFIRMED row stays CONFIRMED
+  until a later build re-tests it (OQ-44). RULE-20's automatic demotion stops at "pending".
+- E-value and negative control not computed; keys still absent on a CONFIRMED row.
+- `insufficient_low_n_eff` and `insufficient_sign_unstable` are in the reason CHECK but never written: the
+  resolver keeps watching in those states until day 120. The ledger's reason set is not REQ-TIER-018's
+  `insufficiency_reason` set (OQ-44c).
+- `PROMOTED` is read as an open status but never assigned. `EXPERIMENTAL` untouched.
+- MIN_SIDE 7 and EXPIRE_DAYS 120 are unratified placeholders (ADR-0048; OQ-44).
+- The workflow step is unexercised in CI until the next scheduled run after apply.

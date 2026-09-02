@@ -124,8 +124,9 @@ def _median(xs):
     return s[n // 2] if n % 2 else 0.5 * (s[n // 2 - 1] + s[n // 2])
 
 
-def _load_panel(cur):
-    cur.execute("select metric, day, value from analysis.panel")
+def _load_panel(cur, schema="analysis"):
+    """schema is 'analysis' in production; a disposable twin under test (RULE-01 exception)."""
+    cur.execute(f"select metric, day, value from {schema}.panel")
     series = defaultdict(dict)
     for metric, day, value in cur.fetchall():
         series[metric][day] = float(value)
@@ -176,8 +177,13 @@ def _dow_demedian(dv):
     return {d: v - med[d.weekday()] for d, v in dv.items()}
 
 
-def _contrast(drv, out, lag):
-    """Returns (n_hi, n_lo, med_hi, med_lo, delta, p, rho) or None."""
+def _contrast(drv, out, lag, min_side=None):
+    """Returns (n_hi, n_lo, med_hi, med_lo, delta, p, rho) or None.
+    min_side defaults to MIN_SIDE (the 7-year sweep floor); the watch resolver
+    (tools/engines/resolve.py, ADR-0048) passes its own floor for a 30-day
+    post-registration window. Additive: scan behaviour is unchanged."""
+    if min_side is None:
+        min_side = MIN_SIDE
     pairs = []
     from datetime import timedelta
     off = timedelta(days=lag)
@@ -185,7 +191,7 @@ def _contrast(drv, out, lag):
         y = out.get(d + off)
         if y is not None:
             pairs.append((d, x, y))
-    if len(pairs) < 4 * MIN_SIDE:
+    if len(pairs) < 4 * min_side:
         return None
     xs = sorted(p[1] for p in pairs)
     q1, q3 = xs[len(xs) // 4], xs[(3 * len(xs)) // 4]
@@ -193,12 +199,26 @@ def _contrast(drv, out, lag):
         return None
     hi = [y for _, x, y in pairs if x >= q3]
     lo = [y for _, x, y in pairs if x <= q1]
-    if len(hi) < MIN_SIDE or len(lo) < MIN_SIDE:
+    if len(hi) < min_side or len(lo) < min_side:
         return None
     p = _mann_whitney_p(hi, lo)
     ys = [y for _, _, y in sorted(pairs)]
     return (len(hi), len(lo), _median(hi), _median(lo),
             _median(hi) - _median(lo), p, _lag1_rho(ys))
+
+
+def _bh(ps):
+    """Benjamini-Hochberg step-up q-values. One owner (RULE-11/12): the scan's
+    tree FDR and the watch resolver (ADR-0048) both call this function."""
+    m = len(ps)
+    order = sorted(range(m), key=lambda i: ps[i])
+    q = [1.0] * m
+    prev = 1.0
+    for rank in range(m, 0, -1):
+        i = order[rank - 1]
+        prev = min(prev, ps[i] * m / rank)
+        q[i] = prev
+    return q
 
 
 def _shift(dv, name):
@@ -247,16 +267,7 @@ def run(cur, run_date, stride=1):
                 rep_res.append((d, o, lag, seeded) + rn)
         null_runs.append(rep_res)
 
-    def bh(ps):
-        m = len(ps)
-        order = sorted(range(m), key=lambda i: ps[i])
-        q = [1.0] * m
-        prev = 1.0
-        for rank in range(m, 0, -1):
-            i = order[rank - 1]
-            prev = min(prev, ps[i] * m / rank)
-            q[i] = prev
-        return q
+    bh = _bh   # module-level since ADR-0048 so the watch resolver imports it; identical code
 
     # M1 (RULE-21 / REQ-INF-001/002): hierarchical FDR — level 1 selects
     # domain-pair FAMILIES (Simes p per family, BH across families); level 2

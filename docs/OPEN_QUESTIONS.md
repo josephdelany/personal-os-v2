@@ -714,6 +714,23 @@ Settles it: Joe ruling migrate (agent writes a one-off `--only` migration with a
 a redacted capture row per fix, dry-run first) or discard (the table stays where it is, untouched, until
 the previous build is retired). Opened 2026-09-02, session 17 (B5.1).
 
+**OQ-44 — Who scores a `resolve-v1` forward prediction, and what do its `p_forecast` and the ledger's reason vocabulary mean?**
+Why open: ADR-0048 makes a CONFIRMED watch insert one forward prediction (the same rule on the next
+30 days, `p_forecast` = 0.90, the FDR bound the frozen rule licenses). Nothing scores it: the
+forecast resolver (`tools/engines/forecast.py`) matches only `forecast-%` rows, and B7 explicitly
+left rolling re-confirmation unbuilt, so RULE-20's automatic demotion path stops at "pending". Three
+sub-questions: (a) which job re-runs the contrast on the next window and writes `outcome_bool` /
+`brier`; (b) whether 0.90 is the right stated probability or whether the calibration ledger should
+supply one once ≥20 resolutions exist (REQ-INF-3xx's count-and-proportion triggers); (c) the ledger's
+closed reason set (`confirmed_same_sign_q_lt_0_10` … `expired_no_decision_120d`) is not REQ-TIER-018's
+`insufficiency_reason` set (`window_too_short`, `low_n_eff`, `sign_unstable`, …) — one must map to the
+other before a vocabulary linter (REQ-TIER-020) reads it. Also provisional and unratified: `MIN_SIDE`
+7 per quartile side on a 30-day window; `EXPIRE_DAYS` 120.
+Depends on it: whether a CONFIRMED row can ever be demoted without a human (RULE-20; Gate 6);
+whether the FINDINGS page can show a Brier record for confirmations.
+Settles it: Joe ruling on (b) and the two constants; a B8 build order for (a) and (c). Opened
+2026-09-02, session 18 (B7).
+
 ## RESOLVED
 
 **OQ-01 — RESOLVED 2026-08-23.** *Is the Supabase credential rotated?*
