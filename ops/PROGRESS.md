@@ -2771,3 +2771,927 @@ ADR-0040 written; DECISIONS row added; **OQ-40** opened (coverage thresholds pro
 - Did not build the REQ-ASK-003 refusal path (B2's) or `capture_shortcut` (B2 adds the column).
 - Did not paste the envelope's 14-domain JSON verbatim above if the scratch copy was missing; the
   numbers quoted are from the live call in this session.
+
+## 2026-09-02 — Session 17 (B2): `get_domain(p_domain, p_window)` — migration 0035 LIVE (ADR-0041)
+
+**Requirement IDs satisfied:** REQ-ASK-003, REQ-ASK-011, REQ-INF-505, REQ-INF-109, REQ-NAR-014,
+REQ-NAR-015, REQ-TIER-050, REQ-TIER-053, REQ-TIER-005, REQ-LOC-005, INV-3, INV-4; ADR-0036 pattern.
+Tests: `tests/test_get_domain.py` — 11 tests named with those IDs + ADR-0041.
+
+**DISCOVER — B2 Step 0, six queries, verbatim (live, read-only, rolled back):**
+```
+Q1 config.domains (domain_key | hero_metric | entity_source):
+sleep|sleep_asleep_min|∅ · recovery|hrv_sdnn|∅ · vitals|rhr|∅ · body|weight_lb|∅ · workouts|strength_volume|atoms_workout_exercise ·
+activity|steps|∅ · places|∅|places · food|meals_logged|∅ · drink|alcohol_standard_drinks|∅ · attention|screen_active_hours|∅ ·
+content|yt_events|events_youtube_channel · mood|checkin_night_mood|∅ · money|spend.monetary_7d|transactions_merchant · calendar|∅|∅
+Q2 analysis.baselines: 196 metrics (hero metrics present: sleep_asleep_min 86 rows 2023-02-23..2026-07-28 · hrv_sdnn 133 ·
+   rhr 119 · steps 2380 · yt_events 1364 · spend.monetary_7d 797 · screen_* 1364; full list in the session transcript)
+Q3 analysis.forecasts: ERROR 42P01 relation "analysis.forecasts" does not exist   <-- live defect, see below
+Q4 core.predictions WHERE model_version LIKE 'forecast-%': 0 rows
+Q5 core.atoms_current WHERE kind='workout': 0 rows
+Q6 core.hypothesis_register status: CANDIDATE | 34
+Schema checks: analysis.baselines(day,metric,value,z_fast,z_slow,band_lo,band_hi,run_len,code_version,computed_at);
+analysis.contrasts has every column _domain_claims reads; core.predictions(hypothesis_id,claim_text,model_version,outcome_bool,…);
+public.transactions(ts,amount,merchant,category,…); public.events payload keys: youtube_watch{id,title,url,channel(21241/38241)},
+chrome_visit{domain,id,url,title}; core.atoms_current(raw_capture_id,kind,metric_key,subject_day,evidence_span,…);
+pg_trgm: available, NOT installed; schema `extensions` exists.
+```
+
+**The two DISCOVER decisions (ADR-0041):** `__METRIC_MATCH__` = `pr.claim_text LIKE hm.metric || ' on %'`
+(forecast predictions have NULL `hypothesis_id`; `tools/engines/forecast.py` writes claim_text as
+`metric || ' on ' || day_target || ' within [lo, hi]'`). `__EXERCISE_EXPR__` = `evidence_span`, with sets
+counted by `count(DISTINCT raw_capture_id)` (OQ-33(a): one atom per attribute, the capture id IS the set
+key; B2's `count(*)` would have tripled every count).
+
+**Wrong against the live schema, fixed minimally (README rule 12), all in the 0035 header + ADR-0041:**
+1. **`analysis.forecasts` was absent live.** 0032 declares it; `get_today()` errored (`42P01`) and the
+   nightly `analysis_refresh` failed twice today with the same message (`ops.runs` 02:29 and 12:50 UTC).
+   0035 re-declares it verbatim, `IF NOT EXISTS`. **`get_today()` now returns** (`based_on, for_day,
+   patterns_waiting, state`). Cause unestablished → **OQ-42**.
+2. `count()` over zero rows is 0 → `days_with_data`/`days_in_window`/`density` keyed on `cov_last`/`hm.metric`
+   being NULL, so an empty domain emits none of them (same defect as 0034).
+3. `percentile_cont()` returns double precision; `round(double precision, int)` does not exist — found at the
+   first live call; the two medians are cast to numeric. (Dry run cannot catch this: plpgsql resolves at call.)
+4. `pg_trgm` installed in `extensions`; `extensions.similarity()` schema-qualified.
+
+**Apply.** Dry run full chain 0001–0035 → rolled back, 186 statements. Real `--only 0035 --commit` →
+COMMITTED 10 statements (twice: once before fix 3 surfaced, once after; CREATE OR REPLACE is idempotent).
+
+**Owner calls — five envelopes (history.points truncated to first/last 3):**
+```
+=== get_domain('sleep','90d') === keys: ['as_of', 'capture', 'coverage', 'display_name', 'domain', 'hero', 'history', 'notables', 'pillar', 'replaces', 'rhythm', 'sentence', 'why', 'window']
+{
+ "why": [
+  {
+   "z": 0.03,
+   "day": "2026-07-28",
+   "band": [
+    337,
+    978
+   ],
+   "unit": "min",
+   "trace": {
+    "day": "2026-07-28",
+    "src": "signals:apple_sleep",
+    "table": "analysis.panel",
+    "metric": "sleep_inbed_min",
+    "code_version": "panel-v1"
+   },
+   "value": 379,
+   "metric": "sleep_inbed_min",
+   "display_name": "In bed",
+   "delta_vs_28d_median": -8
+  },
+  {
+   "z": 2.05,
+   "day": "2026-07-28",
+   "band": [
+    1,
+    1
+   ],
+   "unit": "%",
+   "trace": {
+    "day": "2026-07-28",
+    "src": "signals:apple_sleep",
+    "table": "analysis.panel",
+    "metric": "sleep_efficiency",
+    "code_version": "panel-v1"
+   },
+   "value": 1,
+   "metric": "sleep_efficiency",
+   "display_name": "Efficiency",
+   "delta_vs_28d_median": 0
+  },
+  {
+   "z": -0.52,
+   "day": "2026-07-28",
+   "band": [
+    7,
+    21
+   ],
+   "unit": "%",
+   "trace": {
+    "day": "2026-07-28",
+    "src": "signals:apple_sleep",
+    "table": "analysis.panel",
+    "metric": "sleep_deep_pct",
+    "code_version": "panel-v1"
+   },
+   "value": 8,
+   "metric": "sleep_deep_pct",
+   "display_name": "Deep",
+   "delta_vs_28d_median": -6
+  },
+  {
+   "z": -5.31,
+   "day": "2026-07-28",
+   "band": [
+    12,
+    28
+   ],
+   "unit": "%",
+   "trace": {
+    "day": "2026-07-28",
+    "src": "signals:apple_sleep",
+    "table": "analysis.panel",
+    "metric": "sleep_rem_pct",
+    "code_version": "panel-v1"
+   },
+   "value": 16,
+   "metric": "sleep_rem_pct",
+   "display_name": "REM",
+   "delta_vs_28d_median": -4
+  },
+  {
+   "z": 1.29,
+   "day": "2026-07-28",
+   "band": [
+    0,
+    152
+   ],
+   "unit": "min",
+   "trace": {
+    "day": "2026-07-28",
+    "src": "signals:apple_sleep",
+    "table": "analysis.panel",
+    "metric": "sleep_onset_min",
+    "code_version": "panel-v1"
+   },
+   "value": 0,
+   "metric": "sleep_onset_min",
+   "display_name": "Onset",
+   "delta_vs_28d_median": 0
+  },
+  {
+   "z": -0.05,
+   "day": "2026-07-28",
+   "band": [
+    3,
+    62
+   ],
+   "unit": "min",
+   "trace": {
+    "day": "2026-07-28",
+    "src": "signals:apple_sleep",
+    "table": "analysis.panel",
+    "metric": "sleep_waso_min",
+    "code_version": "panel-v1"
+   },
+   "value": 9,
+   "metric": "sleep_waso_min",
+   "display_name": "Awake after onset",
+   "delta_vs_28d_median": -9
+  },
+  {
+   "z": 0.81,
+   "day": "2026-07-28",
+   "band": [
+    2.31,
+    6.07
+   ],
+   "unit": "clock",
+   "trace": {
+    "day": "2026-07-28",
+    "src": "signals:apple_sleep",
+    "table": "analysis.panel",
+    "metric": "sleep_midpoint",
+    "code_version": "panel-v1"
+   },
+   "value": 4.44,
+   "metric": "sleep_midpoint",
+   "display_name": "Midpoint",
+   "delta_vs_28d_median": -0.07
+  }
+ ],
+ "hero": {
+  "z": -0.01,
+  "day": "2026-07-28",
+  "band": [
+   254,
+   475
+  ],
+  "unit": "min",
+  "trace": {
+   "day": "2026-07-28",
+   "src": "signals:apple_sleep",
+   "table": "analysis.panel",
+   "metric": "sleep_asleep_min",
+   "code_version": "panel-v1"
+  },
+  "value": 371,
+  "metric": "sleep_asleep_min",
+  "run_len": 0,
+  "position": "inside",
+  "display_name": "Asleep"
+ },
+ "as_of": "2026-09-01",
+ "domain": "sleep",
+ "pillar": "body",
+ "rhythm": {
+  "unit": "min",
+  "trace": {
+   "table": "analysis.panel",
+   "metric": "sleep_asleep_min",
+   "window_days": 365
+  },
+  "window": "365d",
+  "weekday": [
+   {
+    "n": 2,
+    "dow": 1,
+    "median": 255
+   },
+   {
+    "n": 5,
+    "dow": 2,
+    "median": 317
+   },
+   {
+    "n": 2,
+    "dow": 3,
+    "median": 287
+   },
+   {
+    "n": 4,
+    "dow": 4,
+    "median": 456
+   },
+   {
+    "n": 6,
+    "dow": 5,
+    "median": 380
+   },
+   {
+    "n": 4,
+    "dow": 6,
+    "median": 332
+   },
+   {
+    "n": 2,
+    "dow": 7,
+    "median": 362
+   }
+  ],
+  "sentence": "Highest on Thursdays (456 min), lowest on Mondays (255 min)."
+ },
+ "window": "90d",
+ "capture": {
+  "action": "Wear the watch to bed; refresh the Apple Health export",
+  "correct_via": "ingest_capture"
+ },
+ "history": {
+  "n": 23,
+  "unit": "min",
+  "trace": {
+   "key": "(day, metric)",
+   "table": "analysis.panel",
+   "metric": "sleep_asleep_min",
+   "src_set": [
+    "legacy_daily",
+    "signals:apple_sleep"
+   ],
+   "band_table": "analysis.baselines"
+  },
+  "metric": "sleep_asleep_min",
+  "points": [
+   {
+    "hi": 474,
+    "lo": 298,
+    "day": "2026-06-19",
+    "value": 180
+   },
+   {
+    "hi": 474,
+    "lo": 272,
+    "day": "2026-06-20",
+    "value": 247
+   },
+   {
+    "hi": 474,
+    "lo": 254,
+    "day": "2026-06-22",
+    "value": 1
+   },
+   "... 17 more (n=23) ...",
+   {
+    "hi": 475,
+    "lo": 254,
+    "day": "2026-07-24",
+    "value": 370
+   },
+   {
+    "hi": 475,
+    "lo": 254,
+    "day": "2026-07-26",
+    "value": 403
+   },
+   {
+    "hi": 475,
+    "lo": 254,
+    "day": "2026-07-28",
+    "value": 371
+   }
+  ],
+  "window": "90d"
+ },
+ "coverage": {
+  "status": "not_logged",
+  "density": "years",
+  "last_day": "2026-07-28",
+  "first_day": "2023-02-23",
+  "stale_days": 35,
+  "days_in_window": 23,
+  "days_with_data": 86
+ },
+ "notables": [
+  {
+   "day": "2026-07-23",
+   "kind": "band_break",
+   "text": "Asleep 472 min on 23 Jul — above your band (254–475).",
+   "trace": {
+    "day": "2026-07-23",
+    "table": "analysis.baselines",
+    "metric": "sleep_asleep_min",
+    "code_version": "baselines-v1"
+   }
+  },
+  {
+   "day": "2026-07-15",
+   "kind": "band_break",
+   "text": "Asleep 3 min on 15 Jul — below your band (254–475).",
+   "trace": {
+    "day": "2026-07-15",
+    "table": "analysis.baselines",
+    "metric": "sleep_asleep_min",
+    "code_version": "baselines-v1"
+   }
+  },
+  {
+   "day": "2026-06-26",
+   "kind": "band_break",
+   "text": "Asleep 424 min on 26 Jun — above your band (247–474).",
+   "trace": {
+    "day": "2026-06-26",
+    "table": "analysis.baselines",
+    "metric": "sleep_asleep_min",
+    "code_version": "baselines-v1"
+   }
+  },
+  {
+   "day": "2026-06-25",
+   "kind": "band_break",
+   "text": "Asleep 463 min on 25 Jun — above your band (247–474).",
+   "trace": {
+    "day": "2026-06-25",
+    "table": "analysis.baselines",
+    "metric": "sleep_asleep_min",
+    "code_version": "baselines-v1"
+   }
+  },
+  {
+   "day": "2026-06-22",
+   "kind": "record_low",
+   "text": "Lowest recorded: 1 min on 22 Jun 2026.",
+   "trace": {
+    "day": "2026-06-22",
+    "src": "legacy_daily",
+    "table": "analysis.panel",
+    "metric": "sleep_asleep_min",
+    "code_version": "panel-v1"
+   }
+  },
+  {
+   "day": "2026-06-22",
+   "kind": "longest_run",
+   "text": "Longest run outside your band: 5 days below, ending 22 Jun 2026.",
+   "trace": {
+    "day": "2026-06-22",
+    "table": "analysis.baselines",
+    "metric": "sleep_asleep_min",
+    "code_version": "baselines-v1"
+   }
+  },
+  {
+   "day": "2025-12-04",
+   "kind": "band_break",
+   "text": "Asleep 239 min on 04 Dec — below your band (326–474).",
+   "trace": {
+    "day": "2025-12-04",
+    "table": "analysis.baselines",
+    "metric": "sleep_asleep_min",
+    "code_version": "baselines-v1"
+   }
+  },
+  {
+   "day": "2023-03-28",
+   "kind": "record_high",
+   "text": "Highest recorded: 634 min on 28 Mar 2023.",
+   "trace": {
+    "day": "2023-03-28",
+    "src": "signals:apple_sleep",
+    "table": "analysis.panel",
+    "metric": "sleep_asleep_min",
+    "code_version": "panel-v1"
+   }
+  }
+ ],
+ "replaces": "Apple Health · Sleep / Whoop",
+ "sentence": "Sleep: not logged since 28 Jul 2026. Wear the watch to bed; refresh the Apple Health export.",
+ "display_name": "Sleep"
+}
+=== get_domain('money','30d') === keys: ['as_of', 'capture', 'coverage', 'display_name', 'domain', 'driven_by', 'entities', 'hero', 'notables', 'pillar', 'replaces', 'rhythm', 'sentence', 'window']
+{
+ "hero": {
+  "z": 4.08,
+  "day": "2026-07-27",
+  "band": [
+   0,
+   380
+  ],
+  "unit": "$",
+  "trace": {
+   "day": "2026-07-27",
+   "src": "signals:spend",
+   "table": "analysis.panel",
+   "metric": "spend.monetary_7d",
+   "code_version": "panel-v1"
+  },
+  "value": 44,
+  "metric": "spend.monetary_7d",
+  "run_len": 0,
+  "position": "inside",
+  "display_name": "Spend, 7-day"
+ },
+ "as_of": "2026-09-01",
+ "domain": "money",
+ "pillar": "life",
+ "rhythm": {
+  "unit": "$",
+  "trace": {
+   "table": "analysis.panel",
+   "metric": "spend.monetary_7d",
+   "window_days": 365
+  },
+  "window": "365d",
+  "weekday": [
+   {
+    "n": 46,
+    "dow": 1,
+    "median": 228
+   },
+   {
+    "n": 46,
+    "dow": 2,
+    "median": 262
+   },
+   {
+    "n": 46,
+    "dow": 3,
+    "median": 227
+   },
+   {
+    "n": 46,
+    "dow": 4,
+    "median": 230
+   },
+   {
+    "n": 46,
+    "dow": 5,
+    "median": 203
+   },
+   {
+    "n": 46,
+    "dow": 6,
+    "median": 204
+   },
+   {
+    "n": 46,
+    "dow": 7,
+    "median": 187
+   }
+  ],
+  "sentence": "Highest on Tuesdays (262 $), lowest on Sundays (187 $)."
+ },
+ "window": "30d",
+ "capture": {
+  "action": "Refresh the bank export",
+  "correct_via": "ingest_capture"
+ },
+ "coverage": {
+  "status": "not_logged",
+  "density": "years",
+  "last_day": "2026-07-27",
+  "first_day": "2024-05-15",
+  "stale_days": 36,
+  "days_in_window": 0,
+  "days_with_data": 797
+ },
+ "entities": [
+  {
+   "n": 1,
+   "key": "ANTHROPIC",
+   "last": "2026-08-13",
+   "type": "merchant",
+   "amount": 212.7
+  },
+  {
+   "n": 3,
+   "key": "ZAZASMOKE SHOP",
+   "last": "2026-08-13",
+   "type": "merchant",
+   "amount": 59.28
+  },
+  {
+   "n": 3,
+   "key": "SQ",
+   "last": "2026-08-17",
+   "type": "merchant",
+   "amount": 50.86
+  },
+  {
+   "n": 1,
+   "key": "STOWE VILLAGE M",
+   "last": "2026-08-27",
+   "type": "merchant",
+   "amount": 36.62
+  },
+  {
+   "n": 1,
+   "key": "LOVABLE",
+   "last": "2026-08-27",
+   "type": "merchant",
+   "amount": 26.59
+  },
+  {
+   "n": 1,
+   "key": "DUNKIN #351945 Q35",
+   "last": "2026-08-30",
+   "type": "merchant",
+   "amount": 8.21
+  },
+  {
+   "n": 1,
+   "key": "STOP & SHOP 0616",
+   "last": "2026-08-21",
+   "type": "merchant",
+   "amount": 6.14
+  },
+  {
+   "n": 1,
+   "key": "WILLOUGHBYS DEPOT EA",
+   "last": "2026-08-15",
+   "type": "merchant",
+   "amount": 5.5
+  },
+  {
+   "n": 1,
+   "key": "STEWARTS SHOP #556",
+   "last": "2026-08-28",
+   "type": "merchant",
+   "amount": 4.98
+  },
+  {
+   "n": 1,
+   "key": "SHELL/SHELL",
+   "last": "2026-08-13",
+   "type": "merchant",
+   "amount": 3.92
+  }
+ ],
+ "notables": [
+  {
+   "day": "2026-07-26",
+   "kind": "record_low",
+   "text": "Lowest recorded: 0 $ on 26 Jul 2026.",
+   "trace": {
+    "day": "2026-07-26",
+    "src": "signals:spend",
+    "table": "analysis.panel",
+    "metric": "spend.monetary_7d",
+    "code_version": "panel-v1"
+   }
+  },
+  {
+   "day": "2026-05-28",
+   "kind": "longest_run",
+   "text": "Longest run outside your band: 9 days below, ending 28 May 2026.",
+   "trace": {
+    "day": "2026-05-28",
+    "table": "analysis.baselines",
+    "metric": "spend.monetary_7d",
+    "code_version": "baselines-v1"
+   }
+  },
+  {
+   "day": "2025-10-16",
+   "kind": "band_break",
+   "text": "Spend, 7-day 847 $ on 16 Oct — above your band (92–528).",
+   "trace": {
+    "day": "2025-10-16",
+    "table": "analysis.baselines",
+    "metric": "spend.monetary_7d",
+    "code_version": "baselines-v1"
+   }
+  },
+  {
+   "day": "2025-10-15",
+   "kind": "band_break",
+   "text": "Spend, 7-day 832 $ on 15 Oct — above your band (92–396).",
+   "trace": {
+    "day": "2025-10-15",
+    "table": "analysis.baselines",
+    "metric": "spend.monetary_7d",
+    "code_version": "baselines-v1"
+   }
+  },
+  {
+   "day": "2025-10-14",
+   "kind": "band_break",
+   "text": "Spend, 7-day 832 $ on 14 Oct — above your band (92–386).",
+   "trace": {
+    "day": "2025-10-14",
+    "table": "analysis.baselines",
+    "metric": "spend.monetary_7d",
+    "code_version": "baselines-v1"
+   }
+  },
+  {
+   "day": "2025-09-12",
+   "kind": "band_break",
+   "text": "Spend, 7-day 220 $ on 12 Sep — below your band (135–561).",
+   "trace": {
+    "day": "2025-09-12",
+    "table": "analysis.baselines",
+    "metric": "spend.monetary_7d",
+    "code_version": "baselines-v1"
+   }
+  },
+  {
+   "day": "2025-09-11",
+   "kind": "band_break",
+   "text": "Spend, 7-day 248 $ on 11 Sep — below your band (135–561).",
+   "trace": {
+    "day": "2025-09-11",
+    "table": "analysis.baselines",
+    "metric": "spend.monetary_7d",
+    "code_version": "baselines-v1"
+   }
+  },
+  {
+   "day": "2025-07-07",
+   "kind": "record_high",
+   "text": "Highest recorded: 1200 $ on 07 Jul 2025.",
+   "trace": {
+    "day": "2025-07-07",
+    "src": "signals:spend",
+    "table": "analysis.panel",
+    "metric": "spend.monetary_7d",
+    "code_version": "panel-v1"
+   }
+  }
+ ],
+ "replaces": "Mint / Copilot",
+ "sentence": "Money: not logged since 27 Jul 2026. Refresh the bank export.",
+ "driven_by": [
+  {
+   "n": 398,
+   "q": 0.0048,
+   "tier": "EXPLORATORY",
+   "n_eff": [
+    20.9,
+    20.9
+   ],
+   "trace": {
+    "table": "analysis.contrasts",
+    "contrast_id": "weather.daylight_delta|spend.monetary_7d|L0|2026-09-02",
+    "code_version": "scan-v2"
+   },
+   "driver": "weather.daylight_delta",
+   "outcome": "spend.monetary_7d",
+   "watched": false,
+   "lag_days": 0,
+   "sentence": "On your highest-weather.daylight_delta days, spend.monetary_7d the same day ran 47.01 higher than after your lowest (vs seasonal+weekday baseline). This may reflect a pattern; it is exploratory and unverified.",
+   "hypothesis_id": "scan:weather.daylight_delta|spend.monetary_7d|L0",
+   "controlled_for": "weekday"
+  },
+  {
+   "n": 400,
+   "q": 0.0048,
+   "tier": "EXPLORATORY",
+   "n_eff": [
+    21.0,
+    21.0
+   ],
+   "trace": {
+    "table": "analysis.contrasts",
+    "contrast_id": "weather.temp_max_f|spend.monetary_7d|L2|2026-09-02",
+    "code_version": "scan-v2"
+   },
+   "driver": "weather.temp_max_f",
+   "outcome": "spend.monetary_7d",
+   "watched": false,
+   "lag_days": 2,
+   "sentence": "On your highest-weather.temp_max_f days, spend.monetary_7d 2 day(s) later ran 67.23 higher than after your lowest (vs seasonal+weekday baseline). This may reflect a pattern; it is exploratory and unverified.",
+   "hypothesis_id": "scan:weather.temp_max_f|spend.monetary_7d|L2",
+   "controlled_for": "weekday"
+  },
+  {
+   "n": 395,
+   "q": 0.0048,
+   "tier": "EXPLORATORY",
+   "n_eff": [
+    20.7,
+    20.8
+   ],
+   "trace": {
+    "table": "analysis.contrasts",
+    "contrast_id": "weather.temp_mean_f|spend.monetary_7d|L2|2026-09-02",
+    "code_version": "scan-v2"
+   },
+   "driver": "weather.temp_mean_f",
+   "outcome": "spend.monetary_7d",
+   "watched": false,
+   "lag_days": 2,
+   "sentence": "On your highest-weather.temp_mean_f days, spend.monetary_7d 2 day(s) later ran 61.71 higher than after your lowest (vs seasonal+weekday baseline). This may reflect a pattern; it is exploratory and unverified.",
+   "hypothesis_id": "scan:weather.temp_mean_f|spend.monetary_7d|L2",
+   "controlled_for": "weekday"
+  }
+ ],
+ "display_name": "Money"
+}
+=== get_domain('attention','1y') === keys: ['as_of', 'capture', 'coverage', 'display_name', 'domain', 'drives', 'pillar', 'replaces', 'sentence', 'why', 'window']
+{
+ "why": [
+  {
+   "z": -1.12,
+   "day": "2026-07-28",
+   "band": [
+    2,
+    11
+   ],
+   "unit": "sessions",
+   "trace": {
+    "day": "2026-07-28",
+    "src": "signals:attention",
+    "table": "analysis.panel",
+    "metric": "screen_sessions",
+    "code_version": "panel-v1"
+   },
+   "value": 3,
+   "metric": "screen_sessions",
+   "display_name": "Sessions",
+   "delta_vs_28d_median": -4
+  },
+  {
+   "z": -3.77,
+   "day": "2026-07-28",
+   "band": [
+    0,
+    79
+   ],
+   "unit": "min",
+   "trace": {
+    "day": "2026-07-28",
+    "src": "signals:attention",
+    "table": "analysis.panel",
+    "metric": "screen_binge_min",
+    "code_version": "panel-v1"
+   },
+   "value": 15,
+   "metric": "screen_binge_min",
+   "display_name": "Binge minutes",
+   "delta_vs_28d_median": -3
+  },
+  {
+   "z": -0.77,
+   "day": "2026-07-28",
+   "band": [
+    0,
+    119
+   ],
+   "unit": "min",
+   "trace": {
+    "day": "2026-07-28",
+    "src": "signals:attention",
+    "table": "analysis.panel",
+    "metric": "screen_max_binge",
+    "code_version": "panel-v1"
+   },
+   "value": 26,
+   "metric": "screen_max_binge",
+   "display_name": "Longest binge",
+   "delta_vs_28d_median": 1
+  }
+ ],
+ "as_of": "2026-09-01",
+ "domain": "attention",
+ "drives": [
+  {
+   "n": 671,
+   "q": 0.0,
+   "tier": "EXPLORATORY",
+   "n_eff": [
+    215.9,
+    216.6
+   ],
+   "trace": {
+    "table": "analysis.contrasts",
+    "contrast_id": "screen_sessions|steps|L0|2026-09-02",
+    "code_version": "scan-v2"
+   },
+   "driver": "screen_sessions",
+   "outcome": "steps",
+   "watched": false,
+   "lag_days": 0,
+   "sentence": "On your highest-screen_sessions days, steps the same day ran 1204.43 lower than after your lowest (vs seasonal+weekday baseline). This may reflect a pattern; it is exploratory and unverified.",
+   "hypothesis_id": "scan:screen_sessions|steps|L0",
+   "controlled_for": "weekday"
+  },
+  {
+   "n": 666,
+   "q": 0.0,
+   "tier": "EXPLORATORY",
+   "n_eff": [
+    215.3,
+    215.3
+   ],
+   "trace": {
+    "table": "analysis.contrasts",
+    "contrast_id": "screen_sessions|health_history.walking_running_distance|L0|2026-09-02",
+    "code_version": "scan-v2"
+   },
+   "driver": "screen_sessions",
+   "outcome": "health_history.walking_running_distance",
+   "watched": false,
+   "lag_days": 0,
+   "sentence": "On your highest-screen_sessions days, health_history.walking_running_distance the same day ran 0.52 lower than after your lowest (vs seasonal+weekday baseline). This may reflect a pattern; it is exploratory and unverified.",
+   "hypothesis_id": "scan:screen_sessions|health_history.walking_running_distance|L0",
+   "controlled_for": "weekday"
+  }
+ ],
+ "pillar": "mind",
+ "window": "1y",
+ "capture": {
+  "action": "Keep the Chrome and YouTube history exports running",
+  "correct_via": "ingest_capture"
+ },
+ "coverage": {
+  "status": "not_logged",
+  "density": "years",
+  "last_day": "2026-07-28",
+  "first_day": "2021-07-02",
+  "stale_days": 35,
+  "days_with_data": 1364
+ },
+ "replaces": "Screen Time / RescueTime",
+ "sentence": "Attention: not logged since 28 Jul 2026. Keep the Chrome and YouTube history exports running.",
+ "display_name": "Attention"
+}
+=== get_domain('places','90d') === keys: ['as_of', 'capture', 'coverage', 'display_name', 'domain', 'pillar', 'replaces', 'sentence', 'window']
+{
+ "as_of": "2026-09-01",
+ "domain": "places",
+ "pillar": "movement",
+ "window": "90d",
+ "capture": {
+  "action": "Install the location logger (build B5)",
+  "correct_via": "ingest_capture"
+ },
+ "coverage": {
+  "status": "never_captured",
+  "density": "none"
+ },
+ "replaces": "Google Timeline",
+ "sentence": "Places: never captured. Install the location logger (build B5).",
+ "display_name": "Places"
+}
+=== get_domain('nonsense','90d') === keys: ['nearest', 'refusal']
+{
+ "nearest": [
+  "recovery",
+  "vitals",
+  "sleep"
+ ],
+ "refusal": "I do not track that."
+}
+=== get_today() after 0035 ===
+OK keys: ['based_on', 'for_day', 'patterns_waiting', 'state']
+```
+
+**Tests** `python3 -m pytest tests/test_get_domain.py -v`: **11 passed in 5.14s**. `update_features.py`:
+whole suite green, `3 passing / 15 total`. `validate_layout.py`: 38/0/0. ADR-0041; DECISIONS row;
+**OQ-41** (tier-specific claim templates) and **OQ-42** (why forecasts was missing) opened.
+
+**WHAT I DID NOT DO.**
+- Changepoints not computed (ADR-0041 v1). Hour-of-day rhythm not computed (weekday medians only).
+- `_domain_claims`' CONFIRMED/WATCHING/REFUTED sentence is the EXPLORATORY template — wrong but
+  unreachable today (34/34 CANDIDATE); OQ-41.
+- Domains among the five calls returning less than hero + history + why: **`attention`** — no `hero`,
+  no `history`, no `rhythm`, no `notables` (its hero metric `screen_active_hours` is absent from the
+  panel; `why` and `driven_by`/`drives` populated); **`places`** — never captured, only coverage +
+  sentence + capture (correct); **`money`** — hero + history + entities, no `why` (its only metric is
+  the hero); **`sleep`** — all of hero, why, history, rhythm, notables, claims; `forecast` absent
+  because `analysis.forecasts` is empty (the engine has never run live — the nightly job was failing).
+- Did not establish why `analysis.forecasts` was missing (OQ-42); did not run the nightly job by hand.
+- Did not paste Q2's 196-row baselines list verbatim (summarised above; in the transcript).
+- Did not re-apply 0001–0034 to live (`--only 0035`).

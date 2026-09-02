@@ -678,6 +678,29 @@ of unattended capture exists — possibly per-domain (a column on `config.domain
 rather than global. Until then the values are read from the table, never hardcoded,
 and the envelope says nothing about how they were chosen. Opened 2026-09-02, session 17.
 
+**OQ-41 — Tier-specific sentence templates for `_domain_claims` when the first non-CANDIDATE row exists.**
+Why open: `public._domain_claims` (migration 0035, ADR-0041) renders every claim with the 0031
+sentence template, which ends "This may reflect a pattern; it is exploratory and unverified."
+That is correct for EXPLORATORY and wrong for WATCHING / CONFIRMED / REFUTED / INSUFFICIENT.
+Today every `hypothesis_register` row is CANDIDATE (34/34), so the wrong text is unreachable.
+Depends on it: REQ-TIER-020 tier vocabulary on the SOURCES page the moment a Watch matures.
+Settles it: five templates, one per tier, written into `_domain_claims` by migration and
+linted by the tier-vocabulary check — before the first PROMOTED row lands, not after.
+Opened 2026-09-02, session 17 (B2).
+
+**OQ-42 — Why was `analysis.forecasts` absent from the live database?**
+Why open: migration 0032 (applied 2026-09-01) declares `analysis.forecasts`; `get_today()` and
+the nightly `analysis_refresh` read it; on 2026-09-02 both failed live with `42P01 relation
+"analysis.forecasts" does not exist` (two `error` rows in `ops.runs`). Nothing in the repo
+drops it; `tools/run_analysis.py` and the engines only INSERT. Migration 0035 re-declared it
+(IF NOT EXISTS, verbatim) and both paths work again, but the cause is unestablished — a
+partial 0032 apply, a manual drop, or an `analysis` schema rebuild outside the repo.
+Depends on it: whether any other 0032/0033 object is also missing (checked: `get_today`,
+`get_trust`, `analysis.scan_calibration` present). Settles it: Joe recalling whether the
+`analysis` schema was rebuilt by hand; otherwise a one-off `information_schema` diff of every
+migration-declared object against live, added to `check_invariants.py` as a standing check.
+Opened 2026-09-02, session 17 (B2).
+
 ## RESOLVED
 
 **OQ-01 — RESOLVED 2026-08-23.** *Is the Supabase credential rotated?*
