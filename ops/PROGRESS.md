@@ -4729,3 +4729,24 @@ the table exists now. Dispatched `analysis.yml` on f0bc45d to confirm: run 33667
 scan all green; `ops.runs`: `panel_build 111654`, `baselines_build 104176`, `forecast_nightly 4` (the first forecasts),
 `analysis_refresh ok`, `resolve_watches ok` (from CI), `contrast_scan kept 22`. Supabase CLI 2.116.0 installed via
 `brew install supabase/tap/supabase` ($0). Step 4 paused for Joe's `supabase login`.
+
+**Step 4 — the Overland receiver, deployed.** Joe's `supabase login` completed in his own tab (token
+`cli_default@MacBook-Pro-2485.local_…` created; visible from this shell after that — the first attempt had not finished
+the browser approval). Then:
+```
+supabase functions deploy location-ingest --project-ref cykviouklidnbsbgdgdo --no-verify-jwt
+  -> {"project_ref":"cykviouklidnbsbgdgdo","functions":["location-ingest"],"message":"Deployed Functions."}   (WARNING: Docker is not running — bundling done remotely)
+supabase functions list  -> location-ingest ACTIVE, version 2, verify_jwt false
+T=$(openssl rand -hex 24); supabase secrets set LOCATION_TOKEN="$T" ...  -> {"count":1,"message":"Finished supabase secrets set."}
+supabase secrets list    -> LOCATION_TOKEN present
+```
+The token was generated in a shell variable, set as the secret, printed **once** in the session for Joe to type into
+Overland, and unset. It is in no file, no commit, no log. Endpoint:
+`https://cykviouklidnbsbgdgdo.supabase.co/functions/v1/location-ingest`; Overland sends it as `Authorization: Bearer`;
+tracking "Significant location changes", send interval 5 min, batching on (ADR-0046).
+**Smoke test not run by the agent:** `.claude/hooks/guard-destructive.sh` blocks shell HTTP clients (RULE-29 —
+outbound requests go through the egress-logged client). Correct enforcement; not worked around. The 405/401 boundary
+check is handed to Joe as two one-line HTTP requests (no data, no coordinate). The first real fix from Overland is the
+end-to-end proof; `get_movements(current_date)` will show `coverage.fixes > 0` when it lands.
+Note: an older `ingest-location` function from the previous build is also ACTIVE on the project (not ours; untouched;
+ADR-0017 territory).
