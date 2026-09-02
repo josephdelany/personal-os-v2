@@ -4228,3 +4228,64 @@ whole suite green, `3 passing / 15 total`. `validate_layout.py` 38/0/0. ADR-0043
   (three per set), not sets — noted in ADR-0043.
 - B3's `search_record` ordering test uses the same `(day, at)` proxy and passed only because no
   post-midnight hit fell in its page; not changed in this commit (it is not wrong today), flagged here.
+
+## 2026-09-02 — Session 17 (B5.1): the restricted coordinate store + ingress — migration 0038 LIVE (ADR-0044)
+
+**Requirement IDs satisfied (quoted from `specs/08-location/requirements.md`):**
+- REQ-LOC-001 "store a captured coordinate only in a restricted store whose read access is separated from any
+  session that holds an egress capability … SHALL NOT place a raw coordinate in `core.atoms`".
+- REQ-LOC-002 "never let a home coordinate leave at any precision and SHALL never emit any coordinate … into an
+  export, a log line, a git commit, or a model prompt".
+- REQ-LOC-004 "mark the `trust_level` of the location `raw_captures` row at ingest … and SHALL carry that trust
+  level with the coordinate into the restricted store".
+- REQ-LOC-005 "The build SHALL fail if a coordinate literal or a home-location identifier is committed".
+- REQ-LOC-006 "record the resolution as a place entity with its own provenance, and a human correction … SHALL
+  outrank every automated match permanently (RULE-10)".
+- REQ-LOC-008 "designate the home place distinctly from every other place".
+- REQ-LOC-009 "WHILE a coordinate resolves to no known place, the system SHALL record the visit against an
+  `unknown` place rather than guessing the nearest".
+- INV-1 (every fix FK-linked to a `raw_captures` row), INV-2 (`location_fixes` append-only).
+Tests: `tests/test_restricted_location.py` — 7, named with those IDs + ADR-0044.
+
+**DISCOVER — B5.1 Step 0, verbatim (live, read-only):**
+```
+Q1 roles: authenticated, anon, service_role, postgres
+Q2 ingest_capture: prosecdef = true
+Q3 ingest_capture prosrc: computes NO subject_day (extraction does); rule + literal taken from
+   tools/extract_checkins.py: RULE_VERSION = "v1-2026-08-23", 04:00 America/New_York, by start instant — matches 0038's DDL
+Q4 public.locations columns: id, user_id, ts, lat, lon, accuracy, altitude, velocity, course, battery, trigger, meta, ingested_at
+Q4b public.locations: 282 rows, 2026-07-16 23:36 .. 2026-07-29 23:21 UTC   (NOT migrated — OQ-43)
+Schema: core.capture_source enum already contains 'location'; core.trust_level = trusted|untrusted;
+raw_captures.processing_status CHECK = received|pending_enrichment|enriched|failed (B5 wrote 'extracted' — fixed);
+gen_random_uuid() available; core.reject_mutation() is the 0012 append-only trigger function (copied into restricted).
+Overland protocol (github.com/aaronpk/Overland-iOS README, fetched): token in `Authorization: Bearer <t>`; body
+{"locations":[GeoJSON Feature …], "current"?, "trip"?}; geometry.coordinates = [longitude, latitude]; properties
+timestamp, horizontal_accuracy, speed, battery_level, motion[], wifi, device_id …; server MUST reply {"result":"ok"}.
+```
+
+**Wrong against the live schema, fixed minimally (ADR-0044):** `processing_status='enriched'` (live CHECK rejects
+`extracted`); append-only trigger attached via a `DO` block (no `CREATE TRIGGER IF NOT EXISTS`).
+
+**RULE-01 and the tests.** The location migrations name `restricted.*`/`analysis.visits_public` literally, so a
+test against the real functions would insert into live tables even inside a rolled-back transaction — outside
+ADR-0022's letter ("a disposable schema, never core, never public"). `tests/_location_fixture.py` re-applies the
+whole chain with every schema rewritten into a twin (`core_pytest`, `ops_pytest`, `restricted_pytest`,
+`analysis_pytest.visits_public`), in one transaction, rolled back. The public RPCs are re-created in-transaction
+pointing at the twins; test fixes are ocean points (0.0 / 0.01). Nothing persists.
+
+**Apply.** Dry run full chain 0001–0038 → rolled back, 226 statements. Real `--only 0038 --commit` → COMMITTED
+26 statements. **Grants check:** `role_table_grants WHERE table_schema='restricted'` → 28 rows, grantee =
+`postgres` only (the owner, unrevocable — the same scoping the RULE-02 CI check uses, ADR-0010); **scoped to
+anon/authenticated/service_role → zero rows**; `has_schema_privilege(role,'restricted','USAGE')` = false for all
+three. Function ACLs: `ingest_location` anon+authenticated (write-only), `ingest_location_batch` service_role
+only, `register_place`/`assign_place` authenticated (owner-locked inside). `restricted.location_fixes`: 0 rows.
+
+**Tests** `python3 -m pytest tests/test_restricted_location.py -v`: **7 passed in 23.76s** (one initial failure
+was the grants assert counting the owner's implicit grants; scoped to the app roles as ADR-0010 ratified).
+`validate_layout.py` 38/0/0. ADR-0044; DECISIONS row; **OQ-43** (legacy 282 rows) opened.
+
+**WHAT I DID NOT DO.**
+- Did not migrate the 282 legacy `public.locations` rows (OQ-43).
+- Did not build the B5.2 lint, derivation, view or panel metrics (next unit); the schema is live and EMPTY.
+- Did not exercise `ingest_location` from a phone or the edge function (B5.3); only from the twins.
+- Did not set `radius_m` / thresholds from evidence (75 m default is OQ-37's placeholder).

@@ -701,6 +701,19 @@ Depends on it: whether any other 0032/0033 object is also missing (checked: `get
 migration-declared object against live, added to `check_invariants.py` as a standing check.
 Opened 2026-09-02, session 17 (B2).
 
+**OQ-43 — Are the 282 legacy `public.locations` rows (2026-07-16 .. 2026-07-29) wanted in the restricted store?**
+Why open: the previous build's `public.locations` (lat, lon, accuracy, altitude, velocity, course,
+battery, trigger, meta) holds 282 fixes from thirteen days in July 2026. Migration 0038 (ADR-0044)
+created the restricted store with a `source` value `legacy` reserved for them but deliberately did
+not migrate them: a backfill is a data write (STOP-AND-ASK #2), the rows would need a synthetic
+`raw_captures` lineage row each (INV-1) with `trust_level` decided (REQ-LOC-004), and thirteen days
+adds nothing to a derivation that will have months of Overland fixes.
+Depends on it: whether MOVEMENTS ever shows July 2026; whether `public.locations` can be dropped from
+the previous build's schema (ADR-0017 territory) once B5 is live.
+Settles it: Joe ruling migrate (agent writes a one-off `--only` migration with a `legacy` source and
+a redacted capture row per fix, dry-run first) or discard (the table stays where it is, untouched, until
+the previous build is retired). Opened 2026-09-02, session 17 (B5.1).
+
 ## RESOLVED
 
 **OQ-01 — RESOLVED 2026-08-23.** *Is the Supabase credential rotated?*
