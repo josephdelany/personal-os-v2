@@ -1667,6 +1667,22 @@ RULE-01 forbids faking the product's entire subject matter. This is recorded as 
 a stopping-short: the fourth attempt at (1) would be circumvention of Joe's own safety layer, which is the
 one shortcut this project can never take.
 
+## 2026-09-02 — Session 16 (close): adversarial review — 6 MAJOR found, fixed, re-proven (c697efb)
+
+The whole-layer reviewer found real science defects; all must-land items fixed before submission:
+**M1** flat BH violated RULE-21/REQ-INF-001..003 → hierarchical tree-FDR (Simes family selection → BH
+within; family_id+m persisted). **M2** Kish n_eff inflated above n for negative rho → deflate-only clamp.
+**M6** single-draw null → 5 replicate shuffled runs; null MEDIAN + P95 published (probe: observed 31 vs
+null-median 12, p95<observed, of 909). **M4** Today pushed exploratory content (REQ-INF-402 push/pull) →
+connection slot replaced by a pull-count; probe verifies no pattern content in get_today. **N2**
+bidirectional lag-0 dedupe (one association ≠ two patterns). **N3** forecast bands floored at 0. **N4**
+prediction↔forecast join re-keyed via SQL-side claim construction. **N8** sleep formatting server-side
+(RULE-14). **M3** (no HAC in the test statistic) DISCLOSED in SUBMISSION as a named limitation with the
+replicate null as empirical control — fix is post-deadline work. **M5** (registry-driven cause/effect
+pruning) + **N6** (legacy-in-panel vs ADR-0025 boundary — Joe to rule) + **N7** (CANDIDATE prereg-column
+overload, recorded in ADR-0039) deferred + named. All three probes re-run ALL PASS rolled-back.
+SUBMISSION.md corrected to v2 methodology (the review itself is now part of the evaluation narrative).
+Held for Joe: apply 0033 + re-run scan v2 (fresh live numbers of record).
 ## 2026-09-02 — Session 16: THE CONVERSATION LAYER — built, proven, LIVE (ADR-0038/0039)
 
 Joe approved the full blueprint (archived docs/PLAN_CONVERSATION_LAYER.md) after five drafts ("build the
