@@ -1,0 +1,23 @@
+# analysis — nightly conversation-layer refresh (ADR-0038): panel -> baselines.
+# Deterministic, $0, heartbeated to ops.runs. Weekly scan job joins here (U5).
+name: analysis
+on:
+  schedule:
+    - cron: '23 8 * * *'    # nightly 08:23 UTC (~4:23am ET, after data lands)
+  workflow_dispatch: {}
+concurrency: { group: analysis, cancel-in-progress: false }
+permissions: { contents: read }
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - run: pip install 'pg8000>=1.30,<2'
+      - name: panel + baselines refresh
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          PYTHONPATH: ${{ github.workspace }}
+        run: python3 tools/run_analysis.py

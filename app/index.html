@@ -36,7 +36,7 @@
   <p id="authmsg" class="muted"></p>
 </div>
 <div id="picker" style="display:none">
-  <button id="tab-day">Day</button> <button id="tab-insights">Insights</button><br><br>
+  <button id="tab-today">Today</button> <button id="tab-timeline">Timeline</button> <button id="tab-day">Day</button> <button id="tab-insights">Insights</button><br><br>
   <input id="day" type="date"> <button id="load">Load</button> <button id="signout" class="muted">Sign out</button>
 </div>
 <div id="app" class="transition"></div>
@@ -102,6 +102,43 @@ if (new URLSearchParams(location.search).get("demo")) {
   $("signout").onclick = () => sb.auth.signOut();
   $("load").onclick = () => load();
   $("tab-day").onclick = () => load();
+  $("tab-today").onclick = () => loadToday();
+  $("tab-timeline").onclick = () => loadTimeline();
+  async function loadToday() {
+    const day = $("day").value || null;
+    const { data, error } = await sb.rpc("get_state", day ? { p_day: day } : {});
+    if (error) { $("app").innerHTML = `<p class="warn">state unavailable: ${esc(error.message)}</p><p class="muted">(are migrations 0026-0030 applied and the analysis engines run?)</p>`; return; }
+    const s = typeof data === "string" ? JSON.parse(data) : data;
+    let h = `<h2>${esc(s.day)} — vs. you</h2>`;
+    const g = s.guardian;
+    if (g) h += `<p class="warn num">⚠ ${esc(g.signals_firing)} of your autonomic signals are outside band together (threshold ${esc(g.threshold)}). This combination has occurred ${esc(g.fires_historically)} times in your history. A pattern match, not a diagnosis.</p>`;
+    h += "<h2>Deviations</h2>";
+    h += (s.deviations||[]).length ? (s.deviations||[]).map(d =>
+      `<p class="num"><strong>${esc(d.metric)}</strong>: ${esc(d.value)} <span class="muted">(z ${esc(d.z)}; your band ${esc(d.band?.[0])}–${esc(d.band?.[1])})</span></p>`).join("")
+      : '<p class="muted">nothing unusual vs your baselines</p>';
+    if ((s.streaks||[]).length) {
+      h += "<h2>Streaks</h2>";
+      h += s.streaks.map(x => `<p class="num"><strong>${esc(x.metric)}</strong>: ${esc(x.run_days)} days ${esc(x.direction)} your band <span class="muted">(your record: ${esc(x.historical_max_run)})</span></p>`).join("");
+    }
+    if ((s.week_money||[]).length) {
+      h += "<h2>This week's money vs you</h2>";
+      h += s.week_money.slice(0,8).map(m => `<p class="num"><strong>${esc(m.name)}</strong> <span class="muted">(${esc(m.grain)})</span>: $${esc(m.this_week)} vs $${esc(m.typical_week)} typical <strong>(${m.delta>0?"+":""}$${esc(m.delta)})</strong></p>`).join("");
+    }
+    h += `<p class="muted">descriptive comparisons against your own history — no judgment, no causal claim.</p>`;
+    $("app").innerHTML = h;
+  }
+  async function loadTimeline() {
+    const day = $("day").value;
+    if (!day) { $("app").innerHTML = '<p class="muted">pick a date above, then Timeline — any day back to 2019.</p>'; return; }
+    const { data, error } = await sb.rpc("get_timeline", { p_day: day });
+    if (error) { $("app").innerHTML = `<p class="warn">timeline unavailable: ${esc(error.message)}</p>`; return; }
+    const t = typeof data === "string" ? JSON.parse(data) : data;
+    let h = `<h2>${esc(t.day)} — ${esc(t.n)} moments</h2>`;
+    if (t.sleep?.asleep_min) h += `<p class="muted num">slept ${Math.floor(t.sleep.asleep_min/60)}h${String(Math.round(t.sleep.asleep_min%60)).padStart(2,"0")}m</p>`;
+    const icon = {web:"🌐",video:"▶️",money:"💵",calendar:"📅",checkin:"📝",consume:"🍽",note:"✏️",workout:"🏋️",self_report:"📝"};
+    h += (t.entries||[]).map(e => `<p class="num" style="margin:.15rem 0">${esc(e.at)} ${icon[e.kind]||"·"} ${esc(e.text)}</p>`).join("") || '<p class="muted">nothing recorded this day</p>';
+    $("app").innerHTML = h;
+  }
   $("tab-insights").onclick = () => loadInsights();
   async function loadInsights() {
     let { data, error } = await sb.rpc("get_insights_guarded");
