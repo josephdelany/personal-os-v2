@@ -388,7 +388,9 @@ entirely** — the live mirror (migration 0020 / ADR-0035) now owns check-in ing
 under `checkin_<type>_<field>` keys, and a second load under bare `energy`-style
 keys would double-count the same real measurements in any family aggregate.
 
-**OQ-30 — What evidence-tier floor governs a REQ-ACT recommendation, and how does a
+**OQ-30 — RESOLVED 2026-09-02 (ADR-0052; migrations 0047-0048; session 20, B10).** Joe's ruling, via the advisor, is recorded verbatim in ADR-0052 and numbered as REQ-ACT-001..012 in `specs/09-action/requirements.md`: (1) tier-gated language, option (c), with a floor of PROMOTED for anything pattern-based; (2) Joe's own standing orders are a separate DESCRIPTIVE channel, because applying his rule to his numbers is not an inference; (3) the proactive channel is one read-only instruction per subject day on ASSESSMENT and is not a push, so it does not consume RULE-27's daily prompt; (4) demotion when the backing finding falls or two consecutive forward predictions score false (a placeholder, OQ-10); (5) a daily digest of one, with the full list on demand. **Still open and carried into `specs/09-action` A-Q3:** the REQ-FIN-190/198 reconciliation, so no finance surface recommends until B17 settles it. Original text kept below.
+
+*Was:* **OQ-30 — What evidence-tier floor governs a REQ-ACT recommendation, and how does a
 proactive recommendation fit RULE-27's cadence?**
 Ruling context (Joe, 2026-08-23, ADR-0029): RULE-25 was reworded so the system MAY
 recommend below `CONFIRMED_OBSERVATIONAL` with disclosed uncertainty, and REQ-ACT

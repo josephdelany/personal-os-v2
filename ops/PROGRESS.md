@@ -5082,3 +5082,102 @@ every `REQ-*` token in a spec as a declaration — so B10's prose citations of R
 IDs, and the REQUIREMENTS_INDEX count went stale. With that file set aside, `validate_layout.py` is **40 passed,
 0 warnings, 0 failed**, and every other test passed with B9 fully applied. Second time the same lesson landed:
 nothing for the next B-file may touch `migrations/` or `specs/` until the current one is committed.
+
+## 2026-09-02 — Session 20 (B10): recommendations — migrations 0047 + 0048 LIVE, OQ-30 closed (ADR-0052)
+
+**Requirement IDs satisfied (quoted at the start):** RULE-25 "Below `CONFIRMED_OBSERVATIONAL` the system MAY
+recommend an action, provided it names its evidence tier, its uncertainty, and what would raise it; it MUST NOT
+assert the underlying pattern as an established fact about me"; RULE-20 (each recommendation emits a scored
+forward prediction); RULE-26 (the referral string is the default when the line is unclear); REQ-TIER-047 (no
+causal phrasing below CONFIRMED), REQ-TIER-048 (the disclosure set below CONFIRMED), REQ-TIER-049 (no tier +
+interval, no ship), REQ-TIER-024 (absolute units), REQ-TIER-028 (counter-frame); the REQ-INF "Missing-E"
+trigger; and **REQ-ACT-001..012, authored this session** in a new `specs/09-action/requirements.md`.
+Tests: `tests/test_recommendations.py` — 12, named with those IDs.
+
+**The OQ-30 ruling** is recorded verbatim in ADR-0052 and OQ-30 is marked RESOLVED with its original text kept.
+
+**Wrong / missing against the live system — said exactly, fixed minimally, recorded:**
+1. **REQ-TIER-048/049 require an interval; REQ-TIER-025 forbids a frequentist one.** Both are satisfied by
+   reporting a **credible** interval at 80% mass plus a probability of direction, with `interval_method` naming
+   how each was computed: a Bayesian bootstrap (Rubin's Dirichlet resample of the median difference) at
+   PROMOTED, and a flat-prior normal posterior from B9's HAC estimate at CONFIRMED — the latter disclosed
+   plainly as numerically the HAC interval, read as a credible interval. B19's NumPyro layer supersedes it.
+2. **`analysis.render_violations` never existed** although REQ-FIN-003, REQ-NAR-004, REQ-NAR-025, REQ-ASK-015
+   and REQ-TIER-054 all write to it. Migration 0047 creates it; REQ-ACT-012's referral substitution is its
+   first writer.
+3. **B10 says the generator runs "for day d (tomorrow's subject day)".** Taken literally the brief would be
+   empty all day: `get_today` renders `for_day = d + 1` where `d` is yesterday, i.e. the *current* subject day,
+   and the nightly job runs at ~04:23 ET, just after the 04:00 boundary. The generator writes for the current
+   subject day, read from the database so every surface agrees. Found by the test that asserts
+   `get_today.instruction` equals `get_recommendations().daily`.
+4. **A recommendation's forward prediction is conditional**, so a window in which the antecedent never happened
+   was not a test. Scoring it either way would corrupt the calibration ledger, so it is marked **void**
+   (`outcome_bool` NULL, `resolved_at` set, reason in `feature_snapshot_hash`) and migration 0048 teaches
+   `get_findings.predictions_pending` to stop listing resolved-but-unscored rows.
+5. **A leaked `idle in transaction` session** from an interrupted test run held the disposable `core_pytest`
+   schema and made every subsequent run time out on `CREATE SCHEMA`. Identified in `pg_stat_activity` and
+   terminated by pid — only that one, only a `*_pytest` transaction, whose outcome was a rollback either way.
+
+**Built.** `migrations/0047_recommendations.sql` (33 statements, live): `config.controllable_metrics` (9 levers
+in Joe's words with their `min_effect` placeholders), `config.standing_orders` (the two seeded rules, their
+condition SQL owner-written and changeable only by migration), `config.medical_vocabulary` (27 terms) and
+`config.strings` (the single stored referral string), `analysis.render_violations`, `core.recommendations`
+with two CHECKs that make REQ-ACT-001 and REQ-TIER-049 database facts rather than engine conventions, a
+status-only trigger, a unique partial index enforcing one daily instruction, `public.get_recommendations()`,
+and `get_today.instruction`. `migrations/0048_pending_excludes_void.sql`. `tools/engines/recommend.py`
+(generation, the two channels, the RULE-26 guard, demotion, the prediction scorer),
+`tools/run_recommend.py`, and the nightly workflow step after the confirmation gate.
+
+**Apply.** Dry run full chain 0001–0048 → `ROLLED BACK 364 statements`. `--only 0047 --commit` → **33
+statements**; `--only 0048 --commit` → **4 statements**. Live:
+```
+run_recommend.py -> recommend committed: {'pattern': 0, 'standing_order': 0, 'demoted': 0,
+   'skipped_small_effect': 0, 'skipped_uncontrollable': 0, 'referral_substituted': 0, 'daily': 0,
+   'scored': 0, 'void': 0}
+get_recommendations() -> {"day":"2026-09-02","interval_note":"Intervals are credible intervals at 80% mass; ..."}
+get_today.instruction -> absent
+config: controllable_metrics 9 · standing_orders guardian+sleep_debt (both enabled) · medical_vocabulary 27
+```
+**Expected, and worth stating plainly: nothing can fire today.** There is no PROMOTED or CONFIRMED hypothesis
+and there cannot be one before ~November 2026 (B9's timetable), so the pattern channel is empty by
+construction; and neither standing order's condition was true for yesterday, so the DESCRIPTIVE channel is
+empty too. The envelope is therefore the interval note and nothing else — absence, not a placeholder.
+
+**Tests** `python3 -m pytest tests/test_recommendations.py -q` → **12 passed in 92.09s**, including: a pattern
+recommendation is impossible from CANDIDATE / INSUFFICIENT / REFUTED (engine *and* CHECK constraint); an
+uncontrollable driver and a sub-threshold effect are both skipped; the PROMOTED sentence uses only the hedged
+verb and carries tier, interval, n, coverage, counter-frame and what-would-change-it; the CONFIRMED sentence
+carries its adjustment set and E-value; every pattern row has a forward prediction at p_forecast 0.5; two false
+predictions and a fallen hypothesis each demote with a named notice; a recommendation cannot be rewritten or
+deleted; the guardian standing order fires at 2-of-4 and not at 1-of-4, at tier DESCRIPTIVE; a medical lever is
+replaced by the stored referral string and logged to `render_violations`; exactly one daily instruction exists,
+enforced by a unique index, and `get_today.instruction` matches `get_recommendations().daily`; and the Bayesian
+bootstrap is seeded, reproducible, direction-symmetric, and 80% wide.
+
+**Whole suite.** `update_features.py --strict`: **134 passed, 0 failed, 0 errors, 0 skipped of 134**.
+`validate_layout.py` 41/0/0 (the new spec file adds one check). Ledger unchanged at `3 passing / 15 total` —
+no `ops/features.json` entry's requirement ID is carried by a B10 test.
+
+**WHAT I DID NOT DO (B10).**
+- **Nothing can fire yet.** No hypothesis is PROMOTED or CONFIRMED, so the pattern channel is structurally
+  empty until ~November 2026; the only live path is a standing order, and neither fired today. Every claim
+  about the pattern channel rests on twin fixtures.
+- **Every `min_effect` is a guess** (OQ-10, and A-Q1 in the new spec). They decide whether a recommendation is
+  emitted at all, so a wrong guess silences a real finding or admits a trivial one.
+- **The PROMOTED interval is a normal posterior on the ledgered contrast delta, not the Bayesian bootstrap.**
+  The bootstrap is implemented and tested, but the generator reads the effect from the resolution ledger,
+  which stores the delta and not the raw quartile sides. Wiring the bootstrap needs the sides persisted; the
+  interval it currently reports uses a spread of half the effect, which is an assumption, not a measurement.
+  Named here because it is the weakest number in the payload.
+- **"Two consecutive false predictions" is a placeholder** and, with the scorer voiding untested windows, a
+  recommendation may take a long time to accumulate two real scores.
+- **RULE-27's cadence is asserted, not enforced**: the daily instruction is a surface, so nothing in code
+  prevents a future push channel from also firing. The unique index enforces one instruction per day, not one
+  interruption per day.
+- **REQ-FIN-190/198 are unreconciled**, so no finance surface recommends (A-Q3, B17's).
+- **The medical vocabulary is a 27-term list I wrote**, not a clinical taxonomy; it catches the obvious and
+  will miss phrasings. The referral string is the default when the line is unclear, but only when a listed
+  term appears.
+- **`config.standing_orders.condition_sql` is executed SQL held in a table.** It is owner-written and
+  changeable only by migration, and the engine rebinds only the schema prefix — but it is still a stored
+  string that gets executed, and that is worth knowing.

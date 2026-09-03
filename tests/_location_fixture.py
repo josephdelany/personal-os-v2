@@ -23,7 +23,7 @@ LOC_SCHEMA = "restricted_pytest"
 ANALYSIS_TWIN = "analysis_pytest"
 
 _LOC_WORD = re.compile(r"\brestricted\b")            # the schema name, wherever it appears
-_VIEW = re.compile(r"\banalysis\.(visits_public|watch_progress|spec_curves|brief_notes)\b")
+_VIEW = re.compile(r"\banalysis\.(visits_public|watch_progress|spec_curves|brief_notes|render_violations)\b")
 
 
 def apply_chain(cur):

@@ -44,6 +44,11 @@ jobs:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
           PYTHONPATH: ${{ github.workspace }}
         run: python3 tools/run_confirm.py
+      - name: recommendations (ADR-0052) — score, withdraw, generate, pick the one daily instruction
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          PYTHONPATH: ${{ github.workspace }}
+        run: python3 tools/run_recommend.py
   scan:
     runs-on: ubuntu-latest
     timeout-minutes: 45
