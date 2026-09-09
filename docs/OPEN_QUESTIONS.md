@@ -900,3 +900,223 @@ downgraded to REVIEW until the lint exists.
 
 **→ Remediation:** `docs/REMEDIATION_PLAN.md` **Track 4** (Phase 2.5 gates) — the
 forbidden-import lint closes this OQ and lets RULE-29 claim tier LINT.
+
+
+## 2026-09-08 operational verification blockers
+
+**OQ-46 — Restore the local database credential.** The database is reachable but
+rejects the current environment credential with SQLSTATE `28P01`. Live status,
+invariants, migration dry runs and behavioral tests depend on this. Settled by
+updating the credential through local secret configuration and a successful
+read-only connection; never paste the secret into chat. OQ-45 is reserved by the
+existing Ask draft for point-in-time panel correctness.
+
+**OQ-47 — Resolve the scheduled-branch drift.** The GitHub API currently reports
+`v2-day1` as the default branch while completed B8–B10 code is on local `main`.
+Whether that default is intentional remains unknown. Unattended operation depends
+on comparing current remote heads/workflows, aligning the scheduled branch with
+the intended implementation, and observing scheduled job success. No repository
+setting was changed in this turn.
+
+
+**OQ-45 — Point-in-time panel and reproducible Ask.** Formalizing the question
+reserved by draft migration 0049: `analysis.panel` is rebuilt and lacks the
+original observation recorded-at history needed to answer what was known on an
+earlier date. A subject-day filter alone cannot meet REQ-INF-108/REQ-ASK-030.
+Depends: replay, inference cutoffs, and honest historical answers. Settled by a
+versioned/provenance-preserving read path and tests that mutate later knowledge
+while proving earlier answers remain identical. No bitemporal completion claim
+is made for the current draft.
+
+
+## 2026-09-09 — B13 capture recovery
+
+**OQ-46 — RESOLVED 2026-09-09.** The credential authenticates. A single connection
+returned `current_user = postgres`; `tools/check_invariants.py --core core` reported
+**ALL PASS**; the full suite ran **217 passed, exit 0** against the live database.
+The prior 104 errors were entirely this credential.
+
+**OQ-48 — What are the four `screen_*` metrics' real definitions?**
+`screen_active_hours`, `screen_binge_min`, `screen_max_binge` and `screen_sessions`
+are session-level statistics computed by the old stack, whose code is not in this
+repository. Their thresholds — the inactivity gap that ends a session, the length
+that makes a session a binge — are therefore unknown. B13 deliberately does **not**
+re-derive them from `web_visit` / `media_play` atoms, because inventing thresholds
+would produce a series that steps silently at the changeover while keeping the
+historical name (ADR-0058 §4). They continue to come from `public.signals` and go
+visibly stale after 2026-09-02.
+*Settled by* either recovering the old definitions, or ruling new ones and storing
+them under new metric names so the two series are never confused. **Do not decide
+this alone** — the choice is whether continuity or correctness wins, and that is
+Joe's call.
+
+**OQ-49 — Which institutions does Joe actually bank with, and do the four shipped
+header signatures match his real exports?** `config/institutions/` ships mappings
+for Apple Card, Venmo, PayPal and Cash App because REQ-FIN-016 names them. The
+headers were written from public export documentation, **not from Joe's files**, and
+no real statement has been imported. Joe's actual bank has no mapping at all. This
+mirrors the unresolved question already recorded in `specs/03-finance/requirements.md`.
+*Settled by* dropping one real export from each institution; a file that matches no
+mapping quarantines and prints its observed header, which is exactly the input needed
+to write the correct mapping (ADR-0059 §6).
+
+**OQ-50 — Why did device-side capture stop on 2026-07-28, and what prevents a
+recurrence?** `public.intraday`, `chrome_visit`/`youtube_watch` and OwnTracks all
+stopped within two days of each other and never resumed, while `ops.runs` stayed
+green throughout because the *jobs* were alive and only their *inputs* were dead.
+The proximate cause is not established: the old stack's ingest code is not in this
+repository. `health_auto_export` resumed at some later point but now delivers only
+daily aggregates (steps, flights, walking metrics) — not the intraday samples that
+`apple_sleep` / `apple_hrv` / `apple_circadian` / `apple_vitals` are derived from.
+*Settled by* (a) identifying what the Health Auto Export configuration used to send
+and restoring it, (b) re-establishing the OwnTracks and browser-history paths, and
+(c) **freshness alerting on data rather than on jobs** — the gap this ADR's context
+section exists to describe went undetected for 43 days precisely because job liveness
+was the only thing being watched. (c) is Gate 4 work and is the durable fix.
+
+**OQ-51 — The panel's canonical metric map is stale relative to what the feeds now emit.**
+Found 2026-09-09 by `tools/check_freshness.py`, which reported canonical `steps` as 54 days
+stale. Auditing `panel.SIG_CANON` against `public.signals` shows the map is out of step with
+the sources in two distinct ways, both of which make a canonical metric silently blind:
+
+1. **`steps` is wired to `health_history.steps`, dead since 2026-06-23, while
+   `apple_watch.steps` is arriving daily (last 2026-09-08).** The live data exists; it lands
+   in the panel only under the passthrough name `apple_watch.steps` and never as canonical
+   `steps`. Every analysis reading canonical `steps` has been blind since June while the
+   measurement sat beside it under another name.
+
+2. **`screen_active_hours` is wired to `attention.active_hours`, which has never existed in
+   `public.signals`.** The canonical metric has **zero rows in the panel, ever**. The nearest
+   real metric is `attention.screen_active_min` — a different name *and a different unit*.
+   Alongside it, `screen_evening_min` and `screen_late_min` appear with only 3 rows each,
+   last 2026-09-02, under names `SIG_CANON` does not know.
+
+The pattern behind both: the old stack's attention/health pipeline was at some point rewritten
+to emit different metric names, and `panel.py`'s canonical map was never updated to match.
+
+*Why this was not fixed on the spot.* Both repairs are claims about data, not code. Rewiring
+`steps` asserts that a Watch-derived daily count and a backfilled historical count are the
+same measurement — plausible, but two pipelines can differ systematically (Watch+iPhone
+de-duplication versus iPhone alone), and a level shift introduced into a metric that feeds
+baselines, the specification curve and the confirmation gate is precisely the invisible
+"plausible wrong number" the constitution exists to prevent. Rewiring `screen_active_hours`
+additionally requires a unit conversion (minutes → hours), and a guessed conversion is worse
+than a missing metric. ADR-0060 states the principle this defers to: asserting that two
+differently named series are the same measurement is a deliberate decision with an ADR, never
+a tidy-up inside a tool.
+
+*Settled by* Joe ruling, per metric, whether the live series is the same measurement as the
+dead one; then either a precedence list in `SIG_CANON` (live source first, historical
+fallback) with the level shift measured and reported over the overlap period, or new canonical
+names so the two series are never silently concatenated. **Do not decide this alone.**
+
+**OQ-52 — RESOLVED 2026-09-09, by removing the need rather than by amending the rule.**
+`tools/engines/panel.py` and `tools/check_freshness.py` now take their schema names as
+parameters (validated as plain identifiers, since an identifier cannot be a bind parameter),
+exactly as the migrations already do with `__CORE__`/`__OPS__`. Production passes nothing and
+gets the production names, so no deployed behaviour changed. Every test schema is now a
+throwaway name — `core_fresh_pytest`, `analysis_panel_pytest` and so on — and **no test creates
+a schema called `core`, `analysis` or `public` anywhere**. The `assert_disposable_server`
+compensating control was deleted along with the problem it compensated for. RULE-01 is
+unchanged and untouched, which was the point: the question was whether to widen a constitutional
+rule, and the answer was that the rule was right and the code was wrong. Original text below.
+
+**OQ-52 (original) — Does RULE-01's disposable-schema carve-out extend to a disposable *server*?**
+Raised by the adversarial review of session 21. RULE-01 permits a behavioural test to build a
+**disposable schema** and says "never `core`, never `public`". Three test files
+(`tests/test_freshness.py`, `tests/test_panel_attention.py`, and `tests/_import_fixture.py`'s
+consumers) create schemas named exactly `core`, `ops`, `analysis` and a table in `public`,
+because the engines under test — `panel.build`, `check_freshness` — name those schemas
+literally and cannot be pointed elsewhere without parameterising them.
+
+The argument for allowing it is that these run only on a temporary PostgreSQL instance created
+and destroyed by `tools/test_local_sql.py`, which is a *stronger* isolation posture than a
+rolled-back transaction against the real database: no production catalog is touched at all.
+The argument against is that the carve-out was widened **by a docstring**, and under CLAUDE.md's
+amendment bar an INTEGRITY-section change requires a written ADR plus an adversarial review
+whose job is to break it. That did not happen, and a rule that can be widened by a comment is
+not a rule.
+
+*Compensating control added meanwhile:* the `assert_disposable_server` helper in
+`tests/_import_fixture.py` refuses
+to build the spine unless the server's `data_directory` is under a temp root, so the guarantee
+rests on the server's own reported state rather than on an environment variable happening to
+point somewhere sensible.
+
+*Settled by* either (a) an ADR amending RULE-01 to "a disposable schema, or any schema on a
+disposable server", ratified by consequence with an adversarial review, or (b) parameterising
+`panel.py` and `check_freshness.py` on their schema names as the migrations already are, which
+removes the need entirely. **(b) is the cleaner answer and does not touch the constitution.**
+Do not decide this alone.
+
+**OQ-53 — The panel's two source families disagree about what a day is.**
+`analysis.panel` rows from `public.signals` are grouped by `ts::date` — the server's UTC
+calendar date. Rows from `core.atoms` are grouped by `subject_day`, which turns at 04:00 ET
+(ADR-0019, RULE-03). A visit at 22:00 ET is one day under one rule and the previous day under
+the other. B13 avoided the immediate consequence by making atom-derived attention counts fill
+only days signals never covered (ADR-0058 §4), so no value is overwritten — but the seam
+remains: a series that crosses the changeover has a one-day boundary shift at the join.
+*Settled by* deciding whether the panel's day axis is the subject day everywhere (and if so,
+rebuilding the signals passes to use it) or the UTC date everywhere. This affects every metric,
+not only the two attention counts, so it is larger than it looks.
+
+**OQ-54 — Accumulating quantities were imported as instants, so cross-device
+double-counting cannot currently be ruled out.**
+
+Apple exports steps, distance, flights climbed, active energy and exercise minutes as
+interval records. `tools/importers/apple_health.py` stores `occurred_at = start` and
+leaves `valid_interval` NULL for all of them; sleep is stored correctly as an interval.
+14,640 atoms from the 2026-09-09 import are affected.
+
+Two devices reported these metrics concurrently until 2026-08-21 — for `steps`, 2,130
+Watch rows and 1,901 iPhone rows. If their intervals overlap, a daily sum counts the
+same walking twice. With `valid_interval` NULL that question cannot be asked in SQL:
+an overlap query returns 0 for want of an operand. Magnitudes look plausible
+(2,616–3,938 steps/day when both devices contributed), and Apple's export appears to
+split a day between devices, but plausibility is not proof and this must not be cited
+as one.
+
+*Why it is open:* the repair is mechanical — every end timestamp survives in
+`evidence_span` — but it is a re-derivation that appends superseding rows, and whether
+to run it now or fold it into the next import is a sequencing call. There is also a
+prior question: **when two devices both observed a metric, which one owns it?**
+RULE-12 requires one owner per measure and this data has two. Watch-over-iPhone is the
+conventional answer for gait and energy, but it is a measurement definition, not a
+tidying decision, so it is Joe's.
+
+*What depends on it:* every summed daily total for `steps`,
+`walking_running_distance_km`, `flights_climbed`, `active_energy_kcal` and
+`exercise_minutes`; therefore `describe`, `trend` and `compare` over any of them; and
+the panel wiring for these atoms. Until it is settled no such total may be published.
+
+*What would settle it:* a ruling on device precedence, then a corrected re-derivation
+populating `valid_interval` with `supersedes` set (never an UPDATE — INV-2), then the
+overlap query re-run with an actual operand and its result recorded.
+
+*Related:* OQ-48 (which sleep metric means "how long did I sleep"), OQ-51 (canonical
+names vs. what the feeds emit), ADR-0085.
+
+**OQ-55 — The Apple Watch stopped syncing health data in stages, ending 2026-08-21;
+the cause is unknown and nothing detects a recurrence at the source.**
+
+Dated from real rows by `check_freshness.py` after the 2026-09-09 import: check-ins
+stopped 07-22, `sleep_asleep_min` 07-28, `wrist_temperature_c` 08-08, respiratory rate
+and the four sleep stages 08-14, and the whole remaining Watch set — heart rate, HRV,
+resting HR, SpO2, active energy, exercise minutes — on 08-21. Every metric still fresh
+is iPhone-sourced. This supersedes the earlier reading of OQ-50, which treated
+2026-07-28 as a single stop.
+
+*Why it is open:* the pattern says the Watch, not the phone and not the pipeline, but
+it does not say whether this is a pairing fault, a storage-full condition, a watchOS
+update, a disabled permission, or the Watch not being worn. Those have different fixes
+and only Joe can look.
+
+*What depends on it:* 17 stale metrics, which is most of the physiological signal —
+every HRV, heart-rate and sleep question is answering from data that stops on 08-21.
+Also any trend spanning that date: September steps average ~2,200 against July's
+~3,800 purely because the Watch's contribution vanished, and a `trend` answer would
+report that as a decline in activity.
+
+*What would settle it:* Joe checks the Watch — worn, paired, Health permissions on,
+storage free — and reports what he finds; then a fresh export shows whether rows
+resume after 08-21. Until then the freshness report is the detector and it now works.

@@ -6181,6 +6181,7 @@ registry rows exist in `core`.
 - **0 of 17 monitored metrics are fresh.** No code in this session changes that.
 - Nothing pushed; the branch is local. OQ-45/47/48/50/51/53 remain open.
 
+
 ## 2026-09-09 — Codex: original intent to reconstruction contract (ADR-0084)
 
 Joe directed current/past all-source intelligence and detective deductions as central
@@ -6204,3 +6205,32 @@ WHAT I DID NOT DO: no reconstruction engine, new import, production write or run
 refactor. Inventory still needs live-use mapping/archive date scans. Active Claude
 checkpoint remains untouched. Original-concept audit is targeted to the requested
 intelligence capability, not proof that every historical product idea is fully covered.
+
+## 2026-09-09 — the Apple Health import landed, and the panel gained a hold
+
+**Attempted:** close the last two round-4 Ask findings; run Joe's authorised production
+import of `export.zip` from 2026-07-01; verify what was actually stored.
+
+**Works.** 33,355 atoms written under one `file_import` capture, 25 metric keys,
+2026-07-01 .. 2026-09-09. `check_invariants.py --core core`: ALL PASS, orphan atoms 0.
+True duplicates 0. `check_freshness.py` went from 0 fresh to **9 fresh / 17 stale /
+11 never seen**, and the capture loss is now dated from rows rather than inferred: it
+is the Watch, in five stages, ending 2026-08-21, with the iPhone still working
+throughout (ADR-0085).
+
+Ask: REQ-ASK-031 now refuses a question shape it cannot compute instead of substituting
+a nearby one it can — a next-day lag and a within-day slice both used to be answered in
+the voice of the question asked. REQ-ASK-004's grammar no longer reads a metric whose
+display name ends in "drive" as a causal verb. 265 local tests, both timezones,
+layout 42/42.
+
+**Does not work / not done.** Accumulating quantities were imported as instants, so
+cross-device double-counting cannot be ruled out — OQ-54, and no summed daily total for
+a multi-device metric may be published until it is settled. The panel does not read
+these atoms. Migrations 0049, 0050 and 0052 are still unapplied. B12's source parsers
+are unwritten.
+
+**Requirement IDs:** REQ-ASK-031, REQ-ASK-003, REQ-ASK-004, REQ-NFR-005..014, INV-1,
+INV-2, RULE-08, RULE-12, ADR-0019, ADR-0085.
+
+**Commits:** 47c918f, 90090c7, and this one.
