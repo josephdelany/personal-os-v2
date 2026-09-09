@@ -88,3 +88,30 @@ insufficiency wording, not unsupported verbal probability.
 Private inventory seed: `_legacy_snapshot/data_capability_inventory_2026-09-09.json`
 contains archive table metadata and Health type counts/date ranges. It is gitignored;
 source inventory implementation must finish live-use mapping and archive date scans.
+
+## Acceptance status — 2026-09-09 (B14R steps 1-4)
+
+Engine-level only. A case is marked EVIDENCE (ENGINE) when a named test containing its REC
+IDs exercises the deterministic evaluator or the schema constraint that governs it. **That is
+not end-to-end evidence**: no reconstruction method is registered, `config.reconstruction_methods`
+is empty, migration 0054 is not applied, and no real source has been reconstructed. Every
+case below remains OPEN for M4 closure until it runs against real evidence.
+
+| Case | Status | Evidence |
+|---|---|---|
+| R1 purchase vs consumption | OPEN | needs B14 entity resolution; a charge is registered evidence, portion is not derivable from it |
+| R2 training history without sets | OPEN | needs B18 workout import; 32 workouts were deferred by the 2026-09-09 import |
+| R3 outing with contradicting source | EVIDENCE (ENGINE) | `test_REQ_REC_007_contradiction_is_not_outweighed_by_counting_harder` |
+| R4 recurring service and usage | OPEN | needs B17 finance; the logging-outage rule is not implemented |
+| R5 dependent corroboration | EVIDENCE (ENGINE) | `test_REQ_REC_008_two_copies_of_one_receipt_are_not_two_corroborations`, and the SQL twin on `v_event_independence` |
+| R6 retrospective correction | EVIDENCE (ENGINE) | `test_REQ_REC_012_evidence_recorded_after_the_cutoff_is_not_used`, `test_REQ_REC_011_an_earlier_interpretation_survives_its_correction` |
+| R7 unavailable detail | PARTIAL | the inventory records unsupported types and their reasons (REQ-REC-003); the refusal path for an unsupported derivation is not written |
+| R8 useful clarification | PARTIAL | `discriminating_evidence` is returned by the evaluator (REQ-REC-015); the B16 prompting integration and cadence rules are not built |
+| R9 inferred input in analysis | OPEN | M5, by design; not an M4 prerequisite |
+| R10 extensibility / model fallback | EVIDENCE (ENGINE) | `test_REQ_REC_014_the_engine_needs_no_model_to_return_an_answer`; unknown methods are refused by the composite foreign key |
+| R11 discovery across history | OPEN | M5 |
+| R12 genuinely no evidence | EVIDENCE (ENGINE) | `test_REQ_REC_009_missing_evidence_never_becomes_did_not_occur` |
+
+The four remaining OPEN reconstruction-local cases (R1, R2, R4, R7) each depend on a build
+unit that is not finished, not on a reconstruction decision. They are dependencies, not
+deferrals, and recording them here does not authorise skipping them (ADR-0084).
