@@ -28,7 +28,7 @@ percentage; report completed outcomes and remaining acceptance cases.
 | M1: recover collection | B13, freshness, existing capture/locations | 0051 applied with permission; actual export reconciled; overlapping import idempotent; new device observation arrives unattended; withheld feed detected; deployed schedule verified |
 | M2: deterministic Ask | B11.1 | All registered operations meet full contracts; required questions and adversarial cases pass; historical replay/provenance and executor permission separation proven |
 | M3: shared services and capture | B12/B16 prerequisites, B11.2, then remaining B12/B16 | One egress/budget contract; validated planner and fallback; real planned question; real voice/photo path; reference-backed nutrition intervals |
-| M4: complete domain processing | B14, B15, B17, B18 | Entity/correction precedence; linked meal-charge-place; period/compare contracts; finance reconciliation and complete scenarios; per-set workout progression |
+| M4: complete domain processing | B14, B14R, B15, B17, B18 | Entity/correction precedence; reconstruction-local cases R1-R8/R10/R12; linked meal-charge-place; period/compare contracts; finance reconciliation and complete scenarios; per-set workout progression |
 | M5: remaining analysis | B19, B20, B21 | Required inference, scoring/calibration/trials, narration/ontology, body/sleep/context specifications and implementations; temporal and uncertainty checks |
 | M6: backend release | B22/B23 and full integration | Requirement/scenario audit; deployed API and schedule evidence; replacement capture before authorized cutover; runbook; no unexplained open requirement |
 | M7: frontend | L0-L8 | Begins after backend release; actual screens validated against stable responses; tier-label prerequisite before enabling exploratory presentation |
@@ -118,3 +118,21 @@ verified. Findings awaiting future observations are pending evidence, not missin
 A frontend tier-label prerequisite can remain a documented activation hold; do not
 claim live exploration operational until that prerequisite is met. Other failed gates
 remain failed. Frontend construction begins only after this backend decision.
+
+## Intent coverage is part of completion (ADR-0084)
+
+Read [INTENT_COVERAGE](INTENT_COVERAGE.md) when interpreting product scope. Historical
+plans retain product ideas even when their schedules/status are superseded. The original
+vision is not satisfied by a fixed list of links and metric queries.
+
+Next independent scope task: perform REQ-REC-001..004 source-to-capability inventory
+through [B14R](build/B14R_reconstruction.md), using counts/metadata and marking missing
+old-workspace assets unverified. Do not interrupt active integrity repairs or real-data
+recovery to restart planning. Complete inventory before M4 closure; map every omission
+to an implementation owner. M4 implements REC event reconstruction; M5 integrates its
+uncertainty with existing cross-domain discovery and closes cross-consumer R9/R11; M2 gains registered reconstruction
+queries through that dependency. M6 includes REC coverage and R1-R12 evidence.
+
+An internal dependency remains OPEN until its consuming requirement is satisfied.
+Recording it does not authorize deferral. Historical trait/medical language conflicting
+with current rules stays prohibited; original concepts are reconciled, not blindly copied.

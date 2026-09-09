@@ -96,3 +96,5 @@ lookup, the personal portion table, the other method widths, and the count→gra
 rule for branded items (REQ-NUT-050/051).
 
 | ADR-0083 | Accepted | 2026-09-09 | [Execution and documentation authority](adr/0083-execution-and-documentation-authority.md): maintained policy/checkpoint/architecture/plan; backend-first dependency order; scope-aware completion evidence; clean reviews permitted; permissions and numbered constitutional rules unchanged. |
+
+| ADR-0084 | Accepted | 2026-09-09 | [Product intent and evidence reconstruction](adr/0084-product-intent-and-reconstruction.md): REQ-REC-001..016, original-intent traceability, B14R; all implementation open; existing integrity rules unchanged. |

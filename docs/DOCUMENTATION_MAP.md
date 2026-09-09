@@ -12,6 +12,7 @@ Use each document for one purpose. Updated 2026-09-09.
 | Required behavior | `specs/*/requirements.md` | Relevant subsystem only |
 | Decisions | `docs/DECISIONS.md` index, `docs/adr/` records | Relevant decision before changing it |
 | Undecided facts | `docs/OPEN_QUESTIONS.md` | Relevant dependency only; resolved entries are history |
+| Intent-to-build traceability | `docs/INTENT_COVERAGE.md` | Scope interpretation and release audit |
 | Product design | `docs/THE_FILE.md`, `docs/WHAT_THIS_IS.md` | Product interpretation |
 | Implementation detail | `docs/build/B*.md` | Active unit only; verify schema and prerequisites |
 | Frontend detail | `docs/FRONTEND_PLAN.md`, `docs/build/L*.md` | Backend response contracts now; frontend construction after release |
@@ -35,3 +36,6 @@ maintained policy/checkpoint sources; old prose is not an additional instruction
 Do not create another master plan or alternate work queue. Amend the maintained source
 and record meaningful decisions once. Runtime status belongs in NEXT_SESSION, detailed
 evidence in PROGRESS, and permanent rules in their designated source.
+
+Historical classification retires old schedules and status claims, not product intent.
+Use INTENT_COVERAGE to trace original concepts into current obligations (ADR-0084).

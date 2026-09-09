@@ -6180,3 +6180,27 @@ registry rows exist in `core`.
 - **No real file has been imported**; the 43-day capture gap is recoverable, not recovered.
 - **0 of 17 monitored metrics are fresh.** No code in this session changes that.
 - Nothing pushed; the branch is local. OQ-45/47/48/50/51/53 remain open.
+
+## 2026-09-09 — Codex: original intent to reconstruction contract (ADR-0084)
+
+Joe directed current/past all-source intelligence and detective deductions as central
+product scope. Audited original concepts, reasoning/finance specs and B14/B19. Added
+REQ-REC-001..016, docs/INTENT_COVERAGE.md (R1-R12), B14R, and integrated existing
+architecture/plan/map/agent instructions. Existing statistics and capture work retained.
+All new capabilities are specified, not implemented. Requirement index now 670.
+
+Independent review found an M4/M5 dependency cycle and ambiguous retrospective
+RULE-04 handling; both corrected, plus probability-language clarification. M4 closes
+local reconstruction; M5 closes cross-consumer R9/R11; M6 requires all. Historical
+product intent is retained without blindly ratifying old factual/method claims.
+Private metadata inventory generated under _legacy_snapshot: 63 archive entries,
+Health record-type counts/units/date coverage, workout counts and concept-only assets
+marked unverified. No personal record values or coordinates included; inventory stays
+gitignored. Layout validation: 42 passed; original requirements and constitution
+preserved. No backend requirements marked proven, no production tests required for
+this specification unit, no feature-ledger status edit or migration.
+
+WHAT I DID NOT DO: no reconstruction engine, new import, production write or runtime
+refactor. Inventory still needs live-use mapping/archive date scans. Active Claude
+checkpoint remains untouched. Original-concept audit is targeted to the requested
+intelligence capability, not proof that every historical product idea is fully covered.

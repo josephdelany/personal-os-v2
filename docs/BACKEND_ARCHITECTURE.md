@@ -15,7 +15,9 @@ flowchart TD
   A[Devices, exports, Shortcuts and source APIs] --> B[Capture and validation]
   B --> C[Immutable raw captures and atoms]
   C --> D[Entities, links and correction-aware reads]
-  D --> E[Registered deterministic computations]
+  D --> R[Revisable event reconstructions and alternatives]
+  R --> E[Registered deterministic computations]
+  D --> E
   E --> F[Findings, forecasts and recommendation scoring]
   E --> G[Ask executor and stored result rendering]
   F --> G
@@ -97,3 +99,23 @@ Read the relevant entries in [OPEN_QUESTIONS](OPEN_QUESTIONS.md): OQ-48 screen
 semantics, OQ-49 real financial formats, OQ-50 device recovery, OQ-51 metric identity,
 OQ-53 day boundaries, and OQ-47 deployment branch. Engineering implementation cannot
 substitute for evidence or Joe's reserved measurement decisions.
+
+## Evidence reconstruction: explicit product obligation
+
+[INTENT_COVERAGE](INTENT_COVERAGE.md) traces the original concepts into build owners.
+REQ-REC-001..016 and B14R make the gap explicit. Event reconstruction answers what
+probably happened; statistical inference evaluates relationships across events. Neither
+substitutes for the other. Use existing storage, registered operations and inference
+consumers with additive contracts; no separate general-purpose model agent is required.
+
+Reconstructions preserve source/common-origin references, supporting and contradicting
+evidence, alternatives, method versions, event time, knowledge time, uncertainty and
+human corrections. They do not become raw observations. Consumers propagate uncertainty
+and do not reuse an inference's source evidence as independent confirmation of itself.
+Historical sources support new retrospective computations without changing what was
+known at the earlier date. A current panel alone cannot prove historical replay.
+
+RULE-04 remains binding for retrospective derivations: distinguish the event period
+from the computation's knowledge cutoff. The implementation ADR must prove their
+representation satisfies recorded-at/window checks before any late-import derived
+row is written. Unsupported historical replay remains open; no backdating is allowed.

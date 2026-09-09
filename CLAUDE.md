@@ -18,7 +18,9 @@ do not repeat unchanged verification. Consult the relevant open questions and AD
 not the complete project history, unless evidence requires it.
 
 `docs/build/B*.md` are implementation briefs, not an independent authority on order,
-permissions, current schema or completion. Historical plans are reference material.
+permissions, current schema or completion. Historical plans are reference material; their product intent remains relevant.
+Use [INTENT_COVERAGE](docs/INTENT_COVERAGE.md) to prevent a narrower build checklist
+from replacing Joe's cross-source and historical intelligence objective.
 See [DOCUMENTATION_MAP](docs/DOCUMENTATION_MAP.md) for the maintained entry points.
 
 ## Execution

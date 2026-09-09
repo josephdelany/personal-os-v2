@@ -23,6 +23,7 @@ and session estimates are not current reservations or delivery forecasts.
 | B12 | `B12_nutrition.md` | REQ-NUT §D/§E: `lib/egress.py`, USDA + OFF, cache-first, interval nutrients, drinks→ethanol | 0050 | 2 |
 | B13 | `B13_importers.md` | Apple Health / bank CSV-QFX / Takeout → captures; finance §A.1/A.4 | 0051 | 2 |
 | B14 | `B14_entities_and_links.md` | finance §B merchant cascade, REQ-ONT entity types, the link object; meal↔charge↔place | 0052 | 1 |
+| B14R | `B14R_reconstruction.md` | Historical coverage and evidence reconstruction, REQ-REC-001..016 | allocated at implementation | acceptance-driven |
 | B15 | `B15_period_and_compare.md` | `get_period(week)`, `get_compare(metric, condition)` | 0053 | 1 |
 | B16 | `B16_voice_photo_capture.md` | REQ-CAP §B/§C/§F: Storage + Workers AI transcription, extractive extraction with verifier, neuron budget, prompting | 0054 | 2 |
 | B17 | `B17_finance.md` | finance §A.2 Gmail (Apps Script), §C recurrence/necessity, §G income/balances/budgets/forecast/reconciliation, §E restraint | 0055–0057 | 3 |
