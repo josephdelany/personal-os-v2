@@ -30,7 +30,7 @@ def inv_cur(sql_connection):
         if cur.fetchone() is None:
             cur.execute(f"CREATE ROLE {role}")
     for filename in ("0002_metric_registry.sql", "0004_raw_captures.sql", "0005_atoms.sql",
-                     "0053_source_inventory.sql"):
+                     "0051_file_import.sql", "0053_source_inventory.sql"):
         for statement in split_statements((ROOT / "migrations" / filename).read_text()):
             cur.execute(rebind(statement))
     cur.execute("""INSERT INTO inv_core_pytest.metric_registry
@@ -186,3 +186,75 @@ def test_REQ_REC_003_an_unparsed_type_with_no_ruling_is_owned_by_joe_not_a_build
     assert disagreements == []
     assert rows[0]["owner"] == "Joe (scope ruling)", rows[0]
     assert unassigned == [("HKQuantityTypeIdentifierPhysicalEffort", 8577)]
+
+
+def _atom(cur, metric, day, *, interval=None, instant=None):
+    """One atom in a disposable schema (ADR-0022). Never a real table."""
+    cur.execute("""INSERT INTO inv_core_pytest.raw_captures
+                   (capture_id, source, captured_at, payload, trust_level)
+                   VALUES (gen_random_uuid(), 'file_import', now(), '{}'::jsonb, 'trusted')
+                   RETURNING capture_id""")
+    cid = cur.fetchone()[0]
+    cur.execute("""INSERT INTO inv_core_pytest.atoms
+        (raw_capture_id, kind, metric_key, occurred_at, valid_interval, subject_day,
+         subject_day_rule_version, presence, value_low, value_point, value_high, estimate_method, unit, state_class, value_type, trust_level,
+         provenance, code_version)
+        VALUES (%s,'measurement',%s,%s,%s,%s,'v1','observed',1,1,1,'measured','count','total','numeric','trusted',
+                'extracted','test')""",
+        (cid, metric, instant, interval, day))
+
+
+def _catalogue(cur, measure, spec):
+    cur.execute("""INSERT INTO config_pytest.derivation_catalogue
+        (measure, input_fields, method, method_version, unit, time_specification,
+         missingness_rule, owner)
+        VALUES (%s, ARRAY['value'], 'apple_health sample', 'v1', 'count', %s,
+                'a subject day with no record is unknown, never zero', 'B13')""",
+        (measure, spec))
+
+
+def test_REQ_REC_004_a_measure_declared_interval_whose_atoms_have_none_is_a_violation(inv_cur):
+    """OQ-54's regression guard. The 2026-09-09 import stored 14,640 accumulating-quantity
+    atoms as instants and nothing could notice: the claim lived in a comment and the data
+    lived in a column. Both are now in tables, so they can be compared.
+
+    This is not tidiness. With `valid_interval` NULL, cross-device overlap cannot be
+    queried, so a daily sum cannot be checked for double-counting."""
+    cur = inv_cur
+    _catalogue(cur, "steps", "interval")
+    _atom(cur, "steps", "2026-07-01", instant="2026-07-01T12:00:00Z")   # as imported: no interval
+    cur.execute("SELECT measure, atoms, atoms_without_interval "
+                "FROM config_pytest.v_time_specification_violations")
+    assert list(cur.fetchall()) == [["steps", 1, 1]], "the contradiction was not detected"
+
+
+def test_REQ_REC_004_a_measure_stored_the_way_it_is_declared_is_not_a_violation(inv_cur):
+    cur = inv_cur
+    _catalogue(cur, "steps", "interval")
+    _atom(cur, "steps", "2026-07-01",
+          interval="[2026-07-01T12:00:00Z,2026-07-01T12:06:00Z)")
+    cur.execute("SELECT count(*) FROM config_pytest.v_time_specification_violations")
+    assert cur.fetchone()[0] == 0
+
+
+def test_REQ_REC_004_an_instant_measure_stored_without_an_instant_is_also_a_violation(inv_cur):
+    """The check runs in both directions; a reading with no time is not a reading."""
+    cur = inv_cur
+    _catalogue(cur, "steps", "instant")
+    _atom(cur, "steps", "2026-07-01", interval="[2026-07-01T12:00:00Z,2026-07-01T12:06:00Z)")
+    cur.execute("SELECT measure, atoms_without_instant "
+                "FROM config_pytest.v_time_specification_violations")
+    assert list(cur.fetchall()) == [["steps", 1]]
+
+
+def test_REQ_REC_004_the_time_specification_follows_from_state_class_not_from_a_hand_list():
+    """RULE-08 as a derivation: a total accumulates over a window and is a fact about an
+    interval; a measurement is a reading at an instant. Hand-maintained per-metric lists
+    drift; this one cannot, because adding a metric to the registry decides it."""
+    from tools.build_catalogue import TIME_SPEC, MISSINGNESS
+    assert TIME_SPEC == {"total": "interval", "total_increasing": "interval",
+                         "measurement": "instant"}
+    # RULE-06/RULE-07: absence is unknown, never zero. The wording is quoted per class,
+    # so no metric can quietly acquire a friendlier missingness rule.
+    assert all("never zero" in MISSINGNESS[k] for k in ("total", "total_increasing"))
+    assert "unknown" in MISSINGNESS["measurement"]

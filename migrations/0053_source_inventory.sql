@@ -137,6 +137,29 @@ SELECT DISTINCT a.metric_key
  WHERE a.metric_key IS NOT NULL AND d.measure IS NULL
  ORDER BY 1;
 
+-- REQ-REC-004 + RULE-08, made enforceable rather than documentary.
+--
+-- The catalogue declares whether a measure is a fact about an INSTANT or about an INTERVAL.
+-- The atoms carry `valid_interval`. When a measure says "interval" and its atoms have none,
+-- the two disagree, and this view is the disagreement. It exists because the 2026-09-09
+-- import stored 14,640 accumulating-quantity atoms as instants (OQ-54) and nothing in the
+-- system was capable of noticing: the claim lived in a comment and the data lived in a
+-- column. A daily sum over an accumulating measure whose intervals are missing cannot be
+-- checked for cross-device overlap, so this is not a tidiness view.
+CREATE OR REPLACE VIEW config.v_time_specification_violations AS
+SELECT d.measure, d.time_specification, d.owner,
+       count(*)                                              AS atoms,
+       count(*) FILTER (WHERE a.valid_interval IS NULL)      AS atoms_without_interval,
+       count(*) FILTER (WHERE a.occurred_at   IS NULL)       AS atoms_without_instant
+  FROM config.derivation_catalogue d
+  JOIN __CORE__.atoms a ON a.metric_key = d.measure
+ GROUP BY d.measure, d.time_specification, d.owner
+HAVING (d.time_specification = 'interval' AND count(*) FILTER (WHERE a.valid_interval IS NULL) > 0)
+    OR (d.time_specification = 'instant'  AND count(*) FILTER (WHERE a.occurred_at   IS NULL) > 0)
+ ORDER BY 5 DESC, 1;
+
+REVOKE ALL ON config.v_time_specification_violations FROM anon, authenticated;
+
 REVOKE ALL ON config.source_inventory, config.derivation_catalogue FROM anon, authenticated;
 REVOKE ALL ON config.v_inventory_gaps, config.v_uncatalogued_measures FROM anon, authenticated;
 
