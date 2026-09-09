@@ -68,7 +68,10 @@ INSERT INTO config.ask_templates (op, tier, template) VALUES
  ('last','DESCRIPTIVE','The last {display} on record is {value} {unit} on {day}, {since} days ago.'),
  ('count_days','DESCRIPTIVE','{k} of {n} days over {range}.'),
  ('compare','DESCRIPTIVE','Your {display} was typically {a} {unit} on the {n_a} days when {condition}, against {b} {unit} on the other {n_b} days over {range}.'),
- ('contrast','EXPLORATORY','On your highest-{driver} days, {outcome} ran {delta} {unit} {direction} than on your lowest, over {range}. This may reflect a pattern; it is exploratory and unverified.'),
+ -- NOT "over {range}": the stored contrast covers the scan's own window, not the window the
+ -- question asked about, and `analysis.contrasts` does not record that window. The sentence
+ -- states what the number actually rests on.
+ ('contrast','EXPLORATORY','On your highest-{driver} days, {outcome} ran {delta} {unit} {direction} than on your lowest, across {n_hi} high and {n_lo} low days measured by {window}. This may reflect a pattern; it is exploratory and unverified.'),
  -- PROMOTED does NOT get dose-response phrasing. "per {driver} step" states a rate of
  -- change, and `config.tier_vocabulary` reserves "per" for CONFIRMED_OBSERVATIONAL — the
  -- seeded template and the seeded vocabulary contradicted each other, and RULE-16 says the
@@ -341,6 +344,25 @@ BEGIN
 END $fn$;
 REVOKE ALL ON FUNCTION public._ask_condition(text) FROM public;
 
+
+-- ---------------------------------------------------------------- tier ordering, in one place
+-- RULE-16's ladder as a number, so "is this language above its tier?" is answerable in SQL.
+-- INSUFFICIENT sits at the bottom: it is not a rung of the ladder, it is the statement that
+-- the ladder cannot be climbed with the evidence available.
+CREATE OR REPLACE FUNCTION public._ask_tier_rank(p_tier text)
+RETURNS int LANGUAGE sql IMMUTABLE SET search_path = '' AS $fn$
+    SELECT CASE p_tier
+             WHEN 'INSUFFICIENT'             THEN 0
+             WHEN 'DESCRIPTIVE'              THEN 1
+             WHEN 'EXPLORATORY'              THEN 2
+             WHEN 'CANDIDATE'                THEN 2
+             WHEN 'PROMOTED'                 THEN 3
+             WHEN 'CONFIRMED_OBSERVATIONAL'  THEN 4
+             WHEN 'EXPERIMENTAL'             THEN 5
+             ELSE 0 END
+$fn$;
+REVOKE ALL ON FUNCTION public._ask_tier_rank(text) FROM public;
+
 CREATE OR REPLACE FUNCTION public.ask(p_question text, p_as_of date)
 RETURNS jsonb
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = ''
@@ -353,7 +375,8 @@ DECLARE
     coverage_min numeric; low_metric text; raise_action text; out jsonb; ins_reason text;
     words text[]; cond_txt text; hit text; term text; metric_text text; entity_text text;
     condition_match text[]; condition_value numeric; condition_direction text; condition_input text;
-    cond_band boolean;
+    cond_band boolean; compare_lag int; cond_metric record; n_outcome_days int;
+    reverse_finding record; reverse_contrast record;
     numeral_valid boolean := true;
 BEGIN
     IF coalesce((auth.jwt()->>'email'), '') <> 'joseph.delany21@gmail.com' THEN
@@ -366,6 +389,11 @@ BEGIN
     -- would logically be NULL. Every branch may safely inspect these now.
     SELECT NULL::text AS metric, NULL::text AS display, NULL::text AS unit, NULL::real AS sim INTO m1;
     SELECT NULL::text AS metric, NULL::text AS display, NULL::text AS unit, NULL::real AS sim INTO m2;
+    SELECT NULL::text AS metric, NULL::text AS display, NULL::text AS unit, NULL::real AS sim INTO cond_metric;
+    SELECT NULL::text AS hypothesis_id, NULL::text AS status_to,
+           NULL::text AS exposure_metric, NULL::text AS outcome_metric INTO reverse_finding;
+    SELECT NULL::text AS driver, NULL::text AS outcome, NULL::date AS run_date INTO reverse_contrast;
+    compare_lag := 0;
 
     -- RULE-26 / REQ-ASK-028: a medical question is answered with the stored referral string, data attached
     SELECT mv.term INTO hit FROM config.medical_vocabulary mv
@@ -413,12 +441,21 @@ BEGIN
             metric_text := regexp_replace(metric_text, '^how many days (was |were |is |are )?(my )?', '');
             metric_text := regexp_replace(metric_text, '\s+(above|below|over|under)\M.*$', '');
         ELSIF op = 'compare' THEN
-            -- "my steps on days above 50" -> "steps". The condition clause is parsed
-            -- separately by `_ask_condition`; leaving it in the metric phrase dilutes the
-            -- trigram match badly enough that a tracked metric reads as untracked.
-            metric_text := regexp_replace(metric_text,
-                '\s+(on|when)\s+(the\s+)?(days?\s+)?(when |with )?(i |my )?.*$', '');
+            -- `compare` is CROSS-METRIC: "my sleep on days when I drink" is sleep (the
+            -- outcome) split by drinking (the condition metric). Splitting the outcome by its
+            -- OWN value answers a different, nearly meaningless question while looking exactly
+            -- as authoritative. The phrase is cut at the connective: before it names the
+            -- outcome, after it names the condition metric and its comparison.
+            condition_input := (regexp_match(metric_text,
+                '\s+(?:on|after)\s+(?:the\s+)?days?\s+(?:when\s+|with\s+|that\s+)?(.*)$'))[1];
+            IF condition_input IS NULL THEN
+                condition_input := (regexp_match(metric_text, '\s+when\s+(.*)$'))[1];
+            END IF;
+            -- "after days" compares the outcome on the day FOLLOWING a qualifying day.
+            compare_lag := CASE WHEN metric_text ~ '\safter\s+(the\s+)?days?\M' THEN 1 ELSE 0 END;
+            metric_text := regexp_replace(metric_text, '\s+(on|after|when)\s+.*$', '');
             metric_text := regexp_replace(metric_text, '^(my )', '');
+
         ELSIF op IN ('effect','contrast') THEN
             -- "does my steps affect my hrv" -> m1 is the phrase BEFORE the verb; the second
             -- metric is resolved from what is left after m1's display is removed.
@@ -555,65 +592,105 @@ BEGIN
     -- different question with a different answer shape, so `compare` could never return what
     -- `config.operations` says it returns.
     ELSIF op = 'compare' THEN
-        SELECT c.direction, c.threshold, c.label, c.band_form
-          INTO condition_direction, condition_value, cond_txt, cond_band
-          FROM public._ask_condition(q) c;
-        IF condition_direction IS NULL THEN
+        -- CROSS-METRIC. `m1` is the outcome; `cond_metric` is the metric the condition is
+        -- about. "my sleep on days when I drink" splits sleep by drinking, not sleep by sleep.
+        IF condition_input IS NULL OR trim(condition_input) = '' THEN
             SELECT value INTO refusal FROM config.strings WHERE key = 'refusal_unmappable';
             UPDATE __CORE__.questions SET refusal = ask_state.refusal WHERE question_id = qid;
             RETURN jsonb_build_object('question_id', qid, 'refusal', refusal,
-                'nearest', jsonb_build_array('my ' || m1.display || ' on days above the usual range'));
+                'reason', 'no_condition_metric',
+                'nearest', jsonb_build_array('my ' || m1.display || ' on days when my steps are above the usual range'));
         END IF;
-        IF NOT cond_band THEN
-            SELECT jsonb_build_object(
-                     'a', public._ask_round(percentile_cont(0.5) WITHIN GROUP (
-                              ORDER BY p.value) FILTER (WHERE sat)::numeric, m1.metric),
-                     'b', public._ask_round(percentile_cont(0.5) WITHIN GROUP (
-                              ORDER BY p.value) FILTER (WHERE NOT sat)::numeric, m1.metric),
-                     'n_a', count(*) FILTER (WHERE sat), 'n_b', count(*) FILTER (WHERE NOT sat),
-                     'condition', cond_txt, 'threshold', condition_value)
-              INTO res
-              FROM (SELECT p.value,
-                           CASE WHEN condition_direction = 'above' THEN p.value > condition_value
-                                ELSE p.value < condition_value END AS sat
-                      FROM analysis.f_daily_panel(as_of) p
-                     WHERE p.metric = m1.metric AND p.day BETWEEN rng.d_from AND rng.d_to) p;
-        ELSE
-            SELECT jsonb_build_object(
-                     'a', public._ask_round(percentile_cont(0.5) WITHIN GROUP (
-                              ORDER BY p.value) FILTER (WHERE sat)::numeric, m1.metric),
-                     'b', public._ask_round(percentile_cont(0.5) WITHIN GROUP (
-                              ORDER BY p.value) FILTER (WHERE NOT sat)::numeric, m1.metric),
-                     'n_a', count(*) FILTER (WHERE sat), 'n_b', count(*) FILTER (WHERE NOT sat),
-                     'condition', cond_txt)
-              INTO res
-              FROM (SELECT p.value,
-                           CASE WHEN condition_direction = 'above' THEN p.value > b.band_hi
-                                ELSE p.value < b.band_lo END AS sat
-                      FROM analysis.f_daily_panel(as_of) p
-                      JOIN analysis.baselines b ON b.metric = p.metric AND b.day = p.day
-                     WHERE p.metric = m1.metric AND p.day BETWEEN rng.d_from AND rng.d_to
-                       AND CASE WHEN condition_direction = 'above' THEN b.band_hi IS NOT NULL
-                                ELSE b.band_lo IS NOT NULL END) p;
-            coverage_min := ((res->>'n_a')::numeric + (res->>'n_b')::numeric) / n_days;
-            cov := jsonb_build_object(m1.metric, coverage_min);
+        SELECT c.direction, c.threshold, c.label, c.band_form
+          INTO condition_direction, condition_value, cond_txt, cond_band
+          FROM public._ask_condition(condition_input) c;
+        -- A bare "on days when I drink" names the condition metric and no comparison. The
+        -- registered reading (B11's grammar) is "that metric above its usual range".
+        IF condition_direction IS NULL THEN
+            condition_direction := 'above'; cond_band := true; cond_txt := 'above the usual range';
         END IF;
-        -- Both sides must exist. A "comparison" with an empty side is not a comparison, and
-        -- rendering one median against nothing invites reading it as a difference.
+        SELECT * INTO cond_metric FROM public._ask_resolve_metric(
+            trim(regexp_replace(condition_input,
+                 '\s*(is|are|was|were)?\s*(above|below|over|under)\M.*$', ''), ' ?')) LIMIT 1;
+        IF cond_metric.metric IS NULL OR cond_metric.sim < 0.35 THEN
+            SELECT value INTO refusal FROM config.strings WHERE key = 'refusal_untracked';
+            SELECT jsonb_agg(jsonb_build_object('metric', x.metric, 'display', x.display))
+              INTO nearest FROM public._ask_resolve_metric(condition_input) x;
+            UPDATE __CORE__.questions SET refusal = ask_state.refusal WHERE question_id = qid;
+            RETURN jsonb_build_object('question_id', qid, 'refusal', refusal,
+                'reason', 'condition_metric_untracked', 'nearest', nearest);
+        END IF;
+        cond_txt := cond_metric.display || ' ' || cond_txt;
+
+        -- The groups form from days on which the CONDITION metric was observed. A day whose
+        -- condition value is unknown belongs to NEITHER group: putting it on the "did not
+        -- qualify" side reads an absence as a negative observation, which is the collapse
+        -- RULE-07 exists to prevent. Unknown days are counted and reported instead.
+        WITH cond AS (
+            SELECT p.day,
+                   CASE WHEN cond_band THEN
+                             CASE WHEN condition_direction = 'above' THEN p.value > b.band_hi
+                                  ELSE p.value < b.band_lo END
+                        ELSE CASE WHEN condition_direction = 'above' THEN p.value > condition_value
+                                  ELSE p.value < condition_value END
+                   END AS sat
+              FROM analysis.f_daily_panel(as_of) p
+              LEFT JOIN analysis.baselines b ON b.metric = p.metric AND b.day = p.day
+             WHERE p.metric = cond_metric.metric
+               AND p.day BETWEEN rng.d_from - compare_lag AND rng.d_to - compare_lag
+        ), outcome AS (
+            SELECT p.day, p.value FROM analysis.f_daily_panel(as_of) p
+             WHERE p.metric = m1.metric AND p.day BETWEEN rng.d_from AND rng.d_to
+        ), joined AS (
+            -- `compare_lag` aligns the outcome to the day AFTER a qualifying day when the
+            -- question said "after days"; 0 when it said "on days".
+            SELECT o.value, c.sat FROM outcome o JOIN cond c ON c.day = o.day - compare_lag
+        )
+        SELECT jsonb_build_object(
+                 'a', public._ask_round(percentile_cont(0.5) WITHIN GROUP (
+                          ORDER BY j.value) FILTER (WHERE j.sat IS TRUE)::numeric, m1.metric),
+                 'b', public._ask_round(percentile_cont(0.5) WITHIN GROUP (
+                          ORDER BY j.value) FILTER (WHERE j.sat IS FALSE)::numeric, m1.metric),
+                 'n_a', count(*) FILTER (WHERE j.sat IS TRUE),
+                 'n_b', count(*) FILTER (WHERE j.sat IS FALSE),
+                 'n_condition_unknown', count(*) FILTER (WHERE j.sat IS NULL),
+                 'condition', cond_txt, 'condition_metric', cond_metric.metric,
+                 'lag_days', compare_lag, 'threshold', condition_value)
+          INTO res FROM joined j;
+
+        SELECT count(*) INTO n_outcome_days FROM analysis.f_daily_panel(as_of) p
+         WHERE p.metric = m1.metric AND p.day BETWEEN rng.d_from AND rng.d_to;
+        -- Outcome days the condition could not be evaluated on: no condition row at all, or a
+        -- row with no comparison band. They are in neither group, and the count says how many
+        -- so the reader can see how much of the range the comparison actually rests on.
+        res := res || jsonb_build_object('n_condition_missing',
+                 n_outcome_days - ((res->>'n_a')::int + (res->>'n_b')::int));
+        -- REQ-ASK-021: BOTH metrics' coverage is reported, not only the outcome's. The tier
+        -- floor uses the lower of the two, because the weaker input bounds the answer.
+        cov := jsonb_build_object(
+                 m1.metric, n_outcome_days::numeric / greatest(n_days,1),
+                 cond_metric.metric,
+                 ((res->>'n_a')::numeric + (res->>'n_b')::numeric
+                  + (res->>'n_condition_unknown')::numeric) / greatest(n_days,1));
+        coverage_min := least(
+            n_outcome_days::numeric / greatest(n_days,1),
+            ((res->>'n_a')::numeric + (res->>'n_b')::numeric) / greatest(n_days,1));
+
         IF coalesce((res->>'n_a')::int, 0) = 0 OR coalesce((res->>'n_b')::int, 0) = 0 THEN
             SELECT value INTO refusal FROM config.strings WHERE key = 'refusal_insufficient';
             UPDATE __CORE__.questions SET refusal = ask_state.refusal, tier = 'INSUFFICIENT'
              WHERE question_id = qid;
-            RETURN jsonb_build_object('question_id', qid, 'tier', 'INSUFFICIENT',
+            RETURN jsonb_strip_nulls(jsonb_build_object('question_id', qid, 'tier', 'INSUFFICIENT',
                 'refusal', refusal, 'metric', m1.metric, 'display', m1.display,
-                'insufficiency_reason', 'low_coverage',
-                'missing_input', CASE WHEN cond_band THEN 'comparison_band' ELSE 'comparison_half' END,
+                'condition_metric', cond_metric.metric,
+                'insufficiency_reason', 'low_coverage', 'missing_input', 'comparison_half',
                 'condition', cond_txt,
+                'n_a', (res->>'n_a')::int, 'n_b', (res->>'n_b')::int,
+                'n_condition_unknown', (res->>'n_condition_unknown')::int,
                 'range', jsonb_build_array(rng.d_from, rng.d_to),
-                'would_raise_it', 'Both sides of the comparison need days with data before a difference can be shown.');
+                'would_raise_it', 'Both sides need days on which the condition metric was observed.'));
         END IF;
         res := res || jsonb_build_object('display', m1.display, 'unit', coalesce(m1.unit, ''));
-
     ELSIF op IN ('effect','contrast') THEN
         SELECT * INTO m2 FROM public._ask_resolve_metric(regexp_replace(q, m1.display, '', 'g'), m1.metric) LIMIT 1;
         IF m2.metric IS NULL THEN
@@ -628,15 +705,56 @@ BEGIN
         -- the frozen pre-registration. The draft read `r2.beta` and `r2.adjustment_set`, and
         -- neither column exists on `hypothesis_resolutions` — this branch had never been
         -- executed by a test, so the error waited for the first real question instead.
-        SELECT h.hypothesis_id, h.status, r2.delta, h.adjustment_set
+        -- REQ-ASK-030 / RULE-19: the finding is read AS OF the question's date.
+        --   * the hypothesis must have been registered on or before as_of, and
+        --   * its status is the one its latest resolution ON OR BEFORE as_of set — never
+        --     `hypothesis_register.status`, a mutable column reflecting what is true NOW.
+        -- Without this a promotion or a correction recorded next month silently rewrites the
+        -- answer to a question asked today, and "what did the system say on D" stops being
+        -- answerable. A day cutoff on panel rows alone is not replay.
+        --
+        -- Direction is EXACT. A registered finding that X predicts Y does not answer "does Y
+        -- affect X": exposure and outcome are not interchangeable, and serving the reverse
+        -- asserts a relationship the pre-registration never tested (RULE-19).
+        SELECT h.hypothesis_id, res2.status_to AS status, res2.delta, h.adjustment_set,
+               h.lag_days
           INTO r FROM __CORE__.hypothesis_register h
-          LEFT JOIN LATERAL (SELECT * FROM __CORE__.hypothesis_resolutions rr
-                              WHERE rr.hypothesis_id = h.hypothesis_id AND rr.status_to = h.status
-                              ORDER BY rr.resolved_at DESC LIMIT 1) r2 ON true
-         WHERE h.status IN ('PROMOTED','CONFIRMED_OBSERVATIONAL')
-           AND ((h.exposure_metric = m1.metric AND h.outcome_metric = m2.metric)
-             OR (h.exposure_metric = m2.metric AND h.outcome_metric = m1.metric))
-         ORDER BY CASE h.status WHEN 'CONFIRMED_OBSERVATIONAL' THEN 0 ELSE 1 END LIMIT 1;
+          JOIN LATERAL (SELECT rr.status_to, rr.delta FROM __CORE__.hypothesis_resolutions rr
+                         WHERE rr.hypothesis_id = h.hypothesis_id
+                           AND rr.resolved_at::date <= as_of
+                         ORDER BY rr.resolved_at DESC LIMIT 1) res2 ON true
+         WHERE h.preregistered_at::date <= as_of
+           AND res2.status_to IN ('PROMOTED','CONFIRMED_OBSERVATIONAL')
+           AND h.exposure_metric = m1.metric AND h.outcome_metric = m2.metric
+         ORDER BY CASE res2.status_to WHEN 'CONFIRMED_OBSERVATIONAL' THEN 0 ELSE 1 END LIMIT 1;
+
+        IF r.hypothesis_id IS NULL THEN
+            SELECT h.hypothesis_id, res2.status_to, h.exposure_metric, h.outcome_metric
+              INTO reverse_finding FROM __CORE__.hypothesis_register h
+              JOIN LATERAL (SELECT rr.status_to FROM __CORE__.hypothesis_resolutions rr
+                             WHERE rr.hypothesis_id = h.hypothesis_id
+                               AND rr.resolved_at::date <= as_of
+                             ORDER BY rr.resolved_at DESC LIMIT 1) res2 ON true
+             WHERE h.preregistered_at::date <= as_of
+               AND res2.status_to IN ('PROMOTED','CONFIRMED_OBSERVATIONAL')
+               AND h.exposure_metric = m2.metric AND h.outcome_metric = m1.metric
+             LIMIT 1;
+        END IF;
+
+        -- A finding exists only for the REVERSE pair. It is named as a different finding and
+        -- never served as the answer to the question that was asked.
+        IF r.hypothesis_id IS NULL AND reverse_finding.hypothesis_id IS NOT NULL THEN
+            SELECT value INTO refusal FROM config.strings WHERE key = 'refusal_insufficient';
+            UPDATE __CORE__.questions SET refusal = ask_state.refusal, tier = 'INSUFFICIENT'
+             WHERE question_id = qid;
+            RETURN jsonb_build_object('question_id', qid, 'tier', 'INSUFFICIENT',
+                'refusal', refusal, 'insufficiency_reason', 'no_finding_in_this_direction',
+                'asked', m1.display || ' -> ' || m2.display,
+                'available_instead', m2.display || ' -> ' || m1.display,
+                'available_tier', reverse_finding.status_to,
+                'note', 'A finding is registered in the other direction. Exposure and outcome are not interchangeable, so it does not answer this question.',
+                'would_raise_it', 'Register and watch the hypothesis in the direction asked.');
+        END IF;
 
         IF r.hypothesis_id IS NOT NULL THEN
             op := 'effect';
@@ -661,31 +779,47 @@ BEGIN
                    c.delta, c.q_fdr, c.run_date, c.code_version
               INTO r
               FROM analysis.contrasts c
-             WHERE ((c.driver = m1.metric AND c.outcome = m2.metric)
-                 OR (c.driver = m2.metric AND c.outcome = m1.metric))
-               AND c.run_date <= as_of                       -- REQ-ASK-030 / RULE-04: as-of
+             -- EXACT orientation. The quartile contrast splits days by the DRIVER and reads
+             -- the OUTCOME, so the two are not interchangeable and the reverse row answers a
+             -- different question. `run_date <= as_of` keeps a scan run that happened after
+             -- the question's date out of its answer (REQ-ASK-030 / RULE-04).
+             WHERE c.driver = m1.metric AND c.outcome = m2.metric
+               AND c.run_date <= as_of
              ORDER BY c.run_date DESC, abs(c.lag_days), c.q_fdr
              LIMIT 1;
             IF r.driver IS NULL THEN
+                SELECT c.driver, c.outcome, c.run_date INTO reverse_contrast
+                  FROM analysis.contrasts c
+                 WHERE c.driver = m2.metric AND c.outcome = m1.metric AND c.run_date <= as_of
+                 ORDER BY c.run_date DESC LIMIT 1;
                 -- Nothing has been computed for this pair. That is a documented gap, not a
                 -- zero: the draft returned delta NULL into a template that reads "ran {delta}
                 -- lower", which renders a sentence stating a difference nobody measured.
                 SELECT value INTO refusal FROM config.strings WHERE key = 'refusal_insufficient';
                 UPDATE __CORE__.questions SET refusal = ask_state.refusal, tier = 'INSUFFICIENT'
                  WHERE question_id = qid;
-                RETURN jsonb_build_object('question_id', qid, 'tier', 'INSUFFICIENT',
+                RETURN jsonb_strip_nulls(jsonb_build_object('question_id', qid, 'tier', 'INSUFFICIENT',
                     'refusal', refusal, 'insufficiency_reason', 'no_contrast_computed',
                     'driver', m1.display, 'outcome', m2.display,
+                    'reverse_direction_available', CASE WHEN reverse_contrast.driver IS NOT NULL
+                        THEN m2.display || ' -> ' || m1.display END,
+                    'reverse_note', CASE WHEN reverse_contrast.driver IS NOT NULL THEN
+                        'A contrast exists in the other direction only. It answers a different question and is not shown as this one.' END,
                     'range', jsonb_build_array(rng.d_from, rng.d_to),
-                    'would_raise_it', 'The weekly scan computes this contrast; it has not yet run for this pair.');
+                    'would_raise_it', 'The weekly scan computes this contrast; it has not yet run in this direction.'));
             END IF;
+            -- The stored contrast covers the SCAN's window, which `analysis.contrasts` does
+            -- not record and which is not the question's range. The answer therefore states
+            -- what the number actually rests on — the observed high and low day counts and
+            -- the run that produced it — and never restates the asked-for range. Labelling a
+            -- multi-year sweep "over the last 10 days" is a false statement about evidence.
             res := jsonb_build_object(
-                     'driver', CASE WHEN r.driver = m1.metric THEN m1.display ELSE m2.display END,
-                     'outcome', CASE WHEN r.outcome = m2.metric THEN m2.display ELSE m1.display END,
+                     'driver', m1.display, 'outcome', m2.display,
                      'delta', abs(r.delta), 'unit', coalesce(m2.unit, ''),
                      'direction', CASE WHEN r.delta > 0 THEN 'higher' ELSE 'lower' END,
                      'n_hi', r.n_hi, 'n_lo', r.n_lo, 'lag_days', r.lag_days,
                      'q_fdr', r.q_fdr, 'computed_on', r.run_date,
+                     'window', 'the scan run of ' || r.run_date::text,
                      'owner', 'analysis.contrasts', 'owner_code_version', r.code_version);
         END IF;
 
@@ -773,10 +907,22 @@ BEGIN
     RETURNING computation_id INTO cid;          -- REQ-ASK-006: persisted BEFORE narration
 
     -- narrate from the stored template only (REQ-NAR-011); slots come from `res` and nothing else
+    -- RULE-16: a template is never selected from a tier ABOVE the effective one. The old
+    -- selection fell back to "any template for this op" when no exact tier matched, and the
+    -- coverage floor (REQ-TIER-017) is exactly when that happens: an `effect` answer floored
+    -- to INSUFFICIENT rendered the CONFIRMED_OBSERVATIONAL sentence — "runs {delta} per
+    -- {driver} step, adjusted for {adjustment}" — a causal, dose-response claim on an answer
+    -- the system had just declared it could not support. The highest template at or below the
+    -- effective tier is chosen instead, so language can only ever fall, never rise.
     SELECT t.template INTO templ FROM config.ask_templates t
-     WHERE t.op = ask_state.op AND t.tier = CASE WHEN ask_state.op = 'effect' THEN ask_state.tier ELSE t.tier END
-     ORDER BY CASE WHEN t.tier = ask_state.tier THEN 0 ELSE 1 END LIMIT 1;
-    IF templ IS NULL THEN SELECT t.template INTO templ FROM config.ask_templates t WHERE t.op = ask_state.op LIMIT 1; END IF;
+     WHERE t.op = ask_state.op
+       AND public._ask_tier_rank(t.tier) <= public._ask_tier_rank(ask_state.tier)
+     ORDER BY public._ask_tier_rank(t.tier) DESC LIMIT 1;
+    IF templ IS NULL THEN
+        SELECT t.template INTO templ FROM config.ask_templates t
+         WHERE t.op = ask_state.op
+         ORDER BY public._ask_tier_rank(t.tier) ASC LIMIT 1;
+    END IF;
     answer := templ;
     answer := replace(answer, '{display}', coalesce(m1.display, ''));
     answer := replace(answer, '{unit}', coalesce(m1.unit, res->>'unit', ''));
