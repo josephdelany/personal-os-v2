@@ -5,9 +5,17 @@ based on `b606c64` (main).
 
 ## Active unit
 
-**M3 — shared model services: the egress/budget contract B11.2 depends on.**
+**M2 — deterministic Ask. REOPENED.**
 
-M2 closed every acceptance item except two, both held with named dependencies (see below).
+**Correction.** An earlier version of this checkpoint said "M2 closed every acceptance item
+except two". That claim was not supported and is withdrawn. An adversarial review of
+`db815e0..45535eb` executed ~35 probes against a disposable server and found the closure false
+on six checklist lines. The review's own summary: *"The M2 closure claim is not supported."*
+It was right, and the error was mine: I read a passing suite as evidence of coverage the suite
+did not have — several of my own tests asserted less than their names claimed.
+
+M3's shared prerequisite (`lib/egress.py`, migration 0052, the planner) is built and committed
+and stands on its own evidence; M2 is reopened ahead of it.
 Per EXECUTION_PLAN, M3 pulls only the shared prerequisites from B12/B16 forward — numeric
 build order is not a dependency schedule — then completes B11.2, then the rest of B12/B16.
 
