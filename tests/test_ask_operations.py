@@ -9,6 +9,9 @@ shipped. These tests are what replacing them means.
 import datetime as dt
 import json
 import uuid
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
 
 import pytest
 
@@ -673,3 +676,152 @@ def test_RULE_16_tier_rank_orders_the_ladder(ask_cur):
     ins, desc, expl, prom, conf, exp, unknown = cur.fetchone()
     assert ins < desc < expl < prom < conf < exp
     assert unknown == ins, "an unknown tier must rank at the bottom, never above"
+
+
+# ------------------------------------------------------------------ trend's rolling-28 contract
+
+def test_REQ_ASK_005_trend_reports_the_28_day_rolling_median_at_range_end(ask_cur):
+    """B11's registered `trend` contract is the two halves AND the 28-day rolling median.
+
+    The halves answer "did it move across this period"; the rolling figure answers "where is
+    it now", which is a different question and the one a reader acts on. The window ends at
+    the range end and reaches back 28 days — which may extend BEFORE the requested range, so
+    its own day count is reported rather than implied.
+    """
+    cur = ask_cur
+    register_metric(cur, "hrv_sdnn_ms", "HRV", "ms")
+    # 40 consecutive days. The last 28 are 60..87, whose median is 73.5. It is NOT rounded to
+    # 74: rounding is registry-driven (REQ-NAR-015) and this metric has no registered rounding
+    # step, so the median is reported as computed rather than tidied by the narrator.
+    for i in range(40):
+        panel(cur, "hrv_sdnn_ms", AS_OF - dt.timedelta(days=39 - i), 48 + i)
+
+    r = ask(cur, "has my hrv changed last 40 days")
+    stored = stored_result(cur, r)
+    assert stored["rolling_28_n"] == 28
+    assert stored["rolling_28_window_days"] == 28
+    assert str(stored["rolling_28_from"]) == str(AS_OF - dt.timedelta(days=27))
+    assert str(stored["rolling_28_to"]) == str(AS_OF)
+    assert float(stored["rolling_28"]) == 73.5, stored
+    assert "the median was 73.5 ms" in r["answer_text"], r["answer_text"]
+    # The halves are still reported; the rolling figure adds to them, it does not replace them.
+    assert stored["n_first"] == 20 and stored["n_second"] == 20
+
+
+def test_RULE_06_a_thin_rolling_window_states_the_shortfall_rather_than_a_median(ask_cur):
+    """A median of a handful of days must not be presented as a 28-day figure.
+
+    Reporting one anyway is the plausible-value failure RULE-06 exists to prevent: the number
+    would be real arithmetic over the wrong window, and nothing in the sentence would say so.
+    """
+    cur = ask_cur
+    register_metric(cur, "hrv_sdnn_ms", "HRV", "ms")
+    for i in range(13):                       # 13 days, one below the 14-day floor
+        panel(cur, "hrv_sdnn_ms", AS_OF - dt.timedelta(days=12 - i), 50 + i)
+
+    r = ask(cur, "has my hrv changed last 13 days")
+    stored = stored_result(cur, r)
+    assert stored["rolling_28"] is None, stored
+    assert stored["rolling_28_n"] == 13
+    assert "too few for a 28-day median" in r["answer_text"]
+    # And the sentence names the actual count, so the shortfall is legible.
+    assert "only 13 days with data" in r["answer_text"]
+
+
+def test_REQ_NAR_012_every_numeral_in_the_rolling_clause_traces_to_a_stored_value(ask_cur):
+    """The clause is ASSEMBLED from stored numbers, never computed during narration.
+
+    It exists only because the template mechanism has no conditional. Each numeral it emits
+    must still appear in the persisted result, or the verifier discards the whole answer —
+    which is what happened when an earlier version put a raw date in the template and its
+    digits (2026 / 09 / 08) matched no stored value.
+    """
+    import re
+    cur = ask_cur
+    register_metric(cur, "hrv_sdnn_ms", "HRV", "ms")
+    for i in range(40):
+        panel(cur, "hrv_sdnn_ms", AS_OF - dt.timedelta(days=39 - i), 48 + i)
+
+    r = ask(cur, "has my hrv changed last 40 days")
+    assert "did not pass numeral verification" not in r["answer_text"]
+    stored = stored_result(cur, r)
+    stored_numerals = set()
+    for v in stored.values():
+        stored_numerals.update(re.findall(r"[-+]?[0-9]+(?:\.[0-9]+)?", str(v)))
+    for numeral in re.findall(r"[-+]?[0-9]+(?:\.[0-9]+)?", r["answer_text"]):
+        assert numeral in stored_numerals, f"{numeral!r} is in the answer but not in the result"
+
+
+# ------------------------------------------------------------------ executor write separation
+
+LEDGER_TABLES = ("questions", "computations", "render_violations")
+
+
+def test_REQ_ASK_005_the_executor_writes_only_its_own_ledger(ask_cur):
+    """The executor reads the record and writes nothing but the question/computation ledger.
+
+    `ask` cannot run inside a READ ONLY transaction, because it must persist the computation
+    BEFORE narration (REQ-ASK-006). So the separation is proven the other way: every mutating
+    statement in the function targets one of three ledger tables, and nothing else in the
+    database is written by answering a question. A `spend` or `compare` answer must never
+    alter `analysis.panel`, `core.atoms` or any registry.
+    """
+    import re
+    cur = ask_cur
+    body = (ROOT / "migrations" / "0049_ask_core.sql").read_text()
+    fn_start = body.index("CREATE OR REPLACE FUNCTION public.ask(")
+    fn = body[fn_start:body.index("$fn$;", fn_start)]
+
+    mutations = re.findall(
+        r"\b(insert\s+into|update|delete\s+from)\s+([A-Za-z_.]*[A-Za-z_]+)", fn, re.IGNORECASE)
+    assert mutations, "the ledger writes must be findable, or this test proves nothing"
+    for verb, target in mutations:
+        table = target.rsplit(".", 1)[-1]
+        assert table in LEDGER_TABLES, \
+            f"the executor performs `{verb} {target}` — only {LEDGER_TABLES} may be written"
+
+
+def test_REQ_ASK_005_answering_a_question_changes_no_observation(ask_cur):
+    """Behavioural counterpart: the record is byte-identical before and after a question.
+
+    The static check above cannot see a write performed through a function `ask` calls; this
+    one compares the actual contents of the observation tables across a batch of questions
+    covering every operation branch.
+    """
+    cur = ask_cur
+    _two_metrics(cur)
+    cur.execute("""INSERT INTO analysis_pytest.contrasts
+        (contrast_id, run_date, driver, outcome, lag_days, seeded, n_hi, n_lo,
+         med_hi, med_lo, delta, p_raw, q_fdr, code_version)
+        VALUES ('c1',%s,'steps','hrv_sdnn_ms',0,true,40,40,100,100,-5.0,0.001,0.01,'scan-v1')""",
+        (AS_OF - dt.timedelta(days=1),))
+
+    def snapshot():
+        out = {}
+        for table in ("analysis_pytest.panel", "analysis_pytest.contrasts",
+                      "ask_core_pytest.metric_registry", "ask_core_pytest.atoms",
+                      "ask_core_pytest.hypothesis_register", "config_pytest.operations",
+                      "config_pytest.ask_templates", "config_pytest.ask_grammar"):
+            cur.execute(f"SELECT count(*), coalesce(md5(string_agg(t::text, '|' ORDER BY t::text)), '') "
+                        f"FROM {table} t")
+            out[table] = cur.fetchone()
+        return out
+
+    before = snapshot()
+    for question in ("how is my steps last 10 days",
+                     "has my steps changed last 10 days",
+                     "which weekday is my steps last 10 days",
+                     "when did i last log my steps",
+                     "how many days my steps above 5 last 10 days",
+                     "my hrv on days when my steps are above 5000 last 10 days",
+                     "does my steps affect my hrv last 10 days",
+                     "how much did i spend at mcdonalds last 10 days",
+                     "what is my blood pressure"):
+        ask(cur, question)
+    after = snapshot()
+
+    assert before == after, "answering a question mutated the record"
+
+    # And the ledger DID grow, so the comparison above is not vacuous.
+    cur.execute("SELECT count(*) FROM ask_core_pytest.questions")
+    assert cur.fetchone()[0] >= 9

@@ -63,7 +63,7 @@ CREATE TABLE IF NOT EXISTS config.ask_templates (
 REVOKE ALL ON config.ask_templates FROM anon, authenticated;
 INSERT INTO config.ask_templates (op, tier, template) VALUES
  ('describe','DESCRIPTIVE','Your {display} was typically {median} {unit} over {range} ({n} of {days} days with data). Your usual range was {p10} to {p90}.'),
- ('trend','DESCRIPTIVE','Your {display} ran {second} {unit} in the second half of {range} against {first} {unit} in the first ({n} of {days} days with data).'),
+ ('trend','DESCRIPTIVE','Your {display} ran {second} {unit} in the second half of {range} against {first} {unit} in the first ({n} of {days} days with data). {rolling_28_clause}'),
  ('rhythm','DESCRIPTIVE','Your {display} was highest on {hi_day} ({hi} {unit}) and lowest on {lo_day} ({lo} {unit}) over {range}.'),
  ('last','DESCRIPTIVE','The last {display} on record is {value} {unit} on {day}, {since} days ago.'),
  ('count_days','DESCRIPTIVE','{k} of {n} days over {range}.'),
@@ -376,7 +376,7 @@ DECLARE
     words text[]; cond_txt text; hit text; term text; metric_text text; entity_text text;
     condition_match text[]; condition_value numeric; condition_direction text; condition_input text;
     cond_band boolean; compare_lag int; cond_metric record; n_outcome_days int;
-    reverse_finding record; reverse_contrast record;
+    reverse_finding record; reverse_contrast record; r2 jsonb;
     numeral_valid boolean := true;
 BEGIN
     IF coalesce((auth.jwt()->>'email'), '') <> 'joseph.delany21@gmail.com' THEN
@@ -510,6 +510,8 @@ BEGIN
                      (WHERE p.day < rng.d_from + (n_days/2))::numeric, m1.metric),
                  'second', public._ask_round(percentile_cont(0.5) WITHIN GROUP (ORDER BY p.value) FILTER
                      (WHERE p.day >= rng.d_from + (n_days/2))::numeric, m1.metric),
+                 'n_first', count(*) FILTER (WHERE p.day < rng.d_from + (n_days/2)),
+                 'n_second', count(*) FILTER (WHERE p.day >= rng.d_from + (n_days/2)),
                  'n', count(*), 'days', n_days)
           INTO res FROM analysis.f_daily_panel(as_of) p
          WHERE p.metric = m1.metric AND p.day BETWEEN rng.d_from AND rng.d_to;
@@ -523,6 +525,43 @@ BEGIN
                 'range', jsonb_build_array(rng.d_from, rng.d_to),
                 'would_raise_it', 'Record observations in both halves of the requested period before comparing them.');
         END IF;
+        -- The 28-day rolling median AT RANGE END (B11's registered trend contract). Two halves
+        -- answer "did it move across this period"; the rolling figure answers "where is it
+        -- now", which is a different question and the one a reader actually acts on. It is
+        -- computed over the 28 days ENDING at the range end — which may reach back BEFORE the
+        -- requested range, so its own window and day count are reported rather than implied.
+        -- A window with too few observed days reports NULL rather than a median of three days
+        -- dressed up as a 28-day figure (RULE-06: a gap, never a plausible value).
+        SELECT jsonb_build_object(
+                 'rolling_28', CASE WHEN count(*) >= 14
+                     THEN public._ask_round(percentile_cont(0.5) WITHIN GROUP (ORDER BY p.value)::numeric,
+                                            m1.metric) END,
+                 'rolling_28_n', count(*),
+                 'rolling_28_from', (rng.d_to - 27),
+                 'rolling_28_to', rng.d_to,
+                 'rolling_28_min_days', 14,
+                 -- The window length is a RESULT field, not a literal in the sentence: every
+                 -- numeral the answer emits must trace to a stored value (REQ-NAR-012), and a
+                 -- date written into the template tokenises into 2026 / 09 / 08, none of which
+                 -- is a stored value. The exact dates stay in the computation for the trace.
+                 'rolling_28_window_days', 28,
+                 -- An assembled fragment, not a computed one: every number inside it is
+                 -- already a stored field above, and the clause only chooses which of them to
+                 -- say. It exists because the template mechanism has no conditional, and the
+                 -- alternative — leaving an empty slot when the window is too thin — renders
+                 -- "the median was  ms", which reads as a missing value rather than as the
+                 -- explicit statement that there were not enough days (RULE-18).
+                 'rolling_28_clause', CASE WHEN count(*) >= 14
+                     THEN 'Over the most recent 28 days the median was '
+                          || public._ask_round(percentile_cont(0.5) WITHIN GROUP (ORDER BY p.value)::numeric,
+                                               m1.metric)::text
+                          || ' ' || coalesce(m1.unit,'') || ', from ' || count(*)::text
+                          || ' days with data.'
+                     ELSE 'The most recent 28 days hold only ' || count(*)::text
+                          || ' days with data, too few for a 28-day median.' END)
+          INTO r2 FROM analysis.f_daily_panel(as_of) p
+         WHERE p.metric = m1.metric AND p.day BETWEEN rng.d_to - 27 AND rng.d_to;
+        res := res || r2;
     ELSIF op = 'rhythm' THEN
         SELECT jsonb_build_object('hi_day', hi.dow, 'hi', hi.med, 'lo_day', lo.dow, 'lo', lo.med,
                                   'n', (SELECT count(*) FROM analysis.f_daily_panel(as_of) p
