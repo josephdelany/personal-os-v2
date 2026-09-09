@@ -1042,6 +1042,12 @@ BEGIN
           FROM __CORE__.atoms_current a
          WHERE a.kind = 'transaction'
            AND a.subject_day BETWEEN rng.d_from AND rng.d_to AND a.subject_day <= as_of
+           -- RULE-04 / INV-4 / REQ-ASK-030: what was KNOWN by as_of, not what is known now.
+           -- A subject-day cutoff alone lets an atom about an old day, recorded today, enter
+           -- a replay of a question asked before it existed. `atoms.recorded_at` is trigger-set
+           -- (0012) and was simply not used — unlike the panel (OQ-45), this cutoff is
+           -- available. The `+1 day` reads the whole of the as-of day.
+           AND a.recorded_at < (as_of + 1)::timestamptz
            AND a.evidence_span ILIKE '%' || public._ask_like_escape(entity_text) || '%';
         IF n_outcome_days > 1 OR n_null_unit > 0 THEN
             SELECT value INTO refusal FROM config.strings WHERE key = 'refusal_insufficient';
@@ -1079,6 +1085,7 @@ BEGIN
           FROM __CORE__.atoms_current a
          WHERE a.kind = 'transaction'
            AND a.subject_day BETWEEN rng.d_from AND rng.d_to AND a.subject_day <= as_of
+           AND a.recorded_at < (as_of + 1)::timestamptz            -- RULE-04, as above
            AND a.evidence_span ILIKE '%' || public._ask_like_escape(entity_text) || '%';
 
         IF coalesce((res->>'n_out')::int, 0) = 0 THEN
@@ -1169,6 +1176,11 @@ BEGIN
                      'q', r2->>'q',
                      'hits', r3,
                      'n_all_time', coalesce((r2->>'n')::int, 0),
+                     -- `search_record` reads the legacy tables, which carry no per-row
+                     -- recorded_at, so hits are bounded by subject day only. A record ingested
+                     -- after this as_of is still returned. Stated here because an undisclosed
+                     -- replay gap reads as a replay guarantee (OQ-45's neighbourhood).
+                     'point_in_time', 'subject_day_only',
                      'by_month', coalesce(r2->'by_month', '[]'::jsonb));
             IF coalesce((res->>'n')::int, 0) = 0 THEN
                 SELECT value INTO refusal FROM config.strings WHERE key = 'refusal_insufficient';
@@ -1291,6 +1303,7 @@ BEGIN
           INTO keys FROM __CORE__.atoms_current a
          WHERE a.kind = 'transaction'
            AND a.subject_day BETWEEN rng.d_from AND rng.d_to AND a.subject_day <= as_of
+           AND a.recorded_at < (as_of + 1)::timestamptz            -- RULE-04, as above
            AND a.evidence_span ILIKE '%' || public._ask_like_escape(coalesce(res->>'matched_on','')) || '%';
     ELSIF op = 'search' THEN
         -- `search_record` already returns each hit's source table and row id; carrying them
@@ -1336,7 +1349,27 @@ BEGIN
          WHERE t.op = 'insufficient' LIMIT 1;
     END IF;
     answer := templ;
-    answer := replace(answer, '{display}', coalesce(m1.display, ''));
+    -- REQ-ASK-022: an INSUFFICIENT answer names the metric with the LOWEST coverage, not the
+    -- first one. `{display}` was always m1 — the driver — so a two-metric answer named the
+    -- metric at FULL coverage, left the short one unnamed, and offered the wrong remedy.
+    low_metric := m1.metric;
+    IF tier = 'INSUFFICIENT' THEN
+        SELECT k.key INTO low_metric
+          FROM jsonb_each_text(coalesce(cov, '{}'::jsonb)) k
+         ORDER BY (k.value)::numeric ASC, k.key LIMIT 1;
+        IF low_metric IS NOT NULL AND low_metric <> m1.metric THEN
+            SELECT mr.display_name INTO term FROM __CORE__.metric_registry mr
+             WHERE mr.metric_key = low_metric;
+            SELECT d.capture_action INTO raise_action FROM config.domain_metrics dm
+              JOIN config.domains d ON d.domain_key = dm.domain_key
+             WHERE dm.metric = low_metric LIMIT 1;
+        ELSE
+            term := m1.display;
+        END IF;
+    ELSE
+        term := m1.display;
+    END IF;
+    answer := replace(answer, '{display}', coalesce(term, m1.display, ''));
     -- `res.unit` first. It has already been set to the unit the VALUE is in — the outcome's
     -- for a two-metric operation — and preferring m1's here re-introduced the driver's unit
     -- into the sentence after the result had been corrected.

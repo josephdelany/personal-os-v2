@@ -340,7 +340,13 @@ def test_REQ_ASK_004_spend_without_a_subject_is_refused(ask_cur):
     assert r["reason"] == "no_spend_subject"
 
 
-def _txn_atom(cur, day, amount, descriptor, unit="usd"):
+def _txn_atom(cur, day, amount, descriptor, unit="usd", recorded_at=None):
+    """`recorded_at` defaults to the subject day, which is what a real import produces.
+
+    Leaving it at `now()` made every fixture atom "learned today", so a question asked as of
+    yesterday correctly excluded them — the RULE-04 cutoff working, on data no real capture
+    would look like.
+    """
     cur.execute("""INSERT INTO ask_core_pytest.metric_registry
         (metric_key, display_name, family, unit, state_class)
         VALUES ('transaction_amount_usd','Transaction amount','finance','usd','total')
@@ -360,9 +366,14 @@ def _txn_atom(cur, day, amount, descriptor, unit="usd"):
          estimate_method, unit, state_class, trust_level, provenance, evidence_span,
          code_version)
         VALUES (%s,'transaction','transaction_amount_usd',%s,'day',%s,'v1-2026-08-23',
-                'observed',%s,%s,%s,'measured',%s,'total','trusted','extracted',%s,'t')""",
+                'observed',%s,%s,%s,'measured',%s,'total','trusted','extracted',%s,'t')
+        RETURNING id""",
         (cap, dt.datetime.combine(day, dt.time(12), tzinfo=dt.timezone.utc), day,
          amount, amount, amount, unit, descriptor))
+    atom_id = cur.fetchone()[0]
+    cur.execute("UPDATE ask_core_pytest.atoms SET recorded_at = %s WHERE id = %s",
+                (recorded_at or dt.datetime.combine(day, dt.time(12), tzinfo=dt.timezone.utc),
+                 atom_id))
 
 
 def test_REQ_ASK_027_spend_separates_outflow_from_inflow_and_never_nets_them(ask_cur):
@@ -1692,3 +1703,69 @@ def test_REQ_ASK_003_the_second_metric_has_the_same_similarity_floor_as_the_firs
     _store_contrast(cur, "steps", "hrv_sdnn_ms", 0, delta=-7.5, run_date=dt.date(2026, 9, 1))
     ok = ask(cur, "does my steps affect my hrv last 10 days")
     assert ok.get("refusal") is None, ok
+
+
+def test_RULE_04_spend_excludes_a_charge_recorded_after_the_as_of(ask_cur):
+    """Round-4 finding 2: spend read atoms with a subject-day cutoff and no `recorded_at` one.
+
+    An atom about an old day, recorded today, entered a replay of a question asked before it
+    existed — the same total changed from 10.00 to 35.00 for an unchanged question and as_of.
+    Unlike the panel case (OQ-45), `atoms.recorded_at` exists and is trigger-set; it was simply
+    not used.
+    """
+    cur = ask_cur
+    as_of = AS_OF - dt.timedelta(days=30)
+    day = as_of - dt.timedelta(days=5)
+    _txn_atom(cur, day, -10.00, "bank:x;merchant=Coffee;descriptor=COFFEE BAR")
+
+    before = ask(cur, "how much did i spend at coffee last 30 days", as_of=as_of)
+    assert float(stored_result(cur, before)["total_out"]) == 10.00
+
+    # A charge for the SAME old day, learned today.
+    _txn_atom(cur, day, -25.00, "bank:x;merchant=Coffee;descriptor=COFFEE LATE",
+              recorded_at=dt.datetime.combine(AS_OF, dt.time(12), tzinfo=dt.timezone.utc))
+
+    after = ask(cur, "how much did i spend at coffee last 30 days", as_of=as_of)
+    assert float(stored_result(cur, after)["total_out"]) == 10.00, \
+        "a charge recorded after the as_of must not enter an earlier answer"
+
+    # And it IS visible to a question asked once it was known.
+    now = ask(cur, "how much did i spend at coffee last 90 days", as_of=AS_OF)
+    assert float(stored_result(cur, now)["total_out"]) == 35.00
+
+
+def test_REQ_ASK_030_search_discloses_that_it_is_only_subject_day_bounded(ask_cur):
+    """`search_record` reads the legacy tables, which carry no per-row `recorded_at`.
+
+    The cutoff cannot be applied there, so the answer says so. An undisclosed replay gap reads
+    as a replay guarantee.
+    """
+    cur = ask_cur
+    for i in range(2):
+        _event(cur, AS_OF - dt.timedelta(days=i), "chrome_visit",
+               {"title": "postgres indexes", "domain": "example.com"})
+    r = ask(cur, "postgres indexes last 10 days")
+    assert stored_result(cur, r)["point_in_time"] == "subject_day_only"
+
+
+def test_REQ_ASK_022_the_insufficient_answer_names_the_metric_that_is_short(ask_cur):
+    """Round-4 finding 5: it named the metric at FULL coverage.
+
+    `{display}` is always m1 — the driver — so a two-metric answer named the well-observed
+    metric, left the short one unnamed, and offered the wrong metric's remedy. REQ-ASK-022 asks
+    for the metric with the lowest coverage.
+    """
+    cur = ask_cur
+    register_metric(cur, "hrv_sdnn_ms", "HRV", "ms")
+    for i in range(1, 11):
+        day = AS_OF - dt.timedelta(days=10 - i)
+        panel(cur, "steps", day, i * 1000)          # observed on all 10
+        if i <= 4:
+            panel(cur, "hrv_sdnn_ms", day, 40 + i)  # observed on 4 of 10
+    _store_contrast(cur, "steps", "hrv_sdnn_ms", 0, delta=-7.5, run_date=dt.date(2026, 9, 1))
+
+    r = ask(cur, "does my steps affect my hrv last 10 days")
+    assert r["tier"] == "INSUFFICIENT", r
+    text = r.get("answer_text") or ""
+    assert "HRV" in text, f"the short metric must be named: {text}"
+    assert "Steps" not in text, f"the well-observed metric must not be blamed: {text}"

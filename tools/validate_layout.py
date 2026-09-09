@@ -227,7 +227,10 @@ try:
     else:
         ok("no committed coordinate/home-location literal (RULE-29 static tripwire; runtime egress proof owed Phase 3/4)")
 except Exception as e:
-    warn(f"could not run the RULE-29 coordinate-literal check: {e}")
+    # A LINT-tier gate that exits 0 having skipped ITSELF is a gate that can pass without
+    # checking. RULE-29 and RULE-22 are the two rules whose enforcement tier is LINT, so a
+    # skipped run is a failure, not a warning (RULE-00).
+    fail(f"the RULE-29 coordinate-literal check could not run: {e}")
 
 # ---------- 11. forbidden-import lint (RULE-29 egress boundary; closes OQ-15) ----------
 # RULE-29 requires every outbound request to go through the egress-logged path. A shell
@@ -260,7 +263,7 @@ try:
     else:
         ok("no network-capable import outside lib/egress.py or lib/db.py (RULE-29 tier LINT; OQ-15 closed)")
 except Exception as e:
-    warn(f"could not run the forbidden-import lint: {e}")
+    fail(f"the RULE-22 forbidden-import lint could not run: {e}")
 
 # ---------- 12. REQ-LOC-005 / ADR-0044: no code outside migrations/ names the location store ----------
 # The restricted schema is readable only by SECURITY DEFINER SQL inside the database. If a Python job,
