@@ -1012,3 +1012,74 @@ def test_REQ_ASK_005_search_and_entity_persist_a_computation_before_narrating(as
                         WHERE question_id = %s""", (r["question_id"],))
         assert cur.fetchone()[0] == 1, f"{question!r} persisted no computation"
         assert stored_result(cur, r), question
+
+
+# ------------------------------------------------------------------ replay and isolation
+
+def test_REQ_ASK_030_reexecuting_the_same_question_at_the_same_as_of_is_identical(ask_cur):
+    """The same question, same as-of, must produce the same numbers.
+
+    This is the weaker half of replay and it is the half that is actually true today: the
+    executor is deterministic over the data it can see. The stronger half — the same answer
+    after later data arrives — is NOT proven here and cannot be, because `analysis.panel` is
+    rebuilt wholesale by `panel.build` and carries no per-observation `recorded_at`. That is
+    OQ-45 and it is named in the checkpoint rather than implied by this test's name.
+    """
+    cur = ask_cur
+    register_metric(cur, "hrv_sdnn_ms", "HRV", "ms")
+    for i in range(1, 11):
+        day = AS_OF - dt.timedelta(days=10 - i)
+        panel(cur, "steps", day, i * 1000)
+        panel(cur, "hrv_sdnn_ms", day, 40 + i)
+
+    for question in ("how is my steps last 10 days",
+                     "has my steps changed last 10 days",
+                     "which weekday is my steps last 10 days",
+                     "how many days my steps above 5000 last 10 days",
+                     "my hrv on days when my steps are above 5000 last 10 days"):
+        first, second = ask(cur, question), ask(cur, question)
+        assert first["question_id"] != second["question_id"], "each asking is its own question"
+        assert stored_result(cur, first) == stored_result(cur, second), question
+        assert first.get("answer_text") == second.get("answer_text"), question
+        assert first.get("tier") == second.get("tier"), question
+
+
+def test_REQ_ASK_030_a_later_observation_changes_a_later_as_of_only(ask_cur):
+    """Data recorded for a day AFTER the as-of must not enter an earlier answer.
+
+    `f_daily_panel(as_of)` bounds the panel by subject day, so an observation dated after the
+    as-of is invisible. This proves that bound holds; it does NOT prove replay against a
+    correction to an EARLIER day, which the panel cannot express (OQ-45).
+    """
+    cur = ask_cur
+    for i in range(1, 11):
+        panel(cur, "steps", AS_OF - dt.timedelta(days=10 - i), i * 1000)
+    before = stored_result(cur, ask(cur, "how is my steps last 10 days"))
+
+    # A day after the as-of.
+    panel(cur, "steps", AS_OF + dt.timedelta(days=1), 999999)
+    after = stored_result(cur, ask(cur, "how is my steps last 10 days"))
+    assert after == before, "an observation dated after the as-of leaked into the answer"
+
+    # And it IS visible to a question asked later, so the bound is a cutoff, not a filter bug.
+    later = stored_result(cur, ask(cur, "how is my steps last 12 days",
+                                   as_of=AS_OF + dt.timedelta(days=1)))
+    assert float(later["max"]) == 999999.0, later
+
+
+def test_RULE_29_the_ask_executor_makes_no_outbound_call(ask_cur):
+    """Ask is the deterministic path and must not reach the network (RULE-15, RULE-29).
+
+    Personal data leaves this system only through the egress-logged client. A SQL executor
+    that could open a socket — via an http extension, `pg_net`, `dblink`, or COPY FROM PROGRAM
+    — would be an unlogged egress path sitting directly on the record.
+    """
+    import re
+    body = (ROOT / "migrations" / "0049_ask_core.sql").read_text().lower()
+    for capability in ("pg_net", "dblink", "http_get", "http_post", "extensions.http",
+                       "copy ", "program ", "pg_read_file", "pg_ls_dir"):
+        assert capability not in body, f"the Ask migration references {capability!r}"
+
+    # And no extension beyond the trigram matcher the metric resolver needs.
+    extensions = set(re.findall(r"create extension(?: if not exists)?\s+([a-z_]+)", body))
+    assert extensions <= {"pg_trgm"}, extensions
