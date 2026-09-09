@@ -79,6 +79,25 @@ def ask_cur(sql_connection):
         for verb in ("CREATE TABLE IF NOT EXISTS", "INSERT INTO")
         for table in ("config.medical_vocabulary", "config.strings", "analysis.render_violations")
     ))
+    # The legacy tables `search_record` and `get_entity` read. They are created empty and to
+    # the shape those functions expect: the point is to exercise the real functions against
+    # the real column names, not a stand-in whose contract could drift from theirs.
+    cur.execute("""CREATE TABLE public_pytest.events (
+        id BIGSERIAL PRIMARY KEY, user_id UUID, ts TIMESTAMPTZ NOT NULL, kind TEXT NOT NULL,
+        payload JSONB, ingested_at TIMESTAMPTZ DEFAULT now())""")
+    cur.execute("""CREATE TABLE public_pytest.transactions (
+        id BIGSERIAL PRIMARY KEY, user_id UUID, ts TIMESTAMPTZ NOT NULL, amount NUMERIC,
+        currency TEXT, merchant TEXT, category TEXT, source TEXT, meta JSONB,
+        ingested_at TIMESTAMPTZ DEFAULT now())""")
+    # Column names taken from the live table, not guessed: `search_record` reads `type` and
+    # `note`, and a stub with different columns fails at runtime inside the function under
+    # test rather than at fixture build, which reads as a defect in the caller.
+    cur.execute("""CREATE TABLE public_pytest.checkins (
+        id BIGSERIAL PRIMARY KEY, user_id UUID, ts TIMESTAMPTZ NOT NULL,
+        checkin_date DATE, type TEXT, note TEXT, meta JSONB,
+        ingested_at TIMESTAMPTZ DEFAULT now())""")
+    apply_file("0036_search_record.sql")
+    apply_file("0037_get_entity.sql")
     apply_file("0049_ask_core.sql")
     cur.execute("SELECT set_config('request.jwt.claims', %s, true)",
                 ('{"email":"joseph.delany21@gmail.com"}',))

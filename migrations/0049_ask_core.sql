@@ -895,9 +895,61 @@ BEGIN
         END IF;
 
     ELSE
-        op := 'search';
-        SELECT public.search_record(regexp_replace(p_question, '[?]', '', 'g'), 20) INTO res;
-        res := jsonb_build_object('n', coalesce((res->>'n')::int, 0));
+        -- `entity` before `search`: a question naming something the record knows as an entity
+        -- — a merchant, a category, a site, a channel, an exercise — is answered by that
+        -- entity's own summary, not by a text search that happens to mention it. The
+        -- operation was registered in `config.operations` from the start and was unreachable:
+        -- no grammar pattern routed to it and `get_entity` was never called, so a registered
+        -- operation existed that nothing could ever run (REQ-ASK-004's registry is meant to
+        -- be exhaustive in both directions).
+        -- The ORIGINAL question text, not the lowercased `q`: `get_entity` matches a merchant
+        -- key exactly, so "Blue Bottle Coffee" and "blue bottle coffee" are different keys and
+        -- lowercasing makes every entity unresolvable. Grammar matching stays case-insensitive;
+        -- only the key does not.
+        entity_text := trim(regexp_replace(p_question, '(?i)^(what|who|tell me) (is|about) ', ''), ' ?');
+        entity_text := trim(regexp_replace(entity_text,
+            '(?i)\s+(today|yesterday|this (week|month|year)|last [0-9]+ days?|last (week|month)|since .+|in [0-9]{4})[?]?$', ''), ' ?');
+        FOREACH term IN ARRAY ARRAY['merchant','category','site','channel','exercise'] LOOP
+            SELECT public.get_entity(term, entity_text) INTO r2;
+            -- `get_entity` reports an unknown key as `{n: 0, note: "Nothing recorded ..."}`
+            -- with NO `refusal` field, so testing for a refusal alone treats every unknown
+            -- name as a successful entity answer — including one that is plainly a search.
+            -- The emptiness test is `n`.
+            IF r2 IS NOT NULL AND r2->>'refusal' IS NULL
+               AND coalesce((r2->>'n')::int, 0) > 0 THEN
+                op := 'entity';
+                res := jsonb_build_object('entity_type', term, 'entity_key', entity_text,
+                                          'n', (r2->>'n')::int,
+                                          'summary', coalesce(r2->>'summary',
+                                              entity_text || ': ' || (r2->>'n') || ' records'),
+                                          'entity', r2);
+                EXIT;
+            END IF;
+        END LOOP;
+
+        IF op <> 'entity' THEN
+            op := 'search';
+            -- The full `search_record` payload is carried, not a count wrapper. The count
+            -- alone cannot be traced back to anything: REQ-ASK-009 requires every rendered
+            -- numeral to reach a stored result, and an answer that says "12 records mention
+            -- that" with no record identities behind it is unverifiable by construction.
+            SELECT public.search_record(regexp_replace(p_question, '[?]', '', 'g'), 20) INTO r2;
+            res := jsonb_build_object(
+                     'n', coalesce((r2->>'n')::int, 0),
+                     'q', r2->>'q',
+                     'hits', coalesce(r2->'hits', '[]'::jsonb),
+                     'by_month', coalesce(r2->'by_month', '[]'::jsonb));
+            IF coalesce((res->>'n')::int, 0) = 0 THEN
+                SELECT value INTO refusal FROM config.strings WHERE key = 'refusal_insufficient';
+                UPDATE __CORE__.questions SET refusal = ask_state.refusal, tier = 'INSUFFICIENT'
+                 WHERE question_id = qid;
+                RETURN jsonb_build_object('question_id', qid, 'tier', 'INSUFFICIENT',
+                    'refusal', refusal, 'insufficiency_reason', 'metric_absent',
+                    'q', r2->>'q', 'n', 0,
+                    'would_raise_it', 'Nothing in the record matches those words over this range.');
+            END IF;
+        END IF;
+
     END IF;
 
     -- tier (REQ-ASK-020): the op ceiling, floored by coverage (REQ-TIER-017)

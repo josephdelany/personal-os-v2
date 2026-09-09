@@ -825,3 +825,108 @@ def test_REQ_ASK_005_answering_a_question_changes_no_observation(ask_cur):
     # And the ledger DID grow, so the comparison above is not vacuous.
     cur.execute("SELECT count(*) FROM ask_core_pytest.questions")
     assert cur.fetchone()[0] >= 9
+
+
+# ------------------------------------------------------------------ search and entity payloads
+
+def _event(cur, day, kind, payload):
+    cur.execute("""INSERT INTO public_pytest.events (ts, kind, payload)
+                   VALUES (%s,%s,%s::jsonb)""",
+                (dt.datetime.combine(day, dt.time(12), tzinfo=dt.timezone.utc), kind,
+                 json.dumps(payload)))
+
+
+def _transaction(cur, day, amount, merchant, category="food"):
+    cur.execute("""INSERT INTO public_pytest.transactions
+                     (ts, amount, currency, merchant, category, source)
+                   VALUES (%s,%s,'USD',%s,%s,'test')""",
+                (dt.datetime.combine(day, dt.time(12), tzinfo=dt.timezone.utc),
+                 amount, merchant, category))
+
+
+def test_REQ_ASK_009_search_returns_the_records_not_only_a_count(ask_cur):
+    """A bare count cannot be traced back to anything.
+
+    REQ-ASK-009 requires every rendered numeral to reach a stored result. "12 records mention
+    that", with no record identities behind it, is unverifiable by construction — the number
+    is real but nothing can be checked against it. The full `search_record` payload is carried
+    into the computation.
+    """
+    cur = ask_cur
+    for i in range(3):
+        _event(cur, AS_OF - dt.timedelta(days=i), "chrome_visit",
+               {"title": "kubernetes networking notes", "domain": "example.com"})
+
+    r = ask(cur, "kubernetes networking")
+    assert r["op"] == "search", r
+    stored = stored_result(cur, r)
+    assert stored["n"] == 3, stored
+    assert isinstance(stored["hits"], list) and len(stored["hits"]) == 3, stored
+    assert stored["q"], "the executed query text must be stored"
+    assert isinstance(stored["by_month"], list)
+    assert "3 records" in r["answer_text"]
+
+
+def test_REQ_ASK_023_a_search_matching_nothing_refuses_rather_than_reporting_zero(ask_cur):
+    """RULE-18: absent evidence is disclosed as absent, with what would settle it.
+
+    "0 records mention that" is a number standing in for an answer; the stored refusal form
+    says the record holds nothing matching.
+    """
+    cur = ask_cur
+    r = ask(cur, "xylophone thermodynamics")
+    assert r["tier"] == "INSUFFICIENT"
+    assert r["refusal"] == "We do not have enough to answer this."
+    assert r["insufficiency_reason"] == "metric_absent"
+    assert r["n"] == 0
+    assert "would_raise_it" in r
+
+
+def test_REQ_ASK_004_entity_is_reachable_and_answers_from_get_entity(ask_cur):
+    """The `entity` operation was registered and unreachable.
+
+    `config.operations` listed it from the start, but no grammar pattern routed to it and
+    `get_entity` was never called — a registered operation nothing could run. A question
+    naming something the record knows as an entity is answered by that entity's own summary,
+    not by a text search that happens to mention it.
+    """
+    cur = ask_cur
+    for i in range(4):
+        _transaction(cur, AS_OF - dt.timedelta(days=i), -12.50, "Blue Bottle Coffee")
+
+    r = ask(cur, "Blue Bottle Coffee")
+    assert r["op"] == "entity", r
+    stored = stored_result(cur, r)
+    assert stored["entity_type"] == "merchant"
+    assert stored["entity_key"] == "Blue Bottle Coffee"
+    assert stored["entity"], "the full get_entity response must be carried, not just a summary"
+    assert r["tier"] == "DESCRIPTIVE"
+
+
+def test_REQ_ASK_004_an_unknown_entity_falls_through_to_search(ask_cur):
+    """Entity resolution must not swallow a question it cannot answer.
+
+    A name `get_entity` does not know is not an entity answer; it falls through to search,
+    which then refuses honestly if nothing matches either.
+    """
+    cur = ask_cur
+    r = ask(cur, "Nonexistent Merchant Ltd")
+    assert r.get("op") != "entity", r
+    assert r["tier"] == "INSUFFICIENT"
+    assert r["insufficiency_reason"] == "metric_absent"
+
+
+def test_REQ_ASK_005_search_and_entity_persist_a_computation_before_narrating(ask_cur):
+    """REQ-ASK-006 applies to every operation, including the two that were stubs."""
+    cur = ask_cur
+    for i in range(2):
+        _event(cur, AS_OF - dt.timedelta(days=i), "chrome_visit",
+               {"title": "postgres indexes", "domain": "example.com"})
+    _transaction(cur, AS_OF, -5.00, "Blue Bottle Coffee")
+
+    for question in ("postgres indexes", "Blue Bottle Coffee"):
+        r = ask(cur, question)
+        cur.execute("""SELECT count(*) FROM ask_core_pytest.computations
+                        WHERE question_id = %s""", (r["question_id"],))
+        assert cur.fetchone()[0] == 1, f"{question!r} persisted no computation"
+        assert stored_result(cur, r), question
