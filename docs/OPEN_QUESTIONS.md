@@ -1217,3 +1217,29 @@ blocked — they are additive.
 
 *What would settle it:* Joe's yes/no per type. `BasalEnergyBurned` is NOT in this list; it is
 an implementation gap owned by B18, because total expenditure needs it alongside active energy.
+
+**OQ-58 — The repository cannot rebuild the database from empty, and nobody knew.**
+
+`tools/verify_migration_chain.py` applies every migration in order to a disposable server.
+It stops at `0020_checkin_mirror.sql`, which reads `public.checkins` — a table no migration
+file creates. Thirty-four `public.*` tables are in that position: the old stack made them, the
+chain depends on them, the repository does not define them.
+
+The chain is clean once their shapes are supplied (54 migrations, 469 statements), so this is
+not a defect in any migration. It is a gap in the recovery story: if the Supabase project were
+lost, the repository could not rebuild the schema.
+
+*Why it is open:* there are two legitimate answers and they cost differently. Either (a) the
+legacy tables get real DDL under a migration number with their own ADR, making the repository
+self-sufficient and the chain a genuine recovery path; or (b) the recovery story is
+"restore the Supabase backup", the chain is explicitly not a rebuild path, and
+`_legacy_prerequisites.sql` stays a test fixture. (b) is cheaper and honest; (a) is what "$0
+recurring, forever" implies if the free tier ever ends and the data has to move.
+
+*What depends on it:* the disaster-recovery answer, and whether a fresh contributor or a fresh
+environment can stand the system up at all.
+
+*What would settle it:* Joe choosing (a) or (b). If (a), the DDL already exists in generated
+form and needs review, a migration number and an ADR — perhaps an hour.
+
+*Related:* ADR-0088, ADR-0025 (the legacy backfill is reconciled, not equal).
