@@ -5,7 +5,29 @@ based on `b606c64` (main).
 
 ## Active unit
 
-**M2 — deterministic Ask: the `spend` operation contract.**
+**M3 — shared model services: the egress/budget contract B11.2 depends on.**
+
+M2 closed every acceptance item except two, both held with named dependencies (see below).
+Per EXECUTION_PLAN, M3 pulls only the shared prerequisites from B12/B16 forward — numeric
+build order is not a dependency schedule — then completes B11.2, then the rest of B12/B16.
+
+Outcome: one egress contract (`lib/egress.py`) with a shared usage/budget ledger, so that
+Ask's planner, nutrition lookup and media transcription account against one budget rather
+than three. Requirement IDs: REQ-CAP-035..042 (neuron budget), REQ-NUT §E egress, RULE-28
+($0 recurring), RULE-29 (egress logging to `ops.egress_log`).
+
+Acceptance cases: every outbound model call writes an `ops.egress_log` row before the
+response is used; the shared budget is decremented once per call and is visible to all three
+consumers; exceeding it degrades to the deterministic path rather than billing; no coordinate
+or home location can reach a prompt; a failed call is recorded, not silently retried.
+
+### Previously active — M2, now closed except
+
+- **`spend`** — HELD on B14's merchant/category cascade (ADR-0062). Each blocked case is
+  mapped to its dependency there. Do not widen the substring match.
+- **Replay against a correction to an earlier day** — OQ-45. `analysis.panel` is rebuilt
+  wholesale and has no per-observation `recorded_at`. The as-of cutoff IS proven.
+- **B11.2** — now the active unit's successor, once the shared egress contract exists.
 
 Outcome: `spend` meets the finance contract instead of matching a descriptor substring.
 Requirement IDs: REQ-ASK-005/009/021/023/027, REQ-FIN-050/051 and the §D/§G spend
@@ -28,11 +50,10 @@ therefore to establish which part is closable now — see below — not to widen
 
 ## Next action
 
-Read `specs/03-finance/requirements.md` §D and §G in full, then record in an ADR which
-`spend` sub-contract is answerable from `transaction` atoms alone and which genuinely
-requires B14. Implement the closable part; hold the rest against B14 with the dependency
-named. What proves the unit complete: every acceptance case above either passes a named
-behavioural test or is recorded as held with its blocking dependency identified.
+Read `specs/02-capture-nutrition/requirements.md` REQ-CAP-035..042 and REQ-NUT §E, then
+build `lib/egress.py` with the shared budget ledger. What proves the unit complete: an
+outbound call cannot be made without an `ops.egress_log` row and a budget decrement, proven
+behaviourally, and the over-budget path degrades to deterministic rather than spending.
 
 ## Completed this session — do not redo
 
@@ -48,19 +69,22 @@ behavioural test or is recorded as held with its blocking dependency identified.
 
 ## Last command, result and revision
 
-```
-git clone --branch session-21-recovery-and-ask . && python3 tools/test_local_sql.py
-    179 passed in 93.84s              at 666fe43, clean checkout
+M2 integration boundary, all at `45535eb`:
 
-python3 tools/test_local_sql.py   TZ=America/New_York   179 passed   at 6225164
-python3 tools/test_local_sql.py   TZ=UTC                179 passed   at 6225164
-PYTHONPATH=. python3 tools/validate_layout.py           41 passed, 0 warnings, 0 failed
-PYTHONPATH=. python3 tools/check_invariants.py --core core   INVARIANTS: ALL PASS   at 092c77b
-PYTHONPATH=. python3 tools/update_features.py --strict  206 passed, 0 failed, 0 errors,
-                                                        55 skipped of 261   at 092c77b
-PYTHONPATH=. python3 tools/check_freshness.py --no-log  fresh=0 stale=4 misconfigured=1
-                                                        never_seen=12 unmonitored=6  [exit 1]
 ```
+PYTHONPATH=. python3 tools/update_features.py --strict
+    pytest: 206 passed, 0 failed, 0 errors, 114 skipped of 320 collected
+python3 tools/test_local_sql.py   TZ=America/New_York   186 passed
+python3 tools/test_local_sql.py   TZ=UTC                186 passed
+PYTHONPATH=. python3 tools/check_invariants.py --core core   INVARIANTS: ALL PASS
+PYTHONPATH=. python3 tools/validate_layout.py                41 passed, 0 warnings, 0 failed
+git diff --check                                             clean
+PYTHONPATH=. python3 tools/check_freshness.py --no-log       fresh=0 stale=4 misconfigured=1
+                                                             never_seen=12 unmonitored=6  [exit 1]
+```
+
+320 collected = 206 against production + 114 on the disposable server. Nothing skipped in
+both. `ops/features.json` unchanged — no ledger entry corresponds to Ask, B13 or freshness.
 
 The production suite and invariants predate the four Ask commits, all of which changed only
 `migrations/0049_ask_core.sql` (unapplied) and local-SQL tests the production job skips.
@@ -75,7 +99,9 @@ They are due at the next integration boundary — the M2 close — not because c
 | Ask describe/trend/rhythm/last/count_days | yes | yes | **no** — 0049 unapplied | no |
 | Ask compare/contrast/effect | yes | yes | no | no |
 | Ask search/entity | yes | yes | no | no |
-| Ask spend | **partial** | partial | no | no |
+| Ask replay (as-of cutoff) | yes | yes | no | no |
+| Ask replay (after corrections) | **no** — OQ-45 | no | no | no |
+| Ask spend | descriptor-scoped, disclosed | yes, for what it measures | no | no |
 | B11.2 planner | **no** | no | no | no |
 
 Verified live this session: migration 0051 is **not** applied — neither the `file_import`

@@ -5182,6 +5182,847 @@ no `ops/features.json` entry's requirement ID is carried by a B10 test.
   changeable only by migration, and the engine rebinds only the schema prefix — but it is still a stored
   string that gets executed, and that is worth knowing.
 
+
+## 2026-09-08 — Codex continuation: completion inventory and honest job status
+
+Goal remains the entire discussed project; NOT complete. Prior turn only confirmed
+the workspace (no implementation progress). This turn inspected current files and
+GitHub state and changed the status tool. `docs/COMPLETION_AUDIT.md` preserves the
+full scope and names the evidence still needed. Base commit: `b606c64`; changes
+remain uncommitted. Existing untracked handoff and migration 0049 were preserved.
+
+Requirement scope: REQ-NFR-003/004 operational evidence and failure visibility.
+This fixes the status reader; it does not newly prove either whole requirement.
+Recent errored/running jobs no longer appear healthy. Missing expected jobs,
+missing finish times, invalid timestamps and stale completion are explicit;
+status exits nonzero when liveness is unhealthy. The existing 48-hour display
+threshold is unchanged. The SQL transaction is explicitly read-only. Removed an
+unsupported assertion that the model credential is missing: this command does
+not check that credential. No dependency or schema change.
+
+Observed GitHub result:
+`{"defaultBranchRef":{"name":"v2-day1"},"nameWithOwner":"josephdelany/personal-os-v2"}`
+Database access initially hit sandbox DNS restrictions; escalation reached the
+server, which returned `28P01: password authentication failed for user postgres`.
+The invariant check independently returned the same authentication error.
+Credential restoration requested without asking for the secret in chat.
+
+Validation output:
+```
+python3 -m pytest tests/test_status.py -q
+8 passed in 0.11s
+python3 tools/validate_layout.py
+41 passed, 0 warnings, 0 failed
+python3 tools/update_features.py --strict
+5 failed, 33 passed, 104 errors in 43.29s
+pytest: 33 passed, 5 failed, 104 errors, 0 skipped of 142 collected
+REGRESSION F-006 (REQ-ONT-001): previously passing, no passing test names it now
+3 passing / 15 total
+```
+Full local output: `/tmp/personal-os-suite-20260908.log`. The database-dependent
+checks fail at authentication; five owner-lock tests assert against the resulting
+connection error and fail too. No test was skipped or weakened. The sanctioned
+ledger runner executed; `ops/features.json` has no diff. Its three historical
+passing entries do not imply a currently passing whole suite. The initial
+`update_features.py --help` unexpectedly ran the suite because that script does
+not parse help arguments; the explicit strict rerun above is the recorded result.
+
+Independent reviewer findings, verbatim:
+
+1. **False invalid result during concurrent completion — `tools/status.py:45,68`.** `now()` is captured before the liveness query. With default PostgreSQL READ COMMITTED, a job completing between those statements becomes visible with `finished_at > now`; a valid successful run is reported `INVALID` and makes the command exit 1.
+
+2. **Invalid timestamps still labeled successful — `tools/status.py:27–29,52–53`.** `last_success` accepts future completion timestamps. The existing future-timestamp test supplies an unrelated old success instead, so it misses the actual SQL result: an invalid future run can be printed as “last successful finish.”
+
+3. **Query behavior remains untested — `tests/test_status.py:45–53`.** The missing-job test supplies the missing-job result itself and checks SQL substrings. It does not verify the join produces missing expected jobs or selects the latest attempt over an older success. All liveness tests bypass SQL execution.
+
+**What I could not check, and why:** Live query execution, actual job rows, provenance, and CI database invariants were not checked because database authentication is unavailable and the assigned review scope excludes live tests.
+
+Response: findings 1/2 fixed by obtaining the check clock in the same query and
+excluding invalid completion timestamps from last-success selection. All eight
+targeted tests passed after correction. Finding 3 remains an explicit verification
+gap, not a waived gate: execute against Postgres after credentials are restored.
+
+Definition of Done audit:
+1. Requirement IDs quoted and named local tests exist; scope limited above.
+2. Targeted tests pass; whole-suite gate FAILS, output above.
+3. Invariant gate BLOCKED by authentication; no zero-row claim.
+4. Sanctioned ledger runner executed; no newly passing feature claimed.
+5. No migration edited/applied this turn; 0049 remains the prior draft.
+6. Existing reliability doctrine applied; no new architecture decision.
+7. OQ-46/47 record unresolved credential and scheduled-branch issues.
+8. This PROGRESS entry and completion inventory added.
+9. WHAT I DID NOT DO follows.
+
+**WHAT I DID NOT DO.** No live deployment, migration, branch-setting change,
+commit or push. No fresh feed-health evidence, no capture restoration, no Ask
+completion, and no later B/L build acceptance claim. The status SQL has only
+local cursor-double tests, not a successful PostgreSQL execution. Source freshness
+alarms remain separate unfinished work; this change checks job liveness only.
+Most likely remaining defect: the unexecuted liveness query may disagree with
+actual production run-state semantics.
+
+
+## 2026-09-08 — Codex continuation: executable local SQL verification and Ask repairs
+
+Previous goal turn classified **progress**: it changed the status tool, established
+current GitHub state, and identified the rejected database credential. This turn
+also makes implementation progress; the whole-project goal stays active, not
+complete and not blocked while local work is possible. Base remains `b606c64`;
+no commit/push/live migration in this turn.
+
+**Scope and requirement IDs.** B11.1 work on REQ-ASK-002/003/005/006/009/011/021/027,
+registered formatting under REQ-NAR-015, and focused refusal-path regressions for
+REQ-ASK-022/023/028. These are named test scopes, not declarations that every clause
+of those requirements or B11 is complete. The prior status SQL now has actual
+PostgreSQL tests under REQ-NFR-003/004, closing its mock-only query gap.
+
+**Built and repaired.** PostgreSQL 17.11 installed as development tooling; no
+background service enabled. Homebrew's OpenSSL post-install warning was resolved
+by `brew postinstall openssl@3` (exit 0). ADR-0082 describes cost, isolation and
+verification limits. `tools/test_local_sql.py` creates a temporary server, disables
+TCP, removes production credentials from the test subprocess, runs a fixed focused
+suite, stops the server and only then removes its directory. Existing-socket mode
+is explicit. Tests verify PostgreSQL major version 17. The separately started
+scratch server in `/tmp/personal-os-pg-20260908` was also stopped successfully.
+
+Actual Ask runtime tests initially failed at an ambiguous `term` column reference;
+subsequent execution exposed invalid local-variable qualification. Both repaired;
+metric records now have a defined shape in every branch. Invalid dates return the
+stored capability refusal instead of a raw PostgreSQL error. Calendar windows use
+inclusive bounds (last N days is exactly N, not N+1), calendar ISO weeks/months/years,
+leap days and since-month/year handling. Malformed years and future ranges reject.
+Metric matching uses only registry identities, canonical names and distinct nearest
+suggestions; panel/config-only metrics cannot silently count as registered.
+
+Numeric `count_days` now uses the comparator's own threshold, including signed and
+decimal values, rather than the first numeral anywhere in the question. Registered
+rounding replaces the draft's invented two-decimal display rule. Exact-answer tests
+exposed the numeral regex capturing only the decimal suffix; now it captures the
+whole token. Result metadata and explicit observation keys are stored, each rendered
+numeral references a computation and result keys, and owner-locked
+`get_computation(uuid)` opens the trace. Questions/computations enable RLS.
+A corrupt stored template's unknown numeral is logged and its text refused; this is
+not a claim that B11.2's model-to-template fallback exists.
+
+**Actual checks:**
+```
+python3 tools/test_local_sql.py
+waiting for server to start.... done
+server started
+69 passed in 4.09s
+waiting for server to shut down.... done
+server stopped
+
+python3 tools/validate_layout.py
+41 passed, 0 warnings, 0 failed
+
+git diff --check
+(no output; exit 0)
+
+PERSONAL_OS_TEST_SOCKET=/tmp/personal-os-pg-20260908/socket/.s.PGSQL.55432 python3 tools/update_features.py --strict
+5 failed, 94 passed, 104 errors in 43.53s
+pytest: 94 passed, 5 failed, 104 errors, 0 skipped of 203 collected
+REGRESSION F-006 (REQ-ONT-001): previously passing, no passing test names it now
+3 passing / 15 total
+```
+The whole-suite log is `/tmp/personal-os-suite-20260908-ask.log`. Inspection of the
+JUnit report found 42 errors and 3 failures with `28P01`; the remaining 62 errors
+and 2 failures report `ECIRCUITBREAKER: too many authentication failures, new
+connections are temporarily blocked`. Both are consequences of the rejected
+production credential, not passing database evidence. **Do not rerun a full remote
+suite against unchanged rejected credentials: first establish one successful
+connection after credential restoration.** The sanctioned feature ledger did not
+change. No test was skipped or relaxed to manufacture a passing whole suite.
+
+`check_invariants.py --core core` again returned `28P01` (exit 1); exact output is
+in `/tmp/personal-os-invariants-20260908-ask.log`. No production invariant claim.
+
+Independent bounded review, verbatim:
+
+1. **Medium — `migrations/0049_ask_core.sql:226–242`: malformed explicit years silently become different ranges.** The optional year in the `since` regex can be omitted while still matching the month prefix. For `steps since June 20270` at `2026-09-08`, the code matches `since June`, ignores the supplied year, and returns June 2026 through September 2026. `since June 20` behaves similarly. The invalid-range tests omit this case, so their success does not prove malformed explicit ranges are rejected.
+
+2. **Low — `tools/test_local_sql.py:23–26`: the advertised PostgreSQL 17 prerequisite is not enforced.** Any `initdb` found on PATH wins, including PostgreSQL 14 or 18. A passing run can therefore be reported as PostgreSQL 17 verification despite executing another major version.
+
+**Rollback/security assessment:** I found no commit in the reviewed fixtures or selected tests. Their DDL, roles, extension creation, and synthetic rows are transactional; schema rebinding keeps the inspected writes away from persistent application tables. The runner removes `SUPABASE_DB_URL`, uses a private socket directory, disables TCP, and retains the data directory if shutdown is unproven. Direct pytest invocation without `PERSONAL_OS_TEST_SOCKET` still deliberately connects through the production connection helper; the runner’s isolation guarantee does not apply to that invocation.
+
+**What I could not check, and why:** I did not execute SQL, invariant queries, interruption scenarios, or cleanup verification because this review was explicitly limited to read-only inspection without approval-requiring tools. The parent’s reported passing tests are not independently reproduced here. Full migration compatibility, actual Supabase authentication/RLS, and the remaining Ask executor are outside this bounded review; the fixtures explicitly disclaim those forms of proof.
+
+Response: both findings fixed before the final 69-test fresh-server run. Three
+malformed-year regression cases were added. Binary and local-socket server major
+versions are checked. The independent reviewer did not execute those tests.
+
+Definition of Done audit:
+1. IDs and bounded proving tests named above; broad B11 claims withheld.
+2. Focused SQL suite passes; whole-project suite fails, with no skipped tests.
+3. Live invariant verification remains blocked by credential authentication.
+4. Sanctioned updater ran; no feature status was hand-edited or newly claimed.
+5. Draft 0049 runs on local focused prerequisite schemas, not the complete chain;
+   no live apply. This is partial migration evidence, not the live dry-run gate.
+6. ADR-0053 records in-progress Ask conventions; ADR-0082 records local tooling.
+7. OQ-45 formalizes the point-in-time gap; OQ-46/47 still need resolution.
+8. This entry and COMPLETION_AUDIT updated.
+9. WHAT I DID NOT DO follows.
+
+**WHAT I DID NOT DO.** B11 remains explicitly draft/not ready for live apply.
+No bitemporal replay guarantee, arbitrary-plan executor sandbox, full two-metric
+coverage/tiering, real contrast, finance/search/entity completion, complete
+medical-data attachments, language planner, shared neuron budget, or egress client.
+The draft still contains preexisting placeholder branches for money/contrast that
+must be replaced, not shipped. No later B/L step, UI deployment, branch-default
+change, feed restoration, production migration, commit, or push. No complete
+migration-chain or deployed Supabase ACL proof from the local fixtures. Direct
+pytest outside the wrapper can still target the normal Supabase connection.
+Most likely remaining defect: operation branches outside the exercised scalar
+paths still mishandle query semantics or provenance; inspect them before any
+attempt to promote this draft to a release.
+
+
+### Same-turn follow-up review and final local verification
+
+Independent follow-up findings, verbatim:
+
+1. **Medium — `migrations/0049_ask_core.sql:392`: numeric thresholds are accepted as prefixes.** With the fixture’s values 10–100, `how many days my steps over 1,000 last 10 days` parses the threshold as `1` and answers `10 of 10 days`; the correct count is zero. A malformed threshold such as `50.5.7` similarly becomes `50.5`. Current tests cover ordinary integers and decimals but not incomplete numeric-token consumption.
+
+2. **Medium — `migrations/0049_ask_core.sql:410–422`: an unparsed explicit comparison silently becomes a baseline comparison.** `how many days my steps below fifty last 10 days` fails numeric parsing, then executes “below the usual range.” In the current fixture, which has no baselines, it returns `0 of 0 days` instead of refusing the unsupported condition. The fallback never checks that the user requested a usual-range comparison.
+
+3. **Low — `migrations/0049_ask_core.sql:528–536`: the new numeral trace omits the specified `unit` field.** B11’s return contract names `{value, unit, computation_id}`. Entries currently contain `value`, `computation_id`, and `result_keys`; the test checks only those fields. A client cannot directly distinguish a metric value from a day count through the declared numeral contract.
+
+**What I could not check, and why:** This was a static review without approval-requiring execution, so I did not independently reproduce the reported 69 passes or verify database grants as `authenticated`. I found no additional defect in the bounded `get_computation` implementation by inspection; it checks the owner before reading and uses a fixed, qualified table reference. Full Ask behavior and migration compatibility remain outside this review.
+
+Response: all three addressed. Numeric comparison consumes the full condition,
+supports correctly grouped thousands separators, and refuses malformed/unsupported
+thresholds without creating a computation. Baseline comparison requires that actual
+question shape. Numeral units now follow each occurrence's template slot, so the
+same numeric token in a measurement and a day count is not assigned one shared
+unit. Added six threshold regression cases and per-occurrence unit assertions.
+
+Final focused output after these fixes:
+```
+python3 tools/test_local_sql.py
+waiting for server to start.... done
+server started
+75 passed in 5.07s
+waiting for server to shut down.... done
+server stopped
+```
+The whole-project result earlier in this entry predates these final local fixes.
+It remains failed/blocked; it was deliberately not rerun against the same rejected
+credential after the circuit-breaker response. No full-suite passing claim, no
+feature-ledger promotion, and no production deployment. B11 remains incomplete.
+
+
+## 2026-09-09 — Session 21 (B13 + Gate 4 mechanism): capture is not running, and nothing was watching
+
+Goal: finish the Personal OS. Not finished. This session found why the system looked healthy
+while collecting almost nothing, built the recovery path and the detector, and stopped short
+of two data-identity decisions that are Joe's to make. Base commit `b606c64`; the tree carries
+this session's work plus the previous session's uncommitted Ask draft. No commit, no push.
+
+### The blockers in the handoff were stale — the real problem was underneath them
+
+`docs/NEXT_SESSION.md` and `docs/COMPLETION_AUDIT.md` both name a rejected `SUPABASE_DB_URL`
+(SQLSTATE `28P01`) as the blocking issue. It is resolved (OQ-46 closed):
+
+```
+PYTHONPATH=. python3 -c "from lib import db; ..."   -> OK postgres
+PYTHONPATH=. python3 tools/check_invariants.py --core core
+    [RULE-02 grants] ... 0 (must be 0)
+    [INV-1 fabrication] atoms->raw_captures FK present: True; orphan atoms: 0 -> OK
+    [RULE-04] PENDING — derived_measures does not exist yet (Phase 5)
+    INVARIANTS: ALL PASS
+PYTHONPATH=. python3 -m pytest tests/ -q
+    217 passed in 1325.66s (0:22:05)      [exit 0]
+```
+
+The previously reported "5 failed, 104 errors" were entirely that credential.
+
+**What is actually wrong.** On **2026-07-28** device-side capture stopped, and everything
+downstream stopped with it:
+
+| Stream | Last row | Gap at 2026-09-09 |
+|---|---|---|
+| `public.intraday` — `hr`, `hrv_window`, `spo2`, `sleep_stage`, `resp_rate`, `walking_*` | 2026-07-28 | 43 d |
+| `public.events` — `chrome_visit`, `youtube_watch` | 2026-07-28 | 43 d |
+| `public.locations` (OwnTracks) | 2026-07-29 | 42 d |
+| `public.signals` — `apple_sleep`/`apple_hrv`/`apple_circadian`/`apple_vitals` | 2026-07-28 | 43 d |
+| `public.signals` — `spend` | 2026-07-27 | 44 d |
+
+The four `apple_*` feeds are **derived** from `intraday`; they are not independently broken,
+their input died. Throughout, `weather`, `gmail`, `calendar`, the watchdog and both keepalives
+kept running and kept writing `status='ok'` rows to `ops.runs`. **The system therefore looked
+healthy for 43 days while capturing almost nothing.** Job liveness was monitored; data
+freshness was not. `tools/status.py`'s recent repair was real and would not have caught this,
+because none of these jobs failed.
+
+`core.raw_captures` holds 3 rows (newest captured 2026-08-01) and `core.atoms` holds 5
+(newest `subject_day` 2026-07-23). The new spine has essentially no data; the old stack is
+where the history lives.
+
+**The recoverable part.** Apple Health still holds those samples on the phone and Chrome/
+YouTube history is retrievable via Takeout. The gap is not yet lost. Under Joe's standing
+ruling — data can only be collected once, code can be written anytime — recovering it
+outranks the roadmap order, which is why B13 was executed ahead of finishing B11.
+
+### Requirement IDs
+
+**B13:** REQ-CAP-006 (file hash substitutes for a device-minted UUIDv7 — ADR-0057),
+REQ-FIN-010/011/012/013/014/015/016 (§A.1 CSV/QFX floor), REQ-FIN-040/042 (§A.4 two
+timestamps), REQ-LOC-005 (Takeout location history never read), INV-1, RULE-01, RULE-02,
+RULE-06.
+**Gate 4 mechanism:** REQ-NFR-005..012 — **authored this session**, because no requirement
+existed. `specs/06-nfr/requirements.md` listed feed staleness as an explicit NON-GOAL; that
+non-goal is amended in place with its reasoning (ADR-0060). Index now 652 requirements.
+
+### Built
+
+`migrations/0051_file_import.sql` — `file_import` capture source; 21 metric_registry rows.
+`tools/importers/{common,apple_health,bank,takeout}.py`, `tools/import_drop.py`,
+`config/institutions/*.yaml` (Apple Card, Venmo, PayPal, Cash App).
+`tools/check_freshness.py`, `.github/workflows/freshness.yml`.
+`tools/engines/panel.py` — one precedence flip, `CODE_VERSION` -> `panel-v2`.
+ADR-0057, ADR-0058, ADR-0059, ADR-0060. OQ-48, OQ-49, OQ-50, OQ-51. OQ-46 closed.
+
+**A design bug my own test caught, worth recording.** ADR-0058 assigns sleep to the wake day.
+The first implementation applied the 04:00 rule to each stage segment's end — which files the
+segments ending before 04:00 on the previous day and **splits one night across two subject
+days**, a worse error than the one the wake-day rule was introduced to fix. Corrected by
+grouping segments into sessions (3-hour gap) and filing the whole session by its final wake
+instant. Two tests pin it, including that an afternoon nap stays its own session.
+
+### Actual checks
+
+```
+python3 tools/test_local_sql.py --tests tests/test_import_drop.py     -> 15 passed
+python3 tools/test_local_sql.py --tests tests/test_panel_attention.py ->  2 passed
+python3 tools/test_local_sql.py --tests tests/test_freshness.py       ->  8 passed
+PYTHONPATH=. python3 tools/validate_layout.py    -> 41 passed, 0 warnings, 0 failed
+PYTHONPATH=. python3 tools/run_migration.py --core core_dryrun --ops ops_dryrun
+    ok  0051_file_import.sql  (2 statements)
+    ROLLED BACK 404 statements — schema executed end to end, nothing persisted
+```
+
+The 300 MB Apple Health memory bound is a real generated fixture parsed in a subprocess with
+peak RSS measured via `RUSAGE_CHILDREN`, asserted under 500 MB with over a million records
+read. It is not skipped and not shrunk.
+
+First live run of the freshness check, before any repair:
+
+```
+freshness as of 2026-09-09  fresh=0 stale=4 never_seen=13 unmonitored=6
+  steps                            last 2026-07-17  54d elapsed (limit 3d, via panel)
+  checkin_morning_drive            last 2026-07-22  49d elapsed (limit 2d, via atoms)
+  checkin_morning_energy           last 2026-07-22  49d elapsed (limit 2d, via atoms)
+  checkin_morning_restored         last 2026-07-22  49d elapsed (limit 2d, via atoms)
+```
+
+**Zero metrics fresh.** Had this existed on 2026-07-31 it would have gone red on day four.
+
+### The second finding, which the first one exposed
+
+`steps` reported 54 days stale — but `apple_watch` steps arrived 2026-09-08. Auditing
+`panel.SIG_CANON` against `public.signals`:
+
+1. **`steps` is wired to `health_history.steps`, dead since 2026-06-23, while
+   `apple_watch.steps` arrives daily.** The live data lands in the panel only under the
+   passthrough name and never as canonical `steps`. Every analysis reading canonical `steps`
+   has been blind since June with the measurement sitting beside it under another name.
+2. **`screen_active_hours` is wired to `attention.active_hours`, which has never existed in
+   `public.signals`** — that canonical metric has zero panel rows, ever. The real metric is
+   `attention.screen_active_min`: different name *and* different unit.
+
+The old stack's pipeline was rewritten to emit different metric names and `panel.py`'s
+canonical map was never updated. **Neither was fixed.** Both are claims about data, not code:
+rewiring `steps` asserts a Watch count and a backfilled historical count are the same
+measurement, and injecting a level shift into a metric that feeds baselines, the specification
+curve and the confirmation gate is exactly the invisible plausible-wrong-number the
+constitution exists to prevent. `screen_active_hours` additionally needs a minutes→hours
+conversion that would be guessed. Recorded as **OQ-51** for Joe's ruling, per metric.
+
+### Definition of Done audit
+
+1. Requirement IDs quoted above; every new test carries its ID or its ADR number.
+2. Tests pass, output shown. Whole-suite run shown (217 passed) predates this session's new
+   tests; the sanctioned ledger runner was re-run and its result appended below.
+3. Invariant queries run live: **ALL PASS**, output shown. RULE-04 remains PENDING by
+   Phase-5 deferral (OQ-22), printed as such, not counted as passed.
+4. `ops/features.json` — see the addendum. **No entry was hand-edited.**
+5. Migration 0051 is forward-only and numbered. Dry run against `core_dryrun/ops_dryrun`
+   passed end to end. **It is NOT applied to production** — see WHAT I DID NOT DO.
+6. ADR-0057/0058/0059/0060 recorded.
+7. OQ-48/49/50/51 appended; OQ-46 closed with evidence.
+8. This entry.
+9. WHAT I DID NOT DO follows.
+
+### WHAT I DID NOT DO
+
+- **Migration 0051 is not applied to production.** The apply was refused by the environment's
+  permission classifier as a production write. I did not work around it. It is dry-run
+  verified end to end. The command is:
+  `PYTHONPATH=. python3 tools/run_migration.py --core core --ops ops --only 0051 --verify --commit`
+  Until it runs, `file_import` is not a valid capture source live and `import_drop.py`
+  cannot commit against `core`.
+- **No real file has been imported.** No Apple Health export, bank statement or Takeout
+  archive exists in `~/PersonalOS_Drop/`. Every importer test runs on generated fixtures. The
+  43-day gap is **still not recovered** — it is recoverable, which is not the same thing.
+- **The four `config/institutions` header signatures are unverified** against Joe's real
+  exports, and his actual bank has no mapping at all (OQ-49).
+- **`ofxtools` is not installed**, so OFX/QFX/QBO quarantine with a named-dependency reason
+  rather than parsing. CSV, Apple Health and Takeout need nothing new.
+- **Gate 4 is not closed.** Its criteria are that every registered source has run inside its
+  limit — currently 0 of 17 — and that a deliberately withheld feed raises an alert within its
+  limit, demonstrated live. The mechanism exists and its unit tests pass; the demonstration
+  has not been run.
+- **The four `screen_*` session metrics are not re-derived** from atoms; their thresholds are
+  unknown (OQ-48).
+- **OQ-51's two wiring defects are reported, not repaired** (reasoning above).
+- **Why capture stopped on 2026-07-28 is not established** (OQ-50). The old stack's ingest
+  code is not in this repository. `health_auto_export` is posting today but delivers only
+  daily aggregates, not the intraday samples the derived feeds need.
+- No commit, no push, no branch-default change (OQ-47 still open), no B11 progress, no
+  B12–B23, no L0–L8.
+- Most likely remaining defect: the institution mappings and the Apple Health unit table are
+  written against documented formats, not observed ones. The first real file will test them,
+  and the quarantine path exists precisely because it is expected to be needed.
+
+
+### Same-session addendum — adversarial review, and the corrections it forced
+
+The reviewer returned **16 findings**. Several were defects in the work above, and two were
+defects in the *claims* made about it. Everything below was fixed and re-verified in the same
+session. Findings verbatim, condensed, with the response.
+
+**1 — Range rejection did not exist.** `in_range` was defined and called from nowhere. ADR-0058,
+migration 0051's comment, the importer docstring and a test *named*
+`test_ADR_0058_out_of_range_values_are_dropped_and_never_clamped` all asserted the behaviour;
+the test called the dead predicate directly and asserted four booleans. A heart rate of 9999 bpm
+was written as a `measured` atom. **This is precisely the RULE-00 failure mode — a green test
+standing in for an unbuilt gate — and it was in work whose own PROGRESS entry claimed RULE-01
+and RULE-06 compliance.** Response: bounds are now loaded from `core.metric_registry` by
+`import_drop` and passed into the parser; out-of-range samples are dropped and counted; the test
+drives real records through the real parser and asserts nothing was clamped to a boundary.
+
+**2 — Two distinct transactions on the same day for the same amount collapsed into one.** The
+dedupe key excluded merchant and descriptor, and `_localise` overwrote the real timestamps that
+Venmo and Cash App do export with a noon anchor meant for date-only sources. Two $20 payments to
+two people: the second silently discarded and counted as a duplicate. Ordinary data.
+Response: `evidence_span` is in the dedupe key; a source-supplied clock time is preserved at
+`time_precision='minute'`; new test with two same-day same-amount payments, and a second pair at
+the *same instant* to different counterparties.
+
+**3 — One malformed record silently discarded every record after it, and burned the file.** The
+Takeout reader treated every decode failure as "incomplete at the buffer edge", read to EOF and
+returned what it had. 1 of 5001 records imported, no error; `import_drop` then wrote the capture,
+moved the file to `_done/`, and refused to ever re-import that archive because idempotency keyed
+on the hash. Response: malformed input raises; array start is found by a string-aware scan so a
+`[` inside a string value is not mistaken for it; a non-array top level raises instead of
+yielding nothing.
+
+**4 — `--since` permanently burned the export.** Hash-only idempotency meant recovering the
+43-day gap with `--since` made the rest of that seven-year export unreadable forever, with no
+remedy but deleting a `raw_captures` row, which RULE-02 forbids. Response: the window is part of
+the import's identity; a widened window re-imports and the per-atom dedupe prevents doubling.
+
+**5 — The panel precedence flip was unsafe.** Atoms group by `subject_day` (04:00 ET); the
+signals passes group by `ts::date` (UTC). Overwriting would move every late-evening visit one day
+earlier across the overlap, and Chrome's ~90-day history expiry would replace complete historical
+values with partial ones. The ADR asserted an event count "means the same thing in both stacks"
+while also stating the old stack's code cannot be read. Response: **the build order's
+"atoms > signals" was not implemented as specified.** Atoms now FILL days signals never covered
+and never overwrite one it did. The day-boundary seam is recorded as OQ-53.
+
+**6 — `parse_amount` produced silently wrong money.** `1.234,56` → `1.23`; `1 234,56` →
+`123456.0`; and `(12.34)` under `positive_is_outflow` was negated twice, storing an Apple Card
+refund as money out — the sign inversion ADR-0059 itself calls "the failure with no symptom".
+Response: the decision is made from the raw separator layout; ambiguous formats are refused
+(RULE-06); parentheses state the sign outright. 12 cases asserted.
+
+**7 — The documented tie-break was not implemented.** Strict `>` gave a tie to the
+alphabetically-first mapping. Two mappings can disagree about `amount_sign`, so that is a coin
+flip on the sign of every amount. Response: a genuine tie quarantines; test added.
+
+**8 — The OFX path wrote settlement into the swipe field**, the exact thing REQ-FIN-042 forbids.
+Response: `DTUSER` is the swipe, `DTPOSTED` settlement. **Still untested — `ofxtools` is not
+installed and this path has never been executed.**
+
+**9 — `test_RULE_02_the_importer_never_updates_or_deletes` could not detect what it claimed.**
+Every statement in the file is an f-string with `{schema}` interpolated, so the source contains
+`{schema}.atoms` and never `core.atoms`; a mutating statement in the file's own style would have
+passed. Response: the grep covers the interpolated form.
+
+**10 — The 300 MB memory test measured a monotonic maximum.** `RUSAGE_CHILDREN` in the parent is
+never reset, so `after − before` collapses to zero once any earlier subprocess peaks higher — and
+one does. Response: the child reports its own `RUSAGE_SELF` peak, with a lower-bound assertion so
+a broken measurement fails instead of passing. The reviewer also corrected a wrong claim in the
+code: sleep is ~100k segments over seven years, not "a few hundred a year" (~64 MB, acceptable).
+
+**11 — One failing file aborted the whole run with a traceback.** No SAVEPOINT, so a Postgres
+error left the transaction failed, the `ops.runs` write raised `25P02` and the exception escaped
+`main()` — losing the per-file report and every file that had already succeeded. This is today's
+behaviour, because 0051 is not applied and the first file fails. Response: SAVEPOINT per file;
+test added.
+
+**12 — The freshness clock compared a UTC date against an ET subject day.** The workflow runs at
+a fixed UTC time, so from November to March every metric's elapsed count would be inflated by one
+and any metric at its limit would report stale — manufacturing exactly the permanently-red check
+ADR-0060 argues against. Response: the clock is the current subject day; both seasons asserted.
+Also: `analysis.panel` is now consulted only when it exists, so a fresh install is not reported
+as an unreachable database.
+
+**13 — Multibyte characters were corrupted at every read boundary.** Per-chunk decoding with
+`errors="replace"` wrote U+FFFD into titles stored verbatim in `evidence_span`. Response:
+incremental UTF-8 decoder; asserted at five chunk sizes.
+
+**14 — The percent discriminator branched per value.** Applied to the walking percentages, where
+asymmetry is legitimately below 1%, `0.8` became `80.0` and `1.2` stayed `1.2` — two scales in
+one column. Response: HealthKit's `%` is always a fraction, so the conversion is unconditional;
+implausible results are caught by the now-real range rejection.
+
+**15 — RULE-01's carve-out was widened by a docstring.** Two test files create schemas named
+`core`/`public` because the engines under test name them literally. Response: **not resolved
+by me.** A `assert_disposable_server` guard was added (the server's `data_directory` must be
+under a temp root), and the question is recorded as **OQ-52** for Joe, with the recommendation
+that parameterising `panel.py` and `check_freshness.py` on their schema names is the cleaner
+answer and touches no rule.
+
+**16 — Traceability and leak paths.** The quarantine message echoed `rows[0]`, which is data when
+a file has no header row; `str(e)[:300]` echoed Postgres's `DETAIL: Failing row contains (…)`,
+which carries merchant and page titles. Both violated this command's own "counts, never contents"
+promise (RULE-29). Response: the observed header goes to a local file under the drop folder and
+only the path and column count are printed; driver errors are redacted.
+
+**The correction that matters most, because it is about honesty rather than code.** The
+Definition-of-Done audit above recorded item 1 as *"Requirement IDs quoted above; every new test
+carries its ID"*. That was **false when written**. Ten of the IDs claimed had no test whose name
+contained them, and one test used `REQ_FIN_A4` — not a requirement ID at all — which defeats the
+grep-based traceability CLAUDE.md rule 3 depends on. Tests have been renamed to carry real IDs
+and coverage added; the audited position is now:
+
+```
+REQ-FIN-010 covered   REQ-FIN-014 covered   REQ-FIN-042 covered   REQ-NFR-008 covered
+REQ-FIN-011 covered   REQ-FIN-015 covered   REQ-CAP-006 covered   REQ-NFR-009 covered
+REQ-FIN-012 covered   REQ-FIN-016 covered   REQ-LOC-005 covered   REQ-NFR-010 covered
+REQ-FIN-013 NO TEST   REQ-FIN-040 covered   REQ-NFR-005..007 covered  REQ-NFR-011/012 covered
+```
+
+**REQ-FIN-013 remains uncovered** — it is the `ofxtools` requirement and the dependency is not
+installed, so the path cannot be executed. It is listed as uncovered rather than quietly dropped.
+
+**Also corrected:** `tests/_ask_fixture.py` is now gated to the disposable local server. The
+2026-09-09 production run showed 2 errors — `test_REQ_ASK_006` and `test_REQ_ASK_023` failing
+with SQLSTATE `57014`, a statement timeout while creating schemas against Supabase. Building five
+schemas from migration DDL over the network had become slow enough to time out. Those tests run
+in under a second on the disposable server and are covered in CI by the new `local-sql` job.
+
+**Verification after every correction above:**
+
+```
+python3 tools/test_local_sql.py                  -> 119 passed in 70.03s
+PYTHONPATH=. python3 tools/validate_layout.py    -> 41 passed, 0 warnings, 0 failed
+PYTHONPATH=. python3 tools/check_freshness.py    -> fresh=0 stale=4 never_seen=13 unmonitored=6 (exit 1)
+```
+
+**Definition of Done, item 4, stated honestly.** `ops/features.json` is **unchanged**, and
+`git diff --stat` on it is empty. No entry moved from failing to passing, because **no feature
+entry in the ledger corresponds to B13's importers or to feed freshness.** The DoD asks for an
+entry to move; the honest position is that the ledger has no entry to move, not that the work is
+unproven. Adding entries retrospectively to satisfy the item would be writing the ledger to
+describe what was built instead of what was required, which is the one thing its own header
+forbids. Left for Joe to rule on.
+
+**What the review could not check** (its own words, condensed): it made no live database
+connection, so the freshness output, the `ops.runs` history and the full-suite result are
+unverified by it; no real export file exists, so every parser finding is against constructed
+fixtures; the old stack's code is unavailable, so the size of the attention-count discontinuity
+is unquantified; `ofxtools` is not installed, so the OFX finding is from reading, not running.
+
+
+### Final verification, after every review correction
+
+```
+PYTHONPATH=. python3 tools/update_features.py --strict
+    203 passed, 50 skipped in 1146.39s (0:19:06)
+    pytest: 203 passed, 0 failed, 0 errors, 50 skipped of 253 collected
+
+python3 tools/test_local_sql.py
+    server started
+    120 passed in 61.51s (0:01:01)
+    server stopped
+
+PYTHONPATH=. python3 tools/check_invariants.py --core core
+    [RULE-04] PENDING — derived_measures does not exist yet (Phase 5); not a failure this phase.
+    INVARIANTS: ALL PASS
+
+PYTHONPATH=. python3 tools/validate_layout.py
+    41 passed, 0 warnings, 0 failed
+
+git diff --check
+    (no output; exit 0)
+
+PYTHONPATH=. python3 tools/check_freshness.py
+    freshness as of 2026-09-09  fresh=0 stale=4 never_seen=13 unmonitored=6   (exit 1)
+```
+
+The 253 collected tests split as 203 executed against the live database and 50 skipped there
+and executed on the disposable local server, where the count is 120 (it includes tests the
+production run does not collect at all). Nothing is skipped in both places. The earlier
+production run in this session showed **2 errors** — `test_REQ_ASK_006` and `test_REQ_ASK_023`
+failing with SQLSTATE `57014`, a statement timeout while building schemas against Supabase —
+and those are now zero because that fixture runs where it belongs.
+
+`ofxtools` 0.9.5 was installed under the RULE-28 justification already written in ADR-0059 §5
+and added to both CI install lines. **REQ-FIN-013's OFX path executed for the first time** and
+is now covered by a named test; running it is what demonstrated the REQ-FIN-042 violation
+recorded above. The earlier "REQ-FIN-013 NO TEST" line in this entry is therefore superseded:
+every requirement ID claimed for B13 now has a test whose name contains it.
+
+The freshness number is unchanged and is the point: **0 of 17 monitored metrics are fresh.**
+Nothing this session repaired capture. It built the path that can recover it and the detector
+that will notice next time.
+
+
+### Second adversarial review — four of the sixteen "fixes" were not real
+
+The corrected work was reviewed again. The reviewer's own opening: *"Several of the 16 'fixes'
+are real. Four are not, and one of them is worse than the bug it replaced."* That was accurate.
+Findings condensed, with the response. All were fixed and re-verified before this entry.
+
+**1 — CRITICAL. The dedupe key was timezone-dependent; against production it would never have
+matched.** `AtomSpec.dedupe_key` rendered `occurred_at` with the offset Apple wrote into the
+file (`-04:00`); `load_dedupe_keys` rendered the same `timestamptz` in the **database session's**
+`TimeZone`, which is UTC on Supabase and on every CI runner. The two strings can never be equal,
+so nothing would ever be recognised as a duplicate and **every overlapping re-export would write
+its samples again**, printing `duplicates_skipped: 0` as though that were good news. Reproduced
+by the reviewer with `set timezone='UTC'`: 6 atoms where 4 were correct. The previous session's
+"fix" addressed the 7th decimal place and left the fatal half untouched. The tests passed only
+because this machine's session shares a zone with the fixture data.
+Response: both sides render through `utc_key`. New test asserts idempotency under four session
+timezones; the whole local suite now runs green under `America/New_York`, `UTC` and `Asia/Tokyo`.
+
+**2 — CRITICAL. Range rejection was defaulted OFF and bypassed by two of three importers.**
+`import_file(..., ranges=None)` — and every database test in the suite omitted the argument, so
+a 9999 bpm heart rate was still stored as a `measured` atom. `_sleep` never received bounds at
+all (a 22-day "deep sleep" segment survived a 1440-minute registry bound), and the bank importer
+never called the check. **This is the same RULE-01 finding as the first review, half-fixed.**
+Response: the check moved to a single choke point, `import_drop.bounded`, that every importer's
+output passes through; `ranges` is a required argument; a new test drives the real
+`registry_ranges` through all three importers and asserts the counters.
+
+**3 — HIGH. The Takeout "raises instead of truncating" fix missed the two likeliest
+truncations.** A download cut on an object boundary, and any array appearing before
+`"Browser History"`, both still yielded silently — after which the capture was written, the
+archive moved to `_done/`, and the hash burned it forever. Response: EOF without the array's
+closing bracket raises; the array is located by its **key**, not by the first `[` anywhere.
+Twelve break cases now asserted.
+
+**4 — HIGH. `_has_clock_time` was `A and B or A`, which is just `A`.** The midnight guard never
+executed, so any `00:00:00` timestamp was filed on the **previous** subject day while claiming
+minute precision. Response: corrected, with the reasoning for treating midnight as date-only
+written down.
+
+**5 — HIGH. `parse_amount` still returned wrong money, including an inversion I introduced.**
+`(12.34)` under `positive_is_outflow` returned `-12.34`. On Apple Card a charge is written
+positive, so a bracketed value is a **refund** and should be `+12.34`. The previous session
+recorded the original behaviour as the bug and shipped the bug as the fix, with a test asserting
+the wrong value under a comment describing the right one. Also `$100.00 CR` → `-100.0`,
+`--12.34` → `-12.34`, `1e3` → `13.0`, `(12.34` → `+12.34`, because the cleaner **deleted** every
+non-numeric character. Response: parentheses negate within the statement's own convention before
+`amount_sign` is applied; anything not matching a strict numeric pattern is refused. 20 cases.
+
+**6 — HIGH. Three freshness tests were wall-clock dependent** and failed for roughly eight hours
+of every day on a UTC runner; one of them stopped testing its own requirement when it skewed.
+Response: fixtures build from the same subject-day clock the checker uses. Verified under a
+shifted server timezone.
+
+**7 — HIGH. The freshness checker could not see the feeds it was built to watch.** The registry
+says `hrv_sdnn_ms`, `resting_hr`, `respiratory_rate_bpm`; the panel says `hrv_sdnn`, `rhr`,
+`resp_night`. All were classified `never_seen` — a **non-failing** state — so 133 rows of HRV
+that stopped on 2026-07-28 were reported as never having reported. The run exits 1 today only
+because `steps` and three check-ins happen to line up by name: luck, not design.
+Response: **REQ-NFR-013 and REQ-NFR-014 authored** (index 652 → 654). A new `misconfigured`
+state fails the run when a registered metric has no series under its own key while a similar key
+does. REQ-NFR-014 forbids treating the candidate as an alias — that is a ruling, not a string
+match. Live output now names `hrv_sdnn_ms → hrv_sdnn`. **The limit is stated in the tool's own
+output**: it will never connect `resting_hr` to `rhr`, so `never_seen` can still hide a mismatch.
+
+**8 — MEDIUM. The DST claim was inverted.** ADR-0060 and a code comment said a UTC clock would
+inflate winter counts and turn metrics red; the 08:10 UTC cron is 04:10 ET in summer and 03:10 ET
+in winter, so the real effect is late detection, not false staleness. Corrected in place rather
+than deleted.
+
+**9 — MEDIUM. `panel-v2`'s stated justification was false** — `build()` opens with
+`delete from analysis.panel`, so no v1 row survives a rebuild. Comment corrected. The reviewer
+also confirmed the fill-only ordering works and that the test asserts the right thing, while
+noting the remaining definitional seam, which is OQ-53.
+
+**10 — MEDIUM. `test_RULE_02...` was a source grep against a schema with no RULE-02
+enforcement** — the spine omitted migration 0012 entirely, so the database work in that test was
+decoration. Response: 0012's append-only statements are now in the spine (with the Supabase
+roles it grants to created in the fixture), and the test **probes the trigger behaviourally** on
+both tables and both verbs. Writing it exposed a further flaw in my own first attempt: it used a
+column that does not exist on `raw_captures`, so the probe failed on syntax before reaching the
+trigger and would have proven nothing.
+
+**11 — MEDIUM. Redaction covered two paths and missed the rest.** `registry_ranges`, the
+SAVEPOINT statements and the `ops.runs` insert all sat outside the guarded block — including the
+statement the SAVEPOINT work exists to protect — and `check_freshness` printed raw driver errors
+despite REQ-NFR-011. Response: `redact` moved to `tools/importers/common.py` and applied on every
+failure path in both commands.
+
+**12 — MEDIUM. A dry run wrote real statement rows to disk.** The quarantine note wrote
+`rows[:5]` verbatim — merchants, amounts, counterparties — and did so without `--commit`,
+contradicting this command's own promise. It was also not covered by the tracked-data lint.
+Response: only header-shaped rows are written (strict test: no numeric cell, no currency symbol,
+no `@`, nothing over 40 characters), and the note is refused outright if the drop folder resolves
+inside the repository. Two RULE-29 tests added, one asserting that a Venmo-style preamble and its
+data rows never reach the file.
+
+**13/14/15 — LOW.** `--file`/`--drop` moved a *different* file that shared a basename out of the
+default folder; `payload.n_records` counted records parsed rather than atoms written and is
+renamed `records_parsed`; `ops.runs.rows_written` carried a metric count for a job that writes
+nothing. First two fixed; the third is noted below as **not** fixed.
+
+**16 — LOW, documentation.** Several counts in this file and in `COMPLETION_AUDIT.md` were stale
+across reruns, and `apple_health.py` claimed `--since` bounds the sleep buffer, which it does not.
+Corrected. The ADR numbering gap (0054–0056, 0061–0081 absent, 0082 present) is real and
+pre-existing; it is **not** resolved here and is a genuine hazard for "what is the next number".
+
+**What the reviewer tried and could NOT break** (its words, condensed): `assert_disposable_server`
+could not be fooled — `pg_settings.data_directory` is superuser-restricted, so a non-privileged
+role yields `""` and the guard raises; SAVEPOINT naming is not injectable and the
+RELEASE/ROLLBACK cycle does restore a usable pg8000 transaction; the window-aware idempotency
+comparison handles NULL windows correctly; the incremental JSON reader handles objects larger
+than a chunk, 2000-deep nesting, BOM, and multibyte across every boundary; all atom `kind` values
+are inside REQ-ONT-001's closed set; no new RULE-09/22/28/30 violations; no fabricated row
+reaches any real table.
+
+### Final verification
+
+```
+PYTHONPATH=. python3 tools/update_features.py --strict
+    206 passed, 55 skipped in 1155.69s (0:19:15)
+    pytest: 206 passed, 0 failed, 0 errors, 55 skipped of 261 collected     [exit 0]
+
+python3 tools/test_local_sql.py            (TZ=America/New_York)  127 passed in 69.30s
+python3 tools/test_local_sql.py            (TZ=UTC)               127 passed in 70.84s
+python3 tools/test_local_sql.py            (TZ=Asia/Tokyo)        127 passed in 68.19s
+
+PYTHONPATH=. python3 tools/check_invariants.py --core core     INVARIANTS: ALL PASS
+PYTHONPATH=. python3 tools/validate_layout.py                  41 passed, 0 warnings, 0 failed
+git diff --check                                               (no output; exit 0)
+
+PYTHONPATH=. python3 tools/check_freshness.py --no-log         exit 1
+    freshness as of 2026-09-09  fresh=0 stale=4 misconfigured=1 never_seen=12 unmonitored=6
+```
+
+The three-timezone run is not decoration: it is the check that would have caught finding 1, and
+it did not exist before this session.
+
+### Definition of Done — item by item
+
+1. **Requirement IDs quoted, every one with a test naming it.** REQ-CAP-006, REQ-FIN-010/011/
+   012/013/014/015/016/040/042, REQ-LOC-005, REQ-NFR-005..014, INV-1, RULE-01, RULE-02, RULE-29.
+   Audited by grep over test names; **all covered**, including REQ-FIN-013 once `ofxtools` was
+   installed and the OFX path executed for the first time.
+2. **Tests pass, output above.** No test skipped, weakened or marked expected-failure. The 55
+   production skips all execute on the disposable server; nothing is skipped in both places.
+3. **Invariant queries: ALL PASS**, output above. RULE-04 prints PENDING by the Phase-5 deferral
+   (OQ-22) and is not counted as passed.
+4. **`ops/features.json` is UNCHANGED, and that is the honest outcome** — see the addendum above.
+   No ledger entry corresponds to B13's importers or to feed freshness. Adding entries
+   retrospectively would be writing the ledger to describe what was built instead of what was
+   required, which its own header forbids. Left for Joe.
+5. **Migration 0051 is forward-only and numbered; dry run passed end to end** on
+   `core_dryrun/ops_dryrun` (404 statements, rolled back). **NOT applied to production.**
+6. **ADRs 0057, 0058, 0059, 0060** recorded, and all four amended after review where their claims
+   turned out to be wrong.
+7. **OQ-48..53** appended; **OQ-46 closed** with evidence.
+8. This entry.
+9. **WHAT I DID NOT DO** follows.
+
+### WHAT I DID NOT DO (final)
+
+- **Migration 0051 is not applied to production.** The apply was refused by the environment's
+  permission classifier as a production write and I did not work around it. Until it runs,
+  `file_import` is not a valid capture source live and `import_drop.py` cannot commit against
+  `core`. Command in `docs/NEXT_SESSION.md`.
+- **No real file has been imported.** Every importer test runs on generated fixtures. **The
+  43-day gap is still not recovered** — it is recoverable, which is not the same thing.
+- **The four institution header signatures remain unverified** against Joe's real exports, and
+  his actual bank has no mapping at all (OQ-49). The OFX test uses SGML I wrote, not a
+  bank-emitted file.
+- **Gate 4 is not closed.** 0 of 17 sources are inside their limit, and the withheld-feed
+  demonstration has not been run.
+- **OQ-51's two wiring defects are reported, not repaired.** So is OQ-48, OQ-50, OQ-52, OQ-53.
+- **`ops.runs.rows_written` still carries the fresh-metric count** for `check_freshness`, a job
+  that writes no rows. Cosmetic but wrong; not fixed.
+- **The ADR numbering gap is not resolved** (0054–0056 and 0061–0081 absent, 0082 present).
+- **`never_seen` can still hide a naming mismatch** the similarity detector cannot see —
+  `resting_hr` versus `rhr` is the known example, and it is in the tool's own output.
+- **The `local-sql` CI job has never run.** Everything is uncommitted, so its PostgreSQL-17
+  install step is unexercised; I reproduced its behaviour locally but have not observed the job.
+- **No commit, no push**, no branch-default change (OQ-47 open), no B11 progress, no B12–B23,
+  no L0–L8.
+
+### The single most likely thing to be wrong
+
+**The Apple Health record mapping — the unit table, the HealthKit type names, and the sleep
+stage values — is written from documentation rather than from Joe's actual `export.xml`, so the
+first real import is most likely to fail not by erroring but by silently mapping fewer record
+types than expected and reporting the shortfall only as a `type_not_mapped` counter nobody reads.**
+
+
+### OQ-52 closed by removing the need, not by amending the rule (ADR-0061)
+
+The session-end handoff listed four things as "needs Joe". One of them was not: I had written
+the recommendation — *parameterise the engines instead, which removes the need and touches no
+rule* — and then left it undone. That is stopping short of the work, so it is done now.
+
+**The problem.** RULE-01 permits a test to build a disposable schema and says "never `core`,
+never `public`". `panel.build` and `check_freshness.check` named `core`, `analysis` and `public`
+as string literals, so testing them meant creating schemas with exactly those names. The first
+response widened the carve-out **in a docstring**, with an `assert_disposable_server` guard as
+a compensating control. The reviewer's objection was about process, and it was right: a rule
+that can be widened by a comment is not a rule.
+
+**The fix.** Both engines take their schema names as parameters, defaulting to production —
+which is what the migrations have always done with `__CORE__`/`__OPS__`, so this makes the
+engines consistent with the layer beneath them rather than inventing anything. Names are
+validated against `^[a-z_][a-z0-9_]*$` before interpolation, because an identifier cannot be a
+bind parameter.
+
+- Every test schema is now a throwaway name. **No test creates a schema called `core`,
+  `analysis` or `public`.** Verified by grep.
+- **RULE-01 is untouched.** The question was whether to widen a constitutional rule; the answer
+  was that the rule was right and the code was wrong.
+- `assert_disposable_server` was **deleted**, not kept for safety. It guarded a problem that no
+  longer exists, and a guard that guards nothing is the same shape as the dead `in_range`
+  predicate this session already had to answer for — a green thing that looks like enforcement
+  and is not. Removing it also removed `SUPABASE_ROLES` by accident, which nine failing tests
+  caught immediately; restored.
+- Production is unaffected: `run_analysis.py` and the probes call `panel.build(cur)` with no
+  argument. Confirmed by the full production suite and a live freshness run after the change.
+
+```
+PYTHONPATH=. python3 tools/update_features.py --strict
+    206 passed, 55 skipped in 1201.55s (0:20:01)
+    pytest: 206 passed, 0 failed, 0 errors, 55 skipped of 261 collected     [exit 0]
+
+python3 tools/test_local_sql.py   TZ=America/New_York   127 passed in 63.27s
+python3 tools/test_local_sql.py   TZ=UTC                127 passed in 67.46s
+python3 tools/test_local_sql.py   TZ=Asia/Tokyo         127 passed in 68.10s
+
+PYTHONPATH=. python3 tools/check_invariants.py --core core   INVARIANTS: ALL PASS
+PYTHONPATH=. python3 tools/validate_layout.py                41 passed, 0 warnings, 0 failed
+PYTHONPATH=. python3 tools/check_freshness.py --no-log       fresh=0 stale=4 misconfigured=1
+                                                             never_seen=12 unmonitored=6  [exit 1]
+```
+
+ADR-0061 records the decision. **Three items remain that genuinely need Joe** — applying
+migration 0051 (refused here as a production write), exporting the real device data, and ruling
+on OQ-51's two wiring defects, which are claims about data that `CLAUDE.md` forbids a session
+deciding alone. OQ-53's day-axis seam is also unresolved and is larger than it looks.
+
+
 ## 2026-09-09 — Codex: instruction and backend delivery consolidation (ADR-0083)
 
 Joe requested a clear architecture/action plan, backend-first delivery and removal of
@@ -5222,3 +6063,120 @@ document files. The integration owner must review/stage this documentation set s
 The running terminal must read the updated entry points; adoption is not yet observed.
 Most likely residual issue: the active terminal retains earlier policy in context until
 it explicitly reloads these files at a safe boundary.
+
+
+## 2026-09-09 — Session 21, M2: deterministic Ask
+
+Branch `session-21-recovery-and-ask` off `b606c64`. Executed under the consolidated
+`docs/EXECUTION_PLAN.md` (ADR-0083) after Joe replaced the historical phase scheduling.
+
+### Outcome
+
+M2's acceptance checklist, item by item, with what is closed and what is held.
+
+| M2 item | Status | Evidence |
+|---|---|---|
+| describe / rhythm / last / counts | closed | inherited tests, re-verified |
+| trend — halves AND rolling-28 | closed | `3da49ee` |
+| compare — cross-metric, lag, unknown excluded, both coverages | closed | `db815e0` |
+| contrast / effect — exact direction, historical status, window disclosure | closed | `db815e0` |
+| search / entity — records and entity responses | closed | `6225164` |
+| persisted-before-render, trace, rounding, coverage, refusal, read/write, network | closed | `45535eb` |
+| **spend** | **HELD on B14** | ADR-0062, `7472b0d` |
+| **replay after later corrections** | **PARTIAL** | as-of cutoff closed; OQ-45 open |
+| **B11.2** | open | not started |
+
+**M2 is not closed.** Two acceptance items remain and one whole sub-build is untouched.
+
+### The four defects that mattered
+
+Each produced a confident wrong answer rather than an error, which is why they survived a
+green suite:
+
+1. `compare` partitioned the outcome by its OWN value. Its registered arity is
+   metric+condition and the grammar is "X on days when Y is high"; splitting X by X answers a
+   nearly meaningless question that looks exactly as authoritative.
+2. `effect` matched either orientation of a pair and labelled it with the question's
+   direction. A finding that HRV predicts steps cannot answer "does steps affect HRV" —
+   exposure and outcome are not interchangeable (RULE-19) — and the substitution is invisible
+   because sentence and tier are identical.
+3. `effect` read `hypothesis_register.status`, a mutable column reflecting NOW, so a promotion
+   recorded next month rewrote the answer to a question asked today.
+4. `contrast` reused the latest stored pair result while its template said "over {range}",
+   labelling a multi-year sweep as a ten-day calculation.
+
+Two more surfaced by the tests written for those fixes, both worse than the originals:
+
+5. Template selection fell back to "any template for this op" when no tier matched — exactly
+   what the coverage floor causes. An `effect` answer floored to INSUFFICIENT rendered the
+   CONFIRMED sentence, "runs {delta} per {driver} step, adjusted for {adjustment}": a causal
+   dose-response claim on an answer the system had just declared unsupportable. Now bounded by
+   `_ask_tier_rank`; language falls with the tier and can never rise.
+6. `config.tier_vocabulary` reserves "per" for CONFIRMED while the seeded effect/PROMOTED
+   template used it. The seed contradicted itself, claiming dose-response at a tier that is
+   explicitly not a causal claim.
+
+### Two decisions recorded rather than rediscovered
+
+**ADR-0062 — `spend` measures statement descriptors and says so.** M2 says a descriptor-only
+implementation cannot close the contract. Correct, and it cannot close at M2: merchant and
+category resolution is REQ-FIN-070..093, a twenty-four-requirement cascade with a pattern
+table, a fuzzy floor, kNN over Joe's own corrections, a gated model, a review queue and a
+100-labelled-example threshold. None of it exists; it is B14/B17 at M4. Implementing a
+substring match here would create a second, weaker owner of that measure (RULE-12) and, being
+the only one, would become the definition. So `spend` measures something narrower and names it
+in its own sentence — a charge settling as `SQ *MCD 8005551212 CA` is genuinely not found and
+a test asserts that, so the total is a floor, not a total. Currency mismatch refuses rather
+than summing; inflows are reported, never netted. Every blocked case is mapped to its
+dependency in the ADR.
+
+**ADR-0061 — the engines take schema names as parameters.** A previous session widened
+RULE-01's disposable-schema carve-out *in a docstring*, with a server guard as compensation.
+A rule that can be widened by a comment is not a rule. `panel.build` and
+`check_freshness.check` now take schema names as parameters, as the migrations already do, so
+no test creates a schema called `core`, `analysis` or `public` and the constitution needed no
+amendment. The compensating guard was deleted with the problem it compensated for.
+
+### M0 — the branch was not runnable from a clean checkout
+
+Six tracked test files imported `tests/_sql_fixture.py`, which was untracked, and
+`tools/test_local_sql.py` named an untracked `tests/test_ask_ranges.py`. Every green result
+depended on files present only in one working tree. Tracked in `666fe43` and **proved** by
+cloning the branch to a fresh directory and running the suite there: 179 passed.
+
+### Evidence at 45535eb
+
+```
+PYTHONPATH=. python3 tools/update_features.py --strict
+    pytest: 206 passed, 0 failed, 0 errors, 114 skipped of 320 collected
+
+python3 tools/test_local_sql.py   TZ=America/New_York   186 passed
+python3 tools/test_local_sql.py   TZ=UTC                186 passed
+PYTHONPATH=. python3 tools/check_invariants.py --core core     INVARIANTS: ALL PASS
+PYTHONPATH=. python3 tools/validate_layout.py                  41 passed, 0 warnings, 0 failed
+git diff --check                                               clean
+PYTHONPATH=. python3 tools/check_freshness.py --no-log         fresh=0 stale=4 misconfigured=1
+                                                               never_seen=12 unmonitored=6  [exit 1]
+```
+
+The 320 collected split as 206 against production and 114 on the disposable server; nothing is
+skipped in both places. `ops/features.json` is unchanged: no ledger entry corresponds to Ask,
+B13 or freshness, and adding one retrospectively would describe what was built instead of what
+was required.
+
+Live check: migration 0051 is **not** applied — neither the `file_import` enum label nor its
+registry rows exist in `core`.
+
+### WHAT I DID NOT DO
+
+- **`spend` does not meet its contract.** Held on B14, mapped case by case in ADR-0062.
+- **Replay against a correction to an earlier day is not proven and cannot be**, because
+  `analysis.panel` is rebuilt wholesale and carries no per-observation `recorded_at` (OQ-45).
+  The replay test's docstring says this rather than letting its name imply otherwise.
+- **B11.2 is untouched** — no Python client, planner, budget, egress or deployment.
+- **Migration 0049 is not applied** to production. Every Ask result above is from the
+  disposable server running the migration text, not from a deployed function.
+- **Migration 0051 is not applied.** Refused as a production write; not worked around.
+- **No real file has been imported**; the 43-day capture gap is recoverable, not recovered.
+- **0 of 17 monitored metrics are fresh.** No code in this session changes that.
+- Nothing pushed; the branch is local. OQ-45/47/48/50/51/53 remain open.
