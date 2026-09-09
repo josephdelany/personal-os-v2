@@ -22,7 +22,8 @@ TESTS = ("tests/test_ask_ranges.py", "tests/test_ask.py", "tests/test_ask_operat
          "tests/test_status.py", "tests/test_import_drop.py",
          "tests/test_panel_attention.py",
          "tests/test_freshness.py", "tests/test_egress.py", "tests/test_ask_planner.py", "tests/test_nutrition.py",
-         "tests/test_source_inventory.py")
+         "tests/test_source_inventory.py",
+         "tests/test_inferred_events.py")
 
 
 def pg_bin():
