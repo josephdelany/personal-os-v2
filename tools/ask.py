@@ -60,12 +60,25 @@ def _grammar_missed(envelope):
     """
     if not envelope.get("refusal"):
         return False
-    if envelope.get("nearest"):
-        return False                      # an untracked metric, disclosed. A true answer.
+
+    # A refusal naming an untracked METRIC is a true answer about the record: it says what is
+    # not tracked and lists what is. Rephrasing it would turn an honest refusal into a
+    # different question that happens to have data.
+    if envelope.get("reason") in ("condition_metric_untracked", "second_metric_unresolved"):
+        return False
+    if envelope.get("reason") is None and envelope.get("nearest") and "q" not in envelope:
+        return False                      # the bare untracked-metric refusal
+
+    # A refusal about the SHAPE of the question — an unreadable date range, a missing spend
+    # subject, a condition the parser could not read — is exactly what a rephrase could fix.
+    # The earlier ordering returned False on any envelope carrying `nearest`, and all four of
+    # these emit `nearest` too, so this whole branch was unreachable and the planner never ran
+    # for the cases it would most plausibly help.
     if envelope.get("reason") in ("no_condition_metric", "no_spend_subject",
-                                  "second_metric_unresolved", "invalid_date_range"):
+                                  "invalid_date_range", "condition_not_readable"):
         return True
-    # The search fallback found nothing: no pattern claimed the question.
+
+    # The search fallback found nothing: no grammar pattern claimed the question at all.
     return "q" in envelope and envelope.get("n") == 0
 
 
@@ -108,7 +121,12 @@ def main(argv=None):
                     help="deterministic only — the path that always works (RULE-15)")
     ap.add_argument("--json", action="store_true")
     a = ap.parse_args(argv)
-    as_of = dt.date.fromisoformat(a.as_of) if a.as_of else dt.date.today()
+    # NOT `dt.date.today()`. That reads the machine's timezone and is a day ahead of the
+    # executor's own default — `(now() ET - 4 hours)::date - 1` — so at 01:00 ET the CLI asked
+    # about days that cannot yet hold data, and those empty days counted in the coverage
+    # denominator and pushed answers toward the INSUFFICIENT floor. Passing NULL lets the RPC
+    # use its own default, which is the one number both paths agree on.
+    as_of = dt.date.fromisoformat(a.as_of) if a.as_of else None
 
     conn = db.connect()
     try:

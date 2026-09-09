@@ -1570,3 +1570,125 @@ def test_REQ_ASK_020_the_registered_tier_ceiling_is_enforced(ask_cur):
     assert stored["tier_before_ceiling"] == "CONFIRMED_OBSERVATIONAL", stored
     assert stored["tier_ceiling"] == ceiling
     assert stored["status"] == "CONFIRMED_OBSERVATIONAL"
+
+
+# ============================================================ round-three review findings
+
+def test_REQ_ASK_027_a_negated_condition_is_refused_not_inverted(ask_cur):
+    """Round-3 finding 1: "not below 5000" parsed as "below 5000" and answered its opposite.
+
+    The comparator count added in round 2 cannot see negation — one comparator either way — so
+    the clause was read as its own inverse, answered 8 where the truth was 12, and the stored
+    result RELABELLED it "below 5000" so the trace confirmed the inversion. `compare` swapped
+    its two groups the same way. Reading a negated comparison correctly means deciding what
+    "not below" does at the boundary; refusing is honest until that is specified.
+    """
+    cur = ask_cur
+    register_metric(cur, "hrv_sdnn_ms", "HRV", "ms")
+    for i in range(1, 21):
+        day = AS_OF - dt.timedelta(days=20 - i)
+        panel(cur, "steps", day, 500 + i * 500)
+        panel(cur, "hrv_sdnn_ms", day, 70 if 500 + i * 500 >= 5000 else 40)
+
+    for question in ("how many days my steps not below 5000 last 20 days",
+                     "how many days my steps never above 5000 last 20 days",
+                     "my hrv on days when my steps are not above 5000 last 20 days"):
+        r = ask(cur, question)
+        assert r.get("refusal") is not None, f"{question!r} answered: {r}"
+        assert r.get("tier") is None, r
+
+    # The unnegated forms still work and are not collateral damage.
+    ok = ask(cur, "how many days my steps above 5000 last 20 days")
+    assert ok.get("refusal") is None and ok["tier"] == "DESCRIPTIVE"
+
+
+def test_RULE_12_the_like_escape_is_correct_under_standard_conforming_strings(ask_cur):
+    """Round-3 finding 3: the escape function was wrong and its test passed for the wrong reason.
+
+    With `standard_conforming_strings` on, `'\\\\'` in a SQL literal is TWO backslashes — so the
+    first version never escaped a backslash and rewrote `%` as an escaped backslash followed by
+    a LIVE wildcard. The over-match test passed only because the resulting pattern demanded a
+    literal backslash and therefore matched nothing.
+    """
+    cur = ask_cur
+    cur.execute("SHOW standard_conforming_strings")
+    assert cur.fetchone()[0] == "on", "this test is about the on behaviour"
+
+    # The escape must make each metacharacter match itself and nothing else.
+    for raw, matches, not_matches in (
+            ("coffee_shop", "COFFEE_SHOP DOWNTOWN", "COFFEEXSHOP DOWNTOWN"),
+            ("50% off", "50% OFF STORE", "50 ANYTHING OFF STORE")):
+        cur.execute("SELECT %s ILIKE '%%' || public_pytest._ask_like_escape(%s) || '%%'",
+                    (matches, raw))
+        assert cur.fetchone()[0] is True, f"{raw!r} should match {matches!r}"
+        cur.execute("SELECT %s ILIKE '%%' || public_pytest._ask_like_escape(%s) || '%%'",
+                    (not_matches, raw))
+        assert cur.fetchone()[0] is False, f"{raw!r} must not match {not_matches!r}"
+
+    # End to end: the underscore subject finds its charge instead of reporting it absent.
+    _txn_atom(cur, AS_OF - dt.timedelta(days=1), -10.00,
+              "bank:x;merchant=Coffee;descriptor=COFFEE_SHOP DOWNTOWN")
+    r = ask(cur, "how much did i spend at coffee_shop last 10 days")
+    assert r.get("refusal") is None, r
+    assert float(stored_result(cur, r)["total_out"]) == 10.00
+
+
+def test_RULE_16_the_insufficient_form_renders_with_no_empty_slot(ask_cur):
+    """Round-3 finding 4: the insufficient template read {n} and {days}, which most operations
+    do not carry — so it rendered a literal "{n}" to the reader, and for effect/contrast (whose
+    `days` is stripped on purpose) the whole answer failed numeral verification and returned
+    nothing plus a spurious render_violations row."""
+    cur = ask_cur
+    register_metric(cur, "hrv_sdnn_ms", "HRV", "ms")
+    for i in range(1, 11):
+        day = AS_OF - dt.timedelta(days=10 - i)
+        panel(cur, "steps", day, i * 1000)
+        panel(cur, "hrv_sdnn_ms", day, 40 + i)
+    _store_contrast(cur, "steps", "hrv_sdnn_ms", 0, delta=-7.5, run_date=dt.date(2026, 9, 1))
+
+    cur.execute("SELECT count(*) FROM analysis_pytest.render_violations")
+    violations_before = cur.fetchone()[0]
+
+    for question in ("does my steps affect my hrv last 90 days",
+                     "how is my steps last 90 days",
+                     "when did i last log my steps",
+                     "my hrv on days when my steps are above 5000 last 90 days",
+                     "which weekday is my steps last 90 days"):
+        r = ask(cur, question)
+        if r.get("tier") != "INSUFFICIENT":
+            continue
+        text = r.get("answer_text") or ""
+        assert "{" not in text and "}" not in text, f"unfilled slot in {question!r}: {text}"
+        assert "did not pass numeral verification" not in text, f"{question!r}: {text}"
+        assert text.strip(), f"{question!r} rendered nothing"
+
+    cur.execute("SELECT count(*) FROM analysis_pytest.render_violations")
+    assert cur.fetchone()[0] == violations_before, "a valid answer wrote a violation row"
+
+
+def test_REQ_ASK_003_the_second_metric_has_the_same_similarity_floor_as_the_first(ask_cur):
+    """Round-3 finding 6: "does my steps affect my toenail length" answered about WEIGHT.
+
+    `m2` was checked only for NULL while `_ask_resolve_metric` always returns its top three,
+    so an untracked outcome silently became whatever ranked first — at similarity 0.018, in
+    confident exploratory language, with the plan recording metric2=weight_lb. REQ-ASK-003's
+    "I do not track that" was unreachable for exactly the metric the answer is about.
+    """
+    cur = ask_cur
+    register_metric(cur, "hrv_sdnn_ms", "HRV", "ms")
+    for i in range(1, 11):
+        day = AS_OF - dt.timedelta(days=10 - i)
+        panel(cur, "steps", day, i * 1000)
+        panel(cur, "hrv_sdnn_ms", day, 40 + i)
+
+    for question in ("does my steps affect my toenail length last 10 days",
+                     "does my steps affect my mortgage rate last 10 days"):
+        r = ask(cur, question)
+        assert r["refusal"] == "I do not track that.", f"{question!r}: {r}"
+        assert r["reason"] == "second_metric_unresolved", r
+        assert r["nearest"], "the nearest tracked metrics must be disclosed"
+
+    # A tracked outcome still resolves.
+    _store_contrast(cur, "steps", "hrv_sdnn_ms", 0, delta=-7.5, run_date=dt.date(2026, 9, 1))
+    ok = ask(cur, "does my steps affect my hrv last 10 days")
+    assert ok.get("refusal") is None, ok

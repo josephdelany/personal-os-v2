@@ -272,3 +272,44 @@ def test_RULE_29_screening_catches_the_shapes_a_prompt_actually_carries():
     ]
     for payload in allowed:
         egress.screen_payload(payload)      # must not raise; a false refusal is also a defect
+
+
+def test_RULE_29_the_documented_bypasses_are_all_refused():
+    """Round-3 finding 9: six shapes an adversarial review got past the first screen.
+
+    Each is a shape a real prompt could carry, and RULE-29 says home coordinates never egress
+    AT ANY PRECISION — so a four-decimal floor was the wrong kind of test entirely. The
+    normalised-decimal case is the instructive one: `json.dumps` writes -74.0060 as -74.006,
+    so a precision threshold fails on the exact input it was written for.
+    """
+    bypasses = [
+        # The values are NOT real coordinates — the shapes are what is under test, and
+        # `validate_layout.py` rightly fails a real one committed to the repository. A trailing
+        # zero is kept where it matters: json.dumps writes -45.6780 as -45.678, which is the
+        # normalisation that defeated a four-decimal floor.
+        ({"points": [[12.3450, -45.6780]]}, "nested list; json.dumps drops the trailing zero"),
+        ({"x": 12.34567, "y": -45.67891}, "a pair split across sibling fields"),
+        ({"place_x": 12.34567, "place_y": -45.67891}, "keys with unrelated names"),
+        ({"note": "12.345,-45.678"}, "three decimals, about 110 metres"),
+        ({"note": "12.34567,-45.67891"}, "unicode escapes"),
+        ({"note": "12.3456 N, 45.6789 W"}, "hemisphere letters"),
+    ]
+    for payload, label in bypasses:
+        with pytest.raises(egress.PayloadRefused):
+            egress.screen_payload(payload)
+
+
+def test_RULE_29_screening_does_not_refuse_the_payloads_the_system_actually_sends():
+    """A false refusal is also a defect: it would make the planner permanently unusable.
+
+    These are the real shapes — an Ask result, a metric reading, a nutrition lookup, a plan.
+    """
+    for payload in (
+            {"median": 73.5, "n": 28, "days": 40, "unit": "ms"},
+            {"prompt": "how is my sleep", "metrics": {"steps": "Steps", "hrv_sdnn_ms": "HRV"}},
+            {"food": "big mac", "grams": 219.0},
+            {"prompt": "I ate 2 burgers, 40.5 grams protein"},
+            {"op": "describe", "metric": "steps", "range_phrase": "last 30 days"},
+            {"weight_lb": 176.37, "unit": "lb"},
+    ):
+        egress.screen_payload(payload)

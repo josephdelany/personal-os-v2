@@ -89,7 +89,12 @@ INSERT INTO config.ask_templates (op, tier, template) VALUES
  ('entity','DESCRIPTIVE','{summary}'),
  -- The form an answer takes when coverage floors it below every tier's language. It states
  -- the numbers and what is missing, in vocabulary that claims nothing (RULE-16, RULE-18).
- ('insufficient','INSUFFICIENT','Over {range} there were {n} of {days} days with data for {display} — below what this answer would need. The observations are stored and traceable; the claim is not made.'),
+ -- Only slots every path can fill. The first version read {n} — a result key `last`,
+ -- `compare`, `effect` and `contrast` do not carry, so it rendered a literal "{n}" to the
+ -- reader — and {days}, which effect/contrast have stripped precisely because their number
+ -- comes from the scan's window and not the question's, so the answer failed numeral
+ -- verification and returned nothing at all plus a spurious render_violations row.
+ ('insufficient','INSUFFICIENT','There is not enough data on {display} over {range} to make this claim. The observations behind it are stored and traceable.'),
  ('spend','DESCRIPTIVE','Charges matching "{matched_on}" over {range} total {total_out} {currency} across {n_out} charges, about {per_week} {currency} a week. This is {caveat}.')
 ON CONFLICT (op, tier) DO NOTHING;
 
@@ -335,7 +340,13 @@ REVOKE ALL ON FUNCTION public._ask_range(text, date) FROM PUBLIC, anon, authenti
 -- — the value is parameterised — just a wrong money number with a confident sentence.
 CREATE OR REPLACE FUNCTION public._ask_like_escape(p text)
 RETURNS text LANGUAGE sql IMMUTABLE SET search_path = '' AS $fn$
-    SELECT replace(replace(replace(p, '\\', '\\\\'), '%', '\\%'), '_', '\\_')
+    -- With standard_conforming_strings ON (the default, and on in production), a backslash in
+    -- a single-quoted literal is a literal backslash — so '\\' is TWO of them, not an escaped
+    -- one. The first version therefore left a real backslash unescaped and rewrote `%` as
+    -- backslash-backslash-percent: an escaped backslash followed by a LIVE wildcard. Its test
+    -- passed because the resulting pattern demanded a literal backslash and so matched nothing,
+    -- not because the escaping worked. E'' makes the intent explicit and is checked by test.
+    SELECT replace(replace(replace(p, E'\\', E'\\\\'), '%', E'\\%'), '_', E'\\_')
 $fn$;
 REVOKE ALL ON FUNCTION public._ask_like_escape(text) FROM public;
 
@@ -352,6 +363,16 @@ BEGIN
     -- last, then answered "above 7" — 20 of 20 days where the truth was 10, at DESCRIPTIVE
     -- tier with no refusal. A condition that cannot be read as ONE comparison is refused.
     IF (SELECT count(*) FROM regexp_matches(txt, '\m(above|below|over|under)\M', 'g')) > 1 THEN
+        RETURN QUERY SELECT NULL::text, NULL::numeric, NULL::text, NULL::boolean;
+        RETURN;
+    END IF;
+    -- NEGATION. "not below 5000" is not "below 5000", and the comparator count cannot see the
+    -- difference — one comparator either way. The clause parsed as its own opposite, answered
+    -- 8 where the truth was 12, and the stored result relabelled it "below 5000" so the trace
+    -- confirmed the inversion instead of exposing it. `compare` swapped its two groups the
+    -- same way. Reading a negated comparison correctly means deciding what "not below" means
+    -- at the boundary; refusing is the honest move until that is specified.
+    IF txt ~ '\m(not|never|isn''t|aren''t|wasn''t|weren''t|no longer|except)\M' THEN
         RETURN QUERY SELECT NULL::text, NULL::numeric, NULL::text, NULL::boolean;
         RETURN;
     END IF;
@@ -787,7 +808,18 @@ BEGIN
         END IF;
         res := res || jsonb_build_object('display', m1.display, 'unit', coalesce(m1.unit, ''));
     ELSIF op IN ('effect','contrast') THEN
-        SELECT * INTO m2 FROM public._ask_resolve_metric(regexp_replace(q, m1.display, '', 'g'), m1.metric) LIMIT 1;
+        -- The SECOND metric's phrase, not the rest of the sentence. `m1` is resolved from a
+        -- stripped phrase precisely because grammar and date words dilute trigram similarity
+        -- below any usable floor; passing the whole remainder here meant the outcome could
+        -- never clear the same floor, so it had none — and answered about whatever ranked
+        -- first. Take what follows the verb, then strip the same words `m1` strips.
+        metric_text := coalesce((regexp_match(q,
+            '\m(?:affect|affects|drive|drives|cause|causes|impact|impacts|relate to|related to)\s+(.*)$'))[1],
+            regexp_replace(q, m1.display, '', 'g'));
+        metric_text := regexp_replace(metric_text,
+            '\s+(today|yesterday|this (week|month|year)|last [0-9]+ days?|last (week|month)|since .+|in [0-9]{4})[?]?$','');
+        metric_text := trim(regexp_replace(metric_text, '^(my |the )', ''), ' ?');
+        SELECT * INTO m2 FROM public._ask_resolve_metric(metric_text, m1.metric) LIMIT 1;
         -- REQ-ASK-021/022: BOTH metrics' coverage, and the gate on the MINIMUM. Reporting the
         -- driver's only meant the outcome — the metric the delta is actually about — was
         -- neither disclosed nor gated, so the 0.60 floor was applied to one side of a
@@ -800,7 +832,22 @@ BEGIN
             coverage_min := least(coalesce(coverage_min, 1),
                                   n_outcome_days::numeric / greatest(n_days,1));
         END IF;
-        IF m2.metric IS NULL THEN
+        -- `m2` was checked only for NULL, and `_ask_resolve_metric` always returns its top
+        -- three regardless of similarity — so "does my steps affect my toenail length"
+        -- answered about WEIGHT at similarity 0.018, in confident exploratory language, with
+        -- the plan recording metric2=weight_lb. `m1` and the condition metric are both floored
+        -- at 0.35; the outcome was not, which made REQ-ASK-003's "I do not track that" plus
+        -- nearest unreachable for exactly the metric the answer is about.
+        IF m2.metric IS NULL OR coalesce(m2.sim, 0) < 0.35 THEN
+            SELECT value INTO refusal FROM config.strings WHERE key = 'refusal_untracked';
+            SELECT jsonb_agg(jsonb_build_object('metric', x.metric, 'display', x.display))
+              INTO nearest
+              FROM public._ask_resolve_metric(metric_text, m1.metric) x;
+            UPDATE __CORE__.questions SET refusal = ask_state.refusal WHERE question_id = qid;
+            RETURN jsonb_build_object('question_id', qid, 'refusal', refusal,
+                'reason', 'second_metric_unresolved', 'nearest', nearest, 'tier', NULL);
+        END IF;
+        IF false THEN
             SELECT value INTO refusal FROM config.strings WHERE key = 'refusal_unmappable';
             UPDATE __CORE__.questions SET refusal = ask_state.refusal WHERE question_id = qid;
             RETURN jsonb_build_object('question_id', qid, 'refusal', refusal,
@@ -1280,6 +1327,11 @@ BEGIN
        AND public._ask_tier_rank(t.tier) <= public._ask_tier_rank(ask_state.tier)
      ORDER BY public._ask_tier_rank(t.tier) DESC LIMIT 1;
     IF templ IS NULL THEN
+        -- The range label is filled from a VARIABLE, so on this path its numerals ("the last
+        -- 90 days") must be present in the stored result or the verifier discards the answer.
+        -- effect/contrast strip `range_label` deliberately; the insufficient form is about the
+        -- QUESTION's window rather than a stored computation's, so it is restored here only.
+        res := coalesce(res, '{}'::jsonb) || jsonb_build_object('range_label', rng.label);
         -- No template at or below the effective tier. The previous fallback took the LOWEST
         -- template for the op, which is still above INSUFFICIENT — so an INSUFFICIENT answer
         -- rendered "appears ... provisional ... watched", every one a PROMOTED-tier term

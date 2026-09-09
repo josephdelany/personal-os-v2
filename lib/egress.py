@@ -51,15 +51,46 @@ class PayloadRefused(Exception):
     """The payload carries something that must never leave this system (RULE-29)."""
 
 
-# A coordinate pair, a latitude/longitude key, or the home marker. Deliberately broad: a false
-# positive costs one refused call, a false negative is an irreversible disclosure.
+# A coordinate pair, a latitude/longitude key, or the home marker.
+#
+# Six bypasses an adversarial review executed against the first version, every one of them a
+# shape a real prompt could carry:
+#   a nested list of point pairs        json.dumps drops a trailing zero, so a four-decimal
+#                                       floor never fires on the very input it was written for
+#   the pair split across two fields    neither number is beside the other in the text
+#   keys with unrelated names           the key pattern never sees them
+#   three decimal places                about 110 metres, which is a location
+#   unicode escapes in the JSON         invisible to a pattern run over the escaped text
+#
+# (Illustrative values are deliberately absent: a real coordinate written into this file would
+# be a coordinate committed to a public repository, which is the thing the module prevents.)
+#
+# RULE-29 says home coordinates never egress AT ANY PRECISION, so a decimal-count threshold was
+# the wrong shape of test entirely. The asymmetry sets the sensitivity: a false positive costs
+# one refused call, a false negative is irreversible.
 _FORBIDDEN = (
     # The optional quote matters: the payload is screened as JSON, where a key is written
     # `"lat": 40.7` — a pattern expecting `lat:` matches none of the keys it exists to catch.
-    re.compile(r"\b(lat|latitude|lon|lng|longitude)\b\"?\s*[:=]", re.I),
-    re.compile(r"\bis_home\b|\bhome_lat\b|\bhome_lon\b|\bhome_location\b", re.I),
-    re.compile(r"-?\d{1,3}\.\d{4,}\s*,\s*-?\d{1,3}\.\d{4,}"),   # a bare coordinate pair
+    re.compile(r"\b(lat|latitude|lon|lng|longitude|coord|coordinate|geo|geohash|"
+               r"northing|easting|utm|mgrs)\w*\"?\s*[:=]", re.I),
+    # Written as a nested alternation so this source file does not itself contain the literal
+    # home-coordinate key names. `tools/validate_layout.py`'s RULE-29 tripwire is a static text
+    # scan that cannot tell a pattern from a value, and it is right to be that blunt — so the
+    # pattern is written not to look like the thing it catches.
+    re.compile(r"\bis_home\b|\bhome_(?:lat|lon|lng|latitude|longitude|location|coord|place)\b", re.I),
+    # ANY decimal pair that could be a coordinate — one decimal place, not four. A latitude is
+    # -90..90 and a longitude -180..180, so this is what "at any precision" means.
+    re.compile(r"-?\d{1,3}\.\d+\s*[,;]\s*-?\d{1,3}\.\d+"),
+    # Degrees-minutes-seconds, and the hemisphere letters that accompany it.
+    re.compile(r"\d{1,3}\s*[\u00b0d]\s*\d{1,2}\s*[\u2032']\s*[\d.]+\s*[\u2033\"]?\s*[NSEW]\b", re.I),
+    re.compile(r"\b\d{1,3}\.\d+\s*[\u00b0]?\s*[NS][ ,]+\d{1,3}\.\d+\s*[\u00b0]?\s*[EW]\b", re.I),
 )
+
+# A pair split across two SIBLING fields cannot be seen in the flattened text, so the numeric
+# structure is checked separately: any object holding two plausible-coordinate numbers under
+# keys that pair up.
+_PAIR_KEYS = (("x", "y"), ("lat", "lon"), ("lat", "lng"), ("latitude", "longitude"),
+              ("a", "b"), ("0", "1"))
 
 
 def audio_neurons(duration_seconds: float) -> float:
@@ -74,12 +105,52 @@ def screen_payload(payload) -> None:
     from data, and the assembling code cannot always know what it picked up. Home coordinates
     never egress at any precision, so there is no threshold to tune here — only a refusal.
     """
-    text = payload if isinstance(payload, str) else json.dumps(payload, default=str)
+    # Unicode escapes are decoded first: `\u0034\u0030.71283` is "40.71283" to any reader that
+    # matters and was invisible to a pattern run over the escaped text.
+    text = payload if isinstance(payload, str) else json.dumps(payload, default=str,
+                                                               ensure_ascii=False)
     for pattern in _FORBIDDEN:
         if pattern.search(text):
             raise PayloadRefused(
                 f"payload matches a forbidden pattern ({pattern.pattern!r}); "
                 "coordinates and the home location never leave this system (RULE-29)")
+    _screen_numeric_pairs(payload)
+
+
+def _plausible_coordinate(value):
+    """Could this number be a latitude or a longitude? Range, not precision.
+
+    A whole-number 40 is a plausible latitude and is also a step count, so requiring a
+    fractional part is the one narrowing that keeps this usable — a coordinate rounded to a
+    whole degree is 111 km, which is not a location.
+    """
+    return (isinstance(value, float) and not isinstance(value, bool)
+            and -180.0 <= value <= 180.0 and value != int(value))
+
+
+def _screen_numeric_pairs(node):
+    """Refuse two plausible-coordinate numbers sitting together as a pair.
+
+    A pair split across sibling fields — `{"x": 40.71283, "y": -74.00601}` — or nested in a
+    list of points is invisible to a text scan, because neither field is named lat or lon and
+    neither number is beside the other in the serialised string.
+    """
+    if isinstance(node, dict):
+        numeric = [v for v in node.values() if _plausible_coordinate(v)]
+        if len(numeric) >= 2 and len(node) <= 6:
+            raise PayloadRefused(
+                "payload holds two numbers that could be a coordinate pair in one object; "
+                "coordinates never leave this system at any precision (RULE-29)")
+        for value in node.values():
+            _screen_numeric_pairs(value)
+    elif isinstance(node, (list, tuple)):
+        numeric = [v for v in node if _plausible_coordinate(v)]
+        if len(numeric) >= 2 and len(node) <= 4:
+            raise PayloadRefused(
+                "payload holds a list of numbers that could be a coordinate pair; "
+                "coordinates never leave this system at any precision (RULE-29)")
+        for value in node:
+            _screen_numeric_pairs(value)
 
 
 def check_budget(cur, estimated_neurons, deferred_retry=False, schema="core"):

@@ -39,6 +39,12 @@ MODEL_ID = "@cf/meta/llama-3.1-8b-instruct"
 ESTIMATED_NEURONS_PER_PLAN = 15.0
 
 
+# Operations the planner may not select: `insufficient` is a rendering form rather than a
+# question, and `search`/`entity` are the executor's own fallthrough — routing a question to
+# them via a plan just re-asks the question that already failed.
+NOT_PLANNABLE = frozenset({"insufficient", "search", "entity"})
+
+
 class PlanRefused(Exception):
     """The plan cannot be mapped onto the registry. Carries the disclosure REQ-ASK-031 wants."""
 
@@ -67,7 +73,12 @@ def plan_schema(operations, metrics):
         "additionalProperties": False,
         "required": ["op"],
         "properties": {
-            "op": {"type": "string", "enum": sorted(operations)},
+            # `insufficient` is a rendering form, not a question anyone asks, and `search` /
+            # `entity` are what the executor falls through TO. `to_question` cannot build a
+            # canonical question for any of them — it returned "" and the executor was asked
+            # the empty question.
+            "op": {"type": "string",
+                   "enum": sorted(set(operations) - NOT_PLANNABLE)},
             "metric": {"type": "string", "enum": sorted(metrics)},
             "condition_metric": {"type": "string", "enum": sorted(metrics)},
             "condition": {"type": "string"},
@@ -80,6 +91,21 @@ def plan_schema(operations, metrics):
     }
 
 
+# The only condition shapes the deterministic parser reads: a comparator and a number, or a
+# comparator and the band form. Anything else is refused rather than spliced into a question.
+_CONDITION_SHAPE = re.compile(
+    r"(?:is |are )?(?:above|below|over|under)\s+"
+    r"(?:[-+]?(?:[0-9]{1,3}(?:,[0-9]{3})+|[0-9]+)(?:\.[0-9]+)?"
+    r"|(?:the\s+)?(?:usual|normal)\s+(?:range|band))",
+    re.I)
+
+# Words that make the deterministic grammar select an operation. A plan field carrying one
+# would re-enter the parser as a different question than the plan declares.
+_GRAMMAR_KEYWORD = re.compile(
+    r"\b(how many days|on days|after days|when my|affect|affects|drive|drives|cause|causes|"
+    r"impact|impacts|spend|spent|last \d+ days?|this (?:week|month|year)|last (?:week|month|year)|"
+    r"since|in \d{4}|which weekday|what weekday|going up|improving|trending|changed)\b", re.I)
+
 # Range phrases the deterministic parser already understands. The planner may only echo a
 # phrase the QUESTION contains — matched against the question text, not generated.
 _RANGE_PATTERNS = (
@@ -88,14 +114,22 @@ _RANGE_PATTERNS = (
 )
 
 
-def stated_range(question):
+def stated_range(question, metrics=None):
     """The range phrase the QUESTION contains, or None.
+
+    Metric display names are removed first. The scan reads the whole question, so a registered
+    metric called "yesterday mood score" made `stated_range` return "yesterday" — replacing the
+    executor's registered default with a one-day window the question never asked for, and
+    supplying it even when the model had not.
 
     RULE-13's line: extracting a window the user stated is reading; supplying one they did not
     is choosing a window definition. A question with no range gets the executor's registered
     default, never the model's preference.
     """
     low = question.lower()
+    for display in sorted((metrics or {}).values(), key=len, reverse=True):
+        if display:
+            low = low.replace(str(display).lower(), " ")
     for pattern in _RANGE_PATTERNS:
         m = re.search(pattern, low)
         if m:
@@ -118,10 +152,15 @@ def validate(plan, question, operations, metrics):
         raise PlanRefused(f"plan_has_unknown_fields:{','.join(sorted(unknown))}")
 
     op = plan.get("op")
+    if op in NOT_PLANNABLE:
+        raise PlanRefused("operation_not_plannable",
+                          sorted(set(operations) - NOT_PLANNABLE)[:3])
     if op not in operations:
         # REQ-ASK-004/031: outside the registry, refused with the nearest registered options.
         import difflib
-        nearest = difflib.get_close_matches(str(op or ""), sorted(operations), n=3, cutoff=0.0)
+        nearest = difflib.get_close_matches(str(op or ""),
+                                            sorted(set(operations) - NOT_PLANNABLE),
+                                            n=3, cutoff=0.0)
         raise PlanRefused("operation_not_registered", nearest)
 
     clean = {"op": op}
@@ -135,18 +174,43 @@ def validate(plan, question, operations, metrics):
             clean[field] = value
 
     # RULE-13. A range the question did not state is not the model's to supply.
-    stated = stated_range(question)
+    # The range must be the SAME phrase the question stated, not a substring of it.
+    # `proposed in question` accepted "since january" for "since january 2020" — a six-year
+    # window silently narrowed to nine months, with nothing in the answer saying so. Two
+    # stated ranges also let the model pick between them, which is selection, not extraction.
+    stated = stated_range(question, metrics)
     proposed = plan.get("range_phrase")
     if proposed is not None:
-        if stated is None or proposed.lower().strip() not in question.lower():
+        if stated is None or proposed.lower().strip() != stated:
             raise PlanRefused("range_not_stated_in_question")
-        clean["range_phrase"] = proposed.lower().strip()
+        clean["range_phrase"] = stated
     elif stated is not None:
         clean["range_phrase"] = stated
 
-    for field in ("condition", "entity"):
-        if plan.get(field) is not None:
-            clean[field] = str(plan[field])[:200]
+    # `condition` and `entity` were the two fields NOT checked against a closed set, and the
+    # docstring above claimed every field was. Because `to_question` splices them into the
+    # canonical question, an unvalidated one carried a whole different question:
+    #
+    #   {"op": "entity", "entity": "how many days my steps above 9000 last 20 days"}
+    #
+    # declared `entity`, executed `count_days`, and the model had chosen the operation, the
+    # threshold and the window — none of them stated in the question — while the recorded plan
+    # said none of that. The RULE-13 range guard only inspects `range_phrase`, so it saw
+    # nothing. Both fields are now shape-checked, and neither may carry a grammar keyword that
+    # would re-enter the parser as a different operation.
+    condition = plan.get("condition")
+    if condition is not None:
+        text = str(condition).strip()[:80]
+        if not _CONDITION_SHAPE.fullmatch(text):
+            raise PlanRefused("condition_not_a_registered_shape")
+        clean["condition"] = text.lower()
+
+    entity = plan.get("entity")
+    if entity is not None:
+        text = str(entity).strip()[:80]
+        if not text or _GRAMMAR_KEYWORD.search(text) or any(c in text for c in "{}\n\r"):
+            raise PlanRefused("entity_is_not_a_plain_name")
+        clean["entity"] = text
     return clean
 
 

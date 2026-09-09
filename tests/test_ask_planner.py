@@ -385,3 +385,99 @@ def test_REQ_ASK_007_a_planned_answer_records_that_it_was_planned(ask_cur):
     # REQ-ASK-012: the numbers came from the executor, not the model. The plan carries none.
     import re
     assert not re.search(r"\d", json.dumps(envelope["planner"]["plan"]))
+
+
+# ------------------------------------------------------------------ round-three findings
+
+def test_RULE_13_an_unvalidated_field_cannot_smuggle_a_whole_question(sql_connection):
+    """Round-3 finding 5: `condition` and `entity` were free text spliced into the question.
+
+    `{"op": "entity", "entity": "how many days my steps above 9000 last 20 days"}` declared
+    `entity`, executed `count_days`, and let the model choose the operation, the threshold AND
+    the window — none stated in the question — while the recorded plan said none of it. The
+    RULE-13 range guard only inspects `range_phrase`, so it saw nothing.
+    """
+    cur = world(sql_connection.cursor())
+    operations, metrics = opts(cur)
+
+    for smuggled in ("how many days my steps above 9000 last 20 days",
+                     "my hrv on days when my steps are above 5000",
+                     "does my steps affect my hrv"):
+        with pytest.raises(planner.PlanRefused):
+            planner.validate({"op": "spend", "entity": smuggled},
+                             "am i spending too much", operations, metrics)
+
+    # A condition must be a registered SHAPE, not prose.
+    for bad in ("above 5000 last 20 days", "whenever i feel like it", "above five thousand"):
+        with pytest.raises(planner.PlanRefused):
+            planner.validate({"op": "count_days", "metric": "steps", "condition": bad},
+                             "am i walking enough", operations, metrics)
+
+    # The real shapes still pass.
+    for good in ("above 5000", "below the usual range", "above the usual range"):
+        clean = planner.validate({"op": "count_days", "metric": "steps", "condition": good},
+                                 "am i walking enough", operations, metrics)
+        assert clean["condition"] == good.lower()
+    sql_connection.rollback()
+
+
+def test_REQ_ASK_004_the_planner_cannot_select_an_operation_it_cannot_render(sql_connection):
+    """`insufficient` is a rendering form, and `search`/`entity` are the executor's own
+    fallthrough — `to_question` returns "" for all three, so the executor was asked the empty
+    question. They are not selectable."""
+    cur = world(sql_connection.cursor())
+    cur.execute(f"""INSERT INTO {CONFIG}.operations VALUES
+        ('insufficient','none','d','INSUFFICIENT'), ('search','text','d','DESCRIPTIVE'),
+        ('entity','entity','d','DESCRIPTIVE')""")
+    operations, metrics = opts(cur)
+
+    for op in ("insufficient", "search", "entity"):
+        with pytest.raises(planner.PlanRefused) as e:
+            planner.validate({"op": op, "metric": "steps"}, "how is my steps",
+                             operations, metrics)
+        assert e.value.reason == "operation_not_plannable", (op, e.value.reason)
+
+    # And the schema does not offer them.
+    schema = planner.plan_schema(operations, metrics)
+    assert set(schema["properties"]["op"]["enum"]).isdisjoint(planner.NOT_PLANNABLE)
+    sql_connection.rollback()
+
+
+def test_RULE_13_the_range_must_be_the_same_phrase_not_a_substring(sql_connection):
+    """Round-3 finding 8: `proposed in question` accepted "since january" for
+    "since january 2020" — a six-year window silently narrowed to nine months."""
+    cur = world(sql_connection.cursor())
+    operations, metrics = opts(cur)
+
+    with pytest.raises(planner.PlanRefused) as e:
+        planner.validate({"op": "describe", "metric": "steps", "range_phrase": "since january"},
+                         "how is my steps since january 2020", operations, metrics)
+    assert e.value.reason == "range_not_stated_in_question"
+
+    # The full stated phrase is accepted, and is what the question said.
+    clean = planner.validate(
+        {"op": "describe", "metric": "steps", "range_phrase": "since january 2020"},
+        "how is my steps since january 2020", operations, metrics)
+    assert clean["range_phrase"] == "since january 2020"
+    sql_connection.rollback()
+
+
+def test_RULE_13_a_range_word_inside_a_metric_name_is_not_a_stated_range(sql_connection):
+    """`stated_range` scanned the whole question including metric display names, so a metric
+    called "yesterday mood score" supplied a ONE-DAY window the question never asked for —
+    replacing the executor's registered default, and supplying it even when the model had not."""
+    cur = world(sql_connection.cursor())
+    cur.execute(f"""INSERT INTO {CORE}.metric_registry
+        (metric_key, display_name, family, unit, state_class)
+        VALUES ('yesterday_mood','yesterday mood score','test','score','measurement')""")
+    operations, metrics = opts(cur)
+
+    assert planner.stated_range("how is my yesterday mood score", metrics) is None
+    clean = planner.validate({"op": "describe", "metric": "yesterday_mood"},
+                             "how is my yesterday mood score", operations, metrics)
+    assert "range_phrase" not in clean, clean
+
+    # A range genuinely stated alongside that metric is still read.
+    assert planner.stated_range("how is my yesterday mood score last 30 days",
+                                metrics) == "last 30 days"
+    sql_connection.rollback()
