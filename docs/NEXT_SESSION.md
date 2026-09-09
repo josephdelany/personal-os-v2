@@ -90,3 +90,46 @@ is after the review in "next executable action", not before.
 | Ask spend | partial, disclosed | for what it measures | no | no |
 | Shared egress + budget | yes | yes (injected transport) | no | **no call ever made** |
 | Language planner | yes | yes (injected transport) | no | **no call ever made** |
+
+---
+
+## 2026-09-09 late — FIRST REAL DATA. Read this first after any compaction.
+
+**Migration 0051 is APPLIED to production.** Joe ran it; invariants ALL PASS; `file_import`
+is a valid capture source; registry 23 → 43 metrics, 17 → 37 monitored. This is the first
+thing actually deployed from this branch.
+
+**A real Apple Health export exists at `/Users/default/Downloads/export.zip`** — 14 MB zipped,
+309 MB `export.xml`. Dry run (writes nothing) succeeded:
+
+```
+PYTHONPATH=. python3 tools/import_drop.py --file /Users/default/Downloads/export.zip --since 2026-07-01
+  status imported, records_parsed 33361, atoms_written 33355, duplicates_skipped 6
+  period 2026-07-01 .. 2026-09-09
+  counters: type_not_mapped 91430, outside_window 534115,
+            out_of_range:headphone_audio_exposure_db 18,
+            sleep_segment_without_duration 1, workout_deferred_to_B18 32
+```
+
+**NEXT COMMAND — needs Joe (production write):**
+```
+PYTHONPATH=. python3 tools/import_drop.py --file /Users/default/Downloads/export.zip --since 2026-07-01 --commit
+```
+
+**Correction to earlier reporting, important.** "Capture stopped 2026-07-28" was true of
+`public.intraday` only. `apple_watch` has rows on 29 of the last 30 days. The real pattern is a
+STAGED loss: intraday 07-28; `sleeping_wrist_temp` 08-08; all `sleep_*` and `respiratory_rate`
+08-14; `hr`/`hrv_sdnn`/`rhr`/`spo2`/`active_energy`/`exercise_min` 08-21; `withings` 08-23;
+steps + walking metrics still current to 09-08. That looks like Health Auto Export's metric
+selection shrinking over three weeks, not one break — check the phone.
+
+"0 of 17 fresh" was true of the registry's CANONICAL names and misleading about whether data
+arrives: live data sits under `apple_watch.hrv_sdnn` while the registry monitors `hrv_sdnn_ms`.
+That is OQ-51, and it made the monitoring tell a worse story than the truth.
+
+**Open from this import, to check before/after committing:**
+- `type_not_mapped` 91430 — many HealthKit record types are not in the importer's HK table.
+  Worth listing the top unmapped types and deciding which to add (a real gap, not a bug).
+- The four `sleep_*` metric names 0051 registered already exist in the panel from the old
+  stack, derived differently (old = its own calculation; new = sum of Apple Health stage
+  segments). Same class as OQ-51 — verify before trusting a joined series.
