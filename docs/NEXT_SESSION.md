@@ -11,27 +11,38 @@ Reconciled against Git at `1304b90` + this commit. Revision under test: HEAD.
   proven against production — a re-run preloaded 33,355 dedupe keys and skipped every one.
 - `check_freshness.py` against real data: **9 fresh, 17 stale, 11 never seen, 6 unmonitored**.
 
-## IMPLEMENTED AND LOCALLY TESTED (not deployed)
+## INTEGRATION BOUNDARY — run at HEAD
 
-280 tests pass under `America/New_York` and `UTC`; `validate_layout.py` 42/42.
+- Full production pytest suite: **219 passed, 218 skipped, exit 0** (26 min). The skips are
+  the disposable-server SQL tests, which skip against production by design (ADR-0082).
+- Disposable-server SQL suite: **299 passed** under `America/New_York` and `UTC`.
+- `tests/test_reconstruct.py`: 12 passed. `validate_layout.py`: 42/42.
+- `check_invariants.py --core core`: ALL PASS.
+
+## IMPLEMENTED AND LOCALLY TESTED (not deployed)
 
 - **0049 Ask core** — all round-4 findings closed. REQ-ASK-031 refuses an uncomputable
   question shape instead of substituting a nearby one.
-- **0050 nutrition**, **0052 neuron ledger**, **0053 source inventory + derivation
-  catalogue** — written, locally verified, **not applied**.
+- **0050** nutrition, **0052** neuron ledger, **0053** source inventory + derivation
+  catalogue, **0054** inferred events, **0055** `get_reconstruction` — written, locally
+  verified, **not applied**. Six migrations are now queued behind one authorization.
+- `tools/engines/reconstruct.py` — the deterministic evaluator. Three refusals enforced by
+  signature: no probability parameter, no path from missing evidence to `did_not_occur`, and
+  evidence after the cutoff is dropped.
 - `tools/build_inventory.py` (113 rows) and `tools/build_catalogue.py` (25 measures) run
   clean against production read-only; neither has been committed to a table.
 
 ## ACTIVE UNIT
 
-**B14R step 3** — the additive schema ADR for reconstruction (`REQ-REC-005..007`): inferred
-events stored separately from measured observations, with event-time bounds, knowledge time,
-source references, method version and uncertainty status. Reserve the migration number from
-Git, not from the brief.
+**B14R step 5b** — wire a `reconstruct` operation into `public.ask`. Held deliberately: the
+operation row and the `ask()` branch must land together, because a row in
+`config.operations` with no implementation is a registered operation that cannot run, which
+is worse than an absent one (RULE-11). `ask()` lives in 0049 and is ~1400 lines through four
+review rounds; amending it belongs in the same change as applying it.
 
-*Proves it complete:* an inferred event round-trips with its evidence, its contradicting
-evidence and an explicitly empty alternative set, and a measured atom cannot be written into
-the inferred-event table or vice versa.
+*Proves it complete:* "what happened on <day>" returns a stored reconstruction with its
+evidence, both independence counts, its alternatives and its revision history, and refuses
+with REQ-ASK-031 when no registered method covers the question.
 
 ## BLOCKED — needs Joe
 

@@ -168,3 +168,105 @@ def test_REQ_REC_005_an_inferred_event_has_no_measured_value_column(rec):
     cols = {r[0] for r in rec.fetchall()}
     assert not (cols & {"value_point", "value_low", "value_high", "unit", "estimate_method"})
     assert {"event_time_from", "event_time_to", "knowledge_time"} <= cols
+
+
+# ---- REQ-REC-014: the registered lineage interface (migration 0055) ----
+
+def _install_reader(cur):
+    """0055's function, with its schemas rebound. It is SECURITY DEFINER with an empty
+    search_path, so every reference inside it must already be schema-qualified."""
+    cur.execute("""CREATE SCHEMA IF NOT EXISTS auth_pytest""")
+    cur.execute("""CREATE OR REPLACE FUNCTION auth_pytest.jwt() RETURNS jsonb
+                   LANGUAGE sql STABLE AS $$
+                   SELECT nullif(current_setting('request.jwt.claims', true), '')::jsonb $$""")
+    for statement in split_statements((ROOT / "migrations" / "0055_get_reconstruction.sql").read_text()):
+        cur.execute(re.sub(r"\bauth\.", "auth_pytest.",
+                           re.sub(r"\bpublic\.", "public_pytest.", rebind(statement))))
+    cur.execute("SELECT set_config('request.jwt.claims', %s, true)",
+                ('{"email":"joseph.delany21@gmail.com"}',))
+
+
+@pytest.fixture
+def reader(rec):
+    rec.execute("CREATE SCHEMA public_pytest")
+    _install_reader(rec)
+    return rec
+
+
+def read(cur, event_id):
+    cur.execute("SELECT public_pytest.get_reconstruction(%s)", (event_id,))
+    return cur.fetchone()[0]
+
+
+def test_REQ_REC_014_the_owner_check_is_the_same_one_the_rest_of_the_system_uses(reader):
+    reader.execute("SELECT set_config('request.jwt.claims', %s, true)",
+                   ('{"email":"someone.else@example.com"}',))
+    reader.execute("SAVEPOINT s")
+    with pytest.raises(Exception, match="owner only"):
+        read(reader, event(reader))
+    reader.execute("ROLLBACK TO SAVEPOINT s")
+
+
+def test_REQ_REC_010_the_interface_labels_an_uncalibrated_score_as_unquantified(reader):
+    """A bare rule_score handed to a caller is a number that will eventually be rendered
+    with a percent sign. The kind travels with the number."""
+    r = read(reader, event(reader, rule_score=0.5))
+    assert r["uncertainty"]["kind"] == "unquantified"
+    assert r["uncertainty"]["rule_score"] == 0.5
+    assert "not a probability" in r["uncertainty"]["note"]
+    assert "probability" not in r["uncertainty"]
+
+
+def test_REQ_REC_010_a_calibrated_probability_travels_with_its_calibration(reader):
+    r = read(reader, event(reader, probability=0.8, calibration_ref="cal-2026-09"))
+    assert r["uncertainty"] == {"kind": "calibrated_probability", "probability": 0.8,
+                                "calibration_ref": "cal-2026-09"}
+
+
+def test_REQ_REC_008_the_interface_reports_rows_and_origins_separately(reader):
+    """Two copies of one receipt are two rows and ONE origin. A caller that sees only a count
+    cannot tell the difference, which is how duplicate evidence becomes corroboration."""
+    e = event(reader)
+    for ref, origin in (("gmail:r1", "receipt-1"), ("drive:r1-copy", "receipt-1"),
+                        ("bank:t99", "bank-t99")):
+        reader.execute("""INSERT INTO rec_core_pytest.event_evidence
+            (event_id, external_ref, stance, origin_group, recorded_at)
+            VALUES (%s,%s,'supports',%s,'2026-07-02T00:00:00Z')""", (e, ref, origin))
+    r = read(reader, e)
+    assert r["support"] == {"rows": 3, "independent_origins": 2}
+    assert len(r["evidence"]) == 3
+
+
+def test_REQ_REC_007_contradicting_evidence_arrives_without_being_asked_for(reader):
+    """A caller that has to opt in to the contradicting half will render a one-sided story."""
+    e = event(reader)
+    reader.execute("""INSERT INTO rec_core_pytest.event_evidence
+        (event_id, external_ref, stance, origin_group, recorded_at)
+        VALUES (%s,'calendar:declined','contradicts','calendar','2026-07-02T00:00:00Z')""", (e,))
+    r = read(reader, e)
+    assert r["contradiction"]["independent_origins"] == 1
+    assert any(x["stance"] == "contradicts" for x in r["evidence"])
+
+
+def test_REQ_REC_011_a_superseded_event_says_so_and_names_its_replacement(reader):
+    """A cached event_id would otherwise keep answering after Joe corrected it."""
+    first = event(reader)
+    second = event(reader, supersedes=first, author="human", note="corrected")
+    old, new = read(reader, first), read(reader, second)
+    assert old["is_current"] is False and old["superseded_by"] == str(second)
+    assert new["is_current"] is True and new["superseded_by"] is None
+    # REQ-REC-012: the chain is readable oldest first, and the human revision is visibly human.
+    assert [h["author"] for h in new["revision_history"]] == ["engine", "human"]
+
+
+def test_REQ_REC_014_a_missing_event_is_a_stated_absence_not_an_error(reader):
+    """RULE-18: not found is an answer."""
+    r = read(reader, "00000000-0000-0000-0000-000000000000")
+    assert r == {"event_id": "00000000-0000-0000-0000-000000000000", "found": False}
+
+
+def test_REQ_REC_014_the_answer_is_deterministic_and_names_itself_so(reader):
+    """RULE-15: nothing here requires a model, and the caller can verify that claim."""
+    r = read(reader, event(reader))
+    assert r["deterministic"] is True
+    assert r["no_alternative_generator"] is True and r["alternatives"] == []
