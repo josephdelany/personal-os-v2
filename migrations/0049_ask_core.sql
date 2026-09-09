@@ -1139,8 +1139,26 @@ BEGIN
 
     END IF;
 
-    -- tier (REQ-ASK-020): the op ceiling, floored by coverage (REQ-TIER-017)
+    -- REQ-ASK-020. `config.operations.tier_ceiling` is a CEILING and is now enforced as one
+    -- (ADR-0065). It was consulted only when `tier` was still NULL, so an `effect` answer
+    -- backed by a CONFIRMED_OBSERVATIONAL resolution rendered full causal dose-response
+    -- language — "runs X per Y, adjusted for Z" — on an operation the registry caps at
+    -- PROMOTED. The column was a default wearing a ceiling's name.
+    --
+    -- The ceiling is the OPERATION's warrant, not the finding's. `effect` reads a stored
+    -- finding and renders it; the confirmation gate (B9) is what earns CONFIRMED, and it
+    -- earns it for the FINDING. An answer assembled by a query executor is not that gate, so
+    -- the executor may report a confirmed finding without borrowing its voice. Raising
+    -- effect's ceiling is a deliberate change to `config.operations`, not something an
+    -- individual answer does to itself.
     IF tier IS NULL THEN SELECT o.tier_ceiling INTO tier FROM config.operations o WHERE o.op = ask_state.op; END IF;
+    SELECT o.tier_ceiling INTO term FROM config.operations o WHERE o.op = ask_state.op;
+    IF term IS NOT NULL AND public._ask_tier_rank(tier) > public._ask_tier_rank(term) THEN
+        res := coalesce(res, '{}'::jsonb) || jsonb_build_object(
+                 'tier_before_ceiling', tier, 'tier_ceiling', term,
+                 'tier_ceiling_note', 'the finding is stronger than this operation is warranted to state');
+        tier := term;
+    END IF;
     IF coverage_min IS NOT NULL AND coverage_min < 0.60 THEN
         tier := 'INSUFFICIENT'; ins_reason := 'low_coverage';
         SELECT d.capture_action INTO raise_action FROM config.domain_metrics dm
@@ -1160,7 +1178,17 @@ BEGIN
                                      'unit', CASE WHEN op IN ('effect','contrast')
                                                   THEN coalesce(res->>'unit', m2.unit, '')
                                                   ELSE coalesce(m1.unit, res->>'unit') END,
-                                     'range_label', rng.label, 'days', n_days);
+                                     -- NOT for effect/contrast: their number comes from a
+                                     -- stored computation over the scan's own window, and
+                                     -- stamping the question's range on the persisted row
+                                     -- makes the trace assert the very thing the sentence was
+                                     -- corrected not to say. The requested range is already
+                                     -- on the `plan` column, where it belongs.
+                                     'range_label', CASE WHEN op IN ('effect','contrast')
+                                                         THEN NULL ELSE rng.label END,
+                                     'days', CASE WHEN op IN ('effect','contrast')
+                                                  THEN NULL ELSE n_days END);
+    res := jsonb_strip_nulls(res);
     SELECT coalesce(jsonb_agg(jsonb_build_object('table','analysis.panel', 'day', p.day, 'metric', p.metric)
                              ORDER BY p.day, p.metric), '[]'::jsonb)
       INTO keys FROM analysis.f_daily_panel(as_of) p
@@ -1209,6 +1237,28 @@ BEGIN
     ELSIF op = 'last' THEN
         keys := jsonb_build_array(jsonb_build_object('table', 'analysis.panel',
             'day', res->>'day', 'metric', m1.metric));
+    ELSIF op = 'spend' THEN
+        -- The atom ids ARE known here, and an empty trace made the one operation whose
+        -- measure is scheduled to be REPLACED (B14 re-points it at the merchant entity) the
+        -- one that could not be re-traced afterwards. REQ-ASK-011 wants the observation IDs.
+        SELECT coalesce(jsonb_agg(jsonb_build_object('table', 'core.atoms', 'id', a.id,
+                                                     'day', a.subject_day)
+                         ORDER BY a.subject_day, a.id), '[]'::jsonb)
+          INTO keys FROM __CORE__.atoms_current a
+         WHERE a.kind = 'transaction'
+           AND a.subject_day BETWEEN rng.d_from AND rng.d_to AND a.subject_day <= as_of
+           AND a.evidence_span ILIKE '%' || public._ask_like_escape(coalesce(res->>'matched_on','')) || '%';
+    ELSIF op = 'search' THEN
+        -- `search_record` already returns each hit's source table and row id; carrying them
+        -- is the difference between a count and an auditable one.
+        SELECT coalesce(jsonb_agg(jsonb_build_object('table', h->>'src', 'id', h->>'row_id',
+                                                     'day', h->>'day')
+                         ORDER BY h->>'day' DESC), '[]'::jsonb)
+          INTO keys FROM jsonb_array_elements(coalesce(res->'hits', '[]'::jsonb)) h;
+    ELSIF op = 'entity' THEN
+        keys := jsonb_build_array(jsonb_build_object(
+                  'table', 'public.get_entity', 'type', res->>'entity_type',
+                  'key', res->>'entity_key', 'as_of', res->>'entity_as_of'));
     END IF;
     INSERT INTO __CORE__.computations (question_id, plan, as_of, result, observation_keys, coverage,
                                        tier, insufficiency_reason, code_version)
@@ -1263,14 +1313,23 @@ BEGIN
         answer := replace(answer, '{' || term || '}', coalesce(res->>term, ''));
     END LOOP;
 
-    -- REQ-ASK-010 / REQ-NAR-012: every numeral must be a complete token in a
-    -- persisted result field. The whole token is the capture group, not merely
-    -- its decimal suffix. No special exemption for dates or the day count.
+    -- REQ-ASK-010 / REQ-NAR-012: every numeral must be a complete token in a persisted result
+    -- field. The whole token is the capture group, not merely its decimal suffix. No special
+    -- exemption for dates or the day count.
+    --
+    -- SCALAR fields only. The check pools the values it compares against, and some result
+    -- fields are assembled PROSE — `rolling_28_clause`, `window`, `caveat`, `note` — which are
+    -- themselves stored in `res`. Including them made any numeral inside them self-certifying:
+    -- the clause was compared against itself and could not fail, so the one test that claimed
+    -- to prove the rolling clause introduces no untraced numeral was proving nothing.
+    -- A prose field's own numerals must trace to a scalar field, exactly like the sentence's.
     IF EXISTS (
         SELECT 1 FROM regexp_matches(answer, '([-+]?[0-9]+(?:\.[0-9]+)?)', 'g') AS mm(num)
          WHERE NOT EXISTS (SELECT 1 FROM jsonb_each_text(res) kv,
                                LATERAL regexp_matches(kv.value, '([-+]?[0-9]+(?:\.[0-9]+)?)', 'g') AS stored(num)
-                            WHERE stored.num[1] = mm.num[1])
+                            WHERE stored.num[1] = mm.num[1]
+                              AND kv.key NOT IN ('rolling_28_clause','caveat','note',
+                                                 'reverse_note','match_method','summary'))
     ) THEN
         INSERT INTO analysis.render_violations (surface, rule, detail, question_id)
         VALUES ('ask', 'REQ-ASK-010', jsonb_build_object('reason', 'untraceable_numeral',

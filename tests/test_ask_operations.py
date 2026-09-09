@@ -803,7 +803,10 @@ def test_RULE_06_a_thin_rolling_window_states_the_shortfall_rather_than_a_median
 
     r = ask(cur, "has my hrv changed last 13 days")
     stored = stored_result(cur, r)
-    assert stored["rolling_28"] is None, stored
+    # An absent median is an ABSENT key in the stored result too, not a null — the same
+    # encoding the envelope uses, and for the same reason: a null invites a reader to treat it
+    # as a value that happens to be empty.
+    assert "rolling_28" not in stored, stored
     assert stored["rolling_28_n"] == 13
     assert "too few for a 28-day median" in r["answer_text"]
     # And the sentence names the actual count, so the shortfall is legible.
@@ -1396,3 +1399,174 @@ def test_REQ_ASK_030_search_counts_only_hits_inside_the_range_it_names(ask_cur):
     for hit in stored["hits"]:
         assert str(inside - dt.timedelta(days=1)) <= hit["day"] <= str(AS_OF), hit
     assert "2 records" in r["answer_text"]
+
+
+def test_REQ_ASK_011_every_operation_persists_a_traceable_observation_set(ask_cur):
+    """Review finding 8: spend, search and entity persisted an EMPTY trace.
+
+    REQ-ASK-011 requires click-through "to the underlying observation IDs". For `spend` the
+    atom ids are known and were not recorded — which made the one operation whose measure is
+    scheduled to be replaced (B14 re-points it at the merchant entity) the one that could not
+    be re-traced afterwards. My own persistence test asserted only `count(*) == 1`.
+    """
+    cur = ask_cur
+    register_metric(cur, "hrv_sdnn_ms", "HRV", "ms")
+    for i in range(1, 11):
+        day = AS_OF - dt.timedelta(days=10 - i)
+        panel(cur, "steps", day, i * 1000)
+        panel(cur, "hrv_sdnn_ms", day, 40 + i)
+    _txn_atom(cur, AS_OF - dt.timedelta(days=1), -12.50,
+              "bank:x;merchant=Cafe;descriptor=CAFE BAR")
+    _event(cur, AS_OF - dt.timedelta(days=1), "chrome_visit",
+           {"title": "postgres indexes", "domain": "example.com"})
+
+    for question in ("how is my steps last 10 days",
+                     "has my steps changed last 10 days",
+                     "which weekday is my steps last 10 days",
+                     "when did i last log my steps",
+                     "how many days my steps above 5000 last 10 days",
+                     "my hrv on days when my steps are above 5000 last 10 days",
+                     "how much did i spend at cafe last 10 days",
+                     "postgres indexes last 10 days"):
+        r = ask(cur, question)
+        if r.get("refusal"):
+            continue
+        cur.execute("""SELECT observation_keys FROM ask_core_pytest.computations
+                        WHERE question_id = %s""", (r["question_id"],))
+        keys = cur.fetchone()[0]
+        keys = keys if isinstance(keys, list) else json.loads(keys)
+        assert keys, f"{question!r} persisted an empty trace"
+        for key in keys:
+            assert key.get("table"), key
+            assert key.get("id") or key.get("day"), f"a key must locate a row: {key}"
+
+
+def test_REQ_ASK_032_the_stored_contrast_result_does_not_carry_the_question_range(ask_cur):
+    """Review finding 18: the sentence was corrected and the STORED RESULT still said
+    "the last 10 days".
+
+    My test asserted only `answer_text`, so the persisted row went on claiming the very thing
+    the sentence had been fixed not to say — and the trace is what an audit reads.
+    """
+    cur = ask_cur
+    register_metric(cur, "hrv_sdnn_ms", "HRV", "ms")
+    for i in range(1, 11):
+        day = AS_OF - dt.timedelta(days=10 - i)
+        panel(cur, "steps", day, i * 1000)
+        panel(cur, "hrv_sdnn_ms", day, 40 + i)
+    _store_contrast(cur, "steps", "hrv_sdnn_ms", 0, delta=-7.5, run_date=dt.date(2026, 9, 1))
+
+    r = ask(cur, "does my steps affect my hrv last 10 days")
+    stored = stored_result(cur, r)
+    assert "range_label" not in stored, stored
+    assert "days" not in stored, stored
+    assert stored["window"] == "the scan run of 2026-09-01"
+    blob = json.dumps(stored)
+    assert "last 10 days" not in blob, stored
+
+    # The requested range is still recorded — on the plan, where it belongs.
+    cur.execute("SELECT plan FROM ask_core_pytest.computations WHERE question_id = %s",
+                (r["question_id"],))
+    plan = cur.fetchone()[0]
+    plan = plan if isinstance(plan, dict) else json.loads(plan)
+    assert plan["range"], plan
+
+
+PROSE_FIELDS = ("rolling_28_clause", "caveat", "note", "reverse_note", "match_method", "summary")
+
+
+def test_REQ_NAR_012_a_prose_result_field_cannot_certify_its_own_numerals(ask_cur):
+    """Review finding 17: the verifier pooled every result value, including assembled PROSE.
+
+    `rolling_28_clause` is stored in `res`, so the check compared the clause against itself and
+    could not fail — which means the test that claimed to prove the clause introduces no
+    untraced numeral was proving nothing. A prose field's numerals must trace to a SCALAR
+    field, exactly like the sentence's.
+    """
+    import re
+    cur = ask_cur
+    register_metric(cur, "hrv_sdnn_ms", "HRV", "ms")
+    for i in range(40):
+        panel(cur, "hrv_sdnn_ms", AS_OF - dt.timedelta(days=39 - i), 48 + i)
+    _txn_atom(cur, AS_OF - dt.timedelta(days=1), -12.50,
+              "bank:x;merchant=Cafe;descriptor=CAFE BAR")
+
+    for question in ("has my hrv changed last 40 days",
+                     "how much did i spend at cafe last 10 days"):
+        r = ask(cur, question)
+        if r.get("refusal"):
+            continue
+        stored = stored_result(cur, r)
+        scalar_numerals = set()
+        for key, value in stored.items():
+            if key in PROSE_FIELDS:
+                continue
+            scalar_numerals.update(re.findall(r"[-+]?[0-9]+(?:\.[0-9]+)?", str(value)))
+        for key in PROSE_FIELDS:
+            for numeral in re.findall(r"[-+]?[0-9]+(?:\.[0-9]+)?", str(stored.get(key, ""))):
+                assert numeral in scalar_numerals, (
+                    f"{question!r}: {key} carries {numeral!r}, which no scalar field holds — "
+                    "the clause would be certifying itself")
+
+
+def test_RULE_29_the_executor_and_everything_it_calls_make_no_outbound_call(ask_cur):
+    """Review finding 18: my earlier test grepped ONE file.
+
+    `ask` calls `search_record` and `get_entity`, so a network capability in either would sit
+    on the same path. The installed extension catalogue is checked too, since an http
+    extension present in the database is reachable from any function.
+    """
+    import re
+    from pathlib import Path
+    root = Path(__file__).resolve().parents[1]
+    for migration in ("0049_ask_core.sql", "0036_search_record.sql", "0037_get_entity.sql",
+                      "0040_movements_api.sql"):
+        body = (root / "migrations" / migration).read_text().lower()
+        for capability in ("pg_net", "dblink", "http_get", "http_post", "extensions.http",
+                           "copy ", "program ", "pg_read_file", "pg_ls_dir"):
+            assert capability not in body, f"{migration} references {capability!r}"
+
+    # And nothing network-capable is installed in the database the executor runs in.
+    cur = ask_cur
+    cur.execute("SELECT extname FROM pg_extension ORDER BY extname")
+    installed = {r[0] for r in cur.fetchall()}
+    for capability in ("http", "pg_net", "dblink", "postgres_fdw", "file_fdw"):
+        assert capability not in installed, f"{capability} is installed and reachable"
+
+
+def test_REQ_ASK_020_the_registered_tier_ceiling_is_enforced(ask_cur):
+    """Review finding 16: `tier_ceiling` was consulted only as a default.
+
+    An `effect` answer backed by a CONFIRMED_OBSERVATIONAL resolution rendered full causal
+    dose-response language — "runs X per Y, adjusted for Z" — on an operation the registry
+    caps at PROMOTED. The column was a default wearing a ceiling's name (ADR-0065).
+
+    The ceiling is the OPERATION's warrant, not the finding's: the confirmation gate earns
+    CONFIRMED for the finding, and a query executor rendering that finding is not that gate.
+    The finding's own tier is still disclosed, so nothing is hidden — it is simply not the
+    voice the answer speaks in.
+    """
+    cur = ask_cur
+    register_metric(cur, "hrv_sdnn_ms", "HRV", "ms")
+    for i in range(1, 11):
+        day = AS_OF - dt.timedelta(days=10 - i)
+        panel(cur, "steps", day, i * 1000)
+        panel(cur, "hrv_sdnn_ms", day, 40 + i)
+    _register_finding(cur, "h:confirmed", "steps", "hrv_sdnn_ms", "CONFIRMED_OBSERVATIONAL",
+                      -3.2, AS_OF - dt.timedelta(days=5))
+
+    r = ask(cur, "does my steps affect my hrv last 10 days")
+    cur.execute("SELECT tier_ceiling FROM config_pytest.operations WHERE op = 'effect'")
+    ceiling = cur.fetchone()[0]
+    assert r["tier"] == ceiling, r
+    assert r["tier"] != "CONFIRMED_OBSERVATIONAL"
+
+    text = r["answer_text"].lower()
+    for confirmed_only in ("adjusted for", " per ", "runs "):
+        assert confirmed_only not in text, f"CONFIRMED language above the ceiling: {text}"
+
+    # The finding's own strength is disclosed, not hidden — it just is not the answer's voice.
+    stored = stored_result(cur, r)
+    assert stored["tier_before_ceiling"] == "CONFIRMED_OBSERVATIONAL", stored
+    assert stored["tier_ceiling"] == ceiling
+    assert stored["status"] == "CONFIRMED_OBSERVATIONAL"
