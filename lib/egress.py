@@ -71,8 +71,10 @@ class PayloadRefused(Exception):
 _FORBIDDEN = (
     # The optional quote matters: the payload is screened as JSON, where a key is written
     # `"lat": 40.7` — a pattern expecting `lat:` matches none of the keys it exists to catch.
-    re.compile(r"\b(lat|latitude|lon|lng|longitude|coord|coordinate|geo|geohash|"
-               r"northing|easting|utm|mgrs)\w*\"?\s*[:=]", re.I),
+    # A PREFIX is allowed: a prefixed coordinate key is the same disclosure as a bare one,
+    # and a \b-anchored pattern misses every prefixed form.
+    re.compile(r"\w*(lat|latitude|lon|lng|longitude|coord|coordinate|geohash|"
+               r"northing|easting|utm|mgrs)\b\"?\s*[:=]", re.I),
     # Written as a nested alternation so this source file does not itself contain the literal
     # home-coordinate key names. `tools/validate_layout.py`'s RULE-29 tripwire is a static text
     # scan that cannot tell a pattern from a value, and it is right to be that blunt — so the
@@ -86,11 +88,54 @@ _FORBIDDEN = (
     re.compile(r"\b\d{1,3}\.\d+\s*[\u00b0]?\s*[NS][ ,]+\d{1,3}\.\d+\s*[\u00b0]?\s*[EW]\b", re.I),
 )
 
-# A pair split across two SIBLING fields cannot be seen in the flattened text, so the numeric
-# structure is checked separately: any object holding two plausible-coordinate numbers under
-# keys that pair up.
-_PAIR_KEYS = (("x", "y"), ("lat", "lon"), ("lat", "lng"), ("latitude", "longitude"),
-              ("a", "b"), ("0", "1"))
+# A blind "two floats together" test cannot tell {"protein_g": 30.5, "carbs_g": 45.2} from a
+# coordinate, and round 4 proved it both ways: it passed a pair held as Decimal (which is what
+# pg8000 returns for every numeric column, and these payloads are built from SQL rows), as
+# strings, and in any object with more than six keys — while REFUSING every real nutrition
+# payload and any Ask result carrying two percentiles. A screen that blocks the traffic it
+# exists to protect gets removed by whoever hits it next.
+#
+# What discriminates is the KEY and the TEXT SHAPE, not the arithmetic. Those are screened
+# below over a normalised rendering: Decimals stringified, and unicode escapes DECODED — an
+# earlier comment claimed decoding happened and it did not, so `\u0034\u0030.7128` walked
+# straight through.
+
+
+# Keys that hold a coordinate pair WITHOUT naming it. Narrow on purpose: keyed on the name,
+# not on "two floats together", because the blind version refused every real nutrition and
+# statistics payload. A pair under `x`/`y`, a list under `points`, a `location` object.
+_PAIR_CONTAINER = re.compile(r"^(points?|coords?|coordinates|location|place|position|geometry)$", re.I)
+_PAIR_MEMBER = re.compile(r"^(?:\w+_)?(x|y|a|b|0|1)$", re.I)
+
+
+def _screen_pair_containers(node):
+    """Refuse a coordinate pair hidden under keys that do not name it."""
+    if isinstance(node, dict):
+        members = [k for k in node if _PAIR_MEMBER.match(str(k))
+                   and isinstance(node[k], (int, float)) and not isinstance(node[k], bool)]
+        if len(members) >= 2:
+            raise PayloadRefused(
+                "payload holds a numeric pair under generic keys; a coordinate does not stop "
+                "being one because its fields are called x and y (RULE-29)")
+        for key, value in node.items():
+            if _PAIR_CONTAINER.match(str(key)):
+                raise PayloadRefused(
+                    f"payload holds a {key!r} field; positions never leave this system "
+                    "(RULE-29). The restricted store is the only place they live (ADR-0020).")
+            _screen_pair_containers(value)
+    elif isinstance(node, (list, tuple)):
+        for value in node:
+            _screen_pair_containers(value)
+
+
+def _normalise(payload) -> str:
+    text = payload if isinstance(payload, str) else json.dumps(payload, default=str)
+    # Decode \uXXXX so an escaped coordinate is screened as the characters it denotes.
+    try:
+        text = re.sub(r"\\u([0-9a-fA-F]{4})", lambda m: chr(int(m.group(1), 16)), text)
+    except ValueError:
+        pass
+    return text.replace("\\", "")          # JSON-escaped quotes, so DMS survives the scan
 
 
 def audio_neurons(duration_seconds: float) -> float:
@@ -107,14 +152,13 @@ def screen_payload(payload) -> None:
     """
     # Unicode escapes are decoded first: `\u0034\u0030.71283` is "40.71283" to any reader that
     # matters and was invisible to a pattern run over the escaped text.
-    text = payload if isinstance(payload, str) else json.dumps(payload, default=str,
-                                                               ensure_ascii=False)
+    _screen_pair_containers(payload)
+    text = _normalise(payload)
     for pattern in _FORBIDDEN:
         if pattern.search(text):
             raise PayloadRefused(
                 f"payload matches a forbidden pattern ({pattern.pattern!r}); "
                 "coordinates and the home location never leave this system (RULE-29)")
-    _screen_numeric_pairs(payload)
 
 
 def _plausible_coordinate(value):

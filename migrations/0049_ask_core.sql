@@ -94,7 +94,11 @@ INSERT INTO config.ask_templates (op, tier, template) VALUES
  -- reader — and {days}, which effect/contrast have stripped precisely because their number
  -- comes from the scan's window and not the question's, so the answer failed numeral
  -- verification and returned nothing at all plus a spurious render_violations row.
- ('insufficient','INSUFFICIENT','There is not enough data on {display} over {range} to make this claim. The observations behind it are stored and traceable.'),
+ -- No {range}: for effect/contrast `range_label` is deliberately absent from the STORED
+ -- result (it describes the question's window, not the scan's), so rendering it made the
+ -- answer's only numeral resolve to a computation that cannot produce it — the trace
+ -- dead-ended, which is worse than the collision it was meant to fix (INV-3, REQ-ASK-011).
+ ('insufficient','INSUFFICIENT','There is not enough data on {display} to make this claim. The observations behind it are stored and traceable.'),
  ('spend','DESCRIPTIVE','Charges matching "{matched_on}" over {range} total {total_out} {currency} across {n_out} charges, about {per_week} {currency} a week. This is {caveat}.')
 ON CONFLICT (op, tier) DO NOTHING;
 
@@ -847,13 +851,6 @@ BEGIN
             RETURN jsonb_build_object('question_id', qid, 'refusal', refusal,
                 'reason', 'second_metric_unresolved', 'nearest', nearest, 'tier', NULL);
         END IF;
-        IF false THEN
-            SELECT value INTO refusal FROM config.strings WHERE key = 'refusal_unmappable';
-            UPDATE __CORE__.questions SET refusal = ask_state.refusal WHERE question_id = qid;
-            RETURN jsonb_build_object('question_id', qid, 'refusal', refusal,
-                'reason', 'second_metric_unresolved',
-                'nearest', jsonb_build_array('does ' || m1.display || ' affect my sleep'));
-        END IF;
         -- `delta` and `adjustment_set` come from the tables that actually carry them: the
         -- effect size from the resolution that set the current status, the adjustment set from
         -- the frozen pre-registration. The draft read `r2.beta` and `r2.adjustment_set`, and
@@ -1327,11 +1324,6 @@ BEGIN
        AND public._ask_tier_rank(t.tier) <= public._ask_tier_rank(ask_state.tier)
      ORDER BY public._ask_tier_rank(t.tier) DESC LIMIT 1;
     IF templ IS NULL THEN
-        -- The range label is filled from a VARIABLE, so on this path its numerals ("the last
-        -- 90 days") must be present in the stored result or the verifier discards the answer.
-        -- effect/contrast strip `range_label` deliberately; the insufficient form is about the
-        -- QUESTION's window rather than a stored computation's, so it is restored here only.
-        res := coalesce(res, '{}'::jsonb) || jsonb_build_object('range_label', rng.label);
         -- No template at or below the effective tier. The previous fallback took the LOWEST
         -- template for the op, which is still above INSUFFICIENT — so an INSUFFICIENT answer
         -- rendered "appears ... provisional ... watched", every one a PROMOTED-tier term

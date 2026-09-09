@@ -326,7 +326,7 @@ def test_RULE_29_the_documented_bypasses_are_all_refused():
         ({"x": 12.34567, "y": -45.67891}, "a pair split across sibling fields"),
         ({"place_x": 12.34567, "place_y": -45.67891}, "keys with unrelated names"),
         ({"note": "12.345,-45.678"}, "three decimals, about 110 metres"),
-        ({"note": "12.34567,-45.67891"}, "unicode escapes"),
+        ({"note": "\u0031\u0032.34567,-45.67891"}, "unicode escapes, genuinely escaped"),
         ({"note": "12.3456 N, 45.6789 W"}, "hemisphere letters"),
     ]
     for payload, label in bypasses:

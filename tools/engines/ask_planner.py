@@ -104,6 +104,7 @@ _CONDITION_SHAPE = re.compile(
 _GRAMMAR_KEYWORD = re.compile(
     r"\b(how many days|on days|after days|when my|affect|affects|drive|drives|cause|causes|"
     r"impact|impacts|spend|spent|last \d+ days?|this (?:week|month|year)|last (?:week|month|year)|"
+    r"today|yesterday|"          # RULE-13: a one-day window is still a window the model chose
     r"since|in \d{4}|which weekday|what weekday|going up|improving|trending|changed)\b", re.I)
 
 # Range phrases the deterministic parser already understands. The planner may only echo a
