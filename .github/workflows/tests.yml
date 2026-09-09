@@ -21,7 +21,11 @@ jobs:
         with: {fetch-depth: 0}
       - uses: actions/setup-python@v5
         with: {python-version: '3.12'}
-      - run: pip install 'pg8000>=1.30,<2' 'pytest>=8,<9' 'numpy>=1.26,<3' 'scipy>=1.11,<2' 'statsmodels>=0.14,<0.15' 'networkx>=3,<4'
+      # B13 (ADR-0059) adds PyYAML and ofxtools. PyYAML reads the per-institution CSV mappings
+      # REQ-FIN-014 requires; ofxtools parses OFX/QFX/QBO, which REQ-FIN-013 mandates by name
+      # (its Direct-Connect fetch client is never used). Both MIT, pure Python, no service, no
+      # network use at runtime, $0 recurring with no overage surface.
+      - run: pip install 'pg8000>=1.30,<2' 'pytest>=8,<9' 'numpy>=1.26,<3' 'scipy>=1.11,<2' 'statsmodels>=0.14,<0.15' 'networkx>=3,<4' 'pyyaml>=6,<7' 'ofxtools>=0.9,<1'
       - name: full suite via the ledger writer (fails on any test failure)
         env:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
@@ -40,3 +44,47 @@ jobs:
           else
             echo "ledger unchanged"
           fi
+
+  # The SQL-behaviour tests build a spine from the real migrations and execute production SQL.
+  # They run on a disposable local PostgreSQL 17 server (ADR-0082) rather than against the
+  # production instance: hundreds of DDL statements per test is minutes of network round trips
+  # remotely and under a second locally, and it leaves production entirely DDL-free. The
+  # `pytest` job above skips them for that reason; this job is where they actually run, so
+  # gating them is not the same as losing them.
+  #
+  # RULE-29 note: the PGDG fallback below fetches a package signing key from postgresql.org.
+  # That is a CI runner installing a build dependency, not this system emitting personal data,
+  # and no row, coordinate or credential is involved. It is attempted only if the runner image
+  # does not already carry PostgreSQL 17.
+  local-sql:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions: { contents: read }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - run: pip install 'pg8000>=1.30,<2' 'pytest>=8,<9' 'pyyaml>=6,<7' 'ofxtools>=0.9,<1'
+      - name: ensure PostgreSQL 17 binaries
+        run: |
+          set -euo pipefail
+          if [ -x /usr/lib/postgresql/17/bin/initdb ]; then
+            echo "PostgreSQL 17 already present"
+          else
+            sudo apt-get update -qq
+            if ! sudo apt-get install -y -qq postgresql-17; then
+              . /etc/os-release
+              sudo sh -c "echo 'deb https://apt.postgresql.org/pub/repos/apt ${VERSION_CODENAME}-pgdg main' > /etc/apt/sources.list.d/pgdg.list"
+              sudo wget -qO /tmp/pgdg.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
+              sudo gpg --dearmor -o /etc/apt/trusted.gpg.d/pgdg.gpg /tmp/pgdg.asc
+              sudo apt-get update -qq
+              sudo apt-get install -y -qq postgresql-17
+            fi
+          fi
+          echo "/usr/lib/postgresql/17/bin" >> "$GITHUB_PATH"
+      - name: disposable-server SQL suite
+        # No SUPABASE_DB_URL is provided. The runner starts its own temporary server with TCP
+        # disabled; these tests must never be able to reach production.
+        env:
+          PYTHONPATH: ${{ github.workspace }}
+        run: python3 tools/test_local_sql.py
