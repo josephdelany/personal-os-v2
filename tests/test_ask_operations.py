@@ -1769,3 +1769,60 @@ def test_REQ_ASK_022_the_insufficient_answer_names_the_metric_that_is_short(ask_
     text = r.get("answer_text") or ""
     assert "HRV" in text, f"the short metric must be named: {text}"
     assert "Steps" not in text, f"the well-observed metric must not be blamed: {text}"
+
+
+def test_REQ_ASK_031_a_next_day_question_is_refused_not_answered_at_lag_zero(ask_cur):
+    """Round-4 finding 4a. "tomorrow" was in none of the six range-word regexes, so it stayed
+    in the metric phrase, diluted trigram similarity below the 0.35 floor, and returned
+    "I do not track that" about HRV — which IS tracked. Stripping it would have been worse:
+    the contrast lookup orders by abs(lag_days), so the answer would have been the lag-0
+    finding rendered against a lag-1 question."""
+    cur = ask_cur
+    register_metric(cur, "hrv_sdnn_ms", "HRV", "ms")
+    register_metric(cur, "alcohol_units", "Alcohol", "units")
+    r = ask(cur, "does my alcohol affect my hrv tomorrow")
+    assert r.get("reason") == "next_day_lag", r
+    assert r["refusal"] == "I cannot compute that.", r
+    assert r.get("tier") is None, "a capability refusal is not an evidence tier (REQ-ASK-031)"
+    assert "I do not track" not in (r.get("refusal") or ""), r
+    assert r["nearest"] == ["does my alcohol affect my hrv"], r
+
+
+def test_REQ_ASK_031_a_time_of_day_question_is_refused_not_answered_whole_day(ask_cur):
+    """Round-4 finding 4b, the same defect in the opposite direction. "hrv in the morning"
+    scored `checkin_morning_mood` at 0.364 — ABOVE the 0.35 floor — so the answer was
+    confident, tiered, and about the wrong metric. The panel's grain is the subject day
+    (ADR-0019); no stored row can answer a within-day slice."""
+    cur = ask_cur
+    register_metric(cur, "hrv_sdnn_ms", "HRV", "ms")
+    register_metric(cur, "checkin_morning_mood", "Morning — mood", "1-5")
+    r = ask(cur, "how is my hrv in the morning")
+    assert r.get("reason") == "time_of_day", r
+    assert r.get("metric") != "checkin_morning_mood", "answered about the wrong metric"
+    assert r["nearest"] == ["how is my hrv"], r
+
+
+def test_REQ_ASK_031_a_metric_named_after_a_grammar_verb_is_not_a_causal_question(ask_cur):
+    """Round-4 finding 7. The `effect` grammar matched a bare verb anywhere in the question,
+    so `checkin_morning_drive`, displayed "Morning — drive", routed to a two-metric causal
+    operation. The verb now needs a right-hand side to be a verb."""
+    cur = ask_cur
+    register_metric(cur, "checkin_morning_drive", "Morning — drive", "1-5")
+    for i in range(1, 15):
+        panel(cur, "checkin_morning_drive", AS_OF - dt.timedelta(days=14 - i), (i % 5) + 1)
+    r = ask(cur, "how is my morning drive")
+    assert r.get("metric") == "checkin_morning_drive", r
+    assert r.get("op") in (None, "describe"), f"routed to a causal operation: {r.get('op')}"
+    assert r.get("reason") != "second_metric_unresolved", r
+
+
+def test_REQ_ASK_031_a_tracked_metric_whose_name_contains_morning_still_answers(ask_cur):
+    """The guard against 4b must not swallow a real metric. Detection is prepositional:
+    "IN THE morning" asks for a slice of a day; "morning mood" is the name of a thing."""
+    cur = ask_cur
+    register_metric(cur, "checkin_morning_mood", "Morning — mood", "1-5")
+    for i in range(1, 15):
+        panel(cur, "checkin_morning_mood", AS_OF - dt.timedelta(days=14 - i), (i % 5) + 1)
+    r = ask(cur, "how is my morning mood")
+    assert r.get("reason") != "time_of_day", "refused a question it can answer"
+    assert r.get("metric") == "checkin_morning_mood", r

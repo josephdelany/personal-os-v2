@@ -50,7 +50,10 @@ INSERT INTO config.ask_grammar (priority, pattern, op, note) VALUES
  (30, 'how many days', 'count_days', NULL),
  (40, '(which day|what day|which weekday|what weekday|day of the week)', 'rhythm', NULL),
  (50, '(going up|going down|improving|getting worse|trending|trend|over time|changed)', 'trend', NULL),
- (60, '(affect|affects|drive|drives|cause|causes|impact|impacts|related to|relate to|do .* affect)', 'effect', NULL),
+ (60, '(affect|affects|drive|drives|cause|causes|impact|impacts|related to|relate to)\M\s+\S', 'effect',
+      'the verb must have a right-hand side: a metric whose display name ENDS in one of these verbs
+       ("Morning - drive") is a noun, not a question about causation, and routed here it produced a
+       two-metric answer about a one-metric question'),
  (70, '( on days | when i | on the days | when my )', 'compare', NULL),
  (80, '(how (is|are|was|were)|what(''s| is| are) my|show me my|my )', 'describe', NULL)
 ON CONFLICT (priority) DO NOTHING;
@@ -359,8 +362,7 @@ RETURNS TABLE (direction text, threshold numeric, label text, band_form boolean)
 LANGUAGE plpgsql IMMUTABLE SET search_path = '' AS $fn$
 DECLARE txt text; m text[]; dir text;
 BEGIN
-    txt := regexp_replace(p_q,
-        '\s+(today|yesterday|this (week|month|year)|last [0-9]+ days?|last (week|month)|since .+|in [0-9]{4})[?]?$','');
+    txt := public._ask_strip_range_words(p_q);
     txt := trim(txt, ' ?');
     -- More than one comparator means more than one clause, and nothing ties the direction to
     -- the threshold: "above 5000 and below 7" took `above` from the first and `7` from the
@@ -423,6 +425,60 @@ RETURNS int LANGUAGE sql IMMUTABLE SET search_path = '' AS $fn$
 $fn$;
 REVOKE ALL ON FUNCTION public._ask_tier_rank(text) FROM public;
 
+-- REQ-ASK-031. The trailing words that name a RANGE rather than a metric. This existed as six
+-- literal copies of one regex inside `ask`, which had already drifted apart -- one of them
+-- omitted the optional trailing question mark -- so the same phrase stripped differently
+-- depending on which operation reached it. One vocabulary, one place.
+CREATE OR REPLACE FUNCTION public._ask_strip_range_words(p_text text) RETURNS text
+LANGUAGE sql IMMUTABLE AS $$
+  SELECT trim(regexp_replace(coalesce(p_text, ''),
+    '(?i)\s+(today|yesterday|this (week|month|year)|last [0-9]+ days?|last (week|month)|since .+|in [0-9]{4})[?]?$',
+    ''), ' ?')
+$$;
+REVOKE ALL ON FUNCTION public._ask_strip_range_words(text) FROM anon, authenticated;
+
+-- REQ-ASK-031: a question SHAPE this system cannot compute, as distinct from a metric it does
+-- not track.
+--
+-- The panel's grain is the subject day (ADR-0019) and a contrast is registered at one fixed
+-- lag. "my hrv in the morning" asks for a finer grain than any stored row has; "does drinking
+-- affect my hrv tomorrow" asks at lag 1, and the contrast lookup orders by abs(lag_days), so it
+-- would have served the lag-0 finding. Both were previously handled by accident and both
+-- accidents were wrong in opposite directions: the qualifier diluted trigram similarity below
+-- the 0.35 floor, so "hrv tomorrow" returned "I do not track that" about a metric that IS
+-- tracked; and "hrv in the morning" scored `checkin_morning_mood` at 0.364, which CLEARS the
+-- floor, so the answer was confident, tiered, and about the wrong metric.
+--
+-- Neither stripping the qualifier nor floor-tuning is the fix. Stripping it answers the
+-- whole-day, lag-0 question while the reader asked a narrower one, and a substituted question
+-- is indistinguishable from an answered one. The honest response is REQ-ASK-031's capability
+-- refusal with the nearest question that IS computable -- not an INSUFFICIENT tier, which
+-- measures data quantity and would imply more capture fixes this.
+--
+-- Detection is prepositional on purpose. `checkin_morning_mood` is a real tracked metric and
+-- "how is my morning mood" must keep working; it is "IN THE morning" that asks for a slice of a
+-- day the system never stored.
+CREATE OR REPLACE FUNCTION public._ask_unsupported_shape(p_text text) RETURNS text
+LANGUAGE sql IMMUTABLE AS $$
+  SELECT CASE
+    WHEN p_text ~ '(?i)\m(tomorrow|the (next|following) day|the day after)\M' THEN 'next_day_lag'
+    WHEN p_text ~ '(?i)\m(in|during) the (morning|afternoon|evening)\M'
+      OR p_text ~ '(?i)\mat night\M'
+      OR p_text ~ '(?i)\m(before|after) (bed|breakfast|lunch|dinner)\M'
+      OR p_text ~ '(?i)\m(each|per) hour\M' THEN 'time_of_day'
+    END
+$$;
+REVOKE ALL ON FUNCTION public._ask_unsupported_shape(text) FROM anon, authenticated;
+
+CREATE OR REPLACE FUNCTION public._ask_drop_shape_words(p_text text) RETURNS text
+LANGUAGE sql IMMUTABLE AS $$
+  SELECT trim(regexp_replace(regexp_replace(coalesce(p_text, ''),
+    '(?i)\s*\m(tomorrow|the (next|following) day|the day after|(in|during) the (morning|afternoon|evening)'
+    '|at night|(before|after) (bed|breakfast|lunch|dinner)|(each|per) hour)\M', ' ', 'g'),
+    '\s+', ' ', 'g'), ' ?')
+$$;
+REVOKE ALL ON FUNCTION public._ask_drop_shape_words(text) FROM anon, authenticated;
+
 CREATE OR REPLACE FUNCTION public.ask(p_question text, p_as_of date)
 RETURNS jsonb
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = ''
@@ -466,6 +522,19 @@ BEGIN
                                   'matched_term', hit, 'tier', NULL);
     END IF;
 
+    -- REQ-ASK-031: refuse a shape this system cannot compute BEFORE any branch answers a
+    -- different question than the one asked. See `_ask_unsupported_shape`.
+    hit := public._ask_unsupported_shape(q);
+    IF hit IS NOT NULL THEN
+        SELECT value INTO refusal FROM config.strings WHERE key = 'refusal_unmappable';
+        UPDATE __CORE__.questions SET refusal = ask_state.refusal, tier = NULL WHERE question_id = qid;
+        RETURN jsonb_build_object('question_id', qid, 'refusal', refusal, 'reason', hit,
+            'unsupported_shape', hit, 'tier', NULL,
+            -- The nearest COMPUTABLE question, per REQ-ASK-031. It is deliberately not the same
+            -- question: it drops the qualifier, and saying so is the point.
+            'nearest', jsonb_build_array(public._ask_drop_shape_words(q)));
+    END IF;
+
     BEGIN
         SELECT * INTO rng FROM public._ask_range(q, as_of);
     EXCEPTION WHEN invalid_parameter_value THEN
@@ -476,15 +545,15 @@ BEGIN
     END;
 
     -- op selection from the stored grammar (REQ-ASK-004: nothing outside config.operations can run)
-    SELECT g.op INTO op FROM config.ask_grammar g WHERE q ~ g.pattern ORDER BY g.priority LIMIT 1;
+    SELECT g.op INTO op FROM config.ask_grammar g
+     WHERE public._ask_strip_range_words(q) ~ g.pattern ORDER BY g.priority LIMIT 1;
     IF op IS NULL THEN op := 'search'; END IF;
 
     -- metric resolution (REQ-ASK-003)
     IF op IN ('describe','trend','rhythm','last','count_days','compare','effect','contrast') THEN
         -- Match the metric phrase, not grammar/date words that dilute trigram
         -- similarity. The grammar still selects the operation independently.
-        metric_text := regexp_replace(q,
-            '\s+(today|yesterday|this (week|month|year)|last [0-9]+ days?|last (week|month)|since .+|in [0-9]{4})[?]?$','');
+        metric_text := public._ask_strip_range_words(q);
         metric_text := regexp_replace(metric_text,
             '^(how (is|are|was|were) my |what(''s| is| are) my |show me my |my )','');
         IF op = 'trend' THEN
@@ -820,8 +889,7 @@ BEGIN
         metric_text := coalesce((regexp_match(q,
             '\m(?:affect|affects|drive|drives|cause|causes|impact|impacts|relate to|related to)\s+(.*)$'))[1],
             regexp_replace(q, m1.display, '', 'g'));
-        metric_text := regexp_replace(metric_text,
-            '\s+(today|yesterday|this (week|month|year)|last [0-9]+ days?|last (week|month)|since .+|in [0-9]{4})[?]?$','');
+        metric_text := public._ask_strip_range_words(metric_text);
         metric_text := trim(regexp_replace(metric_text, '^(my |the )', ''), ' ?');
         SELECT * INTO m2 FROM public._ask_resolve_metric(metric_text, m1.metric) LIMIT 1;
         -- REQ-ASK-021/022: BOTH metrics' coverage, and the gate on the MINIMUM. Reporting the
@@ -1021,8 +1089,7 @@ BEGIN
         -- matches no descriptor and reports an absent answer, hiding a question the executor
         -- simply could not read as an unlucky lack of data.
         entity_text := trim(coalesce((regexp_match(q, '(?:spend|spent)\s+(?:on|at)\s+(.+)$'))[1], ''), ' ?');
-        entity_text := trim(regexp_replace(entity_text,
-            '\s+(today|yesterday|this (week|month|year)|last [0-9]+ days?|last (week|month)|since .+|in [0-9]{4})[?]?$', ''), ' ?');
+        entity_text := trim(public._ask_strip_range_words(entity_text), ' ?');
         IF entity_text = '' THEN
             SELECT value INTO refusal FROM config.strings WHERE key = 'refusal_unmappable';
             UPDATE __CORE__.questions SET refusal = ask_state.refusal WHERE question_id = qid;
@@ -1119,8 +1186,7 @@ BEGIN
         -- lowercasing makes every entity unresolvable. Grammar matching stays case-insensitive;
         -- only the key does not.
         entity_text := trim(regexp_replace(p_question, '(?i)^(what|who|tell me) (is|about) ', ''), ' ?');
-        entity_text := trim(regexp_replace(entity_text,
-            '(?i)\s+(today|yesterday|this (week|month|year)|last [0-9]+ days?|last (week|month)|since .+|in [0-9]{4})[?]?$', ''), ' ?');
+        entity_text := trim(public._ask_strip_range_words(entity_text), ' ?');
         FOREACH term IN ARRAY ARRAY['merchant','category','site','channel','exercise'] LOOP
             SELECT public.get_entity(term, entity_text) INTO r2;
             -- `get_entity` reports an unknown key as `{n: 0, note: "Nothing recorded ..."}`
@@ -1158,10 +1224,8 @@ BEGIN
             -- adding a range to a question that worked made it return nothing — the range
             -- narrowed the words instead of the window.
             SELECT public.search_record(
-                     trim(regexp_replace(
-                       regexp_replace(p_question, '[?]', '', 'g'),
-                       '(?i)\s+(today|yesterday|this (week|month|year)|last [0-9]+ days?|last (week|month)|since .+|in [0-9]{4})$',
-                       '')), 200) INTO r2;
+                     public._ask_strip_range_words(
+                       regexp_replace(p_question, '[?]', '', 'g')), 200) INTO r2;
             -- `search_record` carries NO date predicate, so its hits span the whole record.
             -- The sentence names the requested range, so the count has to mean that range —
             -- otherwise "3 records mention that over the last 90 days" is false, and one of
