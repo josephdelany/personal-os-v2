@@ -1083,3 +1083,316 @@ def test_RULE_29_the_ask_executor_makes_no_outbound_call(ask_cur):
     # And no extension beyond the trigram matcher the metric resolver needs.
     extensions = set(re.findall(r"create extension(?: if not exists)?\s+([a-z_]+)", body))
     assert extensions <= {"pg_trgm"}, extensions
+
+
+# ============================================================ defects found by adversarial review
+# Each of these reproduces a case the review EXECUTED against a disposable server. They are
+# written from the reported input and output, not from the fix, so a regression reproduces the
+# original wrong answer rather than merely failing differently.
+
+def _baseline(cur, metric, day, lo, hi):
+    cur.execute("""INSERT INTO analysis_pytest.baselines (day, metric, band_lo, band_hi, code_version)
+                   VALUES (%s,%s,%s,%s,'test')
+                   ON CONFLICT (day, metric) DO UPDATE SET band_lo = excluded.band_lo,
+                                                           band_hi = excluded.band_hi""",
+                (day, metric, lo, hi))
+
+
+def test_REQ_ASK_005_the_band_form_of_compare_answers_instead_of_crashing(ask_cur):
+    """Review finding 1: the band form raised 23502 and Joe got a 500, not a refusal.
+
+    The trace joined `analysis.baselines` on the OUTCOME while the band had been evaluated on
+    the CONDITION metric. With no baselines for the outcome the join was empty, `jsonb_agg`
+    returned NULL, and observation_keys NOT NULL aborted the function — after the answer had
+    been computed correctly. No test executed a band-form compare at all, though it is the
+    documented default reading and question 15 of the twenty canonical ones.
+    """
+    cur = ask_cur
+    register_metric(cur, "hrv_sdnn_ms", "HRV", "ms")
+    for i in range(1, 21):
+        day = AS_OF - dt.timedelta(days=20 - i)
+        panel(cur, "steps", day, i * 500)
+        panel(cur, "hrv_sdnn_ms", day, 60 if i > 10 else 50)
+        _baseline(cur, "steps", day, 1000, 5000)          # bands for the CONDITION metric only
+
+    r = ask(cur, "my hrv on days when my steps are above the usual range last 20 days")
+    assert r.get("refusal") is None, r
+    stored = stored_result(cur, r)
+    assert stored["condition_metric"] == "steps"
+    assert stored["n_a"] + stored["n_b"] == 20
+
+    # And the trace is non-empty and names the metric the comparison actually rested on.
+    cur.execute("SELECT observation_keys FROM ask_core_pytest.computations WHERE question_id = %s",
+                (r["question_id"],))
+    keys = cur.fetchone()[0]
+    keys = keys if isinstance(keys, list) else json.loads(keys)
+    assert keys, "the trace must not be empty"
+    assert any(k.get("metric") == "steps" for k in keys), "the condition metric must be traced"
+    # The fixture rebinds schema names, so match the table rather than the full path.
+    assert any((k.get("table") or "").endswith(".baselines") for k in keys), keys[:3]
+    assert any((k.get("table") or "").endswith(".panel") for k in keys)
+    assert {k.get("metric") for k in keys} == {"steps", "hrv_sdnn_ms"}, \
+        "both the condition metric and the outcome must be traceable"
+
+
+def test_RULE_05_a_two_metric_answer_states_the_outcome_unit_not_the_drivers(ask_cur):
+    """Review finding 2: "HRV ran 7.5 steps lower" — and persisted as steps.
+
+    The delta is in the OUTCOME's unit; `res.unit` was overwritten with the driver's after the
+    branch had set it correctly, so the stored trace confirmed the wrong unit rather than
+    correcting it. RULE-05: no number is rendered anywhere without its lane.
+    """
+    cur = ask_cur
+    register_metric(cur, "hrv_sdnn_ms", "HRV", "ms")
+    for i in range(1, 11):
+        day = AS_OF - dt.timedelta(days=10 - i)
+        panel(cur, "steps", day, i * 1000)
+        panel(cur, "hrv_sdnn_ms", day, 40 + i)
+    _store_contrast(cur, "steps", "hrv_sdnn_ms", 0, delta=-7.5, run_date=dt.date(2026, 9, 1))
+
+    r = ask(cur, "does my steps affect my hrv last 10 days")
+    stored = stored_result(cur, r)
+    assert stored["unit"] == "ms", stored
+    assert "7.5 ms" in r["answer_text"], r["answer_text"]
+    assert "7.5 steps" not in r["answer_text"]
+
+    # The numerals payload must agree: day counts are days, not the metric's unit.
+    numerals = r.get("numerals") or []
+    by_value = {n["value"]: n["unit"] for n in numerals}
+    assert by_value.get("7.5") == "ms", numerals
+    for count_value in ("335", "336"):
+        if count_value in by_value:
+            assert by_value[count_value] == "days", numerals
+
+
+def test_RULE_16_an_insufficient_answer_uses_no_tier_language_at_all(ask_cur):
+    """Review finding 3: an INSUFFICIENT answer rendered PROMOTED vocabulary.
+
+    "appears", "provisional", "watched" are all seeded PROMOTED terms. The tier bound was
+    written and then defeated three lines later by a fallback that took the LOWEST template for
+    the operation — still above INSUFFICIENT. My own test for this asserted only the CONFIRMED
+    template's words, so the PROMOTED sentence passed it.
+    """
+    cur = ask_cur
+    register_metric(cur, "hrv_sdnn_ms", "HRV", "ms")
+    for i in range(1, 11):
+        day = AS_OF - dt.timedelta(days=10 - i)
+        panel(cur, "steps", day, i * 1000)
+        panel(cur, "hrv_sdnn_ms", day, 40 + i)
+    _register_finding(cur, "h:steps->hrv", "steps", "hrv_sdnn_ms", "PROMOTED",
+                      -3.2, AS_OF - dt.timedelta(days=5))
+
+    # Ten observed days in a ninety-day window: coverage ~0.11, far under the 0.60 gate.
+    for question in ("does my steps affect my hrv last 90 days",
+                     "how is my steps last 90 days",
+                     "which weekday is my steps last 90 days",
+                     "how many days my steps above 5000 last 90 days"):
+        r = ask(cur, question)
+        if r["tier"] != "INSUFFICIENT" or not r.get("answer_text"):
+            continue
+        text = r["answer_text"].lower()
+        # Every tier's claim vocabulary, not just the CONFIRMED template's.
+        for term in ("appears", "provisional", "watched", "consistent with",
+                     "adjusted for", " per ", "runs ", "typically", "may reflect"):
+            assert term not in text, f"INSUFFICIENT answer used {term!r}: {text}"
+
+
+def test_REQ_ASK_027_a_multi_clause_condition_is_refused_not_rewritten(ask_cur):
+    """Review finding 6: "above 5000 and below 7" answered "above 7" — 20 of 20 where the
+    truth was 10, at DESCRIPTIVE tier with no refusal.
+
+    The direction came from the first comparator and the threshold from the last, and nothing
+    required them to be the same clause.
+    """
+    cur = ask_cur
+    for i in range(1, 21):
+        panel(cur, "steps", AS_OF - dt.timedelta(days=20 - i), i * 500)
+
+    for question in ("how many days my steps above 5000 and below 7 last 20 days",
+                     "how many days my steps under 5 and over 100 last 20 days"):
+        r = ask(cur, question)
+        assert r.get("refusal") is not None, f"{question!r} answered: {r}"
+        assert r.get("tier") is None, r
+
+    # The single-clause forms still work.
+    ok = ask(cur, "how many days my steps above 5000 last 20 days")
+    assert ok.get("refusal") is None and ok["tier"] == "DESCRIPTIVE"
+
+
+def test_REQ_ASK_004_compare_refuses_a_condition_it_cannot_read(ask_cur):
+    """Review finding 6b: `count_days` refused an unreadable condition and `compare` fell
+    through to the band form — answering a different question. The shared parser exists so
+    the two cannot disagree about one phrase."""
+    cur = ask_cur
+    register_metric(cur, "hrv_sdnn_ms", "HRV", "ms")
+    for i in range(1, 11):
+        day = AS_OF - dt.timedelta(days=10 - i)
+        panel(cur, "steps", day, i * 1000)
+        panel(cur, "hrv_sdnn_ms", day, 40 + i)
+        _baseline(cur, "steps", day, 1000, 5000)
+
+    r = ask(cur, "my hrv on days when my steps are above fifty last 10 days")
+    assert r.get("refusal") is not None, r
+    assert r["reason"] == "condition_not_readable", r
+
+
+def test_REQ_ASK_005_compare_refuses_to_split_a_metric_by_itself(ask_cur):
+    """Review finding 14: the same-metric split was permitted, and `cov`'s duplicate key
+    collapsed so the "both metrics' coverage" contract silently degraded to one."""
+    cur = ask_cur
+    for i in range(1, 21):
+        panel(cur, "steps", AS_OF - dt.timedelta(days=20 - i), i * 500)
+    r = ask(cur, "my steps on days when my steps are above 5000 last 20 days")
+    assert r.get("refusal") is not None, r
+    assert r.get("reason") == "condition_metric_untracked", r
+
+
+def test_RULE_12_spend_refuses_when_a_matching_charge_has_no_currency(ask_cur):
+    """Review finding 9: count(DISTINCT) ignores NULLs, so two unit-less atoms counted as
+    ZERO currencies and `coalesce(term,'usd')` invented one — a total labelled usd with no row
+    saying so. A missing unit is not agreement."""
+    cur = ask_cur
+    _txn_atom(cur, AS_OF - dt.timedelta(days=1), -10.00,
+              "bank:x;merchant=Cafe;descriptor=CAFE", unit=None)
+    _txn_atom(cur, AS_OF - dt.timedelta(days=2), -10.50,
+              "bank:x;merchant=Cafe;descriptor=CAFE", unit=None)
+
+    r = ask(cur, "how much did i spend at cafe last 10 days")
+    assert r["tier"] == "INSUFFICIENT", r
+    assert r["insufficiency_reason"] == "unit_missing", r
+    assert r["charges_without_a_unit"] == 2
+    assert r.get("total_out") is None and r.get("currency") is None
+
+
+def test_RULE_12_spend_treats_the_subject_as_data_not_a_pattern(ask_cur):
+    """Review finding 10: "spend on %" matched every charge and reported the lot as that
+    merchant's — carrying a caveat saying it may have UNDER-counted."""
+    cur = ask_cur
+    _txn_atom(cur, AS_OF - dt.timedelta(days=1), -10.00, "bank:x;merchant=Cab;descriptor=CAB RIDE")
+    _txn_atom(cur, AS_OF - dt.timedelta(days=1), -500.00, "bank:x;merchant=Car;descriptor=CAR PAYMENT")
+
+    for wildcard in ("%", "ca_", "_a_"):
+        r = ask(cur, f"how much did i spend at {wildcard} last 10 days")
+        assert r["tier"] == "INSUFFICIENT", f"{wildcard!r} matched something: {r}"
+        assert r["insufficiency_reason"] == "metric_absent"
+
+    # A literal substring still works.
+    ok = ask(cur, "how much did i spend at car last 10 days")
+    assert float(stored_result(cur, ok)["total_out"]) == 500.00
+
+
+def test_REQ_ASK_022_count_days_remediation_names_the_actual_missing_input(ask_cur):
+    """Review finding 11: `condition_match` was declared, never assigned, so the band-form
+    remediation text fired for a pure numeric threshold — telling Joe to compute comparison
+    bands for a query that uses none."""
+    cur = ask_cur
+    for i in range(1, 11):
+        panel(cur, "steps", AS_OF - dt.timedelta(days=10 - i), i * 1000)
+
+    r = ask(cur, "how many days my steps above 5000 last 90 days")
+    if r.get("would_raise_it"):
+        assert "comparison band" not in r["would_raise_it"].lower(), \
+            f"a threshold query was told to fix bands: {r['would_raise_it']}"
+
+
+def test_REQ_ASK_030_the_as_of_filter_does_not_depend_on_the_session_timezone(ask_cur):
+    """Review finding 5: same question, same as_of, same data — PROMOTED from New York,
+    INSUFFICIENT from Tokyo.
+
+    `timestamptz::date` uses whatever timezone the session has. CI runs UTC, the fixture ran
+    ET, and every fixture in the suite wrote resolutions at 12:00 UTC — which never crosses a
+    date boundary in either zone, which is exactly why "passes under both timezones" did not
+    catch it. This one writes 23:30 UTC on the as-of day, where the zones disagree.
+    """
+    cur = ask_cur
+    register_metric(cur, "hrv_sdnn_ms", "HRV", "ms")
+    for i in range(1, 11):
+        day = AS_OF - dt.timedelta(days=10 - i)
+        panel(cur, "steps", day, i * 1000)
+        panel(cur, "hrv_sdnn_ms", day, 40 + i)
+    cur.execute("""INSERT INTO ask_core_pytest.hypothesis_register
+        (hypothesis_id, exposure_metric, outcome_metric, lag_days, direction, transformation,
+         adjustment_set, test_statistic, preregistered_at, confirmation_data_from,
+         resolution_rule, status)
+        VALUES ('h:tz','steps','hrv_sdnn_ms',0,'negative','none','["day_of_week"]'::jsonb,
+                'quartile_contrast_mannwhitney', %s, %s, 'two_look_v2','PROMOTED')""",
+        (AS_OF - dt.timedelta(days=60), AS_OF - dt.timedelta(days=60)))
+    # 23:30 UTC on the as-of day: 19:30 ET (same subject day) but 08:30 next-day in Tokyo.
+    cur.execute("""INSERT INTO ask_core_pytest.hypothesis_resolutions
+        (hypothesis_id, resolved_at, status_from, status_to, reason, post_days, delta,
+         registered_direction, code_version)
+        VALUES ('h:tz', %s, 'WATCHING','PROMOTED','promoted_same_sign_q_lt_0_10',40,-3.2,
+                'negative','resolve-v2')""",
+        (dt.datetime.combine(AS_OF, dt.time(23, 30), tzinfo=dt.timezone.utc),))
+
+    tiers = []
+    for zone in ("America/New_York", "Asia/Tokyo", "UTC", "America/Los_Angeles"):
+        cur.execute(f"set timezone = '{zone}'")
+        tiers.append((zone, ask(cur, "does my steps affect my hrv last 10 days")["tier"]))
+    cur.execute("set timezone = 'UTC'")
+    assert len({t for _, t in tiers}) == 1, f"the answer changed with the session timezone: {tiers}"
+
+
+def test_REQ_ASK_021_a_two_metric_answer_reports_both_metrics_coverage(ask_cur):
+    """Review finding 7: coverage was built for the driver only, so the outcome — the metric
+    the delta is about — was neither disclosed nor gated, and the 0.60 floor applied to one
+    side of a two-metric operation and not the other."""
+    cur = ask_cur
+    register_metric(cur, "hrv_sdnn_ms", "HRV", "ms")
+    for i in range(1, 11):
+        day = AS_OF - dt.timedelta(days=10 - i)
+        panel(cur, "steps", day, i * 1000)              # observed on all 10
+        if i <= 4:
+            panel(cur, "hrv_sdnn_ms", day, 40 + i)      # observed on 4 of 10
+    _store_contrast(cur, "steps", "hrv_sdnn_ms", 0, delta=-7.5, run_date=dt.date(2026, 9, 1))
+
+    r = ask(cur, "does my steps affect my hrv last 10 days")
+    cur.execute("SELECT coverage FROM ask_core_pytest.computations WHERE question_id = %s",
+                (r["question_id"],))
+    coverage = cur.fetchone()[0]
+    coverage = coverage if isinstance(coverage, dict) else json.loads(coverage)
+    assert set(coverage) == {"steps", "hrv_sdnn_ms"}, coverage
+    assert float(coverage["hrv_sdnn_ms"]) == 0.4, coverage
+    # The MINIMUM gates the tier, so the outcome's thin coverage floors the answer.
+    assert r["tier"] == "INSUFFICIENT", r
+
+
+def test_REQ_ASK_021_compare_reports_each_metric_own_coverage_not_the_intersection(ask_cur):
+    """Review finding 7b: the intersection was stored under BOTH keys, so a condition metric
+    observed on every day read as 0.6 — two meanings of "coverage" in one column, and the
+    wrong one feeding the gate."""
+    cur = ask_cur
+    register_metric(cur, "hrv_sdnn_ms", "HRV", "ms")
+    for i in range(1, 21):
+        day = AS_OF - dt.timedelta(days=20 - i)
+        panel(cur, "steps", day, i * 500)                # observed on all 20
+        if i <= 12:
+            panel(cur, "hrv_sdnn_ms", day, 40 + i)       # observed on 12 of 20
+
+    r = ask(cur, "my hrv on days when my steps are above 5000 last 20 days")
+    cur.execute("SELECT coverage FROM ask_core_pytest.computations WHERE question_id = %s",
+                (r["question_id"],))
+    coverage = cur.fetchone()[0]
+    coverage = coverage if isinstance(coverage, dict) else json.loads(coverage)
+    assert float(coverage["steps"]) == 1.0, coverage
+    assert float(coverage["hrv_sdnn_ms"]) == 0.6, coverage
+
+
+def test_REQ_ASK_030_search_counts_only_hits_inside_the_range_it_names(ask_cur):
+    """Review finding 4: `search_record` has no date predicate, so the sentence named a range
+    the count did not respect — and one hit was 108 days AFTER the question's as_of."""
+    cur = ask_cur
+    inside = AS_OF - dt.timedelta(days=5)
+    outside_past = AS_OF - dt.timedelta(days=400)
+    after_as_of = AS_OF + dt.timedelta(days=108)
+    for day in (inside, inside - dt.timedelta(days=1), outside_past, after_as_of):
+        _event(cur, day, "chrome_visit",
+               {"title": "kubernetes networking notes", "domain": "example.com"})
+
+    r = ask(cur, "kubernetes networking last 90 days")
+    stored = stored_result(cur, r)
+    assert stored["n"] == 2, stored
+    assert stored["n_all_time"] == 4, "the unfiltered count is kept, and labelled as such"
+    for hit in stored["hits"]:
+        assert str(inside - dt.timedelta(days=1)) <= hit["day"] <= str(AS_OF), hit
+    assert "2 records" in r["answer_text"]

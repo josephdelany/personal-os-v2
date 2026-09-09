@@ -22,6 +22,7 @@ CREATE TABLE IF NOT EXISTS config.operations (
 );
 REVOKE ALL ON config.operations FROM anon, authenticated;
 INSERT INTO config.operations (op, arity, description, tier_ceiling) VALUES
+ ('insufficient','none','the form an answer takes when coverage floors it below every tier','INSUFFICIENT'),
  ('describe','metric','median, p10-p90, min/max, n, coverage over the range','DESCRIPTIVE'),
  ('trend','metric','first-half vs second-half medians and the 28-day rolling median at range end','DESCRIPTIVE'),
  ('rhythm','metric','weekday medians; highest/lowest weekday','DESCRIPTIVE'),
@@ -66,7 +67,10 @@ INSERT INTO config.ask_templates (op, tier, template) VALUES
  ('trend','DESCRIPTIVE','Your {display} ran {second} {unit} in the second half of {range} against {first} {unit} in the first ({n} of {days} days with data). {rolling_28_clause}'),
  ('rhythm','DESCRIPTIVE','Your {display} was highest on {hi_day} ({hi} {unit}) and lowest on {lo_day} ({lo} {unit}) over {range}.'),
  ('last','DESCRIPTIVE','The last {display} on record is {value} {unit} on {day}, {since} days ago.'),
- ('count_days','DESCRIPTIVE','{k} of {n} days over {range}.'),
+ -- "{k} of {n}" alone reads as "of the window", and n is the OBSERVED day count: "5 of 10
+ -- days over the last 30 days" hid twenty missing days. `describe` states both; this now does
+ -- too (RULE-06: coverage is reported alongside every aggregate).
+ ('count_days','DESCRIPTIVE','{k} of the {n} days with data over {range} ({n} of {days} days observed).'),
  ('compare','DESCRIPTIVE','Your {display} was typically {a} {unit} on the {n_a} days when {condition}, against {b} {unit} on the other {n_b} days over {range}.'),
  -- NOT "over {range}": the stored contrast covers the scan's own window, not the window the
  -- question asked about, and `analysis.contrasts` does not record that window. The sentence
@@ -83,6 +87,9 @@ INSERT INTO config.ask_templates (op, tier, template) VALUES
  ('effect','CONFIRMED_OBSERVATIONAL','{outcome} runs {delta} {unit} {direction} per {driver} step, adjusted for {adjustment}.'),
  ('search','DESCRIPTIVE','{n} records mention that over {range}.'),
  ('entity','DESCRIPTIVE','{summary}'),
+ -- The form an answer takes when coverage floors it below every tier's language. It states
+ -- the numbers and what is missing, in vocabulary that claims nothing (RULE-16, RULE-18).
+ ('insufficient','INSUFFICIENT','Over {range} there were {n} of {days} days with data for {display} — below what this answer would need. The observations are stored and traceable; the claim is not made.'),
  ('spend','DESCRIPTIVE','Charges matching "{matched_on}" over {range} total {total_out} {currency} across {n_out} charges, about {per_week} {currency} a week. This is {caveat}.')
 ON CONFLICT (op, tier) DO NOTHING;
 
@@ -212,7 +219,18 @@ AS $fn$
           FROM pieces
     ), rendered AS (
         SELECT *, CASE WHEN key IS NULL THEN part ELSE coalesce(p_result->>key, '') END AS value,
-            CASE WHEN key IN ('n','days','k','n_a','n_b','since') THEN 'days'
+            -- Day counts are days, whatever the metric's unit is. The list was written for
+            -- the descriptive ops and never extended, so a contrast's n_hi/n_lo — plain day
+            -- counts — were labelled with the driver's unit and shipped in the numerals
+            -- payload that RULE-14's numeral-template rendering depends on.
+            CASE WHEN key IN ('n','days','k','n_a','n_b','since','n_hi','n_lo',
+                              'n_first','n_second','n_out','n_in','rolling_28_n',
+                              'n_condition_unknown','n_condition_missing','lag_days',
+                              'rolling_28_window_days','weeks') THEN 'days'
+                 WHEN key IN ('computed_on','window','first_day','last_day','day',
+                              'rolling_28_from','rolling_28_to') THEN 'date'
+                 WHEN key IN ('total','total_out','total_in','per_week','threshold')
+                      THEN coalesce(p_result->>'currency', p_result->>'unit')
                  WHEN key = 'range_label' THEN CASE WHEN p_result->>'range_label' ~ 'days' THEN 'days' ELSE 'year' END
                  WHEN key = 'day' THEN 'date'
                  ELSE p_result->>'unit' END AS unit
@@ -312,6 +330,15 @@ REVOKE ALL ON FUNCTION public._ask_range(text, date) FROM PUBLIC, anon, authenti
 --   threshold  a number, or NULL for the band form
 --   label      the text the answer template renders
 --   band_form  true when the comparison is against the personal band rather than a number
+-- A user's subject is data, not a pattern. "spend on %" matched every charge and reported the
+-- lot as that merchant's, carrying a caveat that said it may have UNDER-counted. Not injection
+-- — the value is parameterised — just a wrong money number with a confident sentence.
+CREATE OR REPLACE FUNCTION public._ask_like_escape(p text)
+RETURNS text LANGUAGE sql IMMUTABLE SET search_path = '' AS $fn$
+    SELECT replace(replace(replace(p, '\\', '\\\\'), '%', '\\%'), '_', '\\_')
+$fn$;
+REVOKE ALL ON FUNCTION public._ask_like_escape(text) FROM public;
+
 CREATE OR REPLACE FUNCTION public._ask_condition(p_q text)
 RETURNS TABLE (direction text, threshold numeric, label text, band_form boolean)
 LANGUAGE plpgsql IMMUTABLE SET search_path = '' AS $fn$
@@ -320,6 +347,14 @@ BEGIN
     txt := regexp_replace(p_q,
         '\s+(today|yesterday|this (week|month|year)|last [0-9]+ days?|last (week|month)|since .+|in [0-9]{4})[?]?$','');
     txt := trim(txt, ' ?');
+    -- More than one comparator means more than one clause, and nothing ties the direction to
+    -- the threshold: "above 5000 and below 7" took `above` from the first and `7` from the
+    -- last, then answered "above 7" — 20 of 20 days where the truth was 10, at DESCRIPTIVE
+    -- tier with no refusal. A condition that cannot be read as ONE comparison is refused.
+    IF (SELECT count(*) FROM regexp_matches(txt, '\m(above|below|over|under)\M', 'g')) > 1 THEN
+        RETURN QUERY SELECT NULL::text, NULL::numeric, NULL::text, NULL::boolean;
+        RETURN;
+    END IF;
     dir := (regexp_match(txt, '\m(above|below|over|under)\M'))[1];
     IF dir IS NULL THEN
         RETURN QUERY SELECT NULL::text, NULL::numeric, NULL::text, NULL::boolean;
@@ -376,6 +411,7 @@ DECLARE
     words text[]; cond_txt text; hit text; term text; metric_text text; entity_text text;
     condition_match text[]; condition_value numeric; condition_direction text; condition_input text;
     cond_band boolean; compare_lag int; cond_metric record; n_outcome_days int;
+    n_null_unit int; n_cond_days int; r3 jsonb;
     reverse_finding record; reverse_contrast record; r2 jsonb;
     numeral_valid boolean := true;
 BEGIN
@@ -643,14 +679,29 @@ BEGIN
         SELECT c.direction, c.threshold, c.label, c.band_form
           INTO condition_direction, condition_value, cond_txt, cond_band
           FROM public._ask_condition(condition_input) c;
-        -- A bare "on days when I drink" names the condition metric and no comparison. The
-        -- registered reading (B11's grammar) is "that metric above its usual range".
+        -- A BARE condition names the metric and no comparison, and B11's grammar reads that
+        -- as "that metric above its usual range". A condition that contains a comparison this
+        -- parser could not read is a different thing entirely and is refused — falling
+        -- through to the band form would silently answer a question nobody asked, which is
+        -- exactly what `_ask_condition`'s own comment says must not happen. `count_days`
+        -- refuses here; the shared parser exists so the two cannot disagree about one phrase.
         IF condition_direction IS NULL THEN
+            IF condition_input ~ '\m(above|below|over|under|more than|less than|at least|at most)\M' THEN
+                SELECT value INTO refusal FROM config.strings WHERE key = 'refusal_unmappable';
+                UPDATE __CORE__.questions SET refusal = ask_state.refusal WHERE question_id = qid;
+                RETURN jsonb_build_object('question_id', qid, 'refusal', refusal,
+                    'reason', 'condition_not_readable',
+                    'nearest', jsonb_build_array('my ' || m1.display || ' on days when my steps are above 5000'));
+            END IF;
             condition_direction := 'above'; cond_band := true; cond_txt := 'above the usual range';
         END IF;
+        -- `p_exclude` = the outcome. Splitting a metric by its own value answers a different,
+        -- nearly meaningless question while looking exactly as authoritative — the whole
+        -- reason `compare` was rewritten — and permitting it here left that door open.
         SELECT * INTO cond_metric FROM public._ask_resolve_metric(
             trim(regexp_replace(condition_input,
-                 '\s*(is|are|was|were)?\s*(above|below|over|under)\M.*$', ''), ' ?')) LIMIT 1;
+                 '\s*(is|are|was|were)?\s*(above|below|over|under)\M.*$', ''), ' ?'),
+            m1.metric) LIMIT 1;
         IF cond_metric.metric IS NULL OR cond_metric.sim < 0.35 THEN
             SELECT value INTO refusal FROM config.strings WHERE key = 'refusal_untracked';
             SELECT jsonb_agg(jsonb_build_object('metric', x.metric, 'display', x.display))
@@ -706,11 +757,16 @@ BEGIN
                  n_outcome_days - ((res->>'n_a')::int + (res->>'n_b')::int));
         -- REQ-ASK-021: BOTH metrics' coverage is reported, not only the outcome's. The tier
         -- floor uses the lower of the two, because the weaker input bounds the answer.
+        -- Each metric's OWN coverage over the range. The earlier version stored the
+        -- intersection under both keys, so a condition metric observed on every day read as
+        -- 0.6 — two different meanings of the word "coverage" in one column, and the wrong
+        -- one feeding the tier gate.
+        SELECT count(*) INTO n_cond_days FROM analysis.f_daily_panel(as_of) p
+         WHERE p.metric = cond_metric.metric
+           AND p.day BETWEEN rng.d_from - compare_lag AND rng.d_to - compare_lag;
         cov := jsonb_build_object(
                  m1.metric, n_outcome_days::numeric / greatest(n_days,1),
-                 cond_metric.metric,
-                 ((res->>'n_a')::numeric + (res->>'n_b')::numeric
-                  + (res->>'n_condition_unknown')::numeric) / greatest(n_days,1));
+                 cond_metric.metric, n_cond_days::numeric / greatest(n_days,1));
         coverage_min := least(
             n_outcome_days::numeric / greatest(n_days,1),
             ((res->>'n_a')::numeric + (res->>'n_b')::numeric) / greatest(n_days,1));
@@ -732,6 +788,18 @@ BEGIN
         res := res || jsonb_build_object('display', m1.display, 'unit', coalesce(m1.unit, ''));
     ELSIF op IN ('effect','contrast') THEN
         SELECT * INTO m2 FROM public._ask_resolve_metric(regexp_replace(q, m1.display, '', 'g'), m1.metric) LIMIT 1;
+        -- REQ-ASK-021/022: BOTH metrics' coverage, and the gate on the MINIMUM. Reporting the
+        -- driver's only meant the outcome — the metric the delta is actually about — was
+        -- neither disclosed nor gated, so the 0.60 floor was applied to one side of a
+        -- two-metric operation and not the other.
+        IF m2.metric IS NOT NULL THEN
+            SELECT count(*) INTO n_outcome_days FROM analysis.f_daily_panel(as_of) p
+             WHERE p.metric = m2.metric AND p.day BETWEEN rng.d_from AND rng.d_to;
+            cov := coalesce(cov, '{}'::jsonb)
+                   || jsonb_build_object(m2.metric, n_outcome_days::numeric / greatest(n_days,1));
+            coverage_min := least(coalesce(coverage_min, 1),
+                                  n_outcome_days::numeric / greatest(n_days,1));
+        END IF;
         IF m2.metric IS NULL THEN
             SELECT value INTO refusal FROM config.strings WHERE key = 'refusal_unmappable';
             UPDATE __CORE__.questions SET refusal = ask_state.refusal WHERE question_id = qid;
@@ -760,24 +828,39 @@ BEGIN
           INTO r FROM __CORE__.hypothesis_register h
           JOIN LATERAL (SELECT rr.status_to, rr.delta FROM __CORE__.hypothesis_resolutions rr
                          WHERE rr.hypothesis_id = h.hypothesis_id
-                           AND rr.resolved_at::date <= as_of
-                         ORDER BY rr.resolved_at DESC LIMIT 1) res2 ON true
-         WHERE h.preregistered_at::date <= as_of
+                           -- The SUBJECT day (ADR-0019: 04:00 ET), not `::date`, which uses
+                           -- whatever timezone the session happens to have. A resolution at
+                           -- 23:30 UTC answered PROMOTED from America/New_York and
+                           -- INSUFFICIENT from Asia/Tokyo — same question, same as_of, same
+                           -- data. CI runs UTC, the fixture ran ET, and every fixture wrote
+                           -- 12:00 UTC, which never crosses a boundary in either.
+                           AND ((rr.resolved_at AT TIME ZONE 'America/New_York')
+                                - interval '4 hours')::date <= as_of
+                         ORDER BY rr.resolved_at DESC, rr.resolution_id LIMIT 1) res2 ON true
+         WHERE ((h.preregistered_at AT TIME ZONE 'America/New_York')
+                - interval '4 hours')::date <= as_of
            AND res2.status_to IN ('PROMOTED','CONFIRMED_OBSERVATIONAL')
            AND h.exposure_metric = m1.metric AND h.outcome_metric = m2.metric
-         ORDER BY CASE res2.status_to WHEN 'CONFIRMED_OBSERVATIONAL' THEN 0 ELSE 1 END LIMIT 1;
+         -- A deterministic tiebreak. Two PROMOTED hypotheses for one exposure->outcome is a
+         -- state the schema permits, and without this the answer depended on physical row
+         -- order and would change after a VACUUM FULL — REQ-ASK-030 reproducibility gone for
+         -- a reason nothing in the record would show.
+         ORDER BY CASE res2.status_to WHEN 'CONFIRMED_OBSERVATIONAL' THEN 0 ELSE 1 END,
+                  h.preregistered_at, h.hypothesis_id LIMIT 1;
 
         IF r.hypothesis_id IS NULL THEN
             SELECT h.hypothesis_id, res2.status_to, h.exposure_metric, h.outcome_metric
               INTO reverse_finding FROM __CORE__.hypothesis_register h
               JOIN LATERAL (SELECT rr.status_to FROM __CORE__.hypothesis_resolutions rr
                              WHERE rr.hypothesis_id = h.hypothesis_id
-                               AND rr.resolved_at::date <= as_of
-                             ORDER BY rr.resolved_at DESC LIMIT 1) res2 ON true
-             WHERE h.preregistered_at::date <= as_of
+                               AND ((rr.resolved_at AT TIME ZONE 'America/New_York')
+                                    - interval '4 hours')::date <= as_of
+                             ORDER BY rr.resolved_at DESC, rr.resolution_id LIMIT 1) res2 ON true
+             WHERE ((h.preregistered_at AT TIME ZONE 'America/New_York')
+                    - interval '4 hours')::date <= as_of
                AND res2.status_to IN ('PROMOTED','CONFIRMED_OBSERVATIONAL')
                AND h.exposure_metric = m2.metric AND h.outcome_metric = m1.metric
-             LIMIT 1;
+             ORDER BY h.preregistered_at, h.hypothesis_id LIMIT 1;
         END IF;
 
         -- A finding exists only for the REVERSE pair. It is named as a different finding and
@@ -795,6 +878,19 @@ BEGIN
                 'would_raise_it', 'Register and watch the hypothesis in the direction asked.');
         END IF;
 
+        IF r.hypothesis_id IS NOT NULL AND r.delta IS NULL THEN
+            -- `hypothesis_resolutions.delta` is nullable. A blank where the number belongs
+            -- passes the numeral verifier — a MISSING numeral is not an untraceable one — and
+            -- renders "appears to differ by  ms", which reads as a value rather than as its
+            -- absence. The identical hole was fixed in `contrast`; this branch had it too.
+            SELECT value INTO refusal FROM config.strings WHERE key = 'refusal_insufficient';
+            UPDATE __CORE__.questions SET refusal = ask_state.refusal, tier = 'INSUFFICIENT'
+             WHERE question_id = qid;
+            RETURN jsonb_build_object('question_id', qid, 'tier', 'INSUFFICIENT',
+                'refusal', refusal, 'insufficiency_reason', 'finding_without_an_effect_size',
+                'hypothesis_id', r.hypothesis_id,
+                'would_raise_it', 'The registered finding carries no effect size, so there is no number to state.');
+        END IF;
         IF r.hypothesis_id IS NOT NULL THEN
             op := 'effect';
             res := jsonb_build_object('driver', m1.display, 'outcome', m2.display,
@@ -824,7 +920,7 @@ BEGIN
              -- the question's date out of its answer (REQ-ASK-030 / RULE-04).
              WHERE c.driver = m1.metric AND c.outcome = m2.metric
                AND c.run_date <= as_of
-             ORDER BY c.run_date DESC, abs(c.lag_days), c.q_fdr
+             ORDER BY c.run_date DESC, abs(c.lag_days), c.q_fdr, c.contrast_id
              LIMIT 1;
             IF r.driver IS NULL THEN
                 SELECT c.driver, c.outcome, c.run_date INTO reverse_contrast
@@ -894,19 +990,28 @@ BEGIN
         -- Currency is checked, not assumed. Summing across units produces a number with no
         -- meaning, and `transaction_amount_usd` is the only unit B13's importer writes today,
         -- so a second unit means an importer changed and this query is no longer valid.
-        SELECT count(DISTINCT a.unit), min(a.unit) INTO n_outcome_days, term
+        -- count(DISTINCT) IGNORES NULLs and core.atoms.unit is nullable, so two unit-less
+        -- atoms counted as zero currencies and `coalesce(term,'usd')` then INVENTED one — a
+        -- total labelled usd with no row saying so. A missing unit is not agreement.
+        SELECT count(DISTINCT a.unit), min(a.unit), count(*) FILTER (WHERE a.unit IS NULL)
+          INTO n_outcome_days, term, n_null_unit
           FROM __CORE__.atoms_current a
          WHERE a.kind = 'transaction'
            AND a.subject_day BETWEEN rng.d_from AND rng.d_to AND a.subject_day <= as_of
-           AND a.evidence_span ILIKE '%' || entity_text || '%';
-        IF n_outcome_days > 1 THEN
+           AND a.evidence_span ILIKE '%' || public._ask_like_escape(entity_text) || '%';
+        IF n_outcome_days > 1 OR n_null_unit > 0 THEN
             SELECT value INTO refusal FROM config.strings WHERE key = 'refusal_insufficient';
             UPDATE __CORE__.questions SET refusal = ask_state.refusal, tier = 'INSUFFICIENT'
              WHERE question_id = qid;
             RETURN jsonb_build_object('question_id', qid, 'tier', 'INSUFFICIENT',
-                'refusal', refusal, 'insufficiency_reason', 'mixed_currency',
+                'refusal', refusal,
+                'insufficiency_reason', CASE WHEN n_null_unit > 0 THEN 'unit_missing'
+                                             ELSE 'mixed_currency' END,
                 'matched_on', entity_text, 'currencies', n_outcome_days,
-                'would_raise_it', 'These charges are in more than one currency; a single total would not mean anything until conversion is defined.');
+                'charges_without_a_unit', n_null_unit,
+                'would_raise_it', CASE WHEN n_null_unit > 0
+                    THEN 'Some matching charges carry no currency, so no total can be labelled honestly.'
+                    ELSE 'These charges are in more than one currency; a single total would not mean anything until conversion is defined.' END);
         END IF;
 
         -- Outflows and inflows are counted separately, never netted here. REQ-FIN-050 nets
@@ -916,7 +1021,7 @@ BEGIN
         SELECT jsonb_build_object(
                  'matched_on', entity_text,
                  'match_method', 'statement_descriptor_contains',
-                 'currency', coalesce(term, 'usd'),
+                 'currency', term,
                  'total_out', abs(round(coalesce(sum(a.value_point) FILTER (WHERE a.value_point < 0), 0), 2)),
                  'n_out', count(*) FILTER (WHERE a.value_point < 0),
                  'total_in', round(coalesce(sum(a.value_point) FILTER (WHERE a.value_point > 0), 0), 2),
@@ -930,7 +1035,7 @@ BEGIN
           FROM __CORE__.atoms_current a
          WHERE a.kind = 'transaction'
            AND a.subject_day BETWEEN rng.d_from AND rng.d_to AND a.subject_day <= as_of
-           AND a.evidence_span ILIKE '%' || entity_text || '%';
+           AND a.evidence_span ILIKE '%' || public._ask_like_escape(entity_text) || '%';
 
         IF coalesce((res->>'n_out')::int, 0) = 0 THEN
             SELECT value INTO refusal FROM config.strings WHERE key = 'refusal_insufficient';
@@ -974,7 +1079,15 @@ BEGIN
             IF r2 IS NOT NULL AND r2->>'refusal' IS NULL
                AND coalesce((r2->>'n')::int, 0) > 0 THEN
                 op := 'entity';
+                -- `get_entity` computes its OWN cutoff (yesterday) and discards the caller's
+                -- date, so a question asked as of 2020 was answered from 2026 data while the
+                -- computation row stamped 2020. The entity's real as-of is carried so the two
+                -- are visible rather than silently contradictory; making get_entity honour the
+                -- caller's date is B14's, and is named in the checkpoint.
                 res := jsonb_build_object('entity_type', term, 'entity_key', entity_text,
+                                          'entity_as_of', r2->>'as_of',
+                                          'as_of_requested', as_of,
+                                          'as_of_matches_request', (r2->>'as_of')::date = as_of,
                                           'n', (r2->>'n')::int,
                                           'summary', coalesce(r2->>'summary',
                                               entity_text || ': ' || (r2->>'n') || ' records'),
@@ -989,11 +1102,29 @@ BEGIN
             -- alone cannot be traced back to anything: REQ-ASK-009 requires every rendered
             -- numeral to reach a stored result, and an answer that says "12 records mention
             -- that" with no record identities behind it is unverifiable by construction.
-            SELECT public.search_record(regexp_replace(p_question, '[?]', '', 'g'), 20) INTO r2;
+            -- The RANGE PHRASE is not a search term. Passing the whole question meant
+            -- "kubernetes networking last 90 days" was matched literally against titles, so
+            -- adding a range to a question that worked made it return nothing — the range
+            -- narrowed the words instead of the window.
+            SELECT public.search_record(
+                     trim(regexp_replace(
+                       regexp_replace(p_question, '[?]', '', 'g'),
+                       '(?i)\s+(today|yesterday|this (week|month|year)|last [0-9]+ days?|last (week|month)|since .+|in [0-9]{4})$',
+                       '')), 200) INTO r2;
+            -- `search_record` carries NO date predicate, so its hits span the whole record.
+            -- The sentence names the requested range, so the count has to mean that range —
+            -- otherwise "3 records mention that over the last 90 days" is false, and one of
+            -- the three can be dated after the question's own as_of. Filtered here, on the
+            -- subject day each hit already carries.
+            SELECT coalesce(jsonb_agg(h ORDER BY h->>'day' DESC), '[]'::jsonb)
+              INTO r3 FROM jsonb_array_elements(coalesce(r2->'hits','[]'::jsonb)) h
+             WHERE (h->>'day')::date BETWEEN rng.d_from AND rng.d_to
+               AND (h->>'day')::date <= as_of;
             res := jsonb_build_object(
-                     'n', coalesce((r2->>'n')::int, 0),
+                     'n', jsonb_array_length(r3),
                      'q', r2->>'q',
-                     'hits', coalesce(r2->'hits', '[]'::jsonb),
+                     'hits', r3,
+                     'n_all_time', coalesce((r2->>'n')::int, 0),
                      'by_month', coalesce(r2->'by_month', '[]'::jsonb));
             IF coalesce((res->>'n')::int, 0) = 0 THEN
                 SELECT value INTO refusal FROM config.strings WHERE key = 'refusal_insufficient';
@@ -1014,34 +1145,67 @@ BEGIN
         tier := 'INSUFFICIENT'; ins_reason := 'low_coverage';
         SELECT d.capture_action INTO raise_action FROM config.domain_metrics dm
           JOIN config.domains d ON d.domain_key = dm.domain_key WHERE dm.metric = m1.metric LIMIT 1;
-        IF op = 'count_days' AND condition_match IS NULL THEN
+        IF op = 'count_days' AND coalesce(cond_band, false) THEN
             raise_action := 'Compute the missing personal comparison bands from prior observations to increase the number of comparable days.';
         END IF;
     END IF;
 
     -- Narration metadata is part of the persisted result too: range labels and
     -- units can themselves contain numerals. Nothing gets an ambient exemption.
-    res := res || jsonb_build_object('display', m1.display, 'unit', coalesce(m1.unit, res->>'unit'),
+    -- The unit belongs to the value the number IS. For a two-metric operation the delta is in
+    -- the OUTCOME's unit, and overwriting it with the driver's rendered "HRV ran 7.5 steps
+    -- lower" — and persisted it that way, so the trace confirmed the wrong unit instead of
+    -- correcting it (RULE-05: no number is rendered without its lane).
+    res := res || jsonb_build_object('display', m1.display,
+                                     'unit', CASE WHEN op IN ('effect','contrast')
+                                                  THEN coalesce(res->>'unit', m2.unit, '')
+                                                  ELSE coalesce(m1.unit, res->>'unit') END,
                                      'range_label', rng.label, 'days', n_days);
     SELECT coalesce(jsonb_agg(jsonb_build_object('table','analysis.panel', 'day', p.day, 'metric', p.metric)
                              ORDER BY p.day, p.metric), '[]'::jsonb)
       INTO keys FROM analysis.f_daily_panel(as_of) p
      WHERE p.metric = m1.metric AND p.day BETWEEN rng.d_from AND rng.d_to;
     IF op IN ('count_days','compare') AND coalesce(cond_band, false) THEN
-        -- Count only days with both an observation and the requested band, and
-        -- retain both sides of that comparison in the audit trail. `compare` reads
-        -- the same two tables for the same reason, so it traces the same way.
-        SELECT jsonb_agg(jsonb_build_object('table', rows.table_name, 'day', rows.day, 'metric', rows.metric)
-                         ORDER BY rows.day, rows.table_name)
+        -- The band was evaluated on the metric the CONDITION is about — which for `compare`
+        -- is the condition metric, not the outcome. Tracing m1's baselines produced an empty
+        -- set whenever the outcome had none, and `jsonb_agg` over nothing is NULL, which the
+        -- NOT NULL on observation_keys turned into a crash: the answer was computed correctly
+        -- and then thrown away with a 500. `coalesce` to an empty array as everywhere else,
+        -- and trace the metric the comparison actually rested on.
+        SELECT coalesce(jsonb_agg(jsonb_build_object('table', rows.table_name, 'day', rows.day,
+                                                     'metric', rows.metric)
+                         ORDER BY rows.day, rows.table_name), '[]'::jsonb)
           INTO keys FROM (
             SELECT p.day, p.metric, source.table_name
               FROM analysis.f_daily_panel(as_of) p
               JOIN analysis.baselines b ON b.metric = p.metric AND b.day = p.day
               CROSS JOIN (VALUES ('analysis.panel'), ('analysis.baselines')) source(table_name)
-             WHERE p.metric = m1.metric AND p.day BETWEEN rng.d_from AND rng.d_to
+             WHERE p.metric = coalesce(cond_metric.metric, m1.metric)
+               AND p.day BETWEEN rng.d_from - coalesce(compare_lag,0)
+                             AND rng.d_to - coalesce(compare_lag,0)
                AND CASE WHEN condition_direction = 'above' THEN b.band_hi IS NOT NULL
                         ELSE b.band_lo IS NOT NULL END
           ) rows;
+        -- For `compare` the OUTCOME's rows are part of the evidence too: the medians came
+        -- from them. Tracing only the condition side would make the answer unauditable in
+        -- exactly the direction the number points.
+        IF op = 'compare' THEN
+            SELECT keys || coalesce(jsonb_agg(jsonb_build_object(
+                       'table','analysis.panel','day',p.day,'metric',p.metric)
+                     ORDER BY p.day), '[]'::jsonb)
+              INTO keys FROM analysis.f_daily_panel(as_of) p
+             WHERE p.metric = m1.metric AND p.day BETWEEN rng.d_from AND rng.d_to;
+        END IF;
+    ELSIF op = 'compare' THEN
+        -- Threshold form: the condition metric's rows decided the split and belong in the
+        -- trace beside the outcome's.
+        SELECT keys || coalesce(jsonb_agg(jsonb_build_object(
+                   'table','analysis.panel','day',p.day,'metric',p.metric)
+                 ORDER BY p.day), '[]'::jsonb)
+          INTO keys FROM analysis.f_daily_panel(as_of) p
+         WHERE p.metric = cond_metric.metric
+           AND p.day BETWEEN rng.d_from - coalesce(compare_lag,0)
+                         AND rng.d_to - coalesce(compare_lag,0);
     ELSIF op = 'last' THEN
         keys := jsonb_build_array(jsonb_build_object('table', 'analysis.panel',
             'day', res->>'day', 'metric', m1.metric));
@@ -1066,13 +1230,23 @@ BEGIN
        AND public._ask_tier_rank(t.tier) <= public._ask_tier_rank(ask_state.tier)
      ORDER BY public._ask_tier_rank(t.tier) DESC LIMIT 1;
     IF templ IS NULL THEN
+        -- No template at or below the effective tier. The previous fallback took the LOWEST
+        -- template for the op, which is still above INSUFFICIENT — so an INSUFFICIENT answer
+        -- rendered "appears ... provisional ... watched", every one a PROMOTED-tier term
+        -- (config.tier_vocabulary). The bound was written and then defeated three lines later.
+        --
+        -- An INSUFFICIENT answer gets the INSUFFICIENT form: the numbers, labelled as not
+        -- meeting the coverage the tier ladder requires. RULE-18 wants weak evidence disclosed
+        -- as weak evidence, not silence — and not a confident sentence either.
         SELECT t.template INTO templ FROM config.ask_templates t
-         WHERE t.op = ask_state.op
-         ORDER BY public._ask_tier_rank(t.tier) ASC LIMIT 1;
+         WHERE t.op = 'insufficient' LIMIT 1;
     END IF;
     answer := templ;
     answer := replace(answer, '{display}', coalesce(m1.display, ''));
-    answer := replace(answer, '{unit}', coalesce(m1.unit, res->>'unit', ''));
+    -- `res.unit` first. It has already been set to the unit the VALUE is in — the outcome's
+    -- for a two-metric operation — and preferring m1's here re-introduced the driver's unit
+    -- into the sentence after the result had been corrected.
+    answer := replace(answer, '{unit}', coalesce(res->>'unit', m1.unit, ''));
     answer := replace(answer, '{range}', rng.label);
     answer := replace(answer, '{condition}', coalesce(res->>'condition', ''));
     answer := replace(answer, '{driver}', coalesce(res->>'driver',''));

@@ -93,7 +93,11 @@ def test_REQ_ASK_027_counts_use_condition_threshold_and_natural_frequency(ask_cu
     answer = ask(ask_cur, question)
     assert answer["result"]["k"] == k
     assert answer["result"]["n"] == 10
-    assert answer["answer_text"] == f"{k} of 10 days over the last 10 days."
+    # The sentence now states BOTH denominators. "{k} of {n}" alone reads as "of the window",
+    # and n is the OBSERVED day count — so "5 of 10 days over the last 30 days" hid twenty
+    # missing days (RULE-06: coverage is reported alongside every aggregate).
+    assert answer["answer_text"] == (
+        f"{k} of the 10 days with data over the last 10 days (10 of 10 days observed).")
     assert all(row["unit"] == "days" for row in answer["numerals"])
 
 
