@@ -1,45 +1,24 @@
-# START HERE — what to do in the terminal, right now
+# Personal OS
 
-Two gates already exist and both pass. Run them first; they are how you check
-work you cannot read.
+Personal OS collects Joe's observations, preserves their sources, computes results,
+and answers questions with explicit evidence and uncertainty. The current delivery
+objective is a complete backend, followed by the frontend.
 
-    python3 tools/validate_layout.py     # 30 checks on the specification itself
-    ./tools/test_guard.sh                # 25 real commands fed to the safety hook
+- [Current checkpoint](docs/NEXT_SESSION.md): active unit, evidence, next action and holds.
+- [Execution plan](docs/EXECUTION_PLAN.md): milestones and exact completion criteria.
+- [Backend architecture](docs/BACKEND_ARCHITECTURE.md): components and boundaries.
+- [Agent instructions](CLAUDE.md): working rules and permissions.
+- [Documentation map](docs/DOCUMENTATION_MAP.md): where authoritative information lives.
 
-Both print every check by name and exit non-zero on failure. If either ever
-prints FAIL, that is the answer to "is this going well" — not what any session
-tells you in prose.
+For a running goal, paste:
 
-## Then, in order
+```text
+Continue the existing work under CLAUDE.md and docs/EXECUTION_PLAN.md.
+Read docs/NEXT_SESSION.md and inspect Git first. Complete the active unit against
+its acceptance cases, checkpoint it, then take the next ready unit. Do not restart
+or redesign. Keep genuine external dependencies held while continuing independent
+backend work. Do not start frontend construction before the backend release gate.
+```
 
-1. **Answer the three blocking questions.** OQ-03 (public or private repo),
-   OQ-05 (uncertainty width for weighed food), OQ-07 ("necessary" narrowed to
-   used / unused / unknown). Nothing downstream is safe to build until these
-   are settled, and OQ-07 is the largest gap between what you asked for and
-   what is written down.
-
-2. **Say yes or no to the three doctrine reversals** — RULE-18, RULE-23,
-   RULE-30 in `docs/CONSTITUTION.md`. They overturn positions the old spec held.
-
-3. **Phase 0, and only Phase 0** (`docs/ROADMAP.md`): archive the legacy data
-   to Parquet, verified by row count, nothing deleted; both keepalives live.
-   (The old 19 spec files were lost with a cloud workspace and cannot be
-   archived — the legacy archive **is** the verified Parquet snapshot, not a
-   document folder. See ROADMAP Phase 0 and OQ-19. This file predates Phase 0/1
-   and is otherwise stale — see PROGRESS.)
-
-4. **Then the three missing specs** — REQ-ONT, REQ-WKT, REQ-BOD. REQ-WKT is
-   the objective function you named as primary and it currently has zero
-   requirements written.
-
-## Read this before session two
-
-`docs/OPERATING_MANUAL.md` — the session protocol, your five real levers for
-verifying work you cannot read, what is genuinely hard in this project, and one
-recommended change to the roadmap that needs your ruling.
-
-## What the gates do not check
-
-They check the specification, not the system — there is no schema, no code and
-no data yet, so nothing here proves anything works end to end. The first thing
-that will is Phase 3, the Big Mac slice.
+A running agent must read this update at its next safe boundary. Editing these files
+does not prove that an existing terminal has reloaded them.

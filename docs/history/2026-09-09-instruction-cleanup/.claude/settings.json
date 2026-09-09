@@ -1,5 +1,5 @@
 {
-  "_comment_hooks": "Startup and compaction restore maintained policy and the compact checkpoint. Verification is revision-sensitive; compaction alone does not trigger a full suite.",
+  "_comment_hooks": "SessionStart fires on startup, resume, and after compaction. The compaction case is the important one: compaction silently drops CLAUDE.md and the constitution, and an agent that has forgotten its invariants will violate all thirty without noticing. This re-injects them.",
   "hooks": {
     "SessionStart": [
       {
@@ -7,7 +7,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "cat CLAUDE.md docs/CONSTITUTION.md docs/NEXT_SESSION.md"
+            "command": "echo '--- CONTEXT REPAIR AFTER COMPACTION ---'; cat CLAUDE.md; echo; echo '--- CONSTITUTION ---'; cat docs/CONSTITUTION.md; echo; echo '--- CURRENT PHASE ---'; grep -m1 -A3 'Current phase' CLAUDE.md; echo; echo '--- LAST 3 PROGRESS ENTRIES ---'; tail -n 60 ops/PROGRESS.md; echo; echo '--- OPEN QUESTIONS (ask, do not decide) ---'; grep -E '^\\*\\*OQ-' docs/OPEN_QUESTIONS.md"
           }
         ]
       },
@@ -16,7 +16,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "cat CLAUDE.md docs/CONSTITUTION.md docs/NEXT_SESSION.md"
+            "command": "echo 'Run /session-start before any implementation work.'; git log --oneline -5"
           }
         ]
       }

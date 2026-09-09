@@ -1,3 +1,7 @@
+> Historical reference. Current work order: [EXECUTION_PLAN](EXECUTION_PLAN.md).
+> Current evidence: [NEXT_SESSION](NEXT_SESSION.md). Requirements and accepted gates
+> remain binding; historical status and scheduling instructions do not govern execution.
+
 # PHASE 2 — LEGACY BACKFILL PLAN (atoms)
 
 **Status: PLAN ONLY. No backfill executed. No atom written.**

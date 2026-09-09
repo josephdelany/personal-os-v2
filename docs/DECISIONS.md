@@ -82,3 +82,5 @@ Its remaining scope is still owed before Phase 3 and is deliberately kept out of
 the table above so no row's status is self-contradictory: cache-first USDA
 lookup, the personal portion table, the other method widths, and the count→grams
 rule for branded items (REQ-NUT-050/051).
+
+| ADR-0083 | Accepted | 2026-09-09 | [Execution and documentation authority](adr/0083-execution-and-documentation-authority.md): maintained policy/checkpoint/architecture/plan; backend-first dependency order; scope-aware completion evidence; clean reviews permitted; permissions and numbered constitutional rules unchanged. |

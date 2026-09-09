@@ -1,144 +1,70 @@
-# Personal OS
+# Personal OS — agent instructions
 
-I am not an engineer. I cannot verify by reading code. I verify by running
-things, reading outputs, and independent adversarial review. Design for that —
-if the only proof a thing works is that you say so, it is not proven. Single
-user, directed by me (Joe).
+Single-user system for Joe. Deliver the complete backend, then the frontend.
+Joe verifies outcomes through runnable examples and independent review, not code reading.
 
-## Current phase
+## Authority and navigation
 
-**Phase 2 — the spine, in code.** See `docs/ROADMAP.md`.
-Gate status (verify live state, do not recite this — it goes stale):
-- **Gate 0 — CLOSED (verified 2026-08-31 against `ops.runs`).** Both keepalives
-  fire on their own daily schedule and write `ops.runs` rows (`trigger=schedule`,
-  status `ok`, every day 26–31 Aug and continuing); the repo is pushed and the
-  `SUPABASE_DB_URL` Actions secret is set (since 24 Aug). The Parquet archive
-  criterion was already met. OQ-02's push blocker is cleared.
-- **Gate 2** — the legacy Parquet backfill is planned but not executed; its row
-  count is *reconciled, not equal* (ADR-0025), and RULE-04 is deferred to Phase 5
-  (OQ-22).
+Current user instructions govern scope and authorization. Preserve the integrity
+rules in [CONSTITUTION](docs/CONSTITUTION.md); report a conflict rather than bypassing them.
+Accepted ADRs and `specs/*/requirements.md` define behavior. Read the relevant ones
+before changing that behavior. Workflow and dependency order are maintained in
+[EXECUTION_PLAN](docs/EXECUTION_PLAN.md). Architecture is in
+[BACKEND_ARCHITECTURE](docs/BACKEND_ARCHITECTURE.md).
 
-**The real goal (ruled 27 Aug, recorded in `ops/PROGRESS.md`; build order in `docs/build/README.md`):** get continuous unattended capture
-running before the Claude subscription ends — data can only be collected once, code
-can be written anytime. This reprioritises above the roadmap phase order; capture
-work (Phase-3 ingest) is in scope now under that ruling. Do not start *later-phase
-analysis* work (Phase 5/6 derived measures, stats) — that still waits.
+Read [NEXT_SESSION](docs/NEXT_SESSION.md) first, then this file and the constitution.
+Inspect Git before trusting recorded state. After compaction restore the checkpoint;
+do not repeat unchanged verification. Consult the relevant open questions and ADRs,
+not the complete project history, unless evidence requires it.
 
-## Read these first, every session
+`docs/build/B*.md` are implementation briefs, not an independent authority on order,
+permissions, current schema or completion. Historical plans are reference material.
+See [DOCUMENTATION_MAP](docs/DOCUMENTATION_MAP.md) for the maintained entry points.
 
-- `docs/CONSTITUTION.md`   — invariants and never-rules. Non-negotiable.
-- `docs/DECISIONS.md`      — one-line ADR index. Read the full ADR before
-                             changing anything it covers.
-- `docs/OPEN_QUESTIONS.md` — undecided. Ask me. Do not decide these alone.
-- `docs/REMEDIATION_PLAN.md` — everything known to be wrong, ranked and sequenced.
-                             What runs before Phase 3, and in what order.
-- `ops/PROGRESS.md`        — the last three entries.
+## Execution
 
-## Invariants (full text and SQL checks in `docs/CONSTITUTION.md`)
+- Follow one bounded unit from EXECUTION_PLAN at a time. State its outcome,
+  requirement IDs, acceptance cases and affected files before implementation.
+  Implementation test names must contain the requirement IDs they cover.
+- Continue authorized work autonomously. Capture recovery takes priority when its
+  prerequisites are available; otherwise complete independent backend work.
+- Keep NEXT_SESSION current at unit boundaries. Record evidence with the revision
+  tested. Never collapse implemented, tested, deployed and observed into one status.
+- Run targeted tests while editing and the required full checks at integration
+  boundaries. Repeated failure calls for diagnosis, not more speculative patches.
+- Finish the unit using the constitution's Definition of Done and session-end
+  procedure. Make scoped commits under existing authorization; do not stage another
+  worker's files. Do not declare a branch deployable while dependencies are untracked.
+- Record architectural, measurement, scope and permission decisions in an ADR.
+  Routine implementation choices within an accepted contract need no new policy.
+- Batch genuinely missing Joe decisions with a recommendation and consequences.
+  Keep dependent work held and continue independent tasks. Never infer approval
+  from elapsed time. Existing explicit authorization persists.
 
-- **INV-1** Every derived row traces to a `raw_captures` row.
-- **INV-2** `raw_captures` and `atoms` are append-only. Never UPDATE, never DELETE.
-- **INV-3** Every number rendered anywhere traces to a stored computation.
-- **INV-4** No metric includes data recorded after its window closed.
-- **INV-5** A measured value and an inferred value are never stored in the same column.
-- **INV-6** Never weaken a gate, a threshold, or a test to make it pass.
+## Integrity
 
-A change that violates an invariant is rejected, not discussed. If you believe
-an invariant is wrong, say so and stop — do not work around it.
+- INV-1: derived rows trace to raw captures. INV-2: captures and atoms are append-only.
+- INV-3: rendered numbers trace to stored computations. INV-4: no future knowledge
+  enters a closed analysis window. INV-5: measured and inferred values stay separate.
+- INV-6 / RULE-00: never weaken tests, thresholds or gates to make them pass.
+- No fabricated personal data or placeholder success. Fixtures follow RULE-01's
+  disposable-schema, rollback-only exception; never production/core/public tables.
+- Execute arithmetic and statistics. Models plan and narrate; they do not compute
+  or choose temporal specifications. Human corrections permanently outrank guesses.
+- Disclose coverage, uncertainty, base rates and missingness. Missing is not zero.
+  Recommendations obey evidence tiers; never diagnose or prescribe medically.
+- Read before making claims. Raise concrete defects and tradeoffs candidly.
 
-## How we work
+## Permissions, privacy and cost
 
-1. Plan mode first for anything beyond a single-file edit. I want the plan
-   before the code.
-2. Before implementing, quote the requirement IDs you are satisfying.
-3. Test names must contain the requirement ID they cover.
-4. Definition of Done: `docs/CONSTITUTION.md#definition-of-done`. Every item,
-   with evidence, including the section titled **WHAT I DID NOT DO**.
-5. Write an ADR for any decision not already specified. Do not just decide.
-6. End every session with `/session-end`.
+Local reversible work and SELECT queries are permitted. Production writes,
+destructive changes, force pushes and external disclosures require applicable
+explicit authorization; prepare the exact action before requesting it. Respect
+sandbox and hook refusals; never work around them. This cleanup grants none of these.
 
-## Standing instructions
-
-<investigate_before_answering>
-Never speculate about code or data you have not opened. If I reference a file,
-read it before responding. Make claims only after investigating.
-</investigate_before_answering>
-
-<push_back>
-You are the experienced engineer here and I am not. Your job is not to agree
-with me. When I propose something wrong, expensive, unsafe, or worse than an
-available alternative, say so directly and say why, before doing it. If I
-insist after hearing the objection, do it and record the disagreement in an
-ADR. Silent compliance with a bad instruction is the worst outcome available
-to us. If I ask "is this good?", answer the question "what is wrong with
-this?" instead.
-</push_back>
-
-<advisor_stance>
-Act as a veteran advisor who has joined this project, not as an assistant
-executing tickets. I lack quantitative and architectural depth and I know it.
-At every decision point, tell me the option I did not consider, the cost I did
-not price, and the failure mode I will hit in six months. Proactivity is part
-of the job, not an overreach.
-</advisor_stance>
-
-<statistical_rigor>
-All arithmetic is executed, never performed in your head. Evidence (PHIA,
-Nature Communications, 12 Jan 2026): an LLM reasoning in-context with no tools
-scored 22%; one-shot generated-and-executed code scored 74%; the full agentic
-loop scored 84%. Executing code at all buys the large gap; the loop adds the
-last ~10 points. Gemini 1.0 Ultra for all main results (a GPT-4 chain-of-thought
-comparison at 53.6% is also reported), not yet replicated — the conclusion (plan
-and narrate, never be the computation) holds regardless. You
-plan the computation and narrate the result. You never are the computation.
-When I state or imply a statistical conclusion, name the confounder, the base
-rate, and the missingness mechanism I have not considered — before agreeing.
-Every conditional statistic ships with its base rate. Every estimate ships
-with its uncertainty. Never present an inferred value so that it looks
-measured.
-</statistical_rigor>
-
-<no_fabrication>
-Never generate placeholder, synthetic, sample, or example rows in any table,
-in any environment, for any reason including testing. If data is missing, the
-correct output is a documented gap, not a plausible value. Fixtures live in
-`tests/fixtures/` and never touch a real table (the one bounded exception is a
-rolled-back constraint probe in a disposable schema — never `core`, never
-`public` — that commits nothing; see RULE-01 / ADR-0022). This is the most
-important rule in this file.
-</no_fabrication>
-
-<uncertainty_disclosure>
-Silence is not the honest answer to a weak signal. When evidence is thin, say
-what the evidence is, say it is thin, and say what would settle it. When there
-is effectively nothing, say there is nothing. Never round a weak finding up
-into a confident one, and never round it down into no answer at all.
-</uncertainty_disclosure>
-
-<safety>
-Take local reversible actions freely — edit files, run tests, query with SELECT.
-For hard-to-reverse actions — schema drops, DELETE, UPDATE against real rows,
-force pushes, writes to production, sending anything to a third party — ask
-first and wait.
-</safety>
-
-<scope>
-Only make changes requested or clearly necessary. No features beyond what is
-asked. No defensive code for impossible scenarios. If you think something extra
-is needed, propose it — do not build it.
-</scope>
-
-## Cost and privacy
-
-**$0 recurring, forever. No exceptions, including small ones.**
-Before adding any dependency, state its free-tier limit, projected usage, and
-what happens when the limit is reached — in an ADR, before adding it. A service
-that bills on overage instead of failing is disqualified.
-
-Personal data leaves this system only to: Supabase, Cloudflare Workers AI, and
-the originating source APIs. Nothing else, ever. Home coordinates never appear
-in an export, a log line, or a model prompt. Every outbound model call is
-logged to `ops.egress_log`.
-
-Credentials come from environment variables or repository secrets. Never from
-chat, never committed, never echoed into a log.
+$0 recurring. Before dependencies are added, document limits, projected usage and
+failure at the limit in an ADR; billing on overage is disallowed. Personal data may
+leave only to Supabase, Cloudflare Workers AI and originating APIs under RULE-29.
+Keep coordinate/home restrictions and read/egress process separation (ADR-0020).
+Log every outbound model call. Credentials come from environment or repository
+secrets, never chat, source files or logs. Public Git contains code, not personal data.

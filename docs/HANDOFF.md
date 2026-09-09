@@ -1,3 +1,7 @@
+> Historical reference. Current work order: [EXECUTION_PLAN](EXECUTION_PLAN.md).
+> Current evidence: [NEXT_SESSION](NEXT_SESSION.md). Requirements and accepted gates
+> remain binding; historical status and scheduling instructions do not govern execution.
+
 # HAND-OFF — what runs, what's next, how to pick this up cold
 
 ## 0. CURRENT STATE — 2026-09-02 (read this first, it supersedes below)

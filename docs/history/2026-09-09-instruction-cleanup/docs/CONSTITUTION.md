@@ -38,8 +38,7 @@ ADR-0029 was ratifying one-line summaries instead of consequences:
   possible, what it still forecloses, and its failure mode — ratified by reading
   that. Recorded as an ADR.
 - An **INTEGRITY** amendment requires the above **plus an adversarial review
-  whose job is to break the change**. A clean review must document its coverage
-  and limits; it is not required to invent a finding.
+  whose job is to break the change**. Finding nothing is a failed review, re-run.
   An integrity failure is invisible (a plausible wrong number); a scope failure
   is a missing capability you will notice and ask for — so the bars differ
   deliberately.
@@ -387,31 +386,24 @@ that fix and must be weighed then.
 
 ## DEFINITION OF DONE
 
-A unit is done when the applicable evidence below is recorded for its tested
-revision. Backend release is separately governed by `docs/EXECUTION_PLAN.md`.
-This workflow clarification is recorded in ADR-0083; no numbered rule or threshold
-is weakened. A non-applicable item needs a reason, not invented evidence.
+A unit of work is done when every line below is true and evidenced. "Evidenced"
+means a command output, a query result, or a file diff pasted into the session
+— not an assertion.
 
-1. Quote covered requirement IDs and behavioral tests whose names contain those IDs.
-   Documentation/process
-   maintenance identifies its scope and affected rules without inventing requirement IDs.
-2. Relevant checks pass with output recorded. Backend integration runs the required
-   full suite. No test is skipped, weakened or marked expected-failure to achieve success.
-3. Backend integration runs invariant queries. Existing authorized deferrals are named
-   as pending, never counted as passed. Documentation-only changes run document checks.
-4. Run the sanctioned feature-ledger writer at backend integration. Record actual
-   changes or why no entry changed. Never hand-edit passing status or require a false
-   status transition for unrelated work. Full requirement coverage remains B23's gate.
-5. Database migrations are forward-only, numbered and verified against a copy first.
-   Work without a migration records this item as not applicable.
-6. Record new architectural, scope, measurement or policy decisions in an ADR.
-7. Reserved decisions/unresolved facts go to OPEN_QUESTIONS; ordinary implementation
-   gaps remain assigned in the active checkpoint or delivery plan.
-8. Append outcome/evidence/review disposition to PROGRESS and update the checkpoint
-   with respect for active file ownership. Review completion requires adequate coverage,
-   not a mandatory defect count.
-9. **WHAT I DID NOT DO** names partial work and verification limits. If none remains
-   within the bounded unit, state that explicitly; do not invent an omission.
+1. Requirement IDs satisfied are quoted, and every one has a test whose name
+   contains the ID.
+2. Tests pass, and the passing output is shown. No test was skipped, weakened,
+   or marked expected-failure to achieve this.
+3. All CI invariant queries return zero rows, output shown.
+4. `ops/features.json` has been updated by moving an entry from failing to
+   passing — never by deleting or editing an entry.
+5. Migrations are forward-only, numbered, and were run against a copy first.
+6. Any decision not already specified is recorded as an ADR.
+7. Anything discovered and not resolved is appended to `docs/OPEN_QUESTIONS.md`.
+8. `ops/PROGRESS.md` has a new appended entry.
+9. **WHAT I DID NOT DO** — an explicit written section naming what was
+   stubbed, simplified, deferred, hardcoded, or left partial. An empty section
+   here is itself a review finding, not a success.
 
 ---
 

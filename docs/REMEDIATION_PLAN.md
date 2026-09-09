@@ -1,3 +1,7 @@
+> Historical reference. Current work order: [EXECUTION_PLAN](EXECUTION_PLAN.md).
+> Current evidence: [NEXT_SESSION](NEXT_SESSION.md). Requirements and accepted gates
+> remain binding; historical status and scheduling instructions do not govern execution.
+
 # REMEDIATION PLAN — everything known to be wrong, and the order to fix it
 
 Dated 23 August 2026, after the constitution audit (ADR-0029) and its ratification.

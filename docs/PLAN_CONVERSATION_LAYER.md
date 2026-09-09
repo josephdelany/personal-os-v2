@@ -1,3 +1,7 @@
+> Historical reference. Current work order: [EXECUTION_PLAN](EXECUTION_PLAN.md).
+> Current evidence: [NEXT_SESSION](NEXT_SESSION.md). Requirements and accepted gates
+> remain binding; historical status and scheduling instructions do not govern execution.
+
 # PERSONAL OS — THE SELF-SCIENCE PLATFORM
 ## The complete master plan, thought from every angle. Four books: the Product, the Machine, the Science, the Execution.
 

@@ -5181,3 +5181,44 @@ no `ops/features.json` entry's requirement ID is carried by a B10 test.
 - **`config.standing_orders.condition_sql` is executed SQL held in a table.** It is owner-written and
   changeable only by migration, and the engine rebinds only the schema prefix — but it is still a stored
   string that gets executed, and that is worth knowing.
+
+## 2026-09-09 — Codex: instruction and backend delivery consolidation (ADR-0083)
+
+Joe requested a clear architecture/action plan, backend-first delivery and removal of
+instruction friction; clarified that the running Claude goal was simply “finish the
+project.” Documentation/workflow maintenance only. No backend requirement claimed
+implemented by this unit.
+
+Outcome: CLAUDE/AGENTS/START_HERE route to one EXECUTION_PLAN, BACKEND_ARCHITECTURE
+and current NEXT_SESSION checkpoint. The plan covers B0-B23 acceptance/integration,
+with L0-L8 after backend release. Historical schedule documents are labelled as such;
+old root/build paste instructions were replaced. Originals retained under
+`docs/history/2026-09-09-instruction-cleanup/`. No specifications or numbered rules
+were removed. Session hooks restore current policy/constitution/checkpoint; compaction
+alone no longer mandates a full suite. Reviews can close cleanly with evidence.
+Definition of Done is scope-aware: maintenance does not invent requirements or a
+feature-ledger transition. Backend full checks are mandatory at defined boundaries.
+
+Independent review found (1) lost explicit requirement-ID test naming and (2) undefined
+integration boundaries. Both fixed and independently rechecked; no remaining issue in
+the narrow re-review. Review did not inspect active Ask code or production.
+
+Evidence: validate_layout 41 passed; test_guard 26 passed; both skill validators pass;
+all maintained navigation links resolve; both SessionStart command variants executed
+successfully and contained the checkpoint. Settings permissions and PreToolUse guard
+configuration unchanged; every numbered constitutional rule byte-identical against
+retained original. git diff --check passed. ADR-0083 records the consequences.
+
+Definition of Done: maintenance scope identified; relevant checks passed; production
+suite/invariants and feature-ledger writer not applicable to documentation-only work;
+no migration; ADR and review recorded; no new protected data question; this evidence
+entry appended. Current NEXT_SESSION remains owned by active Claude and was deliberately
+not overwritten; its CLAUDE routing picks up the new policy.
+
+WHAT I DID NOT DO: no runtime/backend edits, production writes, deployments, permission
+changes, deletion of history, or frontend construction. No commit/push from this Codex
+unit because the shared branch contains an active worker's edits, including some shared
+document files. The integration owner must review/stage this documentation set separately.
+The running terminal must read the updated entry points; adoption is not yet observed.
+Most likely residual issue: the active terminal retains earlier policy in context until
+it explicitly reloads these files at a safe boundary.

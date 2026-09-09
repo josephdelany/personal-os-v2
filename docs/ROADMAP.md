@@ -1,3 +1,7 @@
+> Historical reference. Current work order: [EXECUTION_PLAN](EXECUTION_PLAN.md).
+> Current evidence: [NEXT_SESSION](NEXT_SESSION.md). Requirements and accepted gates
+> remain binding; historical status and scheduling instructions do not govern execution.
+
 # ROADMAP — eight phases and their gates
 
 The ordering principle: **the irreversible decisions come first, the vertical
