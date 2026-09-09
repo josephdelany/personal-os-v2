@@ -225,6 +225,71 @@ def call(cur, *, model_id, call_kind, payload, estimated_neurons,
     return json.loads(raw.decode())
 
 
+# ---------------------------------------------------------------- source APIs (B12, REQ-NUT)
+# The nutrition sources are not model calls: they cost no neurons and consume no budget. They
+# share this module because RULE-29 reserves ONE outbound path and `validate_layout.py` enforces
+# it — a second module with its own logging would be a second place for an unlogged call to
+# appear. What they share is the log; what they do not share is the budget.
+
+
+def get_json(cur, url, purpose, *, params=None, headers=None, timeout=20,
+             schema="core", ops="ops", config="config", _transport=None):
+    """GET a source API, allowlisted and logged. Returns the parsed body.
+
+    The host must be in `config.egress_allowlist` — a table, not a constant, so adding a
+    destination is a visible data change that can be reviewed on its own rather than a line in
+    a diff about something else.
+
+    **The request body is never logged.** `ops.egress_log` records the host, the purpose and
+    the byte counts; a nutrition query carries what Joe ate, and a log that reproduces it turns
+    the audit trail into a second copy of the record it is auditing.
+    """
+    from urllib.parse import urlencode, urlsplit
+
+    host = urlsplit(url).hostname or ""
+    # Schema names are parameters here for the same reason as in the engines (ADR-0061): a
+    # test must exercise this against throwaway schemas rather than creating ones called
+    # `config`, which RULE-01 forbids.
+    if not re.match(r"^[a-z_][a-z0-9_]*$", config):
+        raise ValueError(f"not a plain schema identifier: {config!r}")
+    cur.execute(f"select 1 from {config}.egress_allowlist where host = %s", (host,))
+    if cur.fetchone() is None:
+        raise PayloadRefused(
+            f"{host!r} is not in config.egress_allowlist; personal data leaves this system "
+            "only to the destinations RULE-29 names")
+
+    full = url + (("?" + urlencode(params)) if params else "")
+    # Query parameters can carry the food name, so they are screened like any other payload.
+    screen_payload({"url_params": params or {}})
+
+    cur.execute(
+        f"""insert into {ops}.egress_log (destination, purpose, request_bytes, detail)
+            values (%s, %s, %s, %s) returning egress_id""",
+        (host, purpose, len(full.encode()),
+         json.dumps({"path": urlsplit(url).path, "n_params": len(params or {})})))
+    egress_id = cur.fetchone()[0]
+
+    started = dt.datetime.now(dt.timezone.utc)
+    try:
+        raw = (_transport or _get)(full, headers or {}, timeout)
+    except Exception as e:
+        cur.execute(f"""update {ops}.egress_log set detail = detail || %s where egress_id = %s""",
+                    (json.dumps({"error": type(e).__name__}), egress_id))
+        raise
+    elapsed_ms = int((dt.datetime.now(dt.timezone.utc) - started).total_seconds() * 1000)
+    cur.execute(
+        f"""update {ops}.egress_log set response_bytes = %s, detail = detail || %s
+             where egress_id = %s""",
+        (len(raw), json.dumps({"ms": elapsed_ms}), egress_id))
+    return json.loads(raw.decode())
+
+
+def _get(url, headers, timeout):
+    req = urllib.request.Request(url, method="GET", headers=headers)
+    with urllib.request.urlopen(req, timeout=timeout) as resp:
+        return resp.read()
+
+
 def _post(model_id, body):
     """The only outbound request in this repository."""
     account = os.environ.get("CF_ACCOUNT_ID")

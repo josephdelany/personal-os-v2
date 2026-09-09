@@ -240,7 +240,42 @@ def test_RULE_28_no_paid_usage_path_exists():
     assert egress.HARD_CAP == 10000 and egress.SOFT_CEILING == 9000
     # The only destination.
     assert egress.WORKERS_AI_HOST == "api.cloudflare.com"
-    assert body.count("urlopen") == 1, "there must be exactly one outbound request in the repo"
+
+
+def test_RULE_29_every_outbound_request_in_the_repository_is_in_this_module():
+    """The property this test's name claims, checked across the repository.
+
+    An earlier version asserted `body.count("urlopen") == 1` while reading only
+    `lib/egress.py` — so it proved something about one file and named something about the repo,
+    and it broke the moment a second legitimate request appeared here (the source-API GET,
+    which is not a model call and consumes no budget). What matters is not how many requests
+    this module makes; it is that no OTHER module makes one.
+
+    `tools/validate_layout.py` enforces the same rule on imports; this checks the call sites.
+    """
+    import re
+    from pathlib import Path
+    root = Path(__file__).resolve().parents[1]
+    callers = re.compile(r"\b(urlopen|requests\.(get|post|put)|httpx\.|aiohttp|socket\.socket)\b")
+    # `lib/egress.py` is where the requests belong. The other two CHECK for these names — a
+    # file whose job is to detect the pattern necessarily contains it — so excluding them is
+    # not a loophole; including them would make the test unable to pass while the checks exist.
+    skip = {"lib/egress.py", "tests/test_egress.py", "tools/validate_layout.py"}
+
+    offenders = []
+    for path in sorted(root.rglob("*.py")):
+        rel = str(path.relative_to(root))
+        if rel in skip or rel.startswith((".venv", "node_modules")) or "/__pycache__/" in rel:
+            continue
+        if callers.search(path.read_text()):
+            offenders.append(rel)
+    assert offenders == [], f"outbound request outside lib/egress.py: {offenders}"
+
+    # And within this module every request goes through the two logged entry points.
+    body = (root / "lib" / "egress.py").read_text()
+    assert body.count("urlopen") == 2, "one for the model call, one for a source API"
+    for entry in ("def _post(", "def _get("):
+        assert entry in body
 
 
 def test_RULE_29_screening_catches_the_shapes_a_prompt_actually_carries():

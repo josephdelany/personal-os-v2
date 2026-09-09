@@ -21,7 +21,7 @@ ROOT = Path(__file__).resolve().parents[1]
 TESTS = ("tests/test_ask_ranges.py", "tests/test_ask.py", "tests/test_ask_operations.py", "tests/test_status_sql.py",
          "tests/test_status.py", "tests/test_import_drop.py",
          "tests/test_panel_attention.py",
-         "tests/test_freshness.py", "tests/test_egress.py", "tests/test_ask_planner.py")
+         "tests/test_freshness.py", "tests/test_egress.py", "tests/test_ask_planner.py", "tests/test_nutrition.py")
 
 
 def pg_bin():
