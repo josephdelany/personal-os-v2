@@ -58,14 +58,73 @@ SHALL exit with a non-zero status in every failure case, and SHALL NOT report su
 so that a keepalive failure is visible rather than silent — as a stored row when it can
 be, and as a failed run when the database itself is unreachable.
 
+## C. FEED FRESHNESS — KNOWING A SOURCE HAS GONE QUIET
+
+**Why this section exists.** On 2026-07-28 device-side capture stopped. `public.intraday`,
+`chrome_visit`/`youtube_watch` and the location feed all went silent within two days of each
+other and stayed silent for 43 days. Throughout, every scheduled job kept running and kept
+writing `status = 'ok'` rows, because the jobs were alive and only their *inputs* were dead.
+Section B proves a job fired. It cannot prove anything arrived. That distinction is the whole
+of this section, and 43 days of unrecoverable sleep, HRV and vitals is what it cost.
+
+**REQ-NFR-005** (Ubiquitous) The freshness checker SHALL derive each registered metric's
+staleness limit from its `max_staleness_days` value in the metric registry, so that the
+limit is stored configuration rather than a threshold written into code.
+
+**REQ-NFR-006** (Ubiquitous) The freshness checker SHALL classify every registered metric
+carrying a staleness limit as `fresh`, `stale` or `never_seen` by comparing the most recent
+subject day on which an observation of that metric exists against the check clock, so that a
+source that has gone quiet is distinguished from one that has never reported.
+
+**REQ-NFR-007** (Unwanted behaviour) IF a registered metric's most recent observation is
+older than its staleness limit, THEN the freshness checker SHALL report that metric as
+`stale` carrying its last observed day and its elapsed days, and SHALL exit with a non-zero
+status, so that a quiet source fails a scheduled run rather than passing it.
+
+**REQ-NFR-008** (Ubiquitous) The freshness checker SHALL write exactly one row to the runs
+table per execution carrying the counts of fresh, stale and never-seen metrics, so that the
+freshness history is answerable from stored data rather than from a log that scrolls away.
+
+**REQ-NFR-009** (Unwanted behaviour) IF the freshness checker cannot reach the database,
+THEN it SHALL exit with a non-zero status and SHALL NOT report any metric as fresh, so that
+an unreachable database is never reported as a healthy one.
+
+**REQ-NFR-010** (Ubiquitous) The freshness checker SHALL treat a metric whose registry row
+carries no staleness limit as unmonitored and SHALL report the count of unmonitored metrics,
+so that a metric silently escaping monitoring is visible rather than absent.
+
+**REQ-NFR-011** (Unwanted behaviour) IF the freshness checker would report a metric's
+observed value, a coordinate, or any payload content, THEN it SHALL instead report only the
+metric key, the last observed day and the elapsed day count, so that an operational alert
+never becomes an egress path for personal data (RULE-29).
+
+**REQ-NFR-012** (Ubiquitous) The freshness checker SHALL compare against the most recent
+`subject_day` carrying an observation rather than against a job's completion time, so that a
+job which runs successfully over an empty input is never counted as evidence of freshness.
+
+**REQ-NFR-013** (Unwanted behaviour) IF a registered metric has no observation under its own
+key while an observation series exists under a similar key, THEN the freshness checker SHALL
+report that metric as `misconfigured` naming the candidate key, and SHALL exit with a non-zero
+status, so that a metric which is not being monitored because of a naming mismatch is
+distinguished from one whose source has never existed.
+
+**REQ-NFR-014** (Ubiquitous) The freshness checker SHALL NOT treat a similar key as an alias
+for a registered metric, so that a decision about whether two differently named series are the
+same measurement is never made by a monitoring tool.
+
 ---
 
 ## NON-GOALS
 
 - **Cost and privacy NFRs.** The $0-recurring rule and the egress posture are already
   binding in `CONSTITUTION.md` §V (RULE-28, RULE-29); they are not restated here.
-- **Feed staleness alerting.** Detecting that a *data source* has gone quiet is Phase 4
-  (Gate 4), a different mechanism from keeping the platform itself alive.
+- ~~**Feed staleness alerting.**~~ **No longer a non-goal — amended 2026-09-09, ADR-0060.**
+  It was deferred to Phase 4 as "a different mechanism from keeping the platform itself
+  alive", which was correct about the mechanism and wrong about the sequencing: the
+  2026-07-28 capture failure went undetected for 43 days precisely because platform
+  liveness was the only thing being watched. Detecting that a *data source* has gone quiet
+  is now §C above (REQ-NFR-005..012). Gate 4 still owns the *demonstration* — a
+  deliberately withheld feed raising an alert inside its limit.
 - **Performance and latency budgets.** Not yet written; this file is reliability only.
 
 ## ALTERNATIVES CONSIDERED

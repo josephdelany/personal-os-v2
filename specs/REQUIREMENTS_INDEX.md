@@ -22,12 +22,12 @@ response is observable. Numbers, never adjectives.
 
 ---
 
-## Current coverage — 644 requirements, 36 scenarios
+## Current coverage — 654 requirements, 36 scenarios
 
 | Prefix | Count | Subsystem | File |
 |---|---|---|---|
 | `REQ-ONT` | 17 | Ontology — the closed `atoms.kind` and `entities.entity_type` taxonomies, atom controlled vocabularies | `specs/05-ontology/requirements.md` |
-| `REQ-NFR` | 4 | Non-functional (reliability) — the Supabase 7-day and GitHub Actions 60-day keepalives and their `ops.runs` evidence | `specs/06-nfr/requirements.md` |
+| `REQ-NFR` | 14 | Non-functional (reliability) — the Supabase 7-day and GitHub Actions 60-day keepalives with their `ops.runs` evidence, and feed freshness: knowing a data source has gone quiet (§C, added 2026-09-09, ADR-0060) | `specs/06-nfr/requirements.md` |
 | `REQ-CAP` | 101 | Capture — Shortcuts ingress, transcription, extraction, prompting; per-subject extraction profiles (REQ-CAP-108/109), location capture path (REQ-CAP-110), three-valued-presence capture (REQ-CAP-111) | `specs/02-capture-nutrition/requirements.md` |
 | `REQ-NUT` | 60 | Nutrition resolution — USDA lookup, portions, intervals; drink ABV→ethanol path (REQ-NUT-066..068, Missing-B) | `specs/02-capture-nutrition/requirements.md` |
 | `REQ-FIN` | 173 | Finance — ingestion, merchant resolution, usage inference, restraint | `specs/03-finance/requirements.md` |

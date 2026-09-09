@@ -1,0 +1,38 @@
+# freshness — is data still arriving? (REQ-NFR-005..012, Gate 4)
+#
+# This is deliberately its own workflow rather than a step inside `analysis`. On 2026-07-28
+# device-side capture stopped and stayed stopped for 43 days while every scheduled job kept
+# writing `status = 'ok'` rows, because the jobs were alive and only their inputs were dead.
+# A freshness check that runs as a step of the pipeline it is meant to audit shares that
+# pipeline's fate: if `analysis` fails early, the check never runs, and the silence looks the
+# same as health. It therefore runs on its own schedule, depends on nothing, and is allowed to
+# fail loudly — a red run here is the alert.
+#
+# It runs BEFORE the nightly analysis refresh, so it reports on the day that has actually
+# landed rather than on a panel rebuilt seconds earlier.
+name: freshness
+on:
+  schedule:
+    - cron: '10 8 * * *'    # daily 08:10 UTC (~4:10am ET), ahead of analysis at 08:23
+  workflow_dispatch: {}
+concurrency: { group: freshness, cancel-in-progress: false }
+permissions: { contents: read }
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - run: pip install 'pg8000>=1.30,<2'
+      - name: feed freshness (fails the run when a source has gone quiet)
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          PYTHONPATH: ${{ github.workspace }}
+        # The command exits 1 when any registered metric is past its staleness limit
+        # (REQ-NFR-007) and 2 when the database is unreachable (REQ-NFR-009). Both are
+        # failures and both should be: a quiet feed is the thing this workflow exists to
+        # notice, and GitHub's own failure notification is the alert channel — no third
+        # party, no recurring cost (RULE-28).
+        run: python3 tools/check_freshness.py
