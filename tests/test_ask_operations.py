@@ -317,57 +317,139 @@ def test_REQ_ASK_020_a_registered_finding_raises_the_tier_above_exploratory(ask_
 # ------------------------------------------------------------------ spend
 
 def test_REQ_ASK_023_spend_with_no_transactions_refuses_and_says_what_would_fix_it(ask_cur):
-    """The draft returned a hardcoded NULL total with a note. An absent answer must be the
-    stored refusal form, and it must name the action that would produce the data."""
+    """An absent answer is the stored refusal form, and it names the real limitation.
+
+    The draft returned a hardcoded NULL total with a note. It must also say WHY a charge might
+    be missing — merchant resolution is not built, so a charge under a different descriptor is
+    invisible to this match — rather than implying the record is simply empty.
+    """
     cur = ask_cur
     r = ask(cur, "how much did i spend at mcdonalds this year")
     assert r["tier"] == "INSUFFICIENT"
     assert r["insufficiency_reason"] == "metric_absent"
-    assert r["entity"] == "mcdonalds"
-    assert "import_drop" in r["would_raise_it"]
-    assert r.get("total") is None, "no total may be reported when there is no data"
+    assert r["matched_on"] == "mcdonalds"
+    assert r["match_method"] == "statement_descriptor_contains"
+    assert "merchant resolution is not built" in r["would_raise_it"].lower()
+    assert r.get("total") is None and r.get("total_out") is None
 
 
-def test_REQ_ASK_027_spend_totals_only_money_out_and_traces_to_transaction_atoms(ask_cur):
-    """Spend is the sum of outflows over the range, matched on the statement descriptor.
-
-    Inbound transfers are excluded: a $20 refund is not negative spending, and netting is
-    REQ-FIN-050's job with linked transfers, not something to do by accident here.
-    """
+def test_REQ_ASK_004_spend_without_a_subject_is_refused(ask_cur):
     cur = ask_cur
-    cap = uuid.uuid4()
-    cur.execute("""INSERT INTO ask_core_pytest.raw_captures
-        (capture_id, captured_at, source, trust_level, payload, processing_status)
-        VALUES (%s, now(), 'shortcut_text', 'trusted', '{}'::jsonb, 'enriched')""", (cap,))
+    r = ask(cur, "how much did i spend")
+    assert r.get("refusal") is not None
+    assert r["reason"] == "no_spend_subject"
+
+
+def _txn_atom(cur, day, amount, descriptor, unit="usd"):
     cur.execute("""INSERT INTO ask_core_pytest.metric_registry
         (metric_key, display_name, family, unit, state_class)
         VALUES ('transaction_amount_usd','Transaction amount','finance','usd','total')
         ON CONFLICT DO NOTHING""")
-    rows = [(-12.50, "bank:apple_card;merchant=McDonalds;descriptor=MCDONALDS 123"),
+    cur.execute("SELECT capture_id FROM ask_core_pytest.raw_captures LIMIT 1")
+    row = cur.fetchone()
+    if row is None:
+        cap = uuid.uuid4()
+        cur.execute("""INSERT INTO ask_core_pytest.raw_captures
+            (capture_id, captured_at, source, trust_level, payload, processing_status)
+            VALUES (%s, now(), 'shortcut_text', 'trusted', '{}'::jsonb, 'enriched')""", (cap,))
+    else:
+        cap = row[0]
+    cur.execute("""INSERT INTO ask_core_pytest.atoms
+        (raw_capture_id, kind, metric_key, occurred_at, time_precision, subject_day,
+         subject_day_rule_version, presence, value_low, value_point, value_high,
+         estimate_method, unit, state_class, trust_level, provenance, evidence_span,
+         code_version)
+        VALUES (%s,'transaction','transaction_amount_usd',%s,'day',%s,'v1-2026-08-23',
+                'observed',%s,%s,%s,'measured',%s,'total','trusted','extracted',%s,'t')""",
+        (cap, dt.datetime.combine(day, dt.time(12), tzinfo=dt.timezone.utc), day,
+         amount, amount, amount, unit, descriptor))
+
+
+def test_REQ_ASK_027_spend_separates_outflow_from_inflow_and_never_nets_them(ask_cur):
+    """Outflows and inflows are reported separately, never netted here.
+
+    REQ-FIN-050 nets inbound P2P transfers against bar and restaurant spend, but only through
+    LINKED `transfers` rows. Netting an arbitrary refund into a total silently changes what
+    the number means, and a reader cannot undo it — the $20.75 they see would already have had
+    the $25 refund subtracted with nothing saying so.
+    """
+    cur = ask_cur
+    for amount, descriptor in (
+            (-12.50, "bank:apple_card;merchant=McDonalds;descriptor=MCDONALDS 123"),
             (-8.25,  "bank:apple_card;merchant=McDonalds;descriptor=MCDONALDS 456"),
             (25.00,  "bank:apple_card;merchant=McDonalds;descriptor=MCDONALDS REFUND"),
-            (-40.00, "bank:apple_card;merchant=Shell;descriptor=SHELL OIL")]
-    for i, (amount, span) in enumerate(rows):
-        cur.execute("""INSERT INTO ask_core_pytest.atoms
-            (raw_capture_id, kind, metric_key, occurred_at, time_precision, subject_day,
-             subject_day_rule_version, presence, value_low, value_point, value_high,
-             estimate_method, unit, state_class, trust_level, provenance, evidence_span,
-             code_version)
-            VALUES (%s,'transaction','transaction_amount_usd',%s,'day',%s,'v1-2026-08-23',
-                    'observed',%s,%s,%s,'measured','usd','total','trusted','extracted',%s,'t')""",
-            (cap, dt.datetime.combine(AS_OF - dt.timedelta(days=i), dt.time(12), tzinfo=dt.timezone.utc),
-             AS_OF - dt.timedelta(days=i), amount, amount, amount, span))
+            (-40.00, "bank:apple_card;merchant=Shell;descriptor=SHELL OIL")):
+        _txn_atom(cur, AS_OF - dt.timedelta(days=1), amount, descriptor)
 
     r = ask(cur, "how much did i spend at mcdonalds last 10 days")
     assert r.get("refusal") is None, r
-    cur.execute("SELECT result FROM ask_core_pytest.computations WHERE question_id = %s",
-                (r["question_id"],))
-    stored = cur.fetchone()[0]
-    stored = stored if isinstance(stored, dict) else json.loads(stored)
-    assert float(stored["total"]) == 20.75, stored     # 12.50 + 8.25; refund and Shell excluded
-    assert stored["n"] == 2
-    assert stored["entity"] == "mcdonalds"
+    stored = stored_result(cur, r)
+    assert float(stored["total_out"]) == 20.75, stored     # the refund is NOT subtracted
+    assert stored["n_out"] == 2
+    assert float(stored["total_in"]) == 25.00, "the inflow must be reported, not silently dropped"
+    assert stored["n_in"] == 1
     assert "20.75" in r["answer_text"]
+    assert "25" not in r["answer_text"].replace("20.75", ""), "the total must not be netted"
+
+
+def test_REQ_ASK_009_spend_states_the_match_method_in_the_answer_itself(ask_cur):
+    """The limitation travels with the number.
+
+    This measures charges whose STATEMENT DESCRIPTOR contains the text — not spend at a
+    merchant. A McDonald's charge settling as "SQ *MCD 8005551212 CA" is a real charge this
+    does not find, so the total is a floor. Merchant resolution is REQ-FIN-070..093 and
+    belongs to B14; saying so in the sentence is the difference between a bounded measurement
+    and a wrong one (ADR-0062).
+    """
+    cur = ask_cur
+    _txn_atom(cur, AS_OF - dt.timedelta(days=1), -12.50,
+              "bank:apple_card;merchant=McDonalds;descriptor=MCDONALDS 123")
+    # The realistic miss: a payment-facilitator descriptor with no resolvable merchant text.
+    # B13 writes the merchant column the statement supplied, and for a Square-routed charge
+    # that is the DBA string, not "McDonalds".
+    _txn_atom(cur, AS_OF - dt.timedelta(days=1), -30.00,
+              "bank:apple_card;merchant=;descriptor=SQ *MCD 8005551212 CA")
+
+    r = ask(cur, "how much did i spend at mcdonalds last 10 days")
+    stored = stored_result(cur, r)
+    assert stored["match_method"] == "statement_descriptor_contains"
+    # The Square-routed charge is genuinely missed. That is the point: the number is a floor.
+    assert float(stored["total_out"]) == 12.50, stored
+    assert "matched on the statement descriptor" in r["answer_text"]
+    assert "merchant resolution is not built" in r["answer_text"]
+
+
+def test_REQ_ASK_021_spend_reports_a_weekly_rate_over_the_requested_window(ask_cur):
+    """Totals alone do not compare across windows of different length."""
+    cur = ask_cur
+    for i in range(4):
+        _txn_atom(cur, AS_OF - dt.timedelta(days=i), -35.00,
+                  "bank:apple_card;merchant=Coffee;descriptor=COFFEE BAR")
+    r = ask(cur, "how much did i spend at coffee last 14 days")
+    stored = stored_result(cur, r)
+    assert float(stored["total_out"]) == 140.00
+    assert float(stored["weeks"]) == 2.0
+    assert float(stored["per_week"]) == 70.00, stored
+    assert "70" in r["answer_text"]
+
+
+def test_RULE_12_spend_refuses_to_sum_across_currencies(ask_cur):
+    """A number summed across units has no meaning.
+
+    `transaction_amount_usd` is the only unit B13's importer writes, so a second unit means an
+    importer changed and this query is no longer valid. Converting here would invent a rate.
+    """
+    cur = ask_cur
+    _txn_atom(cur, AS_OF - dt.timedelta(days=1), -10.00,
+              "bank:apple_card;merchant=Cafe;descriptor=CAFE LONDON", unit="usd")
+    _txn_atom(cur, AS_OF - dt.timedelta(days=2), -8.00,
+              "bank:apple_card;merchant=Cafe;descriptor=CAFE LONDON", unit="gbp")
+
+    r = ask(cur, "how much did i spend at cafe last 10 days")
+    assert r["tier"] == "INSUFFICIENT"
+    assert r["insufficiency_reason"] == "mixed_currency"
+    assert r.get("total_out") is None, "no total may be reported across currencies"
+    assert "more than one currency" in r["would_raise_it"]
 
 
 # ------------------------------------------------------------------ tier vocabulary and the grammar

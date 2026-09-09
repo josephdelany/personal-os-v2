@@ -83,7 +83,7 @@ INSERT INTO config.ask_templates (op, tier, template) VALUES
  ('effect','CONFIRMED_OBSERVATIONAL','{outcome} runs {delta} {unit} {direction} per {driver} step, adjusted for {adjustment}.'),
  ('search','DESCRIPTIVE','{n} records mention that over {range}.'),
  ('entity','DESCRIPTIVE','{summary}'),
- ('spend','DESCRIPTIVE','You spent {total} on {entity} over {range}, across {n} charges.')
+ ('spend','DESCRIPTIVE','Charges matching "{matched_on}" over {range} total {total_out} {currency} across {n_out} charges, about {per_week} {currency} a week. This is {caveat}.')
 ON CONFLICT (op, tier) DO NOTHING;
 
 -- ---------------------------------------------------------------- the per-tier vocabulary (REQ-TIER-020 / REQ-NAR-020)
@@ -863,37 +863,93 @@ BEGIN
         END IF;
 
     ELSIF op = 'spend' THEN
-        -- Money on the spine: `transaction` atoms carry the amount, and the merchant sits in
-        -- `evidence_span` (B13/ADR-0059). No merchant resolution happens here — that is B14's
-        -- cascade — so this matches the descriptor literally and says so.
-        entity_text := trim(regexp_replace(q,
-            '.*(spend|spent)\s+(on|at)\s+', ''), ' ?');
-        entity_text := regexp_replace(entity_text,
-            '\s+(today|yesterday|this (week|month|year)|last [0-9]+ days?|last (week|month)|since .+|in [0-9]{4})$', '');
-        SELECT jsonb_build_object(
-                 'entity', entity_text,
-                 'total', abs(round(coalesce(sum(a.value_point), 0), 2)),
-                 'n', count(*),
-                 'match', 'descriptor_contains',
-                 'note', 'matched on the statement descriptor; merchant resolution is not built yet (B14)')
-          INTO res
+        -- WHAT THIS MEASURES, precisely: the sum of `transaction` atoms whose STATEMENT
+        -- DESCRIPTOR contains the requested text. That is a well-defined measurement. It is
+        -- NOT "spend at merchant X", and the difference is not pedantry — a McDonald's charge
+        -- that settles as "SQ *MCD 8005551212 CA" is a real charge this will not find, so the
+        -- total is a floor, not a total.
+        --
+        -- Merchant and category resolution is REQ-FIN-070..093: a pattern table, a fuzzy
+        -- cascade, kNN over Joe's own corrections, a confidence-gated model, and a review
+        -- queue. It belongs to B14/B17 and none of it exists. Implementing a substring match
+        -- here and calling it merchant resolution would create a second owner of a measure
+        -- B14 owns (RULE-12) and would make the weaker number indistinguishable from the
+        -- real one. So the answer says what it matched on, and ADR-0062 records the rest as
+        -- held rather than silently unmet.
+        -- The subject must be NAMED. A bare "how much did i spend" has no subject, and a
+        -- blind regexp_replace leaves the whole question as the search text — which then
+        -- matches no descriptor and reports an absent answer, hiding a question the executor
+        -- simply could not read as an unlucky lack of data.
+        entity_text := trim(coalesce((regexp_match(q, '(?:spend|spent)\s+(?:on|at)\s+(.+)$'))[1], ''), ' ?');
+        entity_text := trim(regexp_replace(entity_text,
+            '\s+(today|yesterday|this (week|month|year)|last [0-9]+ days?|last (week|month)|since .+|in [0-9]{4})[?]?$', ''), ' ?');
+        IF entity_text = '' THEN
+            SELECT value INTO refusal FROM config.strings WHERE key = 'refusal_unmappable';
+            UPDATE __CORE__.questions SET refusal = ask_state.refusal WHERE question_id = qid;
+            RETURN jsonb_build_object('question_id', qid, 'refusal', refusal,
+                'reason', 'no_spend_subject',
+                'nearest', jsonb_build_array('how much did i spend at a merchant this month'));
+        END IF;
+
+        -- Currency is checked, not assumed. Summing across units produces a number with no
+        -- meaning, and `transaction_amount_usd` is the only unit B13's importer writes today,
+        -- so a second unit means an importer changed and this query is no longer valid.
+        SELECT count(DISTINCT a.unit), min(a.unit) INTO n_outcome_days, term
           FROM __CORE__.atoms_current a
          WHERE a.kind = 'transaction'
-           AND a.subject_day BETWEEN rng.d_from AND rng.d_to
-           AND a.subject_day <= as_of
-           AND a.value_point < 0                              -- money out only
-           AND entity_text <> ''
+           AND a.subject_day BETWEEN rng.d_from AND rng.d_to AND a.subject_day <= as_of
            AND a.evidence_span ILIKE '%' || entity_text || '%';
-        IF coalesce((res->>'n')::int, 0) = 0 THEN
+        IF n_outcome_days > 1 THEN
             SELECT value INTO refusal FROM config.strings WHERE key = 'refusal_insufficient';
             UPDATE __CORE__.questions SET refusal = ask_state.refusal, tier = 'INSUFFICIENT'
              WHERE question_id = qid;
             RETURN jsonb_build_object('question_id', qid, 'tier', 'INSUFFICIENT',
-                'refusal', refusal, 'insufficiency_reason', 'metric_absent',
-                'entity', entity_text, 'range', jsonb_build_array(rng.d_from, rng.d_to),
-                'would_raise_it', 'Drop a bank or card statement in ~/PersonalOS_Drop and run tools/import_drop.py.');
+                'refusal', refusal, 'insufficiency_reason', 'mixed_currency',
+                'matched_on', entity_text, 'currencies', n_outcome_days,
+                'would_raise_it', 'These charges are in more than one currency; a single total would not mean anything until conversion is defined.');
         END IF;
 
+        -- Outflows and inflows are counted separately, never netted here. REQ-FIN-050 nets
+        -- inbound P2P transfers against bar and restaurant spend, but only through LINKED
+        -- `transfers` rows — netting an arbitrary refund into a total silently changes what
+        -- the number means and cannot be undone by a reader.
+        SELECT jsonb_build_object(
+                 'matched_on', entity_text,
+                 'match_method', 'statement_descriptor_contains',
+                 'currency', coalesce(term, 'usd'),
+                 'total_out', abs(round(coalesce(sum(a.value_point) FILTER (WHERE a.value_point < 0), 0), 2)),
+                 'n_out', count(*) FILTER (WHERE a.value_point < 0),
+                 'total_in', round(coalesce(sum(a.value_point) FILTER (WHERE a.value_point > 0), 0), 2),
+                 'n_in', count(*) FILTER (WHERE a.value_point > 0),
+                 'first_day', min(a.subject_day) FILTER (WHERE a.value_point < 0),
+                 'last_day', max(a.subject_day) FILTER (WHERE a.value_point < 0),
+                 'weeks', greatest(round((n_days::numeric / 7), 2), 0.01),
+                 'per_week', abs(round(coalesce(sum(a.value_point) FILTER (WHERE a.value_point < 0), 0)
+                                       / greatest(n_days::numeric / 7, 0.01), 2)))
+          INTO res
+          FROM __CORE__.atoms_current a
+         WHERE a.kind = 'transaction'
+           AND a.subject_day BETWEEN rng.d_from AND rng.d_to AND a.subject_day <= as_of
+           AND a.evidence_span ILIKE '%' || entity_text || '%';
+
+        IF coalesce((res->>'n_out')::int, 0) = 0 THEN
+            SELECT value INTO refusal FROM config.strings WHERE key = 'refusal_insufficient';
+            UPDATE __CORE__.questions SET refusal = ask_state.refusal, tier = 'INSUFFICIENT'
+             WHERE question_id = qid;
+            RETURN jsonb_strip_nulls(jsonb_build_object('question_id', qid, 'tier', 'INSUFFICIENT',
+                'refusal', refusal, 'insufficiency_reason', 'metric_absent',
+                'matched_on', entity_text, 'match_method', 'statement_descriptor_contains',
+                'n_in', (res->>'n_in')::int,
+                'range', jsonb_build_array(rng.d_from, rng.d_to),
+                'would_raise_it', 'No charge in this range carries that text in its statement descriptor. Merchant resolution is not built (B14), so a charge recorded under a different descriptor would not be found.'));
+        END IF;
+
+        res := res || jsonb_build_object(
+                 'total', (res->>'total_out')::numeric, 'n', (res->>'n_out')::int,
+                 'entity', entity_text,
+                 -- Carried into the answer text, so the limitation travels with the number
+                 -- rather than living only in an ADR nobody reads at the moment of reading it.
+                 'caveat', 'matched on the statement descriptor; merchant resolution is not built, so charges recorded under another descriptor are not included');
     ELSE
         -- `entity` before `search`: a question naming something the record knows as an entity
         -- — a merchant, a category, a site, a channel, an exercise — is answered by that
