@@ -9,8 +9,51 @@ Summary-level only: it reports counts and timestamps, never raw payload contents
 cannot leak a coordinate or home location (RULE-29) even once real data exists.
 """
 import sys
-from datetime import datetime, timezone
 from lib import db
+
+
+def report_liveness(cur):
+    """Report terminal evidence, never equating an attempt with success.
+
+    The existing 48-hour status threshold is unchanged. Missing expected jobs
+    must remain visible even when the runs table has no rows for them.
+    """
+    cur.execute("""WITH expected(job_name) AS (
+                       VALUES ('keepalive_supabase'), ('keepalive_github'),
+                              ('extract_checkins')
+                   )
+                   SELECT e.job_name, latest.started_at, latest.finished_at,
+                          latest.status,
+                          (SELECT max(r.finished_at) FROM ops.runs r
+                            WHERE r.job_name = e.job_name AND r.status = 'ok'
+                              AND r.finished_at >= r.started_at
+                              AND r.finished_at <= statement_timestamp()) AS last_success,
+                          clock_timestamp() AS checked_at
+                     FROM expected e
+                     LEFT JOIN LATERAL (
+                         SELECT started_at, finished_at, status FROM ops.runs r
+                          WHERE r.job_name = e.job_name
+                          ORDER BY started_at DESC, run_id DESC LIMIT 1
+                     ) latest ON true
+                    ORDER BY e.job_name""")
+    healthy = True
+    for job, started, finished, status, last_success, now in cur.fetchall():
+        if started is None:
+            flag = "MISSING"
+        elif status != "ok":
+            flag = f"NOT OK: {status}"
+        elif finished is None:
+            flag = "INCOMPLETE: no finish time"
+        elif finished > now or started > finished:
+            flag = "INVALID: run timestamps"
+        elif (now - finished).total_seconds() >= 48 * 3600:
+            flag = "STALE"
+        else:
+            flag = "ok"
+        healthy = healthy and flag == "ok"
+        last = f"{last_success:%Y-%m-%d %H:%M}" if last_success else "never"
+        print(f"  {job:22} last successful finish: {last}  [{flag}]")
+    return healthy
 
 
 def _fetch1(cur, q, args=()):
@@ -23,22 +66,13 @@ def main():
     conn = db.connect()
     cur = conn.cursor()
     try:
+        cur.execute("SET TRANSACTION READ ONLY")
         now = _fetch1(cur, "select now()")
         print(f"\n=== Personal OS status @ {now:%Y-%m-%d %H:%M %Z} ===\n")
 
         # ---- keepalive health (Gate 0): is the database being kept alive? ----
         print("LIVENESS (ops.runs — the keepalives that stop Supabase pausing):")
-        cur.execute("""select job_name, max(started_at) as last, count(*) as n
-                         from ops.runs
-                        where job_name like 'keepalive%' or job_name = 'extract_checkins'
-                        group by job_name order by 1""")
-        rows = cur.fetchall()
-        if not rows:
-            print("  (no keepalive rows — Gate 0 not yet firing)")
-        for job, last, n in rows:
-            age_h = (now - last).total_seconds() / 3600
-            flag = "ok" if age_h < 48 else "STALE"
-            print(f"  {job:22} last {last:%Y-%m-%d %H:%M}  ({age_h:5.1f}h ago)  {n} runs  [{flag}]")
+        healthy = report_liveness(cur)
 
         # ---- capture: what has landed ----
         print("\nCAPTURE (core.raw_captures — every logged capture, immutable):")
@@ -67,10 +101,10 @@ def main():
         if not total:
             print("  - no captures yet → start the Shortcut (docs/CAPTURE_SHORTCUT.md), then tap once.")
         keys = _fetch1(cur, "select count(*) from core.metric_registry")
-        print(f"  - extraction (raw_captures → atoms) needs the Cloudflare Workers AI credential to run.")
+        print("  - model credential availability is not checked by this status command.")
         print(f"  - {keys} metric keys seeded; more are seeded as subjects are added.")
         print()
-        return 0
+        return 0 if healthy else 1
     finally:
         conn.close()
 
