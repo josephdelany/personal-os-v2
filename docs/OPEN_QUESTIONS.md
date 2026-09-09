@@ -1120,3 +1120,38 @@ report that as a decline in activity.
 *What would settle it:* Joe checks the Watch — worn, paired, Health permissions on,
 storage free — and reports what he finds; then a fresh export shows whether rows
 resume after 08-21. Until then the freshness report is the detector and it now works.
+
+**OQ-56 — 252 Apple Health records inside the recovery window are in the export but not in
+`core.atoms`, and only 24 of them are accounted for.**
+
+`tools/build_inventory.py --core core` reconciles what the source holds inside the window
+against what landed. Sixteen of 17 imported metrics are short:
+
+    heart_rate_bpm  -131   active_energy_kcal -26   steps -19   distance -19
+    headphone_db     -19   respiratory_rate   -16   hrv   -13   spo2   -4
+    flights -2   exercise_minutes -2   resting_hr -1
+
+The importer's own counters explain 24: 18 headphone readings out of range and 6 in-file
+duplicates. The remaining ~228 are unexplained.
+
+The likely cause is a difference in what "inside the window" means. The seed counts by the
+export's start-date *text*; the importer assigns a subject day on the 04:00 ET boundary
+(ADR-0019), so a record starting at 01:00 on 2026-07-01 belongs to 2026-06-30 and is
+correctly outside a `--since 2026-07-01` import. That would produce exactly this shape — a
+small deficit concentrated in high-frequency metrics. **It has not been proven.** Extending
+the window one day added 2,755 atoms, far more than 228, so that test did not isolate the
+boundary effect and must not be cited as if it did.
+
+*Why it is open:* a 1.3% shortfall that is understood is fine; the same shortfall
+unexplained means the import path may be dropping records for a reason nobody has named,
+and REQ-REC-001 requires the inventory to be accurate about what was taken.
+
+*What depends on it:* whether `config.source_inventory` can be trusted as the completion
+evidence for M1 and M4, and whether any future import's counters can be read at a glance.
+
+*What would settle it:* a per-record diff for one metric on one day — parse the export for
+`heart_rate` on 2026-07-01, compute each record's subject day, and compare that set against
+the stored atoms. If the missing records are exactly those before 04:00 ET, this closes as
+correct behaviour and the inventory should report the window in subject-day terms instead.
+
+*Related:* ADR-0019 (the 04:00 boundary), ADR-0025 (reconciled, not equal), ADR-0085.
