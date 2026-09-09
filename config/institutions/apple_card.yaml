@@ -1,0 +1,11 @@
+institution: apple_card
+display_name: Apple Card
+# Wallet -> Card Balance -> ... -> Export Transactions. Purchases are POSITIVE here.
+columns:
+  occurred_at: Transaction Date
+  posted_at: Clearing Date
+  amount: Amount (USD)
+  merchant: Merchant
+  descriptor: Description
+date_formats: ["%m/%d/%Y", "%Y-%m-%d"]
+amount_sign: positive_is_outflow

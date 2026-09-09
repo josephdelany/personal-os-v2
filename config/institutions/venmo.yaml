@@ -1,0 +1,12 @@
+institution: venmo
+display_name: Venmo
+# venmo.com -> Statement -> CSV. The export carries preamble rows above the real header,
+# which the reader skips by scanning for the first row containing the required columns.
+# "Amount (total)" arrives as "+ $10.00" / "- $10.00" and is normalised by the reader.
+columns:
+  occurred_at: Datetime
+  amount: Amount (total)
+  merchant: To
+  descriptor: Note
+date_formats: ["%Y-%m-%dT%H:%M:%S", "%Y-%m-%d %H:%M:%S"]
+amount_sign: negative_is_outflow

@@ -1,0 +1,9 @@
+institution: cash_app
+display_name: Cash App
+columns:
+  occurred_at: Date
+  amount: Amount
+  merchant: Name of sender/receiver
+  descriptor: Notes
+date_formats: ["%Y-%m-%d %H:%M:%S", "%m/%d/%Y"]
+amount_sign: negative_is_outflow

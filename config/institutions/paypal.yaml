@@ -1,0 +1,11 @@
+institution: paypal
+display_name: PayPal
+# Activity -> Download -> CSV. "Gross" is the transacted amount; "Net" is after fees.
+# Gross is used so the amount matches what the merchant charged.
+columns:
+  occurred_at: Date
+  amount: Gross
+  merchant: Name
+  descriptor: Type
+date_formats: ["%m/%d/%Y", "%d/%m/%Y", "%Y-%m-%d"]
+amount_sign: negative_is_outflow
