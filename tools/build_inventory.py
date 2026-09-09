@@ -103,7 +103,13 @@ def parser_support():
 
 def rows_from_seed(seed, supported, metric_of, live):
     rows, disagreements, unassigned = [], [], []
-    scan = "apple_health export scan 2026-09-09; start-date text bounds, not subject days"
+    # The seed counts a record as "in window" by its START DATE. `atoms_stored` counts by
+    # SUBJECT DAY (04:00 ET, ADR-0019). The two differ by design and the difference is not
+    # loss: OQ-56 reconciled all 252 records of it — 228 the boundary, 18 out-of-range
+    # headphone readings, 6 in-file duplicates — with nothing unexplained. Saying which
+    # basis each number uses is the whole reason that was provable.
+    scan = ("apple_health export scan 2026-09-09; record_count and count_in_window are by "
+            "START DATE, atoms_stored is by SUBJECT DAY (ADR-0019); see OQ-56")
 
     for rtype, info in seed["health_record_types"].items():
         is_supported = rtype in supported
@@ -208,7 +214,8 @@ def main():
         for rtype, n in sorted(unassigned, key=lambda x: -x[1])[:12]:
             print(f"  {n:>6}  {rtype}")
 
-    print("\nreconciliation — what the source holds inside the window vs what landed:")
+    print("\nreconciliation — source (by start date) vs stored (by subject day):")
+    print("  a negative delta is expected: the 04:00 ET boundary moves late-night records\n  to the previous subject day, which is outside the window. OQ-56 accounted for every\n  record of it; an UNEXPLAINED delta would be a new finding.")
     for r in rows:
         if r["disposition"] == "used" and r["count_in_window"]:
             stored = r["atoms_stored"] or 0

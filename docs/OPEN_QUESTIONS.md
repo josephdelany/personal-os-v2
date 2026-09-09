@@ -1155,3 +1155,65 @@ the stored atoms. If the missing records are exactly those before 04:00 ET, this
 correct behaviour and the inventory should report the window in subject-day terms instead.
 
 *Related:* ADR-0019 (the 04:00 boundary), ADR-0025 (reconciled, not equal), ADR-0085.
+
+**OQ-56 — RESOLVED 2026-09-09. Every one of the 252 records is accounted for; nothing was
+lost.**
+
+The question was whether a 1.3% shortfall between the export and `core.atoms` meant the
+import path was silently dropping records. It does not. A per-record scan of the real export,
+computing each record's subject day with the importer's own `subject_day()` and comparing
+against the stored atoms, reconciles it exactly:
+
+| cause | records |
+|---|---|
+| the 04:00 ET subject-day boundary (ADR-0019) | 228 |
+| `headphone_audio_exposure_db` readings outside the plausible range | 18 |
+| duplicates within the file | 6 |
+| **unexplained** | **0** |
+
+For `heart_rate_bpm` alone: 9,789 records have a start date on or after 2026-07-01, 9,658
+have a *subject day* on or after it, and 9,658 atoms are stored. The 131-record gap is the
+131 records that started between midnight and 04:00 on 2026-07-01 and therefore belong to
+2026-06-30 — correctly outside a `--since 2026-07-01` import. Fifteen of the seventeen
+metrics match their subject-day count exactly; the two that do not are `steps` (-3) and
+`walking_running_distance_km` (-3), which together are the six in-file duplicates the
+importer reported, and `headphone_audio_exposure_db` (-18), which is its reported
+out-of-range count.
+
+The earlier guess in this entry was right about the mechanism and wrong to be stated without
+proof; the widened-window test cited then did not isolate it. This does.
+
+*Consequence:* the shortfall is a difference of BASIS, not a loss, and `config.source_inventory`
+now says which basis each number uses — `record_count` and `count_in_window` by start date,
+`atoms_stored` by subject day. An unexplained delta in a future import is therefore a real
+finding rather than an expected mystery.
+
+*Still open, separately:* the 20 Apple Health types with no scope ruling (11,106 records
+inside the window) are Joe's decision and are tracked under OQ-57.
+
+**OQ-57 — Twenty Apple Health record types are captured by the phone but no ruling exists on
+whether Joe wants them.**
+
+Split out of OQ-56, whose reconciliation question is now closed. `config.source_inventory`
+owns these to "Joe (scope ruling)" rather than to a build unit, because assigning an undecided
+measurement to B18 would convert a question Joe has never been asked into committed work.
+
+Inside the recovery window: `PhysicalEffort` 8,577, `TimeInDaylight` 1,104,
+`EnvironmentalAudioExposure` 1,043, `StairAscentSpeed` 160, `StairDescentSpeed` 121,
+`AudioExposureEvent` 46, `EnvironmentalSoundReduction` 39, `SixMinuteWalkTestDistance` 7,
+`AtrialFibrillationBurden` 4, `EstimatedWorkoutEffortScore` 3,
+`HeadphoneAudioExposureEvent` 2, and nine types with no records in the window.
+
+*Recommendation:* take `TimeInDaylight` and `EnvironmentalAudioExposure` — both are genuine
+environmental exposures with no other source in the system, and daylight is a plausible input
+to sleep and mood questions. Decline `PhysicalEffort` and `EstimatedWorkoutEffortScore`
+despite their volume: both are Apple-computed composites, so under RULE-05 they are resolved
+rather than measured, and under RULE-12 they would compete with `active_energy_kcal` and
+`exercise_minutes` for the same measure. `AtrialFibrillationBurden` is medical and RULE-26
+forbids this system interpreting it.
+
+*What depends on it:* whether these records are imported on the next drop. Nothing else is
+blocked — they are additive.
+
+*What would settle it:* Joe's yes/no per type. `BasalEnergyBurned` is NOT in this list; it is
+an implementation gap owned by B18, because total expenditure needs it alongside active energy.
