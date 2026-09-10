@@ -319,3 +319,43 @@ def test_RULE_10_the_current_view_returns_only_the_head_of_the_chain(ent):
     assert rows == [[second, "Corrected"]], rows
     ent.execute(f"SELECT count(*) FROM {_S}.entity_aliases")
     assert ent.fetchone()[0] == 2, "the earlier resolution must remain readable"
+
+
+# ---------------------------------------------------------------- B14.2: entities and links
+
+def test_REQ_FIN_073_a_provisional_resolution_earns_no_edge():
+    """An unlinked transaction is a visible gap; a linked guess is an invisible error, and the
+    second is far harder to notice six months later."""
+    from tools.engines.link_merchants import decide
+    provisional = resolve("ZZQQ UNKNOWN", PATTERNS, KNOWN)
+    assert provisional.needs_review
+    assert decide(provisional) == (False, "awaiting_review")
+
+
+def test_REQ_FIN_051_a_non_purchase_earns_no_edge():
+    """An ATM withdrawal's destination is unknown by definition; an edge to a merchant would
+    assert one that does not exist."""
+    from tools.engines.link_merchants import decide
+    atm = resolve("NON CHASE ATM WITHDRAW", [], KNOWN, raw="NON-CHASE ATM WITHDRAW MAIN")
+    assert decide(atm) == (False, "not_a_merchant:atm")
+
+
+def test_RULE_12_the_edge_inherits_the_cascade_confidence_and_invents_none():
+    """A second opinion about the same fact is how a weak number becomes indistinguishable
+    from a strong one downstream. An exact pattern is certain; a fuzzy match carries its ratio."""
+    from tools.engines.link_merchants import decide
+    exact = resolve("BLUE BOTTLE COFFEE", PATTERNS, KNOWN)
+    fuzzy = resolve("SWEETGREN", PATTERNS, KNOWN)
+    assert decide(exact) == (True, "linked") and exact.confidence == 1.0
+    assert decide(fuzzy) == (True, "linked")
+    assert FUZZY_FLOOR <= fuzzy.confidence < 1.0, "a fuzzy edge must not claim certainty"
+
+
+def test_REQ_ONT_005_a_merchant_entity_is_extracted_from_a_rule_but_inferred_from_a_guess():
+    """RULE-05 vocabulary. A pattern match is extracted from a rule Joe's data supports; a
+    fuzzy match is inferred. Storing both as 'extracted' would erase the distinction the
+    provenance column exists to keep."""
+    exact = resolve("BLUE BOTTLE COFFEE", PATTERNS, KNOWN)
+    fuzzy = resolve("SWEETGREN", PATTERNS, KNOWN)
+    assert exact.merchant_source.startswith("pattern")
+    assert not fuzzy.merchant_source.startswith("pattern")
