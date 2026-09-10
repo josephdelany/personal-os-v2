@@ -1322,3 +1322,56 @@ as their own categories.
 already carry a discovered category; only the cross-vocabulary question is open.
 
 *Related:* ADR-0093 (spend by merchant), ADR-0089 (two lanes never blended), OQ-51.
+
+**OQ-60 — Eight of the fourteen domain hero metrics name measures that are not in the registry,
+and two of them are the same measure the atom lane already holds under a different name.**
+
+`config.domains.hero_metric` is what any per-domain surface iterates — the weekly report, the
+status page, coverage. Checked against `core.metric_registry` and both data lanes:
+
+| domain | hero_metric | in registry | panel rows | last panel day | atom rows |
+|---|---|---|---|---|---|
+| activity | `steps` | yes | 2,380 | — | 4,031 |
+| sleep | `sleep_asleep_min` | yes | 86 | — | 16 |
+| recovery | `hrv_sdnn` | **no** | 133 | 2026-07-28 | 0 |
+| vitals | `rhr` | **no** | 119 | 2026-07-28 | 0 |
+| content | `yt_events` | **no** | 1,364 | 2026-07-28 | 0 |
+| money | `spend.monetary_7d` | **no** | 797 | 2026-07-27 | 0 |
+| attention | `screen_active_hours` | **no** | 0 | — | 0 |
+| places | `away_min` | **no** | 0 | — | 0 |
+| food | `meals_logged` | **no** | 0 | — | 0 |
+| workouts | `strength_volume` | **no** | 0 | — | 0 |
+| body | `weight_lb` | yes | 0 | — | 0 |
+| drink | `alcohol_standard_drinks` | yes | 0 | — | 0 |
+| mood | `checkin_night_mood` | yes | 0 | — | 0 |
+| calendar | *(none)* | — | — | — | — |
+
+**Two are the same measure split across two names and two lanes.** `hrv_sdnn` has 133 panel
+rows ending 2026-07-28; `hrv_sdnn_ms` is registered and holds **1,303 atoms**. `rhr` has 119
+panel rows; `resting_hr` is registered and holds 30 atoms. Any domain surface iterating
+`hero_metric` reports "no recent data" for recovery and vitals while 1,333 observations sit in
+`core.atoms` under the other spelling.
+
+*Why it is open, and why I did not just fix it:* this is a measurement-definition decision and
+CLAUDE.md reserves it — "never infer data definitions from similar names". The danger is not
+hypothetical. A string-similarity search proposes **`sleep_awake_min` for `away_min`**: time
+*awake in bed* offered as time *away from home*. Accepting that would attribute one to the
+other invisibly and permanently. The two safe-looking pairs may be safe; the tooling that
+found them cannot tell the difference, so a person must.
+
+*Recommendation, pair by pair:*
+- `hrv_sdnn` → `hrv_sdnn_ms` — almost certainly the same measure; the suffix is a unit. **Confirm.**
+- `rhr` → `resting_hr` — same, an abbreviation. **Confirm.**
+- `away_min` → `sleep_awake_min` — **reject.** Different concepts entirely.
+- `spend.monetary_7d` — a 7-day rolling total, i.e. a *derived* measure, not a raw one. It
+  should point at `transaction_amount_usd` with a window, not be a registry key.
+- `yt_events`, `screen_active_hours`, `meals_logged`, `strength_volume` — unbuilt scope, not
+  naming errors. They stay unmapped until B18/B21 build them, and the domain should say so.
+
+*What depends on it:* every per-domain surface. The weekly report (B15) cannot honestly
+iterate domains until each hero metric either resolves or is explicitly marked unbuilt.
+
+*What would settle it:* Joe confirming or rejecting each pair above. Four are recommendations
+about naming; four are scope statements needing only a yes.
+
+*Related:* OQ-51 (canonical names vs what the feeds emit), ADR-0089 (two lanes never blended).
