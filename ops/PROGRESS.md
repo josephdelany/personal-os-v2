@@ -7355,3 +7355,61 @@ both timezones; layout 43/43; chain clean from empty at 62 files; never-rule sca
 seven rulings or credentials.
 
 **ADRs:** 0103 (second amendment), 0133. **OQ-75: resolved.**
+
+## 2026-09-10 (final+1) — the completion claim was wrong, and the capability behind it did not exist
+
+**Attempted:** verify an independent audit's four findings, correct the "685 of 685" claim
+without gaming it back to 100%, and execute one reconstruction end to end through real entry
+points.
+
+**All four findings confirmed. One was worse than reported.**
+
+| finding | verdict |
+|---|---|
+| `audit_requirements.py` reads test NAMES, never results | confirmed — no `subprocess`, `pytest`, `passed` or `exit_code` anywhere in the file |
+| REQ-REC-016's test checked a dictionary of labels | confirmed — it would have passed with the engine deleted |
+| new helpers have no non-test callers | confirmed and worse: **30 of 33 engine modules**, not two helpers |
+| NumPyro can skip; CI never installs it | confirmed — nor `dateparser`, which is imported unguarded inside a function |
+
+**The deeper finding.** The reconstruction capability had never existed. `core.inferred_events`
+shipped in 0054, `get_reconstruction` in 0055, and `tools/engines/reconstruct.py` had full branch
+coverage — while `config.reconstruction_methods` was **empty**, nothing wrote the table and
+nothing read it. Every unit test passed throughout. *A component with full branch coverage and no
+callers is indistinguishable, from the test suite, from a working feature.*
+
+**What now works.** 0064 registers `watch_non_wear`; `tools/reconstruct_run.py` is the only
+writer; 0065 makes reconstructions findable through `search_record` (which `ask` delegates to);
+0066/0067 add inferred-input propagation and a second event family; 0068 adds the R7 refusal;
+0069 stores what would settle an unresolved interpretation. 18 tests walk source evidence →
+registered method → stored event → Ask response → evidence inspection → human correction →
+historical replay. `python3 tools/reconstruction_acceptance.py` **executes** REQ-REC-016's seven
+acceptance cases and prints 7 of 7 — a runnable command, not an assertion.
+
+**Four defects found by running things rather than reading them.**
+1. **37 spurious `unknown` rows** about a device demonstrably on — the skip was keyed on the
+   engine's *reason* instead of the *evidence*.
+2. **Every episode inflated DESCRIPTIVE → EXPLORATORY** because one HealthKit export read twice
+   was given two `origin_group`s. REQ-REC-008 failing exactly where a unit test cannot see it,
+   since the test builds its own `Evidence` with the origins its author intended.
+3. **404 stored rows asserting nothing.** The backfill puts legacy financial atoms in
+   `core.atoms` going back years, so the method was asked about days when the Watch did not
+   exist. 438 rows → 34. Coverage is now reported, not stored.
+4. **Production DDL inside CI's pytest job.** `tests/test_status_sql.py` ran `CREATE SCHEMA`
+   against production behind a rollback; the workflow comment claimed that job skipped such
+   tests and nothing made it true. Found by the evidence audit, not by any failure — a
+   rolled-back `CREATE SCHEMA` leaves no trace.
+
+**The honest number: 635 of 685 (92.7%).** Measured by `tools/evidence_report.py` from real
+pytest results. The 50-requirement shortfall is **entirely skips — zero failures, zero errors**.
+Reachability matters more than the percentage: **423 of the 635 rest on code nothing outside
+`tests/` calls**, and 37 of 55 engine modules still have no entry point.
+
+**Does not work / not done.** Nothing is deployed — the pending set is now **fifteen** migrations
+(0055–0069; the frontier was not where the checkpoint said, 0055 included), awaiting OQ-77.
+`verify_pending_stack.py` applies all fifteen in one transaction against production and reports
+**20 of 20, rolled back**. R8's prompting half, and R1/R2/R4/R11, remain open on build units or
+on observations that do not exist yet.
+
+**Requirements:** REQ-REC-003/004/005/006/008/009/010/011/012/013/015/016; INV-4, INV-5;
+RULE-01, RULE-02, RULE-04, RULE-13. **ADR:** 0134, 0135 (0136, 0137 from the workers).
+**Commits:** 5316ecc, b3c1844, edb6625, b6e0087, 0b46264, 0dbddad, a5839c0, ffc8b81, cd39714.
