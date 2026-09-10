@@ -30,6 +30,7 @@ TESTS = ("tests/test_ask_ranges.py", "tests/test_ask.py", "tests/test_ask_operat
          # Added when RULE-13's parameter preservation stopped being a source-text grep and
          # became a test that runs the rebuild against a real config.derivation_catalogue.
          "tests/test_strength.py",
+         "tests/test_chains_sql.py",
          "tests/test_ontology_constraints.py")
 
 

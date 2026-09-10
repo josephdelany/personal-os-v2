@@ -140,9 +140,21 @@ and deployment.
 
 ## ACTIVE UNIT
 
-**B19 cross-lens discovery.** The last unstarted M5 unit. B9 already built the promotion and
-confirmation gates (migrations 0044/0046); B19 is the registry-driven exploration that feeds
-them.
+**B19 cross-lens discovery.** §G.4 (chains) is now **implemented and tested, not deployed**:
+`tools/engines/chains.py`, migration **0062**, 25 tests, ADR-0102. The engine attenuates
+multiplicatively, takes the weakest edge's tier, prunes to 20 by |effect|x confidence, refuses
+an edge without all six REQ-INF-564 evidence fields, and reads `metric_registry.role` rather
+than deciding what is actionable. Every invariant is enforced in the schema as well, because
+the engine is not the only possible writer.
+
+`analysis.chains` will be empty until hypotheses reach PROMOTED. That is correct and **it is
+not coverage.**
+
+**Still unstarted in B19:** §G.2 the Bayesian effect layer and §G.3 regimes (B19.1), and §D
+randomized micro-trials (B19.3). Both need dependencies the project does not have — `numpyro`,
+`jax[cpu]`, `dynamax`, `statsmodels` — and CLAUDE.md requires an ADR documenting limits,
+projected usage and failure at the limit before any is added. That ADR is the next gate for
+B19, not more code.
 
 **B15 period/compare remains blocked on OQ-60's shape, not on its schedule.** Eight of fourteen
 domain hero metrics do not resolve against the registry, and two (`hrv_sdnn`, `rhr`) are the

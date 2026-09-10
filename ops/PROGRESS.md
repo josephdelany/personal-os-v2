@@ -6303,3 +6303,31 @@ REQ-WKT-012, RULE-06, RULE-10, RULE-12, RULE-13, RULE-29.
 original").
 
 **ADR:** 0101.
+
+## 2026-09-10 (later) — B19 §G.4, chains across lenses
+
+**Attempted:** the one B19 piece needing no new dependency, while the six migrations wait on
+authorization.
+
+**What now works:** `tools/engines/chains.py` composes multi-hop claims. Attenuation is
+multiplicative (two 0.3 edges give 0.09, and two negative edges give a positive reach, which is
+the thing a reader most often gets backwards). A chain takes the tier of its weakest edge, so
+one CONFIRMED link cannot launder two guesses. The map is pruned to 20 by |effect| x confidence,
+using the MINIMUM edge confidence — a product would punish a long chain twice and order the map
+by length rather than strength. An edge missing any of REQ-INF-564's six evidence fields cannot
+be constructed at all. `metric_registry.role` is declared by a human and read by the engine:
+if the engine decided what was actionable, REQ-INF-565 would be enforced by the one piece of
+code with an incentive to break it.
+
+**Evidence:** 439 local SQL tests pass under America/New_York (17 pure + 8 SQL are new); chain
+clean from empty at 61 files / 537 statements; layout 43/43. Every table invariant is tested by
+attempting the violating INSERT — one of those tests initially passed for the wrong reason,
+tripping a different constraint first, and was tightened.
+
+**What does not work:** `analysis.chains` is empty and stays empty until a hypothesis reaches
+PROMOTED. The engine is tested, nothing is observed. B19.1 (regimes, Bayesian layer) and B19.3
+(micro-trials) are unstarted and blocked on a dependency ADR.
+
+**Requirement IDs:** REQ-INF-560..565, REQ-TIER-046, RULE-16, RULE-21.
+
+**ADR:** 0102.
