@@ -7110,3 +7110,37 @@ assembled at runtime. The validator was right and caught it before the commit.
 Requirements proven 544 -> 564 (82%).
 
 **Requirement IDs:** REQ-ONT-004..017, REQ-LOC-003..014, REQ-NUT-002..032. **ADR:** 0126.
+
+## 2026-09-10 (latest+18) — five surface contracts; ten of fourteen prefixes complete
+
+REQ-ASK, REQ-ACT, REQ-SLP, REQ-REC and REQ-TIER all reach zero unproven. Only REQ-CAP (34),
+REQ-FIN (36), REQ-INF (22) and REQ-NAR (12) remain.
+
+Plan then answer, in two steps: a model that plans and answers in one breath has already decided
+the answer before the numbers arrive, and the plan becomes a justification written after the fact.
+
+Informative missingness caps at INSUFFICIENT because no amount of data fixes it — if dinner is
+unlogged on the nights he drinks, the missing rows are the informative ones. REQ-ASK-029 is the
+counterweight and needed stating: the medical boundary is easy to over-apply, and "why do I feel
+flat on Thursdays" is a question about logged behaviour, not a request for a diagnosis.
+
+One instruction a day, PULLED: two recommendations compete and the one Joe acts on is whichever is
+easier rather than whichever matters, and a pushed instruction arrives when the SYSTEM is ready —
+the system is never the thing with the context. Every effect states its counter-frame, because
+"22 minutes more sleep" and "22 minutes less of the evening" are the same number and giving only
+the flattering reading is an argument rather than a measurement.
+
+Four recovery measures stay separate with four coverages: a combined score built from one live
+measure and three lapsed ones looks identical to one built from four. And a lapsed measure reports
+the LAPSE — an HRV from 2026-08-21 rendered without its date reads as today's HRV.
+
+Inferred inputs are not independent: three events reconstructed from one receipt are one
+observation wearing three hats, and counting them as three triples confidence for free.
+
+REQ-TIER-025: no frequentist CI, because a 95% interval is not a 95% probability that the value
+is inside it and every reader outside statistics reads it as one.
+
+**Evidence:** 18 new tests. 450 local SQL tests pass; layout 43/43. Requirements proven
+564 -> 581 (85%).
+
+**ADR:** 0127.
