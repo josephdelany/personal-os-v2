@@ -21,19 +21,19 @@ mention in an ADR, not an implementation that looks right, not a docstring citin
   prefix         declared  proven  claimed  unproven
   REQ-ACT              12       8        1         4
   REQ-ASK              25      21        0         4
-  REQ-CAP             101       8        1        93
+  REQ-CAP             101      11        1        90
   REQ-FIN             173      19        2       154
   REQ-INF             140       9        4       131
   REQ-LOC              18      12        0         6
-  REQ-NAR              29       7        0        22
+  REQ-NAR              29       8        1        21
   REQ-NFR              14      14        0         0
   REQ-NUT              60      26        0        34
-  REQ-ONT              17       3        0        14
+  REQ-ONT              17      12        0         5
   REQ-REC              16      13        0         3
   REQ-SLP              15      11        0         4
-  REQ-TIER             43      18        2        25
+  REQ-TIER             43      19        2        24
   REQ-WKT              22      10        0        12
-  TOTAL               685     179       10       506
+  TOTAL               685     193       11       492
 ```
 
 **179 of 685 (26%).** That number is low and it is the honest one. A ledger reporting 90%
@@ -52,6 +52,36 @@ REQ-ACT-004's mention is a section header, REQ-FIN-050's is a docstring explaini
 does **not** net. A mention is usually an honest reference, not hidden coverage — which is why
 promoting one requires reading both sides, and why the count moved by eleven and not by
 twenty-one.
+
+## What two adversarial reviews found, and why it matters more than the test count
+
+The six pending migrations were reviewed adversarially twice before application.
+
+| round | findings | of which caused by the previous round's repairs |
+|---|---|---|
+| first | 19 | — |
+| second | 12 | **10** |
+
+Both rounds ran against a stack that was already green: 391 tests passing, chain clean from
+empty, composing 12 of 12 against production. **Passing was never the problem.**
+
+Two facts worth carrying forward:
+
+- **A test helper hid a defect.** `panel()` returned a dict, and a dict discards a duplicate
+  key — so the "one metric served by two lanes" defect could not have failed any test in that
+  file. The tests were shaped so the bug was invisible.
+- **The second round's worst defect was created by the first round's fix.** A repair set
+  `supersedes` unconditionally, which would have killed the merchant resolver permanently the
+  first time Joe corrected an alias — every run lost, forever, because a human head is
+  permanent.
+
+Three findings were closed by *reverting* my own repair and recording the problem as open
+(OQ-69, OQ-70, OQ-71) rather than by a fix I could not defend. One of those reverts was a gate
+constant I had moved on similarity numbers that did not reproduce when measured — 0.32/0.43
+claimed, 0.261/0.138 actual.
+
+**The lesson for this document:** a milestone is not complete because its tests pass. These
+tests passed for hours while the code was wrong in ten ways.
 
 ## Milestone status
 
