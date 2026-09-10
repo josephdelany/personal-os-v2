@@ -1967,3 +1967,31 @@ merge in ADR-0136. This is a judgement about which document Joe will read, so it
 *What depends on it:* nothing technical. It is a correctness-of-the-record question, and the
 reason it is written down is that duplicated status documents are how the "685 of 685" claim
 survived as long as it did.
+
+## OQ-80 — the production database URL is present in the agent shell environment
+
+*The question:* should `SUPABASE_DB_URL` be exported into the interactive shell that agent
+sessions inherit, or supplied per-command?
+
+*Why it is open:* it is Joe's machine and Joe's credential, and the fix is an environment
+decision, not a code change. Raised by the evidence audit, which observed that the variable is
+readable by any command any worker runs. Nothing in this repository reads it except `lib/db.py`,
+and `.claude/hooks/guard-destructive.sh` correctly blocked an attempt to inspect it during this
+session — the guard works. **No credential has been written to any file, log, commit or document,
+and none appears in this entry.**
+
+*Why it matters beyond hygiene:* it is also why the deterministic test suite silently connected
+to production for forty minutes this session. A test run that inherits the variable takes the
+live path whether or not that was intended, which is how CI's `pytest` job and a local run can
+differ without anyone choosing that (see OQ-78).
+
+*Options:* (a) supply it per-command (`SUPABASE_DB_URL=... python3 ...`) or from a file the
+tooling reads explicitly, so inheriting a shell does not grant production access — recommended;
+(b) keep it exported and rely on the guard hook; (c) use a read-only role for the default and
+require the writable one to be supplied explicitly.
+
+*Recommendation:* (a), and (c) as well if it is cheap. A test suite should have to ask for
+production, not merely fail to avoid it.
+
+*What depends on it:* nothing is blocked. It changes how easy it is to touch production by
+accident, which this session did twice without meaning to.
