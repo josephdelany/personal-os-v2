@@ -1640,3 +1640,38 @@ races against whoever is watching it.
 
 *Related:* RULE-29, CONSTITUTION.md "Cost and privacy", and the finding that produced this —
 migration 0057's header refuses to commit merchant patterns on the same ground.
+
+**OQ-68 — `sleep_minutes` has two sources with different lanes, and one name.**
+
+`tools/extract_checkins.py` writes `sleep_minutes` atoms from Joe's self-reported check-in
+("how long did you sleep?"). `config.panel_composition` also derives `sleep_minutes` from the
+Watch's staged sleep intervals. Same metric key, two sources, two RULE-05 lanes: one a
+coarsened self-report, the other a device interval union.
+
+Found by an adversarial review of migration 0056: both arms of `f_daily_panel` emitted the
+metric, so one day produced two rows. Coverage counted two, could exceed 1.0, and passed the
+0.60 INSUFFICIENT floor on a doubled denominator — twelve real nights in thirty read as 0.80
+instead of 0.40. The median mixed the two lanes in one distribution, which is INV-5.
+
+0056 now serves a composed metric from the composed lane only, so the double-count is gone.
+**The self-reported atoms are then not served at all**, and that is a real loss rather than a
+fix: Joe's own answer about his sleep becomes invisible while the Watch's derivation is shown.
+
+*Why it is open:* the two are not interchangeable and merging them is a measurement decision.
+A self-report and a device derivation disagree systematically, they have different coverage —
+the check-in stopped 2026-07-22, the Watch 2026-08-14 — and averaging them produces a number
+that tracks whichever source is still reporting.
+
+*The options:* (a) two metric keys, `sleep_minutes_self_report` and `sleep_minutes_device`,
+with the composed one derived and the self-report answerable in its own right; (b) the device
+lane wins where it exists and the self-report fills gaps, disclosed per day; (c) the
+self-report is not a sleep duration at all and should be a different metric entirely.
+
+*Recommendation:* (a). Two names for two lanes is what INV-5 asks for everywhere else in this
+system, and it makes "what did I say" and "what did the Watch derive" both answerable — which
+is more useful than either alone, and lets their disagreement be a finding.
+
+*What depends on it:* any sleep answer once check-in capture resumes. Nothing today: zero
+`sleep_minutes` atoms exist. It would have fired silently the first time Joe logged one.
+
+*Related:* OQ-48, INV-5, RULE-05, ADR-0089.

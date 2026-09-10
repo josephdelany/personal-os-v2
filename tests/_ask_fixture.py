@@ -103,6 +103,12 @@ def ask_cur(sql_connection):
     apply_file("0036_search_record.sql")
     apply_file("0037_get_entity.sql")
     apply_file("0049_ask_core.sql")
+    # 0056 gives the two-argument f_daily_panel(date, timestamptz). 0059 calls it everywhere,
+    # so the fixture must carry the same dependency the migration order does.
+    cur.execute("""CREATE TABLE IF NOT EXISTS analysis_pytest.panel (
+        day DATE NOT NULL, metric TEXT NOT NULL, value NUMERIC, src TEXT,
+        code_version TEXT, computed_at TIMESTAMPTZ DEFAULT now())""")
+    apply_file("0056_atom_panel.sql")
     # 0058 replaces ask(text,date) with ask(text,date,timestamptz) — two clocks.
     apply_file("0058_ask_two_clocks.sql")
     # 0059 wires resolved merchants into spend (ADR-0093).

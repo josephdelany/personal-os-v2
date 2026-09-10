@@ -444,3 +444,62 @@ def test_REQ_FIN_051_a_real_merchant_is_still_a_merchant():
     from tools.engines.merchants import classify_non_merchant
     for descriptor in ("HANNAFORD #8229", "UBER EATS", "BLUE BOTTLE COFFEE"):
         assert classify_non_merchant(descriptor) is None, descriptor
+
+
+def test_RULE_10_a_second_resolution_must_supersede_the_first(ent):
+    """Review finding 6. The resolver inserted every row with supersedes NULL, so the
+    precedence trigger returned at its first line every time and never fired — and
+    `v_current_aliases`, which means "nothing supersedes me", returned Joe's correction AND the
+    machine's guess side by side. A consumer reading `SELECT canonical WHERE alias = ?` got
+    whichever the planner returned first."""
+    first = _alias(ent, alias="SQ *HANN", canonical="Hannaford")
+    ent.execute("SAVEPOINT s")
+    with pytest.raises(Exception) as e:
+        _alias(ent, alias="SQ *HANN", canonical="Hann Inc", resolved_by="fuzzy", confidence=0.83)
+    assert "already has a current resolution" in str(e.value)
+    ent.execute("ROLLBACK TO SAVEPOINT s")
+    _alias(ent, alias="SQ *HANN", canonical="Hann Inc", resolved_by="fuzzy",
+           confidence=0.83, supersedes=first)
+    ent.execute(f"SELECT canonical FROM {_S}.v_current_aliases WHERE alias = 'SQ *HANN'")
+    assert [r[0] for r in ent.fetchall()] == ["Hann Inc"], "exactly one current resolution"
+
+
+def test_RULE_10_a_fork_off_an_already_superseded_row_is_refused(ent):
+    """The other route to two heads: superseding a row that is already superseded. The trigger
+    only inspected the superseded row's provenance, so a fork slipped past the human check."""
+    first = _alias(ent, alias="SQ *HANN", canonical="Hannaford")
+    _alias(ent, alias="SQ *HANN", canonical="Corrected", resolved_by="human", supersedes=first)
+    ent.execute("SAVEPOINT s")
+    with pytest.raises(Exception) as e:
+        _alias(ent, alias="SQ *HANN", canonical="Guess", resolved_by="fuzzy",
+               confidence=0.9, supersedes=first)
+    assert "already superseded" in str(e.value)
+    ent.execute("ROLLBACK TO SAVEPOINT s")
+
+
+def test_RULE_10_a_fuzzy_match_can_never_claim_certainty(ent):
+    """Review finding 7. The constraint ended `OR resolved_by = 'fuzzy'`, admitting precisely
+    what its own comment forbade — ('fuzzy', 1.0) inserted cleanly — and with `provisional`
+    already forced to NULL confidence by the constraint above it, NO pair could violate it at
+    all. A constraint that cannot fail is decoration, and this decoration read as a guarantee:
+    "fuzzy at 1.00" and "Joe said so" would have been indistinguishable downstream."""
+    ent.execute("SAVEPOINT s")
+    with pytest.raises(Exception) as e:
+        _alias(ent, resolved_by="fuzzy", confidence=1.0)
+    assert "only_a_rule_or_a_human_is_certain" in str(e.value)
+    ent.execute("ROLLBACK TO SAVEPOINT s")
+    _alias(ent, resolved_by="fuzzy", confidence=0.99)
+    _alias(ent, alias="OTHER", resolved_by="human", confidence=1.0)
+
+
+def test_RULE_01_a_location_token_stores_its_measured_evidence_not_the_floor():
+    """Review finding 8. The writer stored the literal 4 — the constraint's own floor — for
+    every token, so one backed by forty distinct prefixes and one backed by exactly four were
+    recorded identically. The column asserts measured evidence and held a constant."""
+    from tools.engines.merchants import location_token_evidence
+    sample = ["SHELL OIL 111 HOUSTON TX", "KROGER 222 HOUSTON TX", "CVS 333 HOUSTON TX",
+              "TARGET 444 HOUSTON TX", "JOES GARAGE HOUSTON TX",
+              "BLUE BOTTLE COFFEE OAKLAND CA"]
+    evidence = location_token_evidence(sample)
+    assert evidence["HOUSTON"] == 5, "the real count, which is not the floor"
+    assert "OAKLAND" not in evidence

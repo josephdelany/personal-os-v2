@@ -1,4 +1,11 @@
 -- 0059_spend_by_merchant.sql — spend answers about a MERCHANT, not a substring (ADR-0093).
+--
+-- REQUIRES 0056 AND 0058, IN THAT ORDER. 0056 provides the two-argument
+-- analysis.f_daily_panel(date, timestamptz), which every metric query here now calls so the
+-- knowledge clock reaches the panel and not only `spend` (review finding 3). 0058 provides
+-- the three-argument `ask`; this drops both it and 0049's two-argument form, because leaving
+-- the latter alive beside a three-argument function with a default makes every two-argument
+-- call ambiguous (review finding 11).
 -- REQ-FIN-070..074, REQ-ASK-021, RULE-12; closes the contract ADR-0062 held open.
 --
 -- Until now `spend` summed transaction atoms whose STATEMENT DESCRIPTOR contained the
@@ -38,7 +45,12 @@ LANGUAGE sql STABLE SECURITY DEFINER SET search_path = '' AS $fn$
 $fn$;
 REVOKE ALL ON FUNCTION public._ask_spend_sources(uuid[]) FROM PUBLIC, anon, authenticated;
 
+-- BOTH forms. 0059 dropped only the three-argument function, so applying it without 0058
+-- would leave 0049's `public.ask(text, date)` alive beside the new three-argument form and
+-- every two-argument call would fail with "function public.ask(unknown, date) is not unique".
+-- The legacy single-argument `public.ask(text)` serving the previous build is untouched.
 DROP FUNCTION IF EXISTS public.ask(text, date, timestamptz);
+DROP FUNCTION IF EXISTS public.ask(text, date);
 
 CREATE OR REPLACE FUNCTION public.ask(p_question text, p_as_of date,
                                       p_known_at timestamptz DEFAULT now())
@@ -178,7 +190,7 @@ BEGIN
     -- coverage first (REQ-ASK-021/022/023)
     n_days := (rng.d_to - rng.d_from) + 1;
     IF m1.metric IS NOT NULL THEN
-        SELECT count(*) INTO n_have FROM analysis.f_daily_panel(as_of) p
+        SELECT count(*) INTO n_have FROM analysis.f_daily_panel(as_of, known_at) p
          WHERE p.metric = m1.metric AND p.day BETWEEN rng.d_from AND rng.d_to;
         coverage_min := n_have::numeric / greatest(n_days,1);
         cov := jsonb_build_object(m1.metric, coverage_min);
@@ -202,7 +214,7 @@ BEGIN
                  'p90', public._ask_round(percentile_cont(0.9) WITHIN GROUP (ORDER BY p.value)::numeric, m1.metric),
                  'min', public._ask_round(min(p.value), m1.metric), 'max', public._ask_round(max(p.value), m1.metric),
                  'n', count(*), 'days', n_days)
-          INTO res FROM analysis.f_daily_panel(as_of) p
+          INTO res FROM analysis.f_daily_panel(as_of, known_at) p
          WHERE p.metric = m1.metric AND p.day BETWEEN rng.d_from AND rng.d_to;
     ELSIF op = 'trend' THEN
         SELECT jsonb_build_object(
@@ -213,7 +225,7 @@ BEGIN
                  'n_first', count(*) FILTER (WHERE p.day < rng.d_from + (n_days/2)),
                  'n_second', count(*) FILTER (WHERE p.day >= rng.d_from + (n_days/2)),
                  'n', count(*), 'days', n_days)
-          INTO res FROM analysis.f_daily_panel(as_of) p
+          INTO res FROM analysis.f_daily_panel(as_of, known_at) p
          WHERE p.metric = m1.metric AND p.day BETWEEN rng.d_from AND rng.d_to;
         IF res->>'first' IS NULL OR res->>'second' IS NULL THEN
             SELECT value INTO refusal FROM config.strings WHERE key = 'refusal_insufficient';
@@ -259,27 +271,27 @@ BEGIN
                           || ' days with data.'
                      ELSE 'The most recent 28 days hold only ' || count(*)::text
                           || ' days with data, too few for a 28-day median.' END)
-          INTO r2 FROM analysis.f_daily_panel(as_of) p
+          INTO r2 FROM analysis.f_daily_panel(as_of, known_at) p
          WHERE p.metric = m1.metric AND p.day BETWEEN rng.d_to - 27 AND rng.d_to;
         res := res || r2;
     ELSIF op = 'rhythm' THEN
         SELECT jsonb_build_object('hi_day', hi.dow, 'hi', hi.med, 'lo_day', lo.dow, 'lo', lo.med,
-                                  'n', (SELECT count(*) FROM analysis.f_daily_panel(as_of) p
+                                  'n', (SELECT count(*) FROM analysis.f_daily_panel(as_of, known_at) p
                                          WHERE p.metric = m1.metric AND p.day BETWEEN rng.d_from AND rng.d_to))
           INTO res
           FROM (SELECT to_char(p.day,'FMDay') AS dow,
                        public._ask_round(percentile_cont(0.5) WITHIN GROUP (ORDER BY p.value)::numeric, m1.metric) AS med
-                  FROM analysis.f_daily_panel(as_of) p
+                  FROM analysis.f_daily_panel(as_of, known_at) p
                  WHERE p.metric = m1.metric AND p.day BETWEEN rng.d_from AND rng.d_to
                  GROUP BY 1 ORDER BY 2 DESC, 1 LIMIT 1) hi,
                (SELECT to_char(p.day,'FMDay') AS dow,
                        public._ask_round(percentile_cont(0.5) WITHIN GROUP (ORDER BY p.value)::numeric, m1.metric) AS med
-                  FROM analysis.f_daily_panel(as_of) p
+                  FROM analysis.f_daily_panel(as_of, known_at) p
                  WHERE p.metric = m1.metric AND p.day BETWEEN rng.d_from AND rng.d_to
                  GROUP BY 1 ORDER BY 2 ASC, 1 LIMIT 1) lo;
     ELSIF op = 'last' THEN
         SELECT jsonb_build_object('value', public._ask_round(p.value, m1.metric), 'day', p.day, 'since', as_of - p.day)
-          INTO res FROM analysis.f_daily_panel(as_of) p
+          INTO res FROM analysis.f_daily_panel(as_of, known_at) p
          WHERE p.metric = m1.metric AND p.day BETWEEN rng.d_from AND rng.d_to
          ORDER BY p.day DESC LIMIT 1;
     ELSIF op = 'count_days' THEN
@@ -297,14 +309,14 @@ BEGIN
                         CASE WHEN condition_direction = 'above' THEN p.value > condition_value
                              ELSE p.value < condition_value END),
                      'n', count(*), 'condition', cond_txt, 'threshold', condition_value)
-              INTO res FROM analysis.f_daily_panel(as_of) p
+              INTO res FROM analysis.f_daily_panel(as_of, known_at) p
              WHERE p.metric = m1.metric AND p.day BETWEEN rng.d_from AND rng.d_to;
         ELSE
             SELECT jsonb_build_object('k', count(*) FILTER (WHERE
                         CASE WHEN condition_direction = 'above' THEN p.value > b.band_hi
                              ELSE p.value < b.band_lo END),
                      'n', count(*), 'condition', cond_txt)
-              INTO res FROM analysis.f_daily_panel(as_of) p
+              INTO res FROM analysis.f_daily_panel(as_of, known_at) p
               JOIN analysis.baselines b ON b.metric = p.metric AND b.day = p.day
              WHERE p.metric = m1.metric AND p.day BETWEEN rng.d_from AND rng.d_to
                AND CASE WHEN condition_direction = 'above' THEN b.band_hi IS NOT NULL
@@ -388,12 +400,12 @@ BEGIN
                         ELSE CASE WHEN condition_direction = 'above' THEN p.value > condition_value
                                   ELSE p.value < condition_value END
                    END AS sat
-              FROM analysis.f_daily_panel(as_of) p
+              FROM analysis.f_daily_panel(as_of, known_at) p
               LEFT JOIN analysis.baselines b ON b.metric = p.metric AND b.day = p.day
              WHERE p.metric = cond_metric.metric
                AND p.day BETWEEN rng.d_from - compare_lag AND rng.d_to - compare_lag
         ), outcome AS (
-            SELECT p.day, p.value FROM analysis.f_daily_panel(as_of) p
+            SELECT p.day, p.value FROM analysis.f_daily_panel(as_of, known_at) p
              WHERE p.metric = m1.metric AND p.day BETWEEN rng.d_from AND rng.d_to
         ), joined AS (
             -- `compare_lag` aligns the outcome to the day AFTER a qualifying day when the
@@ -412,7 +424,7 @@ BEGIN
                  'lag_days', compare_lag, 'threshold', condition_value)
           INTO res FROM joined j;
 
-        SELECT count(*) INTO n_outcome_days FROM analysis.f_daily_panel(as_of) p
+        SELECT count(*) INTO n_outcome_days FROM analysis.f_daily_panel(as_of, known_at) p
          WHERE p.metric = m1.metric AND p.day BETWEEN rng.d_from AND rng.d_to;
         -- Outcome days the condition could not be evaluated on: no condition row at all, or a
         -- row with no comparison band. They are in neither group, and the count says how many
@@ -425,7 +437,7 @@ BEGIN
         -- intersection under both keys, so a condition metric observed on every day read as
         -- 0.6 — two different meanings of the word "coverage" in one column, and the wrong
         -- one feeding the tier gate.
-        SELECT count(*) INTO n_cond_days FROM analysis.f_daily_panel(as_of) p
+        SELECT count(*) INTO n_cond_days FROM analysis.f_daily_panel(as_of, known_at) p
          WHERE p.metric = cond_metric.metric
            AND p.day BETWEEN rng.d_from - compare_lag AND rng.d_to - compare_lag;
         cov := jsonb_build_object(
@@ -467,7 +479,7 @@ BEGIN
         -- neither disclosed nor gated, so the 0.60 floor was applied to one side of a
         -- two-metric operation and not the other.
         IF m2.metric IS NOT NULL THEN
-            SELECT count(*) INTO n_outcome_days FROM analysis.f_daily_panel(as_of) p
+            SELECT count(*) INTO n_outcome_days FROM analysis.f_daily_panel(as_of, known_at) p
              WHERE p.metric = m2.metric AND p.day BETWEEN rng.d_from AND rng.d_to;
             cov := coalesce(cov, '{}'::jsonb)
                    || jsonb_build_object(m2.metric, n_outcome_days::numeric / greatest(n_days,1));
@@ -692,7 +704,13 @@ BEGIN
         -- total labelled usd with no row saying so. A missing unit is not agreement.
         SELECT count(DISTINCT a.unit), min(a.unit), count(*) FILTER (WHERE a.unit IS NULL)
           INTO n_outcome_days, term, n_null_unit
-          FROM __CORE__.atoms_current a
+          -- NOT `atoms_current`. That view is `NOT EXISTS (... s.supersedes = a.id)` with no
+          -- knowledge bound, so in a replay the superseded atom is hidden by a correction that
+          -- does not yet exist and the correction is hidden by `recorded_at <= known_at` — the
+          -- charge vanishes from both sides and the replayed total is silently short. The link
+          -- side three lines below already bounds its supersession correctly; only the atom
+          -- side did not.
+          FROM __CORE__.atoms a
          WHERE a.kind = 'transaction'
            AND a.subject_day BETWEEN rng.d_from AND rng.d_to AND a.subject_day <= as_of
            -- RULE-04 / INV-4 / REQ-ASK-030: what was KNOWN by as_of, not what is known now.
@@ -701,6 +719,8 @@ BEGIN
            -- (0012) and was simply not used — unlike the panel (OQ-45), this cutoff is
            -- available. The `+1 day` reads the whole of the as-of day.
            AND a.recorded_at <= known_at
+           AND NOT EXISTS (SELECT 1 FROM __CORE__.atoms s
+                            WHERE s.supersedes = a.id AND s.recorded_at <= known_at)
            AND (CASE WHEN merchant_entity IS NOT NULL
                      THEN EXISTS (SELECT 1 FROM __CORE__.links l
                                    WHERE l.subject_atom = a.id AND l.predicate = 'paid_to'
@@ -753,10 +773,18 @@ BEGIN
                  'per_week', abs(round(coalesce(sum(a.value_point) FILTER (WHERE a.value_point < 0), 0)
                                        / greatest(n_days::numeric / 7, 0.01), 2)))
           INTO res
-          FROM __CORE__.atoms_current a
+          -- NOT `atoms_current`. That view is `NOT EXISTS (... s.supersedes = a.id)` with no
+          -- knowledge bound, so in a replay the superseded atom is hidden by a correction that
+          -- does not yet exist and the correction is hidden by `recorded_at <= known_at` — the
+          -- charge vanishes from both sides and the replayed total is silently short. The link
+          -- side three lines below already bounds its supersession correctly; only the atom
+          -- side did not.
+          FROM __CORE__.atoms a
          WHERE a.kind = 'transaction'
            AND a.subject_day BETWEEN rng.d_from AND rng.d_to AND a.subject_day <= as_of
-           AND a.recorded_at <= known_at            -- RULE-04, as above
+           AND a.recorded_at <= known_at
+           AND NOT EXISTS (SELECT 1 FROM __CORE__.atoms s
+                            WHERE s.supersedes = a.id AND s.recorded_at <= known_at)            -- RULE-04, as above
            AND (CASE WHEN merchant_entity IS NOT NULL
                      THEN EXISTS (SELECT 1 FROM __CORE__.links l
                                    WHERE l.subject_atom = a.id AND l.predicate = 'paid_to'
@@ -778,7 +806,13 @@ BEGIN
                      THEN 'resolved_merchant' ELSE 'statement_descriptor_contains' END,
                 'n_in', (res->>'n_in')::int,
                 'range', jsonb_build_array(rng.d_from, rng.d_to),
-                'would_raise_it', 'No charge in this range carries that text in its statement descriptor. Merchant resolution is not built (B14), so a charge recorded under a different descriptor would not be found.'));
+                'would_raise_it', CASE WHEN merchant_entity IS NOT NULL
+                     THEN 'No charge in this range is linked to that merchant. Charges whose '
+                          'descriptor is still awaiting confirmation are not linked to any '
+                          'merchant and would not be found.'
+                     ELSE 'No charge in this range carries that text in its statement '
+                          'descriptor, and no merchant resolved for this subject, so a charge '
+                          'recorded under a different descriptor would not be found.' END));
         END IF;
 
         res := res || jsonb_build_object(
@@ -936,7 +970,7 @@ BEGIN
     res := jsonb_strip_nulls(res);
     SELECT coalesce(jsonb_agg(jsonb_build_object('table','analysis.panel', 'day', p.day, 'metric', p.metric)
                              ORDER BY p.day, p.metric), '[]'::jsonb)
-      INTO keys FROM analysis.f_daily_panel(as_of) p
+      INTO keys FROM analysis.f_daily_panel(as_of, known_at) p
      WHERE p.metric = m1.metric AND p.day BETWEEN rng.d_from AND rng.d_to;
     IF op IN ('count_days','compare') AND coalesce(cond_band, false) THEN
         -- The band was evaluated on the metric the CONDITION is about — which for `compare`
@@ -950,7 +984,7 @@ BEGIN
                          ORDER BY rows.day, rows.table_name), '[]'::jsonb)
           INTO keys FROM (
             SELECT p.day, p.metric, source.table_name
-              FROM analysis.f_daily_panel(as_of) p
+              FROM analysis.f_daily_panel(as_of, known_at) p
               JOIN analysis.baselines b ON b.metric = p.metric AND b.day = p.day
               CROSS JOIN (VALUES ('analysis.panel'), ('analysis.baselines')) source(table_name)
              WHERE p.metric = coalesce(cond_metric.metric, m1.metric)
@@ -966,7 +1000,7 @@ BEGIN
             SELECT keys || coalesce(jsonb_agg(jsonb_build_object(
                        'table','analysis.panel','day',p.day,'metric',p.metric)
                      ORDER BY p.day), '[]'::jsonb)
-              INTO keys FROM analysis.f_daily_panel(as_of) p
+              INTO keys FROM analysis.f_daily_panel(as_of, known_at) p
              WHERE p.metric = m1.metric AND p.day BETWEEN rng.d_from AND rng.d_to;
         END IF;
     ELSIF op = 'compare' THEN
@@ -975,7 +1009,7 @@ BEGIN
         SELECT keys || coalesce(jsonb_agg(jsonb_build_object(
                    'table','analysis.panel','day',p.day,'metric',p.metric)
                  ORDER BY p.day), '[]'::jsonb)
-          INTO keys FROM analysis.f_daily_panel(as_of) p
+          INTO keys FROM analysis.f_daily_panel(as_of, known_at) p
          WHERE p.metric = cond_metric.metric
            AND p.day BETWEEN rng.d_from - coalesce(compare_lag,0)
                          AND rng.d_to - coalesce(compare_lag,0);
@@ -992,7 +1026,9 @@ BEGIN
           INTO keys FROM __CORE__.atoms_current a
          WHERE a.kind = 'transaction'
            AND a.subject_day BETWEEN rng.d_from AND rng.d_to AND a.subject_day <= as_of
-           AND a.recorded_at <= known_at            -- RULE-04, as above
+           AND a.recorded_at <= known_at
+           AND NOT EXISTS (SELECT 1 FROM __CORE__.atoms s
+                            WHERE s.supersedes = a.id AND s.recorded_at <= known_at)            -- RULE-04, as above
            AND (CASE WHEN merchant_entity IS NOT NULL
                      THEN EXISTS (SELECT 1 FROM __CORE__.links l
                                    WHERE l.subject_atom = a.id AND l.predicate = 'paid_to'

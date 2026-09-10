@@ -52,6 +52,16 @@ SELECT r.metric_key,
                  'is what describe renders and is robust to wrist-sensor outliers' END
   FROM __CORE__.metric_registry r
  WHERE EXISTS (SELECT 1 FROM __CORE__.atoms a WHERE a.metric_key = r.metric_key)
+   -- OQ-64. `config.*` is sometimes rebound alongside __CORE__ (the Ask fixture) and sometimes
+   -- shared with production while __CORE__ is not (the spine test), so the foreign key targets
+   -- a different registry in each. Asking "am I the real core" is too blunt — it makes the seed
+   -- a no-op in the fixture that legitimately rebinds both. The precise condition is whether
+   -- the CONSTRAINT THIS ROW WILL BE CHECKED AGAINST points at the registry being read.
+   AND (SELECT c.confrelid FROM pg_constraint c
+         WHERE c.conrelid = 'config.panel_aggregation'::regclass AND c.contype = 'f'
+           AND c.conkey = ARRAY[(SELECT a.attnum FROM pg_attribute a
+                                  WHERE a.attrelid = c.conrelid AND a.attname = 'metric')]
+         LIMIT 1) = to_regclass('__CORE__.metric_registry')::oid
 ON CONFLICT (metric) DO NOTHING;
 
 -- A metric composed of OTHER metrics. Joe's sleep ruling lives here rather than in SQL.
@@ -73,13 +83,27 @@ REVOKE ALL ON config.panel_composition FROM anon, authenticated;
 -- this was written — but "happens not to" is not a guarantee, and a duplicated segment from a
 -- future import must not inflate a night's sleep by its own length.
 -- `sleep_awake_min` is deliberately absent: time in bed awake is not sleep.
-INSERT INTO config.panel_composition (metric, component, method, method_version, note) VALUES
+INSERT INTO config.panel_composition (metric, component, method, method_version, note)
+SELECT v.* FROM (VALUES
  ('sleep_minutes','sleep_core_min',  'interval_union_minutes','sleep-union-v1','staged core sleep'),
  ('sleep_minutes','sleep_deep_min',  'interval_union_minutes','sleep-union-v1','staged deep sleep'),
  ('sleep_minutes','sleep_rem_min',   'interval_union_minutes','sleep-union-v1','staged REM sleep'),
  ('sleep_minutes','sleep_asleep_min','interval_union_minutes','sleep-union-v1',
   'the part of the night the Watch could not stage; never overlaps a staged segment, and '
   'omitting it would undercount exactly the nights staging failed')
+) AS v(metric, component, method, method_version, note)
+ WHERE EXISTS (SELECT 1 FROM __CORE__.metric_registry r WHERE r.metric_key = v.metric)
+   AND EXISTS (SELECT 1 FROM __CORE__.metric_registry r WHERE r.metric_key = v.component)
+   -- OQ-64. `config.*` is sometimes rebound alongside __CORE__ (the Ask fixture) and sometimes
+   -- shared with production while __CORE__ is not (the spine test), so the foreign key targets
+   -- a different registry in each. Asking "am I the real core" is too blunt — it makes the seed
+   -- a no-op in the fixture that legitimately rebinds both. The precise condition is whether
+   -- the CONSTRAINT THIS ROW WILL BE CHECKED AGAINST points at the registry being read.
+   AND (SELECT c.confrelid FROM pg_constraint c
+         WHERE c.conrelid = 'config.panel_composition'::regclass AND c.contype = 'f'
+           AND c.conkey = ARRAY[(SELECT a.attnum FROM pg_attribute a
+                                  WHERE a.attrelid = c.conrelid AND a.attname = 'metric')]
+         LIMIT 1) = to_regclass('__CORE__.metric_registry')::oid
 ON CONFLICT DO NOTHING;
 
 -- The device a row came from, from its own provenance. One place, so no two queries can
@@ -153,12 +177,22 @@ LANGUAGE sql STABLE AS $$
       ON d.subject_day = r.subject_day AND d.metric = r.metric AND d.device = r.device
     JOIN config.panel_aggregation g ON g.metric = r.metric
    WHERE r.value IS NOT NULL
-   -- Components ARE served. An earlier draft withheld them so the composed metric could not
-   -- be double-counted, and that cost a real capability: "how much deep sleep did I get"
-   -- resolved correctly and then had nothing to answer from. Nothing sums across metrics, so
-   -- the double-count was hypothetical while the loss was concrete. The guard that matters is
-   -- at NAMING — `_ask_resolve_metric` sends a question about the whole to the whole — not at
-   -- storage (RULE-12).
+   -- COMPONENTS are served: "how much deep sleep did I get" must have something to answer
+   -- from, and an earlier draft withholding them cost that for a double-count nothing performs.
+   --
+   -- The COMPOSED METRIC ITSELF is not, and that distinction was missing. `sleep_minutes` is
+   -- composed here AND written directly by tools/extract_checkins.py from Joe's self-reported
+   -- sleep, so both arms of f_daily_panel emitted it: two rows for one metric on one day.
+   -- Coverage then counts two, can exceed 1.0, and sails past the 0.60 INSUFFICIENT floor on
+   -- a doubled denominator — 12 real nights in 30 reads as 0.80 instead of 0.40. Worse, the
+   -- median mixes a self-report with a device interval union in one distribution, which is
+   -- INV-5: two lanes sharing a column.
+   --
+   -- Zero such atoms exist in production today. It would have fired the first time Joe logged
+   -- a sleep number in a check-in, and nothing would have looked wrong. See OQ-68 for the
+   -- underlying question — a metric with both a self-reported and a derived source needs two
+   -- names, not one.
+     AND NOT EXISTS (SELECT 1 FROM config.panel_composition c WHERE c.metric = r.metric)
    GROUP BY r.subject_day, r.metric, d.device, d.n_devices, g.method, g.method_version
 $$;
 
@@ -171,12 +205,37 @@ LANGUAGE sql STABLE AS $$
     SELECT c.metric AS composed, r.subject_day, r.device, r.valid_interval
       FROM config.panel_composition c
       JOIN analysis.f_atom_rows(p_as_of, p_known_at) r ON r.metric = c.component
-     WHERE r.valid_interval IS NOT NULL),
+     -- NOT NULL is not enough: a range with an unbounded end passes it, `upper()` is then
+     -- NULL, and the sum over the multirange is NULL — so the night's duration is NULL and the
+     -- row is still EMITTED, counted toward coverage and toward `n`. A night with no
+     -- computable duration reported as a night with data is worse than a missing night
+     -- (RULE-06). HealthKit can emit an open end when an export is truncated mid-session.
+     WHERE r.valid_interval IS NOT NULL
+       AND NOT upper_inf(r.valid_interval) AND NOT lower_inf(r.valid_interval)),
+  -- Device precedence, applied to the COMPOSITION as well as to its components. Without this
+  -- `range_agg` unioned a Watch segment and a phone segment into one night and then labelled
+  -- the total with `min(device)` — 150 minutes attributed to the Watch of which 90 came from
+  -- the phone. Two devices' segments generally do NOT overlap, so the union adds them: the
+  -- "0 overlapping pairs" check that justifies the union offers no protection here, and
+  -- `sleep_minutes` is the metric Joe's sleep question resolves to.
+  winner AS (
+    SELECT p.composed, p.subject_day,
+           -- A composed metric has no panel_aggregation row of its own (it has no atoms), so
+           -- the precedence is taken from its components' shared default rather than falling
+           -- back to alphabetical order, which would pick a device for a reason nobody chose.
+           (ARRAY_AGG(p.device ORDER BY coalesce(array_position(
+                coalesce(g.device_precedence, ARRAY['Watch','iPhone']), p.device), 999),
+                p.device))[1] AS device,
+           count(DISTINCT p.device)::int AS n_devices
+      FROM parts p
+      LEFT JOIN config.panel_aggregation g ON g.metric = p.composed
+     GROUP BY p.composed, p.subject_day),
   merged AS (
-    SELECT composed, subject_day, count(*)::int AS n_atoms,
-           count(DISTINCT device)::int AS n_devices,
-           min(device) AS device, range_agg(valid_interval) AS ranges
-      FROM parts GROUP BY composed, subject_day)
+    SELECT p.composed, p.subject_day, count(*)::int AS n_atoms,
+           w.n_devices, w.device, range_agg(p.valid_interval) AS ranges
+      FROM parts p JOIN winner w
+        ON w.composed = p.composed AND w.subject_day = p.subject_day AND w.device = p.device
+     GROUP BY p.composed, p.subject_day, w.device, w.n_devices)
   SELECT m.subject_day, m.composed,
          round((SELECT sum(extract(epoch FROM (upper(x) - lower(x))) / 60.0)
                   FROM unnest(m.ranges) x)::numeric, 1),

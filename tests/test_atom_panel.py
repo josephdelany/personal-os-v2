@@ -92,6 +92,19 @@ def atom(c, metric, day, value, *, device="Apple Watch", recorded=None,
     return aid
 
 
+def panel_rows(c, as_of=AS_OF, known_at=None):
+    """Every row, as a list. `panel()` collapses to a dict for convenience and a dict SILENTLY
+    DISCARDS A DUPLICATE KEY — which is why two `sleep_minutes` rows for one day could not
+    fail any test in this file. Assertions about duplication must use this."""
+    if known_at is None:
+        c.execute("SELECT day, metric, value FROM analysis_pytest.f_daily_panel(%s) ORDER BY 1,2",
+                  (as_of,))
+    else:
+        c.execute("SELECT day, metric, value FROM analysis_pytest.f_daily_panel(%s,%s) ORDER BY 1,2",
+                  (as_of, known_at))
+    return [(r[0], r[1], None if r[2] is None else float(r[2])) for r in c.fetchall()]
+
+
 def panel(c, as_of=AS_OF, known_at=None):
     """`as_of` is the subject-day cutoff; `known_at` is the knowledge-time cutoff. Two clocks,
     two parameters — the one-argument form means "everything known now"."""
@@ -410,3 +423,63 @@ def test_RULE_12_the_function_never_maps_a_hero_metric_onto_a_similar_name(domai
     hero, resolution, days, _ = _status(cur)["places"]
     assert resolution == "unregistered_and_unbuilt", resolution
     assert days == 0, "a similarly-named metric's rows must not be borrowed"
+
+
+# ---------------------------------------------------------------- review findings 1, 2, 9
+
+def test_RULE_12_a_composed_metric_is_served_by_exactly_one_lane(cur):
+    """Review finding 1. `sleep_minutes` is composed here AND written directly by
+    extract_checkins.py from Joe's self-reported sleep, so both arms of f_daily_panel emitted
+    it — two rows for one metric on one day. Coverage then counts two, can exceed 1.0, and
+    sails past the 0.60 INSUFFICIENT floor on a doubled denominator. The median also mixed a
+    self-report with a device interval union in one distribution, which is INV-5.
+
+    Asserted on the ROW LIST: a dict comprehension discards the duplicate key, which is exactly
+    why this defect could not fail a test in this file before."""
+    day = dt.date(2026, 9, 1)
+    atom(cur, "sleep_core_min", day, 90, interval=_seg(day, 1, 0, 2, 30))
+    atom(cur, "sleep_minutes", day, 420)          # a self-reported night, no interval
+    _apply_0056(cur)
+    rows = [r for r in panel_rows(cur) if r[1] == "sleep_minutes"]
+    assert len(rows) == 1, f"one metric, one lane, one row per day: {rows}"
+    assert rows[0][2] == 90.0, "the composed lane owns it; the self-report is not merged in"
+
+
+def test_RULE_06_an_unbounded_sleep_interval_does_not_become_a_night_with_no_duration(cur):
+    """Review finding 2. `valid_interval IS NOT NULL` passes a range with an open end; upper()
+    is then NULL and the whole night's sum is NULL — and the row was still EMITTED, counted
+    toward coverage and toward n. A night with no computable duration reported as a night WITH
+    data is worse than a missing night. HealthKit emits an open end when an export truncates
+    mid-session."""
+    day = dt.date(2026, 9, 1)
+    cur.execute(f"""INSERT INTO {S}.raw_captures (capture_id, source, captured_at, payload,
+                    trust_level) VALUES (gen_random_uuid(),'file_import', now(), '{{}}','trusted')
+                    RETURNING capture_id""")
+    cap = cur.fetchone()[0]
+    cur.execute(f"""INSERT INTO {S}.atoms (raw_capture_id, kind, metric_key, valid_interval,
+        subject_day, subject_day_rule_version, presence, value_low, value_point, value_high,
+        estimate_method, unit, state_class, value_type, trust_level, provenance, evidence_span,
+        code_version)
+        VALUES (%s,'sleep','sleep_core_min', tstzrange(%s, NULL, '[)'), %s,'v1','observed',
+                1,1,1,'measured','min','total','numeric','trusted','extracted',
+                'apple_health:X;source=Joseph''s Apple Watch','t')""",
+        (cap, dt.datetime.combine(day, dt.time(3), dt.timezone.utc), day))
+    _apply_0056(cur)
+    rows = [r for r in panel_rows(cur) if r[1] == "sleep_minutes"]
+    assert rows == [], f"an incomputable night must be absent, not present-and-NULL: {rows}"
+
+
+def test_RULE_12_the_composed_metric_obeys_device_precedence_too(cur):
+    """Review finding 9. Precedence was applied to the components and skipped for the
+    composition, so range_agg unioned a Watch segment and a phone segment into one night and
+    labelled the total with min(device) — 150 minutes credited to the Watch of which 90 came
+    from the phone. Two devices' segments generally do NOT overlap, so the union ADDS them:
+    the "0 overlapping pairs" check that justifies the union gives no protection here."""
+    day = dt.date(2026, 9, 1)
+    atom(cur, "sleep_core_min", day, 60, interval=_seg(day, 1, 0, 2, 0), device="Apple Watch")
+    atom(cur, "sleep_core_min", day, 90, interval=_seg(day, 4, 0, 5, 30),
+         device="iPhone (8473)")
+    _apply_0056(cur)
+    rows = [r for r in panel_rows(cur) if r[1] == "sleep_minutes"]
+    assert rows == [(day, "sleep_minutes", 60.0)], (
+        f"the Watch's night only, never the union of two devices: {rows}")

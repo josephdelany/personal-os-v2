@@ -37,8 +37,8 @@ import json
 import sys
 
 from lib import db
-from tools.engines.merchants import (Pattern, discover_location_tokens, normalize,
-                                     resolve)
+from tools.engines.merchants import (Pattern, discover_location_tokens,
+                                     location_token_evidence, normalize, resolve)
 
 # Step 4's evidence, in two forms. An earlier version required two DISTINCT RAW STRINGS on one
 # normalised form, reasoning that collapse is what proves the normalisation found a merchant.
@@ -138,9 +138,13 @@ def main() -> int:
             return 0
 
         cur.execute("DELETE FROM config.location_tokens")
+        # The measured count, not the constraint's floor: a token following forty merchants and
+        # one following exactly four are different evidence and were stored identically.
+        evidence = location_token_evidence([d for d, _ in descriptors])
         for token in sorted(location):
             cur.execute("""INSERT INTO config.location_tokens (token, distinct_prefixes)
-                           VALUES (%s, 4) ON CONFLICT (token) DO NOTHING""", (token,))
+                           VALUES (%s, %s) ON CONFLICT (token) DO NOTHING""",
+                        (token, evidence.get(token, 4)))
         cur.execute("DELETE FROM config.merchant_patterns WHERE provenance = 'discovered'")
         for p in patterns:
             cur.execute("""INSERT INTO config.merchant_patterns
@@ -157,11 +161,21 @@ def main() -> int:
                             (n.normalized or raw, raw, count,
                              json.dumps([[m, round(s, 4)] for m, s in r.considered])))
                 continue
+            # RULE-10. A re-run supersedes the CURRENT HEAD for this alias rather than adding
+            # a second current row. The trigger in 0057 now refuses both alternatives — a bare
+            # insert over an existing head, and a fork off an already-superseded row.
+            cur.execute(f"""SELECT alias_id FROM {a.core}.entity_aliases a
+                             WHERE a.alias = %s
+                               AND NOT EXISTS (SELECT 1 FROM {a.core}.entity_aliases b
+                                                WHERE b.supersedes = a.alias_id)""",
+                        (n.normalized,))
+            head = cur.fetchone()
             cur.execute(f"""INSERT INTO {a.core}.entity_aliases
-                (alias, raw_descriptor, canonical, resolved_by, confidence, normalization_rules)
-                VALUES (%s,%s,%s,%s,%s,%s)""",
+                (alias, raw_descriptor, canonical, resolved_by, confidence,
+                 normalization_rules, supersedes)
+                VALUES (%s,%s,%s,%s,%s,%s,%s)""",
                 (n.normalized, raw, r.canonical, r.merchant_source, r.confidence,
-                 list(n.rules_fired)))
+                 list(n.rules_fired), head[0] if head else None))
         conn.commit()
         print(f"\nCOMMITTED {len(patterns)} patterns, {len(location)} location tokens, "
               f"{len(resolutions) - len(review)} aliases, {len(review)} review rows")

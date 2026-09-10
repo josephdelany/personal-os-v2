@@ -324,8 +324,12 @@ def test_REQ_ASK_023_spend_with_no_transactions_refuses_and_says_what_would_fix_
     """An absent answer is the stored refusal form, and it names the real limitation.
 
     The draft returned a hardcoded NULL total with a note. It must also say WHY a charge might
-    be missing — merchant resolution is not built, so a charge under a different descriptor is
-    invisible to this match — rather than implying the record is simply empty.
+    be missing, rather than implying the record is simply empty.
+
+    The wording changed when merchant resolution landed (review finding 5): `would_raise_it`
+    said "merchant resolution is not built" on BOTH paths, including the one that had just
+    resolved a merchant and never looked at a descriptor. Each path now states what it actually
+    searched. The obligation — say why a charge could be missing — is unchanged.
     """
     cur = ask_cur
     r = ask(cur, "how much did i spend at mcdonalds this year")
@@ -333,7 +337,9 @@ def test_REQ_ASK_023_spend_with_no_transactions_refuses_and_says_what_would_fix_
     assert r["insufficiency_reason"] == "metric_absent"
     assert r["matched_on"] == "mcdonalds"
     assert r["match_method"] == "statement_descriptor_contains"
-    assert "merchant resolution is not built" in r["would_raise_it"].lower()
+    raise_it = r["would_raise_it"].lower()
+    assert "no merchant resolved for this subject" in raise_it, raise_it
+    assert "different descriptor would not be found" in raise_it
     assert r.get("total") is None and r.get("total_out") is None
 
 

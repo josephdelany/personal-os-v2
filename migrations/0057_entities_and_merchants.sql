@@ -44,6 +44,11 @@ REVOKE ALL ON config.merchant_patterns FROM anon, authenticated;
 -- no dependency for one field.
 CREATE TABLE IF NOT EXISTS config.location_tokens (
     token             TEXT PRIMARY KEY,
+    -- The number of DIFFERENT merchant prefixes this token followed. It is the evidence, so it
+    -- must be the measured count: the first writer stored the literal 4 for every token — the
+    -- constraint's own floor — so a token backed by forty prefixes and one backed by exactly
+    -- four were indistinguishable, and the column asserted evidence while holding a constant
+    -- (RULE-01).
     distinct_prefixes INTEGER NOT NULL,
     discovered_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
     CONSTRAINT a_location_token_needs_evidence CHECK (distinct_prefixes >= 4)
@@ -82,9 +87,16 @@ CREATE TABLE IF NOT EXISTS __CORE__.entity_aliases (
         CHECK (resolved_by <> 'provisional' OR confidence IS NULL),
     -- RULE-10: a human answer is certain by definition; anything else claiming 1.0 must have
     -- earned it from an exact rule, never from a fuzzy comparison.
+    --
+    -- The first version ended `OR resolved_by = 'fuzzy'`, which admitted precisely what the
+    -- sentence above forbids — ('fuzzy', 1.0) inserted cleanly — and with `provisional` already
+    -- forced to NULL by the constraint above it, NO pair could violate it at all. A constraint
+    -- that cannot fail is decoration, and this one's decoration read as a guarantee: downstream,
+    -- "fuzzy at 1.00" and "Joe said so" would have been indistinguishable, which is the exact
+    -- conflation this table exists to prevent.
     CONSTRAINT only_a_rule_or_a_human_is_certain
         CHECK (resolved_by IN ('human','pattern_exact','pattern_regex')
-               OR confidence IS NULL OR confidence < 1.0 OR resolved_by = 'fuzzy')
+               OR confidence IS NULL OR confidence < 1.0)
 );
 CREATE INDEX IF NOT EXISTS entity_aliases_alias_idx ON __CORE__.entity_aliases (alias, recorded_at DESC);
 REVOKE ALL ON __CORE__.entity_aliases FROM anon, authenticated;
@@ -106,7 +118,30 @@ CREATE OR REPLACE FUNCTION __CORE__.entity_alias_precedence() RETURNS trigger
 LANGUAGE plpgsql AS $$
 DECLARE prior text;
 BEGIN
+    -- A NEW resolution for an alias that already has one MUST supersede it. Without this the
+    -- guard below was unreachable: the resolver inserted every row with supersedes NULL, so
+    -- the trigger returned at the first line every time, and `v_current_aliases` — which means
+    -- "nothing supersedes me" — returned Joe's correction AND the machine's guess side by side.
+    -- A consumer reading `SELECT canonical ... WHERE alias = ?` got whichever the planner
+    -- returned first. The comment above this function described that exact failure as
+    -- prevented; it was not.
+    IF NEW.supersedes IS NULL
+       AND EXISTS (SELECT 1 FROM __CORE__.entity_aliases a
+                    WHERE a.alias = NEW.alias
+                      AND NOT EXISTS (SELECT 1 FROM __CORE__.entity_aliases b
+                                       WHERE b.supersedes = a.alias_id)) THEN
+        RAISE EXCEPTION
+            'RULE-10: alias % already has a current resolution; a new one must supersede it '
+            'rather than stand beside it', NEW.alias USING ERRCODE = '42501';
+    END IF;
     IF NEW.supersedes IS NULL THEN RETURN NEW; END IF;
+    -- Superseding a row that is ALREADY superseded forks the chain and leaves two heads, which
+    -- reintroduces the same ambiguity by another route.
+    IF EXISTS (SELECT 1 FROM __CORE__.entity_aliases b WHERE b.supersedes = NEW.supersedes) THEN
+        RAISE EXCEPTION
+            'RULE-10: alias_id % is already superseded; supersede the current head instead',
+            NEW.supersedes USING ERRCODE = '42501';
+    END IF;
     SELECT resolved_by INTO prior FROM __CORE__.entity_aliases WHERE alias_id = NEW.supersedes;
     IF prior = 'human' AND NEW.resolved_by <> 'human' THEN
         RAISE EXCEPTION 'RULE-10: an automated resolution may not supersede a human correction (alias %)',

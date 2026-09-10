@@ -187,6 +187,24 @@ def discover_location_tokens(descriptors, *, min_distinct_prefixes: int = 4) -> 
                      if len(seen) >= min_distinct_prefixes)
 
 
+def location_token_evidence(descriptors, *, min_distinct_prefixes: int = 4):
+    """The same discovery, keeping the COUNT rather than discarding it.
+
+    `discover_location_tokens` returns a set, and the caller then stored the constraint's floor
+    for every token — so a token backed by forty distinct prefixes and one backed by exactly
+    four were recorded identically. The column claims measured evidence; it must hold the
+    measurement (RULE-01).
+    """
+    from collections import defaultdict
+    prefixes = defaultdict(set)
+    for d in descriptors:
+        tokens = normalize(d).normalized.split()
+        if len(tokens) >= 2:
+            prefixes[tokens[-1]].add(" ".join(tokens[:-1]))
+    return {tok: len(seen) for tok, seen in prefixes.items()
+            if len(seen) >= min_distinct_prefixes}
+
+
 def resolve(normalized: str, patterns, known_merchants, *, human_alias=None,
             raw: str | None = None) -> Resolution:
     """The cascade. `human_alias` is Joe's recorded correction for this exact descriptor.
