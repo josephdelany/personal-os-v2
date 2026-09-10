@@ -1890,9 +1890,9 @@ rename also makes the frontend brief self-consistent, which it currently is not.
 in `tools/engines/compliance.py` will fail this envelope the moment it is wired to a surface,
 which is the intended behaviour and is why this must be settled before the frontend, not after.
 
-## OQ-77 — deployment authorization for the fourteen pending migrations
+## OQ-77 — deployment authorization for the fifteen pending migrations
 
-*The question:* may migrations **0055 through 0068** be applied to production, together with the
+*The question:* may migrations **0055 through 0069** be applied to production, together with the
 transaction backfill (1,053 legacy rows → atoms) and the merchant entity / `paid_to` link /
 category population?
 
@@ -1900,7 +1900,7 @@ category population?
 covered 0049–0054 and those are applied (2026-09-09). Everything since has been verified and
 rolled back, never committed. Nothing about this is waiting on code.
 
-*State of the evidence:* `tools/verify_pending_stack.py` applies all fourteen in **one
+*State of the evidence:* `tools/verify_pending_stack.py` applies all fifteen in **one
 transaction**, exercises the stack against the real database, and rolls back. On 2026-09-10 it
 reported **STACK VERIFIED — 20 of 20**, including 34 Watch non-wear episodes reconstructed from
 real atoms (all DESCRIPTIVE, no stored probability), found through `search_record`, every hit
@@ -1913,13 +1913,13 @@ a deployment**, which is exactly why this is still open.
 nothing can be reconstructed, found or inspected however well it is tested here. The 1,053 legacy
 transactions stay outside the spine.
 
-*What it costs to say yes:* fourteen migrations at once is a larger single step than any before
+*What it costs to say yes:* fifteen migrations at once is a larger single step than any before
 it. They are forward-only. The mitigations are that each is verified individually and in
 composition, and that the whole set has now been executed against production and undone.
 
-*Options:* (a) authorize all fourteen plus the backfill and population, in dependency order, with
+*Options:* (a) authorize all fifteen plus the backfill and population, in dependency order, with
 invariants checked after each — recommended, since they have been verified as a set and splitting
-them re-tests combinations nothing has exercised; (b) authorize only 0055 and 0064–0067, the
+them re-tests combinations nothing has exercised; (b) authorize only 0055 and 0064–0067 plus 0069, the
 reconstruction path, leaving finance and panel for a later step; (c) hold everything.
 
 *Recommendation:* (a).

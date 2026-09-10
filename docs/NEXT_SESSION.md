@@ -31,7 +31,7 @@ in which tests carry which IDs, not a regression.
 - A **caveat that belongs with the number**: a third run against the live database finished
   later with 38 errors (all `57014 canceling statement due to statement timeout`) and 1 failure.
   Merging it gives **666 / 685**. It started against a dirty tree and its errors are
-  environmental. **636 is the reproducible figure; 666 is the better-covered one.** Neither is
+  environmental. **635 is the reproducible figure at this revision; 666 is the better-covered one.** Neither is
   quoted without this sentence.
 - **Nobody has evidence the live-database suite passes.** CI's `pytest` job takes that path and
   whether it survives depends on pooler latency.
@@ -60,29 +60,37 @@ coverage percentage suggests.
 
 | check | result |
 |---|---|
-| reconstruction end to end | 16 tests, source evidence → registered method → stored event → Ask response → evidence inspection → human correction → historical replay |
+| reconstruction end to end | **18 tests**, source evidence → registered method → stored event → Ask response → evidence inspection → human correction → historical replay |
 | REQ-REC-016 acceptance | **7 of 7 cases executed and passed** via `python3 tools/reconstruction_acceptance.py` — a runnable command, not an assertion |
 | local SQL suite | **527 pass** (was 428 at session start) |
 | deterministic suite | **937 pass, 540 skip, 0 errors** (was 937 pass, 227 skip, **313 errors**) |
 | pending stack vs production | **20 of 20**, one transaction, rolled back — including 34 non-wear episodes reconstructed from real atoms, all DESCRIPTIVE, findable through `search_record`, every hit labelled inferred |
 | production DDL in the CI pytest job | **closed** — `tests/test_status_sql.py` ran `CREATE SCHEMA` against production behind a rollback; the workflow comment claimed that job skipped it and nothing made that true |
-| migration chain | clean from empty, 66 files / 563 statements |
+| migration chain | clean from empty, **68 files / 573 statements** |
 | layout | 43 / 43 |
-| engines with an entry point | **13 of 55** (8 scheduled, 5 cli) — measured by `evidence_report.py`, where an entry point is a script named in a workflow or `RUN_TONIGHT.sh`, not merely a module with `__main__` |
+| engines with an entry point | **18 of 55** (9 scheduled, 9 cli) — measured by `evidence_report.py`, where an entry point is a script named in a workflow or `RUN_TONIGHT.sh`, not merely a module with `__main__` |
 | CI dependency holes | closed — `dateparser`, `jax`/`jaxlib` 0.4.30, `numpyro` installed; `PERSONAL_OS_REQUIRE_DEPS=1` turns a missing-library skip into a failure |
 
-**42 of 55 engine modules have no entry point.** That is the honest headline for finding (c) —
-the brief said 30 of 33; measured across every engine, it is 42 of 55. It is the largest
-remaining gap between "tested" and "works". Some are contract modules that exist to be asserted
-against; others are real capabilities nothing calls. They have not been individually triaged.
+**37 of 55 engine modules still have no entry point.** That is the honest headline for finding
+(c) — the brief said 30 of 33; measured across every engine it was 42 of 55, and wiring the
+reconstruction runner into the nightly moved it to 37. It remains the largest gap between
+"tested" and "works". Some are contract modules that exist to be asserted against; others are
+real capabilities nothing calls. They have not been individually triaged.
 
 **This is a statement about tests, not about production.** Four statuses stay apart:
 implemented / tested / **deployed** / **observed**. Almost none of this is deployed.
 
 ## THE ONE THING BLOCKING DEPLOYMENT
 
-Migrations **0056–0067** plus the transaction backfill and the resolver/link/category
-population. All verified against production in rolled-back transactions. Nothing has reached
+Migrations **0055–0069** — fifteen of them — plus the transaction backfill and the
+resolver/link/category population. **See OQ-77.** The frontier was reconciled against production
+on 2026-09-10 by inspecting the objects each migration creates, since there is no ledger table:
+it was NOT where this checkpoint previously said. 0055 is unapplied too, so
+`public.get_reconstruction` does not exist in production and nothing can inspect a
+reconstruction's evidence there.
+
+`tools/verify_pending_stack.py` applies all fifteen in ONE transaction against the real
+database, exercises the stack and rolls back: **STACK VERIFIED — 20 of 20**. Nothing has reached
 production since the September import. **A rolled-back test is not a deployment.**
 
 Everything else outstanding is a ruling or a credential: OQ-32, OQ-60, OQ-74, OQ-76,
