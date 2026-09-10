@@ -156,8 +156,13 @@ def ent(sql_connection):
         c.execute("SELECT 1 FROM pg_roles WHERE rolname = %s", (role,))
         if c.fetchone() is None:
             c.execute(f"CREATE ROLE {role}")
-    for filename in ("0003_entities.sql", "0057_entities_and_merchants.sql"):
+    for filename, keep in (("0003_entities.sql", None),
+                           # 0014 also constrains atoms, which this fixture does not build.
+                           ("0014_ontology_checks.sql", "__CORE__.entities"),
+                           ("0057_entities_and_merchants.sql", None)):
         for statement in split_statements((ROOT / "migrations" / filename).read_text()):
+            if keep and keep not in statement:
+                continue
             c.execute(_re.sub(r"\bconfig\.", "config_pytest.", statement.replace("__CORE__", _S)))
     return c
 
@@ -172,13 +177,22 @@ def _alias(c, **kw):
     return c.fetchone()[0]
 
 
-def test_REQ_ONT_005_the_entity_type_taxonomy_is_the_closed_six(ent):
+def test_REQ_ONT_005_the_taxonomy_is_enforced_once_by_its_original_constraint(ent):
+    """0014_ontology_checks.sql has enforced this closed six since Phase 2. 0057 adds nothing:
+    an earlier draft duplicated it under a second name, which broke
+    test_REQ_ONT_002_entity_type_taxonomy_enforced — a test that asserts the constraint BY
+    NAME. Two constraints saying the same thing is not belt and braces; it is two places to
+    change and one of them will be forgotten."""
     ent.execute("SAVEPOINT s")
     with pytest.raises(Exception) as e:
         ent.execute(f"""INSERT INTO {_S}.entities (entity_type, canonical_name, provenance)
                         VALUES ('spaceship','X','human')""")
-    assert "entities_type_is_closed" in str(e.value)
+    assert "entities_type_taxonomy" in str(e.value), str(e.value)
     ent.execute("ROLLBACK TO SAVEPOINT s")
+    ent.execute("""SELECT count(*) FROM pg_constraint c
+                    WHERE c.conrelid = %s::regclass AND c.contype = 'c'
+                      AND pg_get_constraintdef(c.oid) LIKE '%%entity_type%%'""", (f"{_S}.entities",))
+    assert ent.fetchone()[0] == 1, "the taxonomy must be enforced in exactly one place"
     for good in ("merchant", "place", "food", "person", "media_channel", "website"):
         ent.execute(f"""INSERT INTO {_S}.entities (entity_type, canonical_name, provenance)
                         VALUES (%s,'X','human')""", (good,))

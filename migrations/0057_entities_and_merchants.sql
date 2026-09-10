@@ -10,16 +10,15 @@
 -- tools/engines/resolve_merchants.py into the tables below, exactly as the source inventory's
 -- counts are (ADR-0088). This file is shape and rules only.
 
--- REQ-ONT-005/006. The closed 6-member taxonomy, which OQ-16 recorded as lost and the
--- ontology spec in fact carries. Added NOT VALID: `core.entities` is append-only (INV-2), so
--- a pre-existing out-of-taxonomy row cannot be edited into compliance and must not block the
--- constraint that protects every future row. Run
---   ALTER TABLE core.entities VALIDATE CONSTRAINT entities_type_is_closed;
--- once the existing rows are known clean; it is a separate, reversible decision.
-ALTER TABLE __CORE__.entities DROP CONSTRAINT IF EXISTS entities_type_is_closed;
-ALTER TABLE __CORE__.entities ADD CONSTRAINT entities_type_is_closed
-    CHECK (entity_type IN ('merchant','place','food','person','media_channel','website'))
-    NOT VALID;
+-- REQ-ONT-005/006 NEEDS NOTHING HERE, and an earlier draft of this file added it anyway.
+--
+-- I read 0003_entities.sql — which has no CHECK and carries OQ-16's "taxonomy lost" comment —
+-- read OQ-16, and concluded the constraint was missing. It is not: 0014_ontology_checks.sql
+-- has enforced exactly this closed six since Phase 2 as `entities_type_taxonomy`. The
+-- duplicate I added under a different name was redundant, and it broke
+-- test_REQ_ONT_002_entity_type_taxonomy_enforced, which asserts the constraint BY NAME —
+-- the existing gate doing its job. The lesson is the standing one: a later migration can
+-- answer a question an earlier file's comment leaves open, so read the chain, not one file.
 
 -- REQ-FIN-070/071/074. The pattern table. A row here is an ASSERTION that a descriptor means
 -- a merchant, and REQ-FIN-073 forbids a provisional guess from ever landing in it.

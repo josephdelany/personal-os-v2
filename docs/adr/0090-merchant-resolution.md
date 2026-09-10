@@ -65,14 +65,26 @@ Thin input learns nothing rather than producing a confident-looking guess, and a
 that is *only* a city is never stripped to empty: that would turn an unresolvable descriptor
 into a merchant named "" (RULE-06).
 
-## REQ-ONT-005 answers OQ-16, at least for entities
+## A correction: the taxonomy was never missing, and I added a duplicate
 
-OQ-16 records the entity-type taxonomy as lost with the ontology spec. It is not lost:
-REQ-ONT-005 gives the closed six — `merchant`, `place`, `food`, `person`, `media_channel`,
-`website`. The constraint is added `NOT VALID` because `core.entities` is append-only, so a
-pre-existing out-of-taxonomy row cannot be edited into compliance and must not block the
-constraint protecting every future row. Validating it is a separate, reversible decision once
-the existing rows are known clean.
+An earlier draft of 0057 added a `CHECK` for REQ-ONT-005's closed six. It should not have. I
+read `0003_entities.sql` — which has no `CHECK` and carries OQ-16's "taxonomy lost" comment —
+read OQ-16, and concluded the constraint was absent. It is not:
+**`0014_ontology_checks.sql` has enforced exactly that closed six since Phase 2**, as
+`entities_type_taxonomy`.
+
+The duplicate was caught by `test_REQ_ONT_002_entity_type_taxonomy_enforced`, an existing test
+that asserts the constraint *by name*. That is the gate working, and it is the only reason
+this was found before the migration was applied.
+
+The lesson is the standing one and worth writing down because it will recur: **a later
+migration can answer a question an earlier file's comment leaves open.** OQ-16 was written in
+Phase 2 and 0014 closed part of it four migrations later without the open question being
+updated. Read the chain, not one file, and check `pg_constraint` before adding a constraint.
+
+Two constraints saying the same thing is not belt and braces — it is two places to change, and
+one of them gets forgotten. 0057 now adds nothing here, and a test asserts the taxonomy is
+enforced in exactly one place.
 
 ## Not done here
 
