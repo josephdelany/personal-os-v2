@@ -6812,3 +6812,32 @@ contaminates the rest of the transcript. Asserted on every request rather than s
 Requirements proven 385 -> 399 (58%). REQ-CAP unproven 48 -> 34.
 
 **Requirement IDs:** REQ-CAP-030..046, 100..107. **ADR:** 0117.
+
+## 2026-09-10 (latest+9) — B20 §A the language layer's contract
+
+**What now works:** `tools/engines/narration_contract.py`, enforcing RULE-09/RULE-11 in BOTH
+directions. Into the model: a structured result object and nothing else, refused before the call,
+because a model that receives raw rows will summarise them and its summary is a computation
+nobody registered. Out of it: every numeral must already exist in the result, every entity must
+already be named there, every causal link must already be an edge there.
+
+A refused sentence falls back to the deterministic TEMPLATE rather than to an error — the number
+behind it is perfectly good, and showing an error would hide a real answer because the prose
+around it was wrong.
+
+Judgements worth keeping: a literal numeral in template prose is refused at construction (it is
+the same defect as a model-supplied numeral, arriving through the author). Prose fields do not
+license their own numerals — a clause compared against itself is self-certifying, which is the
+defect 0059's SQL verifier had to fix. A numeral without its unit is a defect, not a shorthand:
+"your sleep was 7.4" is a sentence the reader completes, and half complete it wrongly. Entity
+checking asks "did the input mention it", not "is this real", because a model that adds a
+plausible entity is inventing a claim and plausibility is what makes it dangerous.
+
+One test exists to prove the contract is not a refusal machine: a clean sentence passes through
+unchanged with no violation rows. A guard that rejected everything would be trivially safe and
+useless, and the first thing anyone would do is turn it off.
+
+**Evidence:** 17 new tests. 450 local SQL tests pass; layout 43/43. Requirements proven
+399 -> 408 (60%). REQ-NAR unproven 21 -> 12.
+
+**Requirement IDs:** REQ-NAR-001..006, 010..015. **ADR:** 0118.
