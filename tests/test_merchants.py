@@ -359,3 +359,47 @@ def test_REQ_ONT_005_a_merchant_entity_is_extracted_from_a_rule_but_inferred_fro
     fuzzy = resolve("SWEETGREN", PATTERNS, KNOWN)
     assert exact.merchant_source.startswith("pattern")
     assert not fuzzy.merchant_source.startswith("pattern")
+
+
+# ---------------------------------------------------------------- B14.3: category rules
+
+def test_RULE_06_a_merchant_whose_charges_disagree_gets_no_category():
+    """A modal category from a 50/50 split is a coin flip presented as a fact. Two thirds of
+    that merchant's own categorised charges, or nothing."""
+    from tools.engines.categorise import assign
+    assert assign({"groceries": 8, "dining": 2})[0] == "groceries"
+    assert assign({"groceries": 5, "dining": 5}) is None
+    assert assign({"groceries": 6, "dining": 4}) is None, "60% is not a majority here"
+    assert assign({}) is None
+    assert assign({"__uncategorised__": 9}) is None
+
+
+def test_RULE_06_uncategorised_charges_neither_vote_nor_block():
+    """A merchant with one categorised charge and forty blanks is still categorised by the one
+    piece of evidence there is — the blanks are absence, not disagreement (RULE-07)."""
+    from tools.engines.categorise import assign
+    got = assign({"coffee": 1, "__uncategorised__": 40})
+    assert got is not None and got[0] == "coffee"
+
+
+def test_RULE_12_case_is_folded_but_vocabularies_are_never_merged():
+    """`groceries` and `Groceries` are one concept under two spellings, so folding case is
+    deterministic and safe. `Food & Drink` against `dining` is a COARSER GRAIN, not a synonym,
+    and merging them would change what a dining total means without anyone choosing that.
+    This function is deliberately incapable of the second."""
+    from tools.engines.categorise import fold, vocabularies
+    assert fold("Groceries") == fold("groceries") == "groceries"
+    assert fold("Food & Drink") != fold("dining")
+
+    snake, other = vocabularies(["groceries", "dining", "Food & Drink", "Groceries", "Travel"])
+    assert snake == ["dining", "groceries"]
+    assert other == ["Food & Drink", "Groceries", "Travel"], (
+        "a mixed vocabulary must be visible, not silently normalised away")
+
+
+def test_REQ_FIN_051_a_non_merchant_never_acquires_a_category():
+    """Enforced positively, not by the absence of an edge. REQ-FIN-051 excludes ATM amounts
+    from every category rollup, and the legacy data does carry an `atm_cash` category."""
+    from tools.engines.merchants import classify_non_merchant
+    assert classify_non_merchant("NON-CHASE ATM WITHDRAW MAIN") == "atm"
+    assert classify_non_merchant("Hannaford") is None

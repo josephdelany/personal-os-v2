@@ -1285,3 +1285,40 @@ did not populate, and would be a re-derivation for a 4% difference.
 
 *What remains for the ruling:* Watch-preferred vs iPhone-preferred vs interval-merge. The
 "never sum across devices" part is no longer a question; the data has answered it.
+
+**OQ-59 — Two category vocabularies are mixed in the transaction history, and merging them is
+a measurement decision.**
+
+`public.transactions.category` carries 18 distinct values across 1,002 charges in two clearly
+different naming conventions:
+
+- **snake_case (13):** `bank_fee`, `bar_alcohol_smoke`, `coffee`, `dining`, `entertainment`,
+  `gas_convenience`, `groceries`, `health_pharmacy`, `other`, `retail_shopping`,
+  `subscription`, `transfer_person`, `transport`
+- **Title Case (5):** `Fees & Adjustments`, `Food & Drink`, `Groceries`, `Personal`, `Travel`
+
+`tools/engines/categorise.py` folds CASE only — `groceries` (82 charges) and `Groceries` (9)
+are one concept under two spellings, and that is deterministic. It does **not** map across the
+vocabularies, and it is deliberately incapable of doing so.
+
+*Why it is open:* `Food & Drink` is not a synonym for `dining`. It is a coarser grain that
+appears to span `dining`, `coffee` and `bar_alcohol_smoke`. Folding it into any one of them
+changes what that category's total means, silently, in the direction of looking more complete.
+The same applies to `Fees & Adjustments` against `bank_fee`, and `Personal` against nothing
+obvious. This is a taxonomy decision about Joe's own spending and it is his.
+
+*What depends on it:* every category-level spend answer. With the vocabularies separate,
+"how much on dining" excludes the 31 `Food & Drink` charges and would understate; merged
+wrongly, it overstates. Neither is acceptable without a ruling.
+
+*Recommendation:* treat the Title Case set as the OLDER, coarser import and map it forward —
+`Food & Drink` → the finer categories cannot be recovered, so those 31 charges are better
+marked `uncategorised_coarse` than forced into `dining`. That preserves the honest gap.
+`Groceries` → `groceries` is already handled by case folding. `Fees & Adjustments` →
+`bank_fee` looks safe. `Travel` and `Personal` have no snake_case counterpart and can stand
+as their own categories.
+
+*What would settle it:* Joe confirming that mapping, or supplying his own. 88 of 93 merchants
+already carry a discovered category; only the cross-vocabulary question is open.
+
+*Related:* ADR-0093 (spend by merchant), ADR-0089 (two lanes never blended), OQ-51.
