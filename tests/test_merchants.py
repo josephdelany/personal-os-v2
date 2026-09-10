@@ -7,7 +7,7 @@ which is what RULE-01 permits — these are not rows in any table and describe n
 """
 import pytest
 
-from tools.engines.merchants import (FUZZY_FLOOR, Pattern, confirm,
+from tools.engines.merchants import (FUZZY_FLOOR, Pattern, classify_non_merchant, confirm,
                                      discover_location_tokens, normalize, resolve)
 
 PATTERNS = [
@@ -132,6 +132,63 @@ def test_RULE_06_a_descriptor_that_is_only_a_city_is_not_stripped_to_nothing():
     loc = frozenset({"HOUSTON"})
     assert normalize("HOUSTON TX", loc).normalized == "HOUSTON", \
         "stripping to empty would turn an unresolvable descriptor into a merchant called ''"
+
+
+def test_REQ_FIN_060_one_supermarket_under_many_descriptors_becomes_one_merchant():
+    """The real failure this fixes. Chase embeds the purchase DATE and a truncated "Purchase"
+    in the descriptor, and the store code is not always digits. One pass over the rules left
+    a single supermarket as THREE merchants — "Hannaford", "Hannaford Waterville Me 10 14"
+    and "Hannaford El" — because stripping the date exposes the state, stripping the state
+    exposes the city, and each needed the previous one to have run first."""
+    loc = frozenset({"WATERVILLE"})
+    forms = {normalize(d, loc).normalized for d in (
+        "HANNAFORD #8229 WATERVILLE ME /17",
+        "HANNAFORD #8229 WATERVILLE ME 10/14 Purc",
+        "HANNAFORD # EL WATERVILLE ME 01/23 Purch",
+        "HANNAFORD #8238 WATERVILLE ME 04/04 Purc")}
+    assert forms == {"HANNAFORD"}, forms
+
+
+def test_REQ_FIN_060_the_rules_are_applied_to_a_fixed_point_not_once():
+    """A single pass is order-dependent and silently wrong. This asserts the property, not a
+    particular string: normalising an already-normalised value must change nothing."""
+    once = normalize("HANNAFORD #8229 WATERVILLE ME 10/14 Purc", frozenset({"WATERVILLE"}))
+    twice = normalize(once.normalized, frozenset({"WATERVILLE"}))
+    assert twice.normalized == once.normalized
+
+
+def test_REQ_FIN_051_an_atm_withdrawal_is_not_a_merchant():
+    """Its destination is unknown by definition — the cash went somewhere the bank cannot see.
+    Naming it puts it in category rollups REQ-FIN-051 explicitly excludes it from, and
+    "Non Chase Atm Withdraw Main" is not a shop."""
+    assert classify_non_merchant("NON-CHASE ATM WITHDRAW MAIN ST") == "atm"
+    assert classify_non_merchant("Online Transfer from CHK transaction#:") == "transfer"
+    assert classify_non_merchant("NON-CHASE ATM FEE-WITH") in ("atm", "fee")
+    assert classify_non_merchant("HANNAFORD #8229") is None
+
+    r = resolve("NON CHASE ATM WITHDRAW MAIN", [], ["Hannaford"],
+                raw="NON-CHASE ATM WITHDRAW MAIN ST")
+    assert r.merchant_source == "not_a_merchant" and r.non_merchant_kind == "atm"
+    assert r.canonical is None, "a non-purchase must not acquire a merchant name"
+    assert r.needs_review is False, (
+        "its disposition is known; queueing it would bury the descriptors that need Joe")
+
+
+def test_REQ_FIN_051_the_classification_is_offered_the_raw_descriptor():
+    """The check runs on the ORIGINAL when one is supplied, so a future normalisation rule
+    cannot silently reclassify a transfer as a merchant by stripping the token that identifies
+    it. Today's rules happen to preserve that token — asserted below so the day they stop is
+    a visible change — but the resolver does not depend on their continuing to."""
+    raw = "Online Transfer from CHK transaction#: 12345"
+    assert classify_non_merchant(raw) == "transfer"
+    assert classify_non_merchant(normalize(raw).normalized) == "transfer", (
+        "today's rules preserve the marker; if this ever fails, normalisation changed and the "
+        "raw-descriptor path below is what keeps the classification correct")
+
+    # The property that matters: `raw` wins when given. A normalised form that looks like an
+    # ordinary merchant is still classified from the original.
+    assert resolve("SOME SHOP", [], ["Some Shop"], raw=raw).merchant_source == "not_a_merchant"
+    assert resolve("SOME SHOP", [], ["Some Shop"]).merchant_source != "not_a_merchant"
 
 
 # ---------------------------------------------------------------- schema (migration 0057)

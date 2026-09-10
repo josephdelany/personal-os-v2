@@ -26,6 +26,25 @@ from dataclasses import dataclass, field
 
 FUZZY_FLOOR = 0.80          # REQ-FIN-072/073, verbatim from the requirement.
 
+# REQ-FIN-051. Some descriptors are not merchants and must never be given a merchant name.
+# An ATM withdrawal's destination is unknown by definition — the cash went somewhere the bank
+# cannot see — and a transfer or a fee is a movement of Joe's own money, not a purchase.
+# Calling any of them a merchant would put them in category rollups the requirement explicitly
+# excludes them from, and "Non Chase Atm Withdraw Main" is not a shop.
+NON_MERCHANT = (
+    ("atm",      re.compile(r"\bATM\b|\bWITHDRAW", re.I)),
+    ("transfer", re.compile(r"\bONLINE TRANSFER\b|\bZELLE\b|\bWIRE\b|\bTRANSFER (TO|FROM)\b", re.I)),
+    ("fee",      re.compile(r"\bFEE\b|\bINTEREST CHARGE\b|\bSERVICE CHARGE\b", re.I)),
+)
+
+
+def classify_non_merchant(raw: str) -> str | None:
+    """REQ-FIN-051. The kind of non-purchase this descriptor is, or None."""
+    for kind, pattern in NON_MERCHANT:
+        if pattern.search(raw or ""):
+            return kind
+    return None
+
 # REQ-FIN-060. Ordered, and each carries an ID because REQ-FIN-062 requires the ordered list of
 # rules that FIRED to be stored — "we normalised it somehow" is not provenance.
 STRIP_RULES: tuple[tuple[str, str], ...] = (
@@ -34,10 +53,22 @@ STRIP_RULES: tuple[tuple[str, str], ...] = (
     ("facilitator_pypl",   r"^PYPL\s*\*\s*"),
     ("facilitator_sp",     r"^SP\s+"),
     ("facilitator_amzn",   r"^AMZN\s+MKTP\s*"),
+    # Card descriptors embed the purchase DATE — "HANNAFORD #8229 WATERVILLE ME 10/14 Purc".
+    # It must go before punctuation stripping, or "10/14" becomes "10 14" and sits between the
+    # merchant and the state, blocking both the state and the city rule. That single omission
+    # split one supermarket into three merchants.
+    ("embedded_date",      r"\b\d{1,2}/\d{1,2}(?:/\d{2,4})?\b"),
+    # ...and the truncated "Purchase" the same descriptors trail.
+    ("purchase_suffix",    r"\s+PURC\w*\s*$"),
     ("phone_number",       r"\b\d{3}[-. ]?\d{3}[-. ]?\d{4}\b"),
     ("card_suffix",        r"\bX{2,}\d{2,}\b"),
-    ("store_number",       r"\s#\s*\d+\b"),
+    # A store code is not always digits: "HANNAFORD # EL" and "HANNAFORD # KE" are the same
+    # chain under two store codes, and matching only digits left them as two merchants.
+    ("store_number",       r"\s#\s*[A-Z0-9]+\b"),
     ("digit_run",          r"\b\d{3,}\b"),
+    # A bare trailing number is a store or lane number too. Without this, "HANNAFORD
+    # WATERVILLE ME 11" and "HANNAFORD WATERVILLE ME 19" became two different merchants.
+    ("trailing_number",    r"\s+\d{1,2}\s*$"),
     ("trailing_state",     r"\s+[A-Z]{2}\s*$"),
     # NOTE: the trailing CITY is not here. It cannot be a fixed regex — "OAKLAND" and
     # "NEW YORK" are one and two tokens — and a gazetteer is a dependency this project will
@@ -66,8 +97,9 @@ class Pattern:
 @dataclass
 class Resolution:
     canonical: str | None
-    merchant_source: str                        # human | pattern_exact | pattern_regex | fuzzy | provisional
+    merchant_source: str    # human | pattern_exact | pattern_regex | fuzzy | provisional | not_a_merchant
     confidence: float | None
+    non_merchant_kind: str | None = None        # REQ-FIN-051: atm | transfer | fee
     needs_review: bool = False
     unconfirmed: bool = False
     considered: tuple[tuple[str, float], ...] = field(default_factory=tuple)
@@ -84,13 +116,23 @@ def normalize(descriptor: str, location_tokens: frozenset[str] = frozenset()) ->
     """
     raw = descriptor or ""
     text, fired = raw.upper(), []
-    for rule_id, pattern in STRIP_RULES:
-        replacement = " " if rule_id in ("punctuation", "whitespace") else ""
-        new = re.sub(pattern, replacement, text)
-        if new != text:
-            fired.append(rule_id)
-            text = new
-    text = text.strip()
+    # A FIXED POINT, not one pass. The rules interact: stripping a trailing store number can
+    # expose the state code that was hiding behind it, and stripping that can expose the city.
+    # One pass left "HANNAFORD WATERVILLE ME 11" and "HANNAFORD WATERVILLE ME 19" as two
+    # different merchants because `trailing_state` is anchored to the end and the digits were
+    # in the way. Iterating until nothing changes removes them in any order they appear.
+    for _ in range(8):
+        before = text
+        for rule_id, pattern in STRIP_RULES:
+            replacement = " " if rule_id in ("punctuation", "whitespace") else ""
+            new = re.sub(pattern, replacement, text)
+            if new != text:
+                if rule_id not in fired:
+                    fired.append(rule_id)
+                text = new
+        text = text.strip()
+        if text == before.strip():
+            break
     if location_tokens:
         tokens = text.split()
         # Never strip everything: a descriptor that is ONLY a city name is a gap, not a
@@ -128,7 +170,8 @@ def discover_location_tokens(descriptors, *, min_distinct_prefixes: int = 4) -> 
                      if len(seen) >= min_distinct_prefixes)
 
 
-def resolve(normalized: str, patterns, known_merchants, *, human_alias=None) -> Resolution:
+def resolve(normalized: str, patterns, known_merchants, *, human_alias=None,
+            raw: str | None = None) -> Resolution:
     """The cascade. `human_alias` is Joe's recorded correction for this exact descriptor.
 
     Every step returns immediately. There is no path that reaches a later step after an
@@ -139,6 +182,13 @@ def resolve(normalized: str, patterns, known_merchants, *, human_alias=None) -> 
     # outranks every rule permanently. Nothing below can revisit it.
     if human_alias:
         return Resolution(human_alias, "human", 1.0)
+
+    # REQ-FIN-051, checked on the RAW descriptor before normalisation strips the evidence.
+    # These need no review: their disposition is known and it is not "a merchant we could not
+    # identify". Sending them to the queue would bury the descriptors that genuinely need Joe.
+    kind = classify_non_merchant(raw if raw is not None else normalized)
+    if kind:
+        return Resolution(None, "not_a_merchant", None, non_merchant_kind=kind)
 
     key = (normalized or "").strip().upper()
     if not key:
