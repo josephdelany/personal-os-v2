@@ -1113,8 +1113,8 @@ and only Joe can look.
 
 *What depends on it:* 17 stale metrics, which is most of the physiological signal —
 every HRV, heart-rate and sleep question is answering from data that stops on 08-21.
-Also any trend spanning that date: September steps average ~2,200 against July's
-~3,800 purely because the Watch's contribution vanished, and a `trend` answer would
+Also any trend spanning that date: September steps average a much lower figure against July's
+a much higher one purely because the Watch's contribution vanished, and a `trend` answer would
 report that as a decline in activity.
 
 *What would settle it:* Joe checks the Watch — worn, paired, Health permissions on,
@@ -1380,22 +1380,25 @@ about naming; four are scope statements needing only a yes.
 
 Measured across all 1,052 legacy transactions:
 
-| kind | inbound n | inbound $ | outbound n | outbound $ |
-|---|---|---|---|---|
-| **internal transfer** | 81 | **30,532.28** | 11 | 2,290.00 |
-| merchant | 20 | 1,295.70 | 712 | **23,507.93** |
-| ATM | 1 | 3.00 | 118 | 3,522.16 |
-| person-to-person | 1 | 537.98 | 66 | 2,624.56 |
-| fee | 2 | 15.00 | 40 | 160.60 |
+| kind | share of inbound | share of outbound |
+|---|---|---|
+| **internal transfer** | **~94%** | small |
+| merchant | small | **~73%** |
+| ATM | negligible | ~11% |
+| person-to-person | negligible | ~8% |
+| fee | negligible | negligible |
 
-`Online Transfer from CHK` alone is 56 rows and $25,609. Of $32,383.96 total inbound, **only
-$1,851.68 is external money**.
+(Shares rather than amounts: this repository is public, and a table of Joe's yearly totals by
+category is exactly the personal data RULE-29 keeps out of it. The amounts are in the database.)
+
+`Online Transfer from CHK` alone is 56 rows and most of it. Of the inbound total total inbound, **only
+a small fraction is external money**.
 
 Two figures that would be arithmetically perfect and entirely false:
 
 - **Income.** Reading inbound as income overstates it by roughly **seventeen times**.
-- **Net spend.** $32,384 in against $32,105 out nets to **$279**, against true merchant
-  spending of **$23,508**.
+- **Net spend.** the inbound total in against the gross outflow out nets to **$279**, against true merchant
+  spending of **the merchant-spend figure**.
 
 `spend` is not affected: it reports `total_out` and `total_in` separately and has never netted
 them, which this data has now validated rather than assumed. `tools/engines/merchants.py` now
@@ -1414,7 +1417,7 @@ of magnitude in the direction that flatters.
 
 *Recommendation:* confirm that `Online Transfer to/from CHK|SAV` and `AUTOMATIC PAYMENT` are
 all movements between Joe's own accounts. If so, the current classification stands and
-external inbound is $1,851.68 over the whole record. If any is a third party, name it.
+external inbound is a small fraction over the whole record. If any is a third party, name it.
 
 *What would settle it:* one confirmation. Related: REQ-FIN-049/050, ADR-0096, OQ-59.
 

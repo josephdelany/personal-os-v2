@@ -410,9 +410,9 @@ def test_REQ_FIN_051_a_non_merchant_never_acquires_a_category():
 # ---------------------------------------------------------------- internal vs external money
 
 def test_REQ_FIN_049_moving_money_between_your_own_accounts_is_not_income():
-    """Measured on the real data: of $32,384 inbound, $30,532 — 94.3% — is an internal
+    """Measured on the real data: of the inbound total inbound, the great majority — 94.3% — is an internal
     transfer. Counting it as income overstates by seventeen times, and netting it against
-    outflow makes total spend look like $279 against a true $32,105. Both would be
+    outflow makes total spend look like $279 against a true the gross outflow. Both would be
     arithmetically perfect and entirely false."""
     from tools.engines.merchants import classify_non_merchant
     for descriptor in ("Online Transfer from CHK transaction#:",
@@ -432,7 +432,7 @@ def test_REQ_FIN_049_a_person_to_person_receipt_is_distinguished_from_an_interna
 def test_REQ_FIN_049_the_internal_rule_is_tested_before_the_generic_transfer_rule():
     """"Online Transfer from CHK" matches both patterns and only the first is true. Order in
     NON_MERCHANT is load-bearing, so a reordering must fail here rather than silently
-    reclassify $30,532."""
+    reclassify the great majority."""
     from tools.engines.merchants import NON_MERCHANT, classify_non_merchant
     kinds = [kind for kind, _ in NON_MERCHANT]
     assert kinds.index("internal_transfer") < kinds.index("transfer")

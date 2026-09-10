@@ -22,7 +22,7 @@ Demonstrated rather than argued. With 1,052 backfilled transaction atoms present
 "how much did i spend at hannaford last 500 days" returned:
 
 - `as_of = 2026-09-09` → **INSUFFICIENT**
-- `as_of = 2026-09-11` → **DESCRIPTIVE**, "1262.14 usd across 30 charges"
+- `as_of = 2026-09-11` → **DESCRIPTIVE**, "a four-figure total usd across dozens of charges"
 
 Nothing about the data changed between those two calls. Only the cutoff moved past the moment
 the rows were written.

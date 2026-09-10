@@ -52,8 +52,8 @@ number the system could not have produced then.
 ## Verified against real data
 
 Against production in a rolled-back transaction, with 1,052 backfilled atoms, 93 merchants and
-616 links: Hannaford 1262.14 across 30 charges via `resolved_merchant`; Wal Mart 1225.21 across
-13; Uber Eats 747.29 across 25. A subject with no entity — "costco" — correctly falls back and
+616 links: Hannaford a four-figure total across dozens of charges via `resolved_merchant`; Wal Mart a similar four-figure total across
+13; Uber Eats a three-figure total across 25. A subject with no entity — "costco" — correctly falls back and
 says so.
 
 ## Still open

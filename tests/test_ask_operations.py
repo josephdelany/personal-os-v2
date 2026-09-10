@@ -1845,7 +1845,7 @@ def test_REQ_ASK_030_a_fresh_import_is_visible_at_the_default_as_of(ask_cur):
     day, and an import is recorded TODAY. Cutting knowledge at as_of made every freshly
     imported transaction invisible to every default question — bitemporally defensible and
     practically useless. Demonstrated against 1,052 backfilled transactions before this was
-    written: the same question returned INSUFFICIENT at one as_of and 1262.14 usd at another,
+    written: the same question returned INSUFFICIENT at one as_of and a four-figure total usd at another,
     purely because the cutoff moved past the moment the rows were written."""
     cur = ask_cur
     _txn_atom(cur, AS_OF - dt.timedelta(days=3), -40.00,

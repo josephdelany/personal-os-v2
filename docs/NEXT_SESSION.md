@@ -22,10 +22,10 @@ production). Passing tests and deployed tables are neither of the last two.
 
 | # | What | Proven by |
 |---|---|---|
-| 0056 | the panel reads `core.atoms` | "Your Steps was typically 2206 count over the last 30 days (30 of 30 days)" |
+| 0056 | the panel reads `core.atoms` | "Your Steps was typically a four-figure daily step count over the last 30 days (30 of 30 days)" |
 | 0057 | entities, merchant patterns, aliases | 93 merchant entities from 440 descriptors |
-| 0058 | `ask` separates its two clocks | the same question INSUFFICIENT at one as_of, 1262.14 usd at another |
-| 0059 | `spend` answers about a merchant, and discloses its capture sources | Hannaford 1262.14 across 30 charges via `resolved_merchant` |
+| 0058 | `ask` separates its two clocks | the same question INSUFFICIENT at one as_of, a four-figure total usd at another |
+| 0059 | `spend` answers about a merchant, and discloses its capture sources | Hannaford a four-figure total across dozens of charges via `resolved_merchant` |
 | 0060 | domain readiness says WHY a domain is empty | 2 resolved / 4 renamed / 4 unbuilt / 3 uncaptured / 1 no hero |
 | 0061 | the strength measures and their specification | the catalogue and the engine cannot drift (tested) |
 | — | transaction backfill | 1,052 legacy rows → 1,052 atoms, none dropped, none merged |
@@ -111,8 +111,8 @@ domains today would say "no data" for recovery and vitals while 1,333 observatio
 - **The Watch stopped 2026-08-21**, in five stages. The phone never did.
 - **The bank CSV export stopped 2026-05-13.** `chase_email` carries a third of the transactions
   and a seventh of the value, with 38 empty days between them.
-- **94% of inbound money is internal transfer.** True merchant spending is $23,508, not the
-  $32,105 of gross outflow.
+- **94% of inbound money is internal transfer.** True merchant spending is the merchant-spend figure, not the
+  the gross outflow of gross outflow.
 - **Legacy `sleep_deep_min` is in HOURS** despite the `_min` suffix. Lanes are never blended.
 - **A nap and a night share a subject day.** One night's 352-minute gap pushed sleep regularity
   from 87 to 208 minutes until sessions were split on the importer's own gap constant.

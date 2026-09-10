@@ -64,8 +64,8 @@ metrics, distance, headphone exposure. **Every stale metric is Watch-sourced.** 
 diagnosis is therefore not "capture stopped" but "the Watch stopped syncing health
 data, in stages, ending 2026-08-21, while the phone kept working."
 
-This also invalidates a reading of the step counts. September averages ~2,200 steps
-against July's ~3,800. That is iPhone-only capture replacing iPhone-plus-Watch
+This also invalidates a reading of the step counts. September averages a much lower figure
+against July's a much higher one. That is iPhone-only capture replacing iPhone-plus-Watch
 capture, not a collapse in activity. Any trend answer spanning 2026-08-21 is
 confounded by the instrument, not by behaviour.
 

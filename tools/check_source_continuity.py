@@ -6,10 +6,10 @@ RULE-05, RULE-06, REQ-NFR-005..014 in spirit; ADR-0096.
 THIS PROJECT HAS NOW MADE THE SAME MISTAKE TWICE, IN TWO DOMAINS.
 
   * Steps. The Watch and the iPhone both recorded whole days until 2026-08-21, when the Watch
-    went silent. September averages ~2,200 steps against July's ~3,800. Nothing about Joe's
+    went silent. September averages a much lower figure against July's a much higher one. Nothing about Joe's
     walking changed; one of two instruments stopped.
-  * Money. `bank_csv` captured 35-46 charges a month, $2,400-3,400, through 2026-05-13 and then
-    stopped. `chase_email` took over on 2026-06-20 capturing 9-16 charges a month, $322-462 —
+  * Money. `bank_csv` captured 35-46 charges a month, a consistent monthly figure, through 2026-05-13 and then
+    stopped. `chase_email` took over on 2026-06-20 capturing 9-16 charges a month, a far smaller one —
     roughly a third of the transactions and a seventh of the spend. Between them lies a 37-day
     window with no transaction at all.
 

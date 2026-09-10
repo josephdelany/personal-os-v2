@@ -1,7 +1,7 @@
 """B20 — the tier vocabulary linter (REQ-NAR-020..023, REQ-TIER-020; RULE-19, RULE-23).
 
 A tier is a claim about how much is known. Vocabulary is how a tier leaks: "steps were
-typically 2,206" and "steps increase HRV" can sit on the same evidence, and only the second
+typically a four-figure daily step count" and "steps increase HRV" can sit on the same evidence, and only the second
 asserts something the evidence cannot carry. The tiers are enforced in the data all the way
 down and then one verb undoes it.
 

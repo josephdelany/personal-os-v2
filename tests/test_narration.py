@@ -1,7 +1,7 @@
 """B20 — the tier vocabulary linter (REQ-NAR-020..023, REQ-TIER-020; RULE-19, RULE-23).
 
 A tier is a claim about how much is known, and vocabulary is how a tier leaks. "steps were
-typically 2,206" and "steps increase HRV" can sit on the same evidence; only the second asserts
+typically a four-figure daily step count" and "steps increase HRV" can sit on the same evidence; only the second asserts
 something the evidence cannot carry.
 """
 import pytest
@@ -19,7 +19,7 @@ V = {
 
 
 def test_REQ_NAR_020_a_claim_using_only_its_own_tiers_words_passes():
-    assert lint("Your steps was typically 2206.", "DESCRIPTIVE", V) == ()
+    assert lint("Your steps was typically <redacted>.", "DESCRIPTIVE", V) == ()
 
 
 def test_REQ_NAR_021_a_term_from_a_higher_tier_is_a_violation():
@@ -44,7 +44,7 @@ def test_REQ_NAR_021_the_month_of_may_does_not_discard_a_correct_answer():
     """"may" is EXPLORATORY vocabulary and also a month. A case-insensitive match would discard
     a true DESCRIPTIVE answer and write a violation row about it — a linter that silences true
     statements is worse than none, because the failure is invisible and reads as reticence."""
-    assert lint("Your steps was typically 2206 over 1 May to 30 May.", "DESCRIPTIVE", V) == ()
+    assert lint("Your steps was typically <redacted> over 1 May to 30 May.", "DESCRIPTIVE", V) == ()
     (v,) = lint("Your steps may be higher.", "DESCRIPTIVE", V)
     assert v.term == "may", "the modal must still be caught in lower case"
 
@@ -92,7 +92,7 @@ def test_REQ_NAR_023_the_moralising_wordlist_is_the_one_the_requirement_names():
                  "splurge", "guilty"):
         assert term in MORALISING, term
     assert moralising("That was an excessive splurge.") == ("excessive", "splurge")
-    assert moralising("Your spend was 1262.14 usd.") == ()
+    assert moralising("Your spend was a four-figure total usd.") == ()
 
 
 def test_REQ_NAR_023_unnecessary_does_not_hide_inside_a_longer_word():
@@ -144,8 +144,8 @@ def test_REQ_NAR_025_a_plain_descriptive_sentence_is_not_flagged():
     """A detector that fires on ordinary copy is noise, and noise is ignored precisely when it
     matters."""
     from tools.engines.narration import forbidden_surface
-    for ok in ("Your Steps was typically 2206 count over the last 30 days.",
-               "Charges matching \"Hannaford\" total 1262.14 usd across 30 charges.",
+    for ok in ("Your Steps was typically a four-figure daily step count over the last 30 days.",
+               "Charges matching \"Hannaford\" total a four-figure total usd across dozens of charges.",
                "There is not enough data on HRV to make this claim."):
         assert forbidden_surface(ok) == (), ok
 
@@ -175,6 +175,6 @@ def test_REQ_TIER_001_candidate_and_exploratory_are_one_rung_under_two_names():
     from tools.engines.narration import rank
     assert rank("CANDIDATE") == rank("EXPLORATORY")
     assert lint("Sleep causes higher HRV.", "CANDIDATE", V)[0].term == "causes"
-    assert lint("Your steps was typically 2206.", "CANDIDATE", V) == ()
+    assert lint("Your steps was typically <redacted>.", "CANDIDATE", V) == ()
     with pytest.raises(ValueError, match="unknown tier"):
         rank("SOMEWHAT_SURE")

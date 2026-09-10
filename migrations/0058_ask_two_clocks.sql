@@ -9,7 +9,7 @@
 --
 -- Demonstrated, not theorised: with 1,052 backfilled transaction atoms in place,
 -- "how much did i spend at hannaford last 500 days" returned INSUFFICIENT at as_of 2026-09-09
--- and DESCRIPTIVE — "1262.14 usd across 30 charges" — at as_of 2026-09-11, purely because the
+-- and DESCRIPTIVE — "a four-figure total usd across dozens of charges" — at as_of 2026-09-11, purely because the
 -- cutoff moved past the moment the rows were written.
 --
 -- This is the same error ADR-0089 records in the panel, made twice by the same wrong idea. The

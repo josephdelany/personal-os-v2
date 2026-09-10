@@ -7,7 +7,7 @@ Requirements: REQ-NAR-020..023, REQ-TIER-020, RULE-19, RULE-23.
 ## What it enforces
 
 A tier is a claim about how much is known, and **vocabulary is how a tier leaks**. "Steps were
-typically 2,206" and "steps increase HRV" can rest on identical evidence; only the second
+typically a four-figure daily step count" and "steps increase HRV" can rest on identical evidence; only the second
 asserts something that evidence cannot carry. The tiers are enforced in the data all the way
 down, and then one verb undoes it.
 

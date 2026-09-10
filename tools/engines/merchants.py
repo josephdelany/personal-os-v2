@@ -36,9 +36,9 @@ FUZZY_FLOOR = 0.80          # REQ-FIN-072/073, verbatim from the requirement.
 NON_MERCHANT = (
     ("atm",      re.compile(r"\bATM\b|\bWITHDRAW", re.I)),
     # MONEY MOVING BETWEEN JOE'S OWN ACCOUNTS IS NOT INCOME AND NOT SPENDING. Measured on the
-    # real data: of $32,384 of inbound transactions, $30,532 — 94% — is this. Counting it as
+    # real data: of the inbound total of inbound transactions, the great majority — 94% — is this. Counting it as
     # income overstates by seventeen times, and netting it against outflow makes total spend
-    # look like $279 against a true $32,105. Both figures would be arithmetically perfect and
+    # look like $279 against a true the gross outflow. Both figures would be arithmetically perfect and
     # entirely false, which is why this needs its own kind rather than sharing `transfer`.
     ("internal_transfer",
      re.compile(r"\bONLINE TRANSFER (TO|FROM)\b|\bTRANSFER (TO|FROM) (CHK|SAV)\b"
