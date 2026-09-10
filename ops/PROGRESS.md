@@ -6616,3 +6616,39 @@ tests pass; layout 43/43; never-rule scan clean. Requirements proven 286 -> 297 
 atoms until the pending backfill is authorised.
 
 **Requirement IDs:** REQ-FIN-130..140. **ADR:** 0111.
+
+## 2026-09-10 (latest+3) — B17 §D.1/§D.2 the link object and its evidence tiers
+
+**What now works:** `tools/engines/cooccurrence.py`. A co-occurrence may only be computed for a
+hypothesis registered FIRST; an unregistered pairing ABORTS and is LOGGED. The logging is the
+point: a pairing silently not computed leaves no trace, so a job fishing across every lens looks
+identical to a job doing nothing.
+
+The tier ladder T0/T1/T2 with T3 welded shut — it exists so the ladder is honest about having a
+rung above T2, and it is unreachable because observational spend data cannot support a causal
+claim at any n (tested to n=10,000). A failing T2 is NOT demoted to T1: they answer different
+questions. T0 carries no interpretation at all, because an interpretation on top of n=1 is the
+whole of the harm the ladder prevents.
+
+Day-of-week is CONTROLLED, not reported: Friday is both the high-work day and the social day, and
+almost every apparent finding here is day-of-week wearing a costume.
+
+Joined on `occurred_at`, never `posted_at` — settlement is commonly the next day, so joining on
+it would attribute a Thursday night to Friday, silently moving every late-week evening into the
+weekend and manufacturing the weekend pattern the analysis was looking for.
+
+Cash is excluded from every denominator AND the exclusion is stated in the sentence, because an
+excluded denominator nobody is told about is a rate that cannot be checked. Occasions are the
+primary alcohol metric, not dollars: a $120 tab three people split is one occasion and $40 of
+Joe's money.
+
+Missingness is counted from transactions whether or not Joe answers a prompt — a count that
+existed only when he replied would make the days he ignored it look like days with no drinking.
+
+**Evidence:** 22 new tests. 450 local SQL tests pass; layout 43/43; never-rule scan clean.
+Requirements proven 297 -> 315 (46%).
+
+**Not claimed:** nothing is wired to real atoms, and the `cooccurrences` table is not yet a
+migration.
+
+**Requirement IDs:** REQ-FIN-160..166, REQ-FIN-170..180. **ADR:** 0112.
