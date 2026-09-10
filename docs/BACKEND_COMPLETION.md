@@ -11,6 +11,42 @@ plan's own claims. Status words are kept apart deliberately:
 Passing tests, deployed tables and correct refusals do not establish completion. A capability
 is complete only when it is *observed*.
 
+## Requirement coverage, measured 2026-09-10
+
+`tools/audit_requirements.py`. A requirement counts as PROVEN only when a test whose NAME
+carries its ID passes — the project's own rule, and deliberately the only thing accepted. Not a
+mention in an ADR, not an implementation that looks right, not a docstring citing the ID.
+
+```
+  prefix         declared  proven  claimed  unproven
+  REQ-ACT              12       2        7        10
+  REQ-ASK              25      21        0         4
+  REQ-CAP             101       7        2        94
+  REQ-FIN             173      19        2       154
+  REQ-INF             140       9        4       131
+  REQ-LOC              18      12        0         6
+  REQ-NAR              29       7        0        22
+  REQ-NFR              14      14        0         0
+  REQ-NUT              60      23        3        37
+  REQ-ONT              17       3        0        14
+  REQ-REC              16      13        0         3
+  REQ-SLP              15      11        0         4
+  REQ-TIER             43      18        2        25
+  REQ-WKT              22       9        1        13
+  TOTAL               685     168       21       517
+
+  168 of 685 requirements (25%) are proven by a test carrying their ID.
+```
+
+**168 of 685 (25%).** That number is low and it is the honest one. A ledger reporting 90%
+because it counted every ID appearing anywhere would convert an absence of evidence into a
+percentage, and nobody re-checks a percentage.
+
+Read by prefix it says where the work is: REQ-NFR is complete (14/14), REQ-ASK nearly so
+(21/25), and REQ-CAP (7/101), REQ-FIN (19/173) and REQ-INF (9/140) are barely begun. Those
+three are 414 of the 517 unproven requirements. M6's "no unexplained open requirement" is a
+long way off, and this is the list to explain.
+
 ## Milestone status
 
 | Milestone | Implemented | Tested | Deployed | Observed |
