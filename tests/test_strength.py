@@ -140,7 +140,7 @@ def test_RULE_09_no_strength_number_can_come_from_a_model_or_a_clock():
 
 # ---------------------------------------------------------------- the specification is data
 
-def test_RULE_13_the_migration_records_the_same_numbers_the_engine_uses():
+def test_REQ_WKT_008_012_the_migration_records_the_same_numbers_the_engine_uses():
     """REQ-WKT-008 puts the formula in the registry and REQ-WKT-012 the windows. If the
     catalogue and the code can disagree, the catalogue is decoration: a figure would cite
     parameters that did not produce it. This asserts they cannot drift apart silently."""

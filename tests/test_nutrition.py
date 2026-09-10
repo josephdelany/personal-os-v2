@@ -58,8 +58,12 @@ def cache_food(cur, name, source, nutrients, serving_g=None, brand=None):
 
 # ------------------------------------------------------------------ interval widths
 
-def test_REQ_NUT_035_to_040_the_width_comes_from_the_registered_method(sql_connection):
+def test_REQ_NUT_034_035_036_037_038_the_width_comes_from_the_registered_method(sql_connection):
     """RULE-08: the interval width is a function of how the value was obtained.
+
+    Named for exactly the five it asserts. It was `035_to_040`, which over-claimed — 039 and
+    040 are proven by their own tests and this one never touched them — and a range also hides
+    from the requirement audit, which counts an ID it can read in a name and nothing else.
 
     A single kcal number is a lie about precision — text-only LLM recall carries 652 kcal MAE.
     The widths live in a table because RULE-00 forbids quietly editing a threshold, and this

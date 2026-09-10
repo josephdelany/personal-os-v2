@@ -227,7 +227,7 @@ def test_REQ_CAP_035_a_successful_call_records_its_cost_and_links_its_egress_row
     sql_connection.rollback()
 
 
-def test_RULE_28_no_paid_usage_path_exists():
+def test_REQ_CAP_042_no_paid_usage_path_exists():
     """REQ-CAP-042: no payment method, no paid tier, no billable fallback.
 
     The enforcement mechanism for $0-recurring is the vendor's hard fail, so a code path that

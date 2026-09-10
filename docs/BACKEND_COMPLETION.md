@@ -19,33 +19,39 @@ mention in an ADR, not an implementation that looks right, not a docstring citin
 
 ```
   prefix         declared  proven  claimed  unproven
-  REQ-ACT              12       2        7        10
+  REQ-ACT              12       8        1         4
   REQ-ASK              25      21        0         4
-  REQ-CAP             101       7        2        94
+  REQ-CAP             101       8        1        93
   REQ-FIN             173      19        2       154
   REQ-INF             140       9        4       131
   REQ-LOC              18      12        0         6
   REQ-NAR              29       7        0        22
   REQ-NFR              14      14        0         0
-  REQ-NUT              60      23        3        37
+  REQ-NUT              60      26        0        34
   REQ-ONT              17       3        0        14
   REQ-REC              16      13        0         3
   REQ-SLP              15      11        0         4
   REQ-TIER             43      18        2        25
-  REQ-WKT              22       9        1        13
-  TOTAL               685     168       21       517
-
-  168 of 685 requirements (25%) are proven by a test carrying their ID.
+  REQ-WKT              22      10        0        12
+  TOTAL               685     179       10       506
 ```
 
-**168 of 685 (25%).** That number is low and it is the honest one. A ledger reporting 90%
+**179 of 685 (26%).** That number is low and it is the honest one. A ledger reporting 90%
 because it counted every ID appearing anywhere would convert an absence of evidence into a
 percentage, and nobody re-checks a percentage.
 
 Read by prefix it says where the work is: REQ-NFR is complete (14/14), REQ-ASK nearly so
-(21/25), and REQ-CAP (7/101), REQ-FIN (19/173) and REQ-INF (9/140) are barely begun. Those
-three are 414 of the 517 unproven requirements. M6's "no unexplained open requirement" is a
-long way off, and this is the list to explain.
+(21/25), and REQ-CAP, REQ-FIN and REQ-INF are barely begun — together they are roughly 400 of
+the ~506 unproven. M6's "no unexplained open requirement" is a long way off, and this is the
+list to explain.
+
+Eleven requirements were promoted from *mentioned* to *proven* by reading each requirement's
+text against the citing test's assertions and renaming only where they genuinely matched. Ten
+mentions remain and most should: REQ-TIER-023 asserts two of its three required elements,
+REQ-ACT-004's mention is a section header, REQ-FIN-050's is a docstring explaining why spend
+does **not** net. A mention is usually an honest reference, not hidden coverage — which is why
+promoting one requires reading both sides, and why the count moved by eleven and not by
+twenty-one.
 
 ## Milestone status
 
