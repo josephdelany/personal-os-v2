@@ -7050,3 +7050,35 @@ he can answer.
 509 -> 532 (78%). REQ-NUT unproven 30 -> 9.
 
 **Requirement IDs:** REQ-NUT-018..027, 041..053, 062..065. **ADR:** 0124.
+
+## 2026-09-10 (latest+16) — B18 §A/§B the workout contract; REQ-WKT complete
+
+**REQ-WKT is now 22 of 22** — the second prefix after REQ-NFR to reach zero unproven.
+
+Four decisions. The SET is the unit, because 5x5 at 225 and 1x25 at 135 are the same volume and
+completely different training, and once collapsed that cannot be recovered. One canonical entity
+per movement, because "bench"/"bench press"/"barbell bench"/"BB bench" left as free text are four
+series with a quarter of the data each — and nothing detects it, since four sparse trends look
+exactly like four exercises Joe does rarely. A rest day is `observed_absent`, not a gap: "I chose
+not to train" and "no data" are different facts, and an ACWR that reads them alike will call one
+of them detraining. And there is no streak — Joe's capture has stopped twice this year through no
+act of his, and a streak would have scored both as lapses.
+
+Point-in-time correctness needs BOTH clocks: a set about a day inside the window but recorded
+after it closed is knowledge the measure did not have, and letting it in means the number Joe saw
+last week is not the number he sees now.
+
+The render layer formats and nothing else. The test that pins REQ-WKT-015 uses the MIDPOINT of a
+stored interval — a number that looks entirely reasonable and exists nowhere in the database.
+
+**A word deliberately left permitted:** `broken` is attendance language and is banned; `broke` is
+not, because "you broke a personal record" is exactly what this surface exists to say. My first
+test asserted the opposite and was wrong; the code was right.
+
+**Evidence:** 19 new tests. 450 local SQL tests pass; layout 43/43; never-rule scan clean.
+Requirements proven 532 -> 544 (79%). REQ-WKT 12 unproven -> 0.
+
+**Not claimed:** no set has ever been logged; the Log Workout shortcut is still uninstalled, so
+every one of these measures is correct and idle.
+
+**Requirement IDs:** REQ-WKT-001..022. **ADR:** 0125.
