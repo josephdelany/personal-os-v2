@@ -1606,3 +1606,37 @@ holds — but a third consumer written against one name will meet rows carrying 
 the surface can be named anything. It is a data change to one table plus the alias's removal.
 
 *What would settle it:* Joe choosing a name. Related: REQ-TIER-001, REQ-NAR-013, RULE-17, OQ-62.
+
+**OQ-67 — Personal figures are already published in this repository's public git history.**
+
+`josephdelany/personal-os-v2` is public. Between 2026-09-09 and 2026-09-10 I committed Joe's
+real spend totals at named merchants, his daily step figures, his sleep minutes and a
+category-level breakdown of his year's money into migration comments, four ADRs and the
+checkpoint — violating CONSTITUTION.md's "not one row of personal data is ever committed or
+tracked."
+
+The working tree is redacted. **The history is not**, and history is what a public repository
+publishes. The values should be assumed already fetched and indexed.
+
+*Why it is open:* removing them requires rewriting published history (`git filter-repo` or an
+interactive rebase across ~30 commits) followed by a **force push to a shared remote** — a
+destructive operation that CLAUDE.md reserves for explicit authorization, and one that breaks
+every existing clone and any fork.
+
+*The options:*
+(a) Rewrite and force-push. Removes the values from the repository. Does not remove them from
+any clone, fork, or cache that already has them, and GitHub retains unreachable objects for a
+period.
+(b) Make the repository private. Stops further publication immediately, is not destructive, and
+is reversible. Does not remove what is already public.
+(c) Leave it. The figures are a few merchant totals and step counts — real personal data, and
+not credentials.
+
+*Recommendation:* (b) then (a), in that order. Making it private costs nothing and stops the
+bleeding; the rewrite can then happen without time pressure. Doing (a) first on a public repo
+races against whoever is watching it.
+
+*What would settle it:* Joe's decision. A force push will not happen without it.
+
+*Related:* RULE-29, CONSTITUTION.md "Cost and privacy", and the finding that produced this —
+migration 0057's header refuses to commit merchant patterns on the same ground.
