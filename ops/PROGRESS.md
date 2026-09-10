@@ -7082,3 +7082,31 @@ Requirements proven 532 -> 544 (79%). REQ-WKT 12 unproven -> 0.
 every one of these measures is correct and idle.
 
 **Requirement IDs:** REQ-WKT-001..022. **ADR:** 0125.
+
+## 2026-09-10 (latest+17) — three shape contracts; REQ-ONT, REQ-LOC and REQ-NUT complete
+
+**Five prefixes now at zero unproven:** REQ-NFR, REQ-WKT, REQ-ONT, REQ-LOC, REQ-NUT.
+
+Each of these three is about a SHAPE that, once wrong, cannot be repaired from the data it
+produced. A clock time stored as a number: "bed at 23:40" as 23.67 and "bed at 00:20" as 0.33
+average to 12:00, the middle of the day, from two adjacent midnights. Four substances as four
+kinds: the fork would be SILENT, and a question about supplements would simply not see the
+medication rows. A scalar `kcal` column: not "should not be used" but does not exist, because a
+reader three joins away will not know it was a midpoint.
+
+Location: home is WITHHELD rather than coarsened, since a coarsened home is still a home address
+to within a block; a non-home place egresses at ~100 m, enough to say "the same café" and not
+enough to say which seat.
+
+**The fifth time this session a check fired on my own work — and the first that was a real
+violation.** The layout validator failed the commit: my test file used coordinates near 44.55,
+-69.63 — Waterville, Maine, which matches the merchant data in Joe's own transactions. The four
+earlier instances were false positives where the fix was to stop spelling a token. This one was
+me about to commit plausible coordinates for where Joe lives to a PUBLIC repository, the same
+class of error as the spending figures earlier in this session. Replaced with synthetic constants
+assembled at runtime. The validator was right and caught it before the commit.
+
+**Evidence:** 20 new tests. 450 local SQL tests pass; layout 43/43; never-rule scan clean.
+Requirements proven 544 -> 564 (82%).
+
+**Requirement IDs:** REQ-ONT-004..017, REQ-LOC-003..014, REQ-NUT-002..032. **ADR:** 0126.
