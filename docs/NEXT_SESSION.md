@@ -193,6 +193,16 @@ same measures the atom lane holds as `hrv_sdnn_ms` and `resting_hr`. A weekly re
 domains today would say "no data" for recovery and vitals while 1,333 observations sit in
 `core.atoms`. Mapping them is a measurement definition and is Joe's (CLAUDE.md).
 
+## THE UNPROVEN 460, CLASSIFIED
+
+Measured 2026-09-10, not estimated: **445 of the 460 unproven requirements are code-only.** Only
+~15 need Joe or hardware. The checkpoint's "blocked" framing was too generous — as with the
+nutrition cascade (a constant nothing read) and REQ-CAP-093..099, much of what reads as blocked
+is simply unwritten. `python3 tools/audit_requirements.py --open REQ-FIN` lists them.
+
+Largest code-only blocks: REQ-FIN 153, REQ-INF 100, REQ-CAP 83, REQ-NUT 30, REQ-TIER 23,
+REQ-NAR 20.
+
 ## BLOCKED — needs Joe
 
 | # | Decision | Unblocks |
@@ -207,6 +217,8 @@ domains today would say "no data" for recovery and vitals while 1,333 observatio
 | — | **the bank CSV export died 2026-05-13** | 38 empty days, then a source carrying a seventh of the value. Capture cannot be recovered later |
 | — | the review sheet (40 ticks, 157 names) | 197 descriptors, ~19% of spend |
 | — | install the Log Workout shortcut | strength — the stated primary objective |
+| OQ-76 | `get_state.streaks` is live and the frontend brief forbids streaks on the same page | the frontend. Recommend renaming to `deviation_runs`; the data is fine, the word is the problem |
+| — | **USDA api.data.gov key** | the two USDA legs of the nutrition cascade (the cascade itself is built) |
 | — | **mark at least one metric `role='lever'`** | any micro-trial at all. The column defaults to `context` and nothing has been classified; defaulting it for Joe is what REQ-INF-565 forbids |
 | OQ-74 | REQ-INF-540 names `dynamax`, which needs `tfp-nightly` and cannot run here | nothing is blocked; the behaviour is built and tested. This is whether the REQUIREMENT or the implementation gets corrected |
 | OQ-75 | §G.2 Bayesian layer: CI-only, hand-rolled Gibbs, or defer? | the last unstarted piece of B19 |

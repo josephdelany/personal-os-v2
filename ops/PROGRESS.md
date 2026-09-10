@@ -6440,3 +6440,44 @@ tests still pass; layout 43/43. Requirements proven 223 -> 225.
 that egress target needs RULE-29 recording before first use.
 
 **Requirement IDs:** REQ-NUT-012..016, 024, 036. **ADR:** 0106.
+
+## 2026-09-10 (late night) — B16 §F.3 compliance without gamification
+
+**Attempted:** I said I would separate "blocked on Joe" from "merely unwritten" across the 460
+unproven requirements, and did. The result: **445 of 460 are code-only.** The "blocked" framing
+in the checkpoint was too generous — as with the nutrition cascade, much of what reads as blocked
+is simply unwritten. Picked REQ-CAP-093..099 as the first coherent cluster.
+
+**What now works:** `tools/engines/compliance.py`. Rolling 7-day coverage over a FIXED
+denominator (dividing by "days we heard from" would report 100% for a week with one entry). The
+adherence bar is two eating occasions, never all of them. Nothing is imputed. A day with no
+record is `no_record`, not zero. The decline alert needs three consecutive weeks each losing more
+than two points, and is addressed to `design_alerts` — a falling check-in rate is evidence that
+the ASKING is wrong, not that Joe is failing. `prompt_plan` has no code path that can return more
+prompts than it was given.
+
+`run_lengths` is deliberately ABSENT, and a test asserts the attribute does not exist. A
+percentage and a streak come from the same data and say opposite things after one missed day:
+100% -> 86%, versus 40 -> 0. The cliff is what makes a person stop.
+
+**Two things building the linter found:**
+
+1. My own note explaining that there is no streak counter used the word "streak" and tripped my
+   own linter. Rewritten to avoid the vocabulary entirely rather than exempted.
+2. `points` is both a game currency and a unit. "400 points" must be caught; "2 percentage
+   points" must not — and REQ-CAP-097 is written in exactly those words. Excluded by preceding
+   context, so the gamified use is still caught.
+
+Run over source code the vocabulary produced ~200 hits, essentially all false — `chain`, `rank`,
+`points`, `broke` are ordinary technical words. REQ-CAP-095 says SHALL NOT **display**, so the
+linter now runs over API ENVELOPES, checking keys as well as values.
+
+**A real finding (OQ-76):** `LOVABLE_FRONTEND.md` line 16 says "No streaks... ever" and line 31
+ships `"streaks":[{...,"historical_max_run":8}]`. Migration 0030's `get_state` is LIVE and
+returns it. The substance is fine; the vocabulary will produce "3 day streak — best ever 8" on a
+screen. Recommended rename, not removal.
+
+**Evidence:** 21 new tests; 450 local SQL tests pass; layout 43/43. Requirements proven
+225 -> 232 (34%).
+
+**Requirement IDs:** REQ-CAP-093..099. **ADR:** 0107. **OQ:** 76.

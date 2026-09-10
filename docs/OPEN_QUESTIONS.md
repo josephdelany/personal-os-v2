@@ -1838,3 +1838,43 @@ sampler is straightforward and exactly checkable — recovery of a known beta wi
 same test either way.
 
 *What depends on it:* B19 is otherwise complete. §G.2 is its last unstarted piece.
+
+**OQ-76 — `get_state` ships a `streaks` array, and the frontend brief forbids streaks on the same page.**
+
+REQ-CAP-095: "The system SHALL NOT display a streak count, a consecutive-day counter, a badge, a
+chain, or any message referring to a broken run."
+
+`docs/LOVABLE_FRONTEND.md` line 16 says *"No streaks, no badges, no rings, no confetti, no
+gamification of any kind, ever."* Line 31 of the same document ships:
+
+```
+"streaks":[{"metric":"rhr","run_days":3,"direction":"above","historical_max_run":8}]
+```
+
+Migration 0030 (`get_state`, **live in production**) is where that comes from.
+
+*The substance is defensible; the framing is not.* A run of consecutive days a metric sits
+outside its personal band is a real statistical observation, and it is not a compliance counter —
+nobody earns it and nothing is lost by breaking it. `narration.py` already records the distinction
+in a comment: a capture streak "makes a missing day a failure. Joe's capture has stopped twice
+this year through no act of his; a streak would have scored both as lapses."
+
+But the field is called `streaks`, carries `run_days` and `historical_max_run`, and a frontend
+reading that contract will render "3 day streak — best ever 8". At that point the distinction
+lives only in a migration comment, and REQ-CAP-095 is violated by a screen nobody intended.
+
+*Why it is open:* renaming a field in a live API is a contract change, and deciding whether
+metric-deviation runs count as "streaks" under REQ-CAP-095 is a product judgement about what Joe
+will read, not a technical one.
+
+*Options:* (a) rename to `deviation_runs` with `days_outside_band` / `longest_previous_run`, and
+keep the data — the observation is genuinely useful and only the vocabulary is dangerous;
+(b) scope REQ-CAP-095 explicitly to capture-adherence surfaces and leave the field, accepting
+that a renderer may still gamify it; (c) drop the field.
+
+*Recommendation:* (a). The information is worth having and the word is the entire problem. A
+rename also makes the frontend brief self-consistent, which it currently is not.
+
+*What depends on it:* the frontend, when it is built. Nothing backend is blocked. `lint_envelope`
+in `tools/engines/compliance.py` will fail this envelope the moment it is wired to a surface,
+which is the intended behaviour and is why this must be settled before the frontend, not after.
