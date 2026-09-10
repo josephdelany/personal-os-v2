@@ -378,6 +378,7 @@ def _txn_atom(cur, day, amount, descriptor, unit="usd", recorded_at=None):
     cur.execute("UPDATE ask_core_pytest.atoms SET recorded_at = %s WHERE id = %s",
                 (recorded_at or dt.datetime.combine(day, dt.time(12), tzinfo=dt.timezone.utc),
                  atom_id))
+    return atom_id
 
 
 def test_REQ_ASK_027_spend_separates_outflow_from_inflow_and_never_nets_them(ask_cur):
@@ -1891,11 +1892,15 @@ def _paid_to(cur, atom_id, entity_id, confidence=1.0, recorded_at=None):
 
 
 def _txn(cur, day, amount, descriptor):
-    cur.execute("SELECT count(*) FROM ask_core_pytest.atoms WHERE kind='transaction'")
-    _txn_atom(cur, day, amount, descriptor)
-    cur.execute("""SELECT id FROM ask_core_pytest.atoms WHERE kind='transaction'
-                    ORDER BY recorded_at DESC, id DESC LIMIT 1""")
-    return cur.fetchone()[0]
+    """The atom's own id, from the INSERT.
+
+    This previously re-queried for "the most recent transaction atom" and tie-broke on `id`.
+    Two atoms written for the same day share a `recorded_at`, and `id` is a random UUID, so the
+    helper returned whichever UUID sorted higher. It passed under America/New_York and failed
+    under UTC — not because of a timezone, but because the ordering was arbitrary and one run
+    got lucky. A test that passes for the wrong reason is worse than one that fails.
+    """
+    return _txn_atom(cur, day, amount, descriptor)
 
 
 def test_REQ_FIN_070_spend_counts_every_descriptor_the_merchant_settled_under(ask_cur):
