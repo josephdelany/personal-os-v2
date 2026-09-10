@@ -1,67 +1,95 @@
-# Checkpoint — 2026-09-09
+# Checkpoint — 2026-09-09 (late)
 
-Reconciled against Git at `1304b90` + this commit. Revision under test: HEAD.
+Authoritative status. Reconciled against Git at `c3f3814`. Four statuses kept apart:
+**implemented** (code exists) / **tested** (a named test with the requirement ID passes) /
+**deployed** (applied to production) / **observed** (verified working against real data in
+production). Passing tests and deployed tables are neither of the last two.
 
-## LIVE (deployed and observed in production)
+## OBSERVED IN PRODUCTION
 
-- Migration **0051** applied. `core.raw_captures` carries a `file_import` source; the
-  registry holds 43 metrics, 37 monitored.
-- **33,355 atoms imported** from `export.zip` (2026-07-01 .. 2026-09-09), 25 metric keys,
-  one capture row. `check_invariants.py --core core`: ALL PASS, orphan atoms 0. Idempotence
-  proven against production — a re-run preloaded 33,355 dedupe keys and skipped every one.
-- `check_freshness.py` against real data: **9 fresh, 17 stale, 11 never seen, 6 unmonitored**.
+- **Apple Health import** — 33,355 atoms, 25 metric keys, 2026-07-01..09-09, one capture row.
+  `check_invariants --core core`: ALL PASS. Idempotence proven (a re-run preloaded 33,355
+  dedupe keys and skipped every one).
+- **Freshness detection** — 9 fresh / 17 stale / 11 never seen / 6 unmonitored. The capture
+  loss is dated: the Watch stopped in five stages ending 2026-08-21; the iPhone never did.
+- **Ask, refusing correctly** — "I do not track that" for an unknown metric, "I cannot compute
+  that." for an uncomputable question shape.
+- **Open Food Facts nutrition** — a real lookup through `lib/egress`: Nutella, 539 kcal/100g,
+  logged to `ops.egress_log` (290 B out, 2,530 B in). The allowlist admits the host; REQ-NUT-010's
+  User-Agent contract is enforced; the call was rolled back.
 
-## INTEGRATION BOUNDARY — run at HEAD
+## AWAITING ONE AUTHORIZATION (all verified against production in rolled-back transactions)
 
-- Full production pytest suite: **219 passed, 218 skipped, exit 0** (26 min). The skips are
-  the disposable-server SQL tests, which skip against production by design (ADR-0082).
-- Disposable-server SQL suite: **299 passed** under `America/New_York` and `UTC`.
-- `tests/test_reconstruct.py`: 12 passed. `validate_layout.py`: 42/42.
-- `check_invariants.py --core core`: ALL PASS.
+| # | What | Proven by |
+|---|---|---|
+| 0056 | the panel reads `core.atoms` | "Your Steps was typically 2206 count over the last 30 days (30 of 30 days)" |
+| 0057 | entities, merchant patterns, aliases | 93 merchant entities from 440 descriptors |
+| 0058 | `ask` separates its two clocks | the same question INSUFFICIENT at one as_of, 1262.14 usd at another |
+| 0059 | `spend` answers about a merchant | Hannaford 1262.14 across 30 charges via `resolved_merchant` |
+| — | transaction backfill | 1,052 legacy rows → 1,052 atoms, none dropped, none merged |
+| — | resolver / link / category population | 616 `paid_to` links, 88 category rules |
 
-## IMPLEMENTED AND LOCALLY TESTED (not deployed)
+The migration chain applies clean from empty at **58 files, 515 statements**.
 
-- **0049 Ask core** — all round-4 findings closed. REQ-ASK-031 refuses an uncomputable
-  question shape instead of substituting a nearby one.
-- **0050** nutrition, **0052** neuron ledger, **0053** source inventory + derivation
-  catalogue, **0054** inferred events, **0055** `get_reconstruction` — written, locally
-  verified, **not applied**. Six migrations are now queued behind one authorization.
-- `tools/engines/reconstruct.py` — the deterministic evaluator. Three refusals enforced by
-  signature: no probability parameter, no path from missing evidence to `did_not_occur`, and
-  evidence after the cutoff is dropped.
-- `tools/build_inventory.py` (113 rows) and `tools/build_catalogue.py` (25 measures) run
-  clean against production read-only; neither has been committed to a table.
+## IMPLEMENTED AND TESTED, NOT DEPLOYED
+
+- **B14 complete** — normalisation, the five-step cascade, entities, `paid_to` links, category
+  rules. 59% of real spend resolves; 23% is ATM/transfer/fee and correctly not a merchant.
+- **B14R steps 1-5** — source inventory, derivation catalogue, inferred-event schema, the
+  deterministic evaluator, the lineage interface. The method registry is EMPTY, so the engine
+  can conclude nothing; that is by design and it is not coverage.
+- **B13 set extractor** — `tools/extract_workouts.py`. Runs clean and writes nothing, because
+  no set has ever been logged.
+- **The merchant review sheet** — `~/merchant_review.tsv`, outside the repo.
+
+## WORKER OWNERSHIP AND INTEGRATION
+
+Both worker branches are **integrated** at `bc61844`; neither touched a shared file.
+
+| Worker | Branch | Owns | Delivered | Integrated |
+|---|---|---|---|---|
+| nutrition | `work/nutrition-parser` | `tools/engines/nutrition_off.py` + its tests | OFF parser, four failure types | `94c098c` |
+| capture | `work/capture-scheduling` | `ops/capture_schedule.py`, new workflows + tests | launchd import schedule | `e8c149f` |
+
+Integration notes: the capture worker's ADR-0091 was **renumbered 0094** (0091 was taken by the
+two-clocks decision while it was in flight — parallel worktrees cannot reserve a number).
+B12 is explicitly **not** complete: the USDA legs and the five-step cascade are unwritten.
+The capture schedule is built but **not installed**, so it is not yet running.
+
+I remain sole integration owner: entity resolution, reconstruction, migrations, shared
+database/API contracts, `tools/import_drop.py`, shared fixtures, requirements, this checkpoint,
+and deployment.
 
 ## ACTIVE UNIT
 
-**B14R step 5b** — wire a `reconstruct` operation into `public.ask`. Held deliberately: the
-operation row and the `ask()` branch must land together, because a row in
-`config.operations` with no implementation is a registered operation that cannot run, which
-is worse than an absent one (RULE-11). `ask()` lives in 0049 and is ~1400 lines through four
-review rounds; amending it belongs in the same change as applying it.
-
-*Proves it complete:* "what happened on <day>" returns a stored reconstruction with its
-evidence, both independence counts, its alternatives and its revision history, and refuses
-with REQ-ASK-031 when no registered method covers the question.
+**B15 period/compare — blocked on OQ-60's shape, not on its schedule.** Eight of fourteen
+domain hero metrics do not resolve against the registry, and two (`hrv_sdnn`, `rhr`) are the
+same measures the atom lane holds as `hrv_sdnn_ms` and `resting_hr`. A weekly report iterating
+domains today would say "no data" for recovery and vitals while 1,333 observations sit in
+`core.atoms`. Mapping them is a measurement definition and is Joe's (CLAUDE.md).
 
 ## BLOCKED — needs Joe
 
-| # | Question | What it holds up |
+| # | Decision | Unblocks |
 |---|---|---|
-| OQ-54 | Device precedence: Watch or iPhone, when both observed a metric? | Every summed daily total for `steps`, distance, flights, active energy, exercise minutes |
-| OQ-55 | Why did the Watch stop syncing (worn / paired / permissions / storage)? | 17 stale metrics — most of the physiological signal |
-| OQ-56 | 228 unexplained missing records; and 20 Apple Health types (11,106 records in window) have no scope ruling | Inventory accuracy for M1/M4 closure |
-| — | Apply migrations 0049, 0050, 0052, 0053 | M2/M3 deployment |
-| OQ-48 | Which sleep metric means "how long did I sleep" | Any sleep answer |
+| — | **Apply the six above** | every capability built since the import |
+| OQ-60 | eight hero metrics: two renames to confirm, one to reject, five scope statements | B15 and every per-domain surface |
+| OQ-55 | the Watch — worn / paired / permissions / storage | 17 stale metrics |
+| OQ-57 | the 20 unruled Health types | what the next import takes |
+| OQ-59 | two category vocabularies (`Food & Drink` vs `dining`) | category-level spend |
+| — | the review sheet (40 ticks, 157 names) | 197 descriptors, ~19% of spend |
+| — | install the Log Workout shortcut | strength — the stated primary objective |
 
-## NEXT ACTION
+## VERIFICATION AT THIS REVISION
 
-Write the B14R step-3 ADR, then migration 0054 for `core.inferred_events`. Independent of
-every hold above.
+361 local SQL tests under `America/New_York` and `UTC`; 104 pure-Python tests;
+`validate_layout` 42/42; migration chain clean at 58; last full production suite
+220 passed / 248 skipped / 1 failed, that failure fixed in `c38a6da`.
 
-## Do not repeat
+## DO NOT REPEAT
 
-- The panel does not read the imported atoms. Wiring it is gated on OQ-54.
-- `sleep_asleep_min`, `sleep_core/deep/rem/awake_min`, `sleep_inbed_min` and `sleep_minutes`
-  are five different concepts. They are not summed or mapped onto each other.
-- "Capture stopped" is wrong. The Watch stopped; the phone did not.
+- "Capture stopped" is wrong. The **Watch** stopped; the phone did not.
+- The five sleep concepts are not interchangeable and are never summed blind.
+- Legacy `sleep_deep_min` is in HOURS despite the `_min` suffix. Lanes are never blended.
+- Both devices count the whole day: summing steps across them doubles them (measured, 1.98x).
+- A question's date is not its knowledge horizon. Two clocks, two parameters.
