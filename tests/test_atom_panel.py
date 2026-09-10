@@ -305,3 +305,108 @@ def test_RULE_06_partial_coverage_is_disclosed_and_never_imputed(cur):
     first_day, days, excluded = cur.fetchone()
     assert first_day == day and days == 1
     assert excluded is True, "the excluded legacy history must be visible, not hidden"
+
+
+# ---------------------------------------------------------------- domain readiness (0060)
+
+def _apply_0060(c):
+    for statement in split_statements((ROOT / "migrations" / "0060_domain_status.sql").read_text()):
+        c.execute(rebind(statement))
+
+
+def _domain(c, key, hero, display=None):
+    c.execute("""INSERT INTO config_pytest.domains
+        (domain_key, pillar, display_name, hero_metric, sort_order, enabled, capture_action)
+        VALUES (%s,'body',%s,%s,1,true,'do the thing')
+        ON CONFLICT (domain_key) DO UPDATE SET hero_metric = EXCLUDED.hero_metric""",
+        (key, display or key, hero))
+
+
+def _status(c, as_of=AS_OF):
+    c.execute("SELECT domain_key, hero_metric, resolution, days_with_data, band_position "
+              "FROM analysis_pytest.f_domain_status(%s)", (as_of,))
+    return {r[0]: (r[1], r[2], r[3], r[4]) for r in c.fetchall()}
+
+
+@pytest.fixture
+def domains(cur):
+    # config.domains comes from 0034, already applied by the base fixture. Its seeded rows
+    # would drown these cases, so the table is emptied rather than recreated.
+    cur.execute("DELETE FROM config_pytest.domain_metrics")
+    cur.execute("DELETE FROM config_pytest.domains")
+    cur.execute("""CREATE TABLE IF NOT EXISTS analysis_pytest.baselines (
+        day DATE, metric TEXT, value NUMERIC, band_lo NUMERIC, band_hi NUMERIC)""")
+    return cur
+
+
+def test_RULE_18_a_rename_is_not_reported_as_an_absence_of_data(domains):
+    """The OQ-60 case, and the reason this function exists. `hrv_sdnn` has rows; the registry
+    knows `hrv_sdnn_ms`. "No data" and "no data UNDER THIS NAME" are different statements and
+    only one is true — printing the first would say Joe has no recovery data while 1,333
+    observations sit in core.atoms under the other spelling."""
+    cur = domains
+    _domain(cur, "recovery", "hrv_sdnn")
+    cur.execute("INSERT INTO analysis_pytest.panel (day, metric, value, src) "
+                "VALUES (%s,'hrv_sdnn',42,'legacy')", (AS_OF - dt.timedelta(days=1),))
+    _apply_0056(cur); _apply_0060(cur)
+    hero, resolution, days, _ = _status(cur)["recovery"]
+    assert resolution == "unregistered_but_has_data", resolution
+    assert days == 1, "the rows must still be counted; they exist"
+
+
+def test_RULE_06_an_unbuilt_measure_is_distinguished_from_a_renamed_one(domains):
+    """`meals_logged` has no rows anywhere and no registry entry: unbuilt scope, not a rename.
+    Collapsing the two would send someone hunting for data that was never captured."""
+    cur = domains
+    _domain(cur, "food", "meals_logged")
+    _apply_0056(cur); _apply_0060(cur)
+    assert _status(cur)["food"][1] == "unregistered_and_unbuilt"
+
+
+def test_RULE_07_a_registered_metric_with_no_observation_is_its_own_state(domains):
+    """Registered and never captured is neither a rename nor unbuilt scope: the definition
+    exists and the capture does not, which points at a different fix."""
+    cur = domains
+    _domain(cur, "body", "weight_lb")
+    cur.execute("""INSERT INTO pan_core_pytest.metric_registry
+        (metric_key, display_name, family, unit, state_class)
+        VALUES ('weight_lb','Weight','body','lb','measurement')
+        ON CONFLICT (metric_key) DO NOTHING""")
+    _apply_0056(cur); _apply_0060(cur)
+    assert _status(cur)["body"][1] == "registered_no_observations"
+
+
+def test_RULE_07_a_domain_with_no_hero_metric_says_so_rather_than_looking_empty(domains):
+    cur = domains
+    _domain(cur, "calendar", None)
+    _apply_0056(cur); _apply_0060(cur)
+    assert _status(cur)["calendar"][1] == "no_hero_metric"
+
+
+def test_RULE_07_no_band_is_not_reported_as_inside_one(domains):
+    """A missing band is unknown position, not `in_band`. Defaulting to inside would make an
+    unmonitored metric look reassuring."""
+    cur = domains
+    _domain(cur, "activity", "steps")
+    cur.execute("INSERT INTO analysis_pytest.panel (day, metric, value, src) "
+                "VALUES (%s,'steps',5000,'legacy')", (AS_OF - dt.timedelta(days=1),))
+    _apply_0056(cur); _apply_0060(cur)
+    assert _status(cur)["activity"][3] is None, "a missing band must not read as in_band"
+
+
+def test_RULE_12_the_function_never_maps_a_hero_metric_onto_a_similar_name(domains):
+    """A string-similarity search proposes `sleep_awake_min` for `away_min` — time AWAKE IN BED
+    offered as time AWAY FROM HOME. The tooling cannot tell a rename from a coincidence, so
+    this function resolves by EXACT name only."""
+    cur = domains
+    _domain(cur, "places", "away_min")
+    cur.execute("""INSERT INTO pan_core_pytest.metric_registry
+        (metric_key, display_name, family, unit, state_class)
+        VALUES ('sleep_awake_min','Awake','sleep','min','total')
+        ON CONFLICT (metric_key) DO NOTHING""")
+    cur.execute("INSERT INTO analysis_pytest.panel (day, metric, value, src) "
+                "VALUES (%s,'sleep_awake_min',45,'legacy')", (AS_OF - dt.timedelta(days=1),))
+    _apply_0056(cur); _apply_0060(cur)
+    hero, resolution, days, _ = _status(cur)["places"]
+    assert resolution == "unregistered_and_unbuilt", resolution
+    assert days == 0, "a similarly-named metric's rows must not be borrowed"
