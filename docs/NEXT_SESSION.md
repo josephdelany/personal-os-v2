@@ -18,6 +18,31 @@ production). Passing tests and deployed tables are neither of the last two.
   logged to `ops.egress_log` (290 B out, 2,530 B in). The allowlist admits the host; REQ-NUT-010's
   User-Agent contract is enforced; the call was rolled back.
 
+## ADVERSARIAL REVIEW — 19 findings, all repaired
+
+The six pending migrations were reviewed adversarially before application. **Nineteen defects**,
+most reproduced on a disposable server. None was live on 2026-09-10's data; every one would
+have fired silently on the next import, the next check-in, or the first replay. The ten worst:
+
+| what | consequence had it shipped |
+|---|---|
+| a composed metric served by two lanes | coverage could exceed 1.0 and pass the INSUFFICIENT floor on a doubled denominator; the median mixed a self-report with a device derivation (INV-5) |
+| an unbounded interval NULLed a night | the NULL row was still counted as a day WITH data |
+| device precedence skipped for the composition | two devices' sleep unioned and credited to one |
+| `p_known_at` ignored by all 19 metric queries | the "true replay" claim held only for `spend` |
+| `atoms_current` unbounded in `spend` | a corrected charge vanished from replay entirely |
+| the RULE-10 precedence trigger never fired | Joe's correction and a fuzzy guess both "current" |
+| `only_a_rule_or_a_human_is_certain` | admitted what its own comment forbade; could not fail |
+| `distinct_prefixes` | stored the constraint's floor, not the measurement |
+| baselines ignored the knowledge clock | a replay placed a value in a band built afterwards |
+| the test helper was a dict comprehension | the first defect could not have failed any test |
+
+Every regression test was verified to FAIL against the unfixed migration. Three attempts at
+finding 13 each broke a test before disclosure beat redefinition.
+
+**A second review of the repairs is the next gate**, because in this project every review round
+has found defects introduced by the previous round's fixes.
+
 ## AWAITING ONE AUTHORIZATION (all verified against production in rolled-back transactions)
 
 | # | What | Proven by |
