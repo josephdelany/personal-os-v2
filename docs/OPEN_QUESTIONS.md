@@ -1527,3 +1527,41 @@ and the alternative is a rule that has to be remembered every time. It is mechan
 migration chain verifier would catch a mistake immediately.
 
 *What would settle it:* Joe choosing. Related: ADR-0022, ADR-0082, ADR-0097.
+
+**OQ-65 — A production trigger enforces a rule no requirement states, and cites a requirement
+that says something else.**
+
+`migrations/0047_recommendations.sql` (applied) raises:
+
+> `REQ-ACT-012: a recommendation is never rewritten; only status, demoted_reason, demoted_at
+> and is_daily may change.`
+
+REQ-ACT-012 is the **medical-vocabulary rule**: *"IF a generated instruction contains any term
+from the stored medical vocabulary, THEN the action layer SHALL replace the instruction with
+the stored referral string."* It says nothing about rewriting. REQ-ACT-011, the neighbouring
+demotion requirement, does not either. **No REQ-ACT requirement carries the append-only
+constraint the trigger enforces.**
+
+Found by the requirement audit: REQ-ACT-012 showed as *mentioned* in a test file without a
+named test, and following that mention led to a test asserting the trigger's message rather
+than the requirement's content.
+
+*The constraint itself is right.* A recommendation that can be rewritten is a recommendation
+whose history cannot be trusted, which is INV-2 and RULE-02 applied to a new table. It is the
+citation that is wrong, and a wrong citation is worse than none: a reader who follows it finds
+a requirement about medicine and concludes the constraint is unrelated to what it protects.
+
+*Why it is open:* two fixes, and the choice is Joe's because one adds a requirement.
+(a) Re-cite the trigger to **INV-2 / RULE-02**, which already exist and already say this. A
+migration changing an error string, no behaviour change.
+(b) Author a REQ-ACT requirement for recommendation immutability and cite that. More precise,
+and it grows the requirement set by one.
+
+*What depends on it:* nothing functional — the constraint works. It matters for the audit: a
+requirement can appear covered because a test asserts a message that names it, while the
+requirement's actual content is untested. REQ-ACT-012's real content *is* now tested
+(`test_REQ_ACT_012_medical_vocabulary_is_replaced_by_referral_string`), which is how the
+discrepancy became visible.
+
+*Recommendation:* (a). The rule is constitutional, not domain-specific, and INV-2 already says
+it for every append-only table in the system.

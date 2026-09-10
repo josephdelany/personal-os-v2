@@ -102,7 +102,7 @@ def _envelope(cur, day=None):
 
 # ---------------------------------------------------------------- who may be recommended from
 
-def test_RULE_25_pattern_recommendation_requires_promoted_or_confirmed(cur):
+def test_REQ_ACT_001_pattern_recommendation_requires_promoted_or_confirmed(cur):
     for i, status in enumerate(("CANDIDATE", "INSUFFICIENT", "REFUTED")):
         _register(cur, f"watch:below{i}", status)
     stats = _run(cur)
@@ -165,7 +165,7 @@ def test_REQ_TIER_049_no_recommendation_without_tier_and_interval(cur):
         assert item["kind"] == "standing_order" or item["effect"]["credible_interval"]
 
 
-def test_REQ_TIER_047_promoted_uses_hedged_verb_only(cur):
+def test_REQ_TIER_047_REQ_ACT_005_006_promoted_uses_hedged_verb_only(cur):
     _register(cur, "watch:hedged", "PROMOTED")
     _register(cur, "watch:direct", "CONFIRMED_OBSERVATIONAL", exposure="steps",
               outcome="sleep_asleep_min", delta=None, beta=30.0, ci=(12.0, 48.0))
@@ -232,7 +232,10 @@ def test_REQ_ACT_011_demoted_when_the_backing_hypothesis_falls(cur):
     assert stats["demoted"] == 1 and _recs(cur) == []
     (d,) = _recs(cur, status="demoted")
     assert "backing hypothesis is now REFUTED" in d["demoted_reason"]
-    # REQ-ACT-012: a recommendation is never rewritten, and never deleted
+    # The trigger's own message cites REQ-ACT-012, and REQ-ACT-012 is the medical-vocabulary
+    # rule. Neither 011 nor 012 states an append-only constraint for recommendations — the
+    # migration enforces a rule no requirement carries and attributes it to one that says
+    # something else. The constraint is right (INV-2 / RULE-02); the citation is not. See OQ-65.
     with pytest.raises(Exception) as exc:
         cur.execute(f"UPDATE {CORE}.recommendations SET instruction = 'rewritten' "
                     f"WHERE recommendation_id = %s", (d["recommendation_id"],))
@@ -267,7 +270,7 @@ def test_ADR_0052_standing_order_fires_on_guardian_condition_and_is_descriptive(
 
 # ---------------------------------------------------------------- RULE-26
 
-def test_RULE_26_medical_vocabulary_is_replaced_by_referral_string(cur):
+def test_REQ_ACT_012_medical_vocabulary_is_replaced_by_referral_string(cur):
     # a lever whose registered wording is medical: the guard must catch the generated sentence
     cur.execute("UPDATE config.controllable_metrics SET lever = 'your medication dose' "
                 "WHERE metric = 'sleep_asleep_min'")
@@ -288,7 +291,7 @@ def test_RULE_26_medical_vocabulary_is_replaced_by_referral_string(cur):
 
 # ---------------------------------------------------------------- the one daily instruction
 
-def test_ADR_0052_exactly_one_daily_instruction(cur):
+def test_REQ_ACT_009_exactly_one_daily_instruction_ranked_by_tier(cur):
     _register(cur, "watch:a", "PROMOTED")
     _register(cur, "watch:b", "CONFIRMED_OBSERVATIONAL", exposure="steps", outcome="sleep_asleep_min",
               delta=None, beta=40.0, ci=(20.0, 60.0))

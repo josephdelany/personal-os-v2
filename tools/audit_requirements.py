@@ -45,9 +45,13 @@ def proven():
     found = collections.defaultdict(set)
     for path in sorted(ROOT.joinpath("tests").rglob("test_*.py")):
         for name in IN_TEST_NAME.findall(path.read_text()):
-            for match in re.finditer(r"REQ_([A-Z]{3,4})_(\d{3})", name):
-                found[f"REQ-{match.group(1)}-{match.group(2)}"].add(
-                    f"{path.name}::{name}")
+            # A test may cover several requirements and say so in one name:
+            # `test_REQ_ASK_021_022_011_...` proves three. Counting only the first is an
+            # UNDER-count — the mirror of the over-count this tool exists to refuse, and just
+            # as dishonest, because it makes real coverage invisible.
+            for match in re.finditer(r"REQ_([A-Z]{3,4})_((?:\d{3})(?:_\d{3})*)", name):
+                for number in match.group(2).split("_"):
+                    found[f"REQ-{match.group(1)}-{number}"].add(f"{path.name}::{name}")
     return found
 
 
