@@ -6481,3 +6481,42 @@ screen. Recommended rename, not removal.
 225 -> 232 (34%).
 
 **Requirement IDs:** REQ-CAP-093..099. **ADR:** 0107. **OQ:** 76.
+
+## 2026-09-10 (very late) — B17 §E presentation restraint
+
+**Attempted:** the largest code-only block, REQ-FIN (153 unproven). Grouped by spec section and
+took §E, 19 requirements, none previously proven.
+
+**Why this section matters more than most:** it encodes MEASURED harm rather than reasoning.
+Precise, frequent budget feedback caused ~$40 (n=283, p=.002) and $32 (n=363) of overspending; a
+range attenuated it (n=198); sub-category budgets INCREASED spending (n=251). Certainty removes
+the safety margin — told exactly how much room is left, people spend into it. A running
+"$312 left" counter is the single identified feature in this system with measured evidence of
+causing harm.
+
+**What now works:** `tools/engines/finance_presentation.py`. Refuses the running counter, any
+figure updating more than daily, forward point estimates, pie/donut/treemap/sunburst, share-of-
+total concentration, a retrospective figure with no preceding period beside it, an insight with
+no "not useful" control, an unlabelled ATM or split-tab figure, and an aggregate that stays silent
+about an account with no import for 35+ days. Cadence limits: one review per 7 days, four
+notifications per month.
+
+The forward-range floor is 20% of the midpoint, because without it `$311-$313` satisfies the
+letter and defeats the purpose — a range that tight is a point estimate with a hyphen in it.
+
+`BANNED_WORDS` is built FROM `narration.MORALISING` plus three, not restated. Two copies of a
+banlist drift, and REQ-FIN-218's own 2026-08-24 note records exactly that happening with
+`necessary`. Importing makes the failure impossible rather than unlikely.
+
+**Verification including the negative result:** 21 tests, one of which asserts a realistic
+compliant review surface produces ZERO violations — a policy nothing can satisfy gets disabled.
+Run across every publishable string in every migration the copy checker found one hit,
+`'ingest_location: bad source'`, which is OUT OF SCOPE: REQ-FIN-218 governs words used "in
+reference to Joe's spending" and that is an error about a data source. Same scope lesson as
+ADR-0107. On finance copy specifically: zero violations, which is honest rather than impressive —
+there is very little published finance copy yet, so this is a policy set before the surfaces
+exist.
+
+**Evidence:** 450 local SQL tests pass; layout 43/43. Requirements proven 232 -> 248 (36%).
+
+**Requirement IDs:** REQ-FIN-210..228. **ADR:** 0108.
