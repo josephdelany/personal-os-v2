@@ -7179,3 +7179,38 @@ off for it.
 Requirements proven 581 -> 593 (87%). REQ-NAR 12 -> 0.
 
 **ADR:** 0128.
+
+## 2026-09-10 (latest+20) — B17 Missing-C: income, balance, budget, forecast
+
+**A correction first.** I described the remaining work as "increasingly the ones that need you:
+credentials, hardware, and the two library rulings". That was too generous for the SECOND time
+this session — REQ-FIN-259..266 are pure logic and need nothing from Joe. Checking the list
+rather than characterising it is the lesson, and it is now twice.
+
+**The finding this block exists around:** 94% of inbound money is internal transfer. A system
+that treats inbound as income overstates earnings roughly seventeen-fold, and every savings-rate,
+net-spend and cash-position figure built on it inherits that silently. So two things that look
+like income are not: an internal transfer between Joe's own accounts, and a reimbursement already
+netted against a shared cost — counting the latter once as a reduction in spend and again as an
+arrival of money is double-counting in the flattering direction.
+
+Income streams use the SAME recurrence engine, because a separate threshold would be a second
+definition of "recurring" and a paycheck detected by one rule and not the other is a difference
+nobody would look for.
+
+The balance is as-of and never live — a running position is the "$312 left" counter with a
+different label — and it carries its coverage limitation, because a balance derived from imports
+that stopped 2026-05-13 is approximate and an unlabelled approximate position is read as exact.
+Every non-reconciling period is FLAGGED: it means transactions are missing, and that period's
+totals are wrong by exactly the amount nobody can see.
+
+Usage confidence is capped by the purchase TYPE, not the reasoning: a gym membership has a strong
+signal and a book has none, and letting the engine assign its own confidence would let a
+plausible chain of reasoning about a book reach the same number as a door swipe. For the
+not-inferable class NO inference is attempted at all, because a 0.0-confidence number still
+renders.
+
+**Evidence:** 19 new tests. 450 local SQL tests pass; layout 43/43. Requirements proven
+593 -> 611 (89%). REQ-FIN unproven 36 -> 18.
+
+**ADR:** 0129.
