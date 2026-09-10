@@ -1243,3 +1243,45 @@ environment can stand the system up at all.
 form and needs review, a migration number and an ADR — perhaps an hour.
 
 *Related:* ADR-0088, ADR-0025 (the legacy backfill is reconciled, not equal).
+
+**OQ-54 — MEASURED 2026-09-09. The devices do not hand off. They both count the whole day,
+and every summed total across 2026-07-01..2026-08-21 is currently about twice the truth.**
+
+Earlier I looked at seven days, saw plausible magnitudes, and said in conversation that Apple
+splits the day between devices without overlap. That was wrong, and it was wrong in the
+dangerous direction. Seven days is not a sample; the recorded entry hedged but the spoken
+claim did not.
+
+The test that settles it does not need `valid_interval` at all. Compare each device's own
+daily total on days when BOTH reported against the total on days when only one did:
+
+| | steps/day |
+|---|---|
+| Watch alone, on days both reported | 2,843 (**1.01×**) |
+| iPhone alone, on days both reported | 2,724 (**0.97×**) |
+| their sum, on those days | 5,567 (**1.98×**) |
+| total on one-device days | 2,806 (1.00×) |
+
+If the devices handed off, each alone would be well below 1.0× and their sum about 1.0×. Each
+is at 1.0× and the sum is at 2.0×: **both devices independently record the whole day.** The
+"Watch is worn on active days" confounder predicts the opposite pattern and is ruled out.
+
+*Consequences, stated plainly:*
+- Any `steps`, `walking_running_distance_km`, `flights_climbed`, `active_energy_kcal` or
+  `exercise_minutes` total covering 2026-07-01 to 2026-08-21 is roughly **doubled**.
+- After 2026-08-21 the Watch stopped, so those days are single-device and correct.
+- A trend spanning 08-21 therefore shows a ~50% collapse in activity that is entirely
+  instrumentation. This is the concrete form of the risk ADR-0085 named.
+- Nothing is corrupted: both devices' rows are real observations, correctly stored and
+  correctly attributed. The defect would be in any consumer that SUMS them, and no consumer
+  does yet — the panel does not read these atoms. The hold announced in ADR-0085 was right.
+
+*Recommendation (Joe's ruling, not mine to take):* one device owns each measure per subject
+day, Watch preferred, iPhone used only when the Watch has no record that day. Watch-preferred
+because it is worn continuously while the phone is only carried, and on these days the two
+agree to within 4%, so the choice costs almost nothing and the rule is simple enough to state
+in an answer. The alternative — merge by interval — needs `valid_interval`, which the import
+did not populate, and would be a re-derivation for a 4% difference.
+
+*What remains for the ruling:* Watch-preferred vs iPhone-preferred vs interval-merge. The
+"never sum across devices" part is no longer a question; the data has answered it.
