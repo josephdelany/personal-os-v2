@@ -200,12 +200,12 @@ Measured 2026-09-10, not estimated: **445 of the 460 unproven requirements are c
 nutrition cascade (a constant nothing read) and REQ-CAP-093..099, much of what reads as blocked
 is simply unwritten. `python3 tools/audit_requirements.py --open REQ-FIN` lists them.
 
-Largest code-only blocks: REQ-FIN **138** (was 153), REQ-INF 100, REQ-CAP 83, REQ-NUT 30,
+Largest code-only blocks: REQ-FIN **120** (was 153), REQ-INF 100, REQ-CAP 83, REQ-NUT 30,
 REQ-TIER 23, REQ-NAR 20.
 
 REQ-FIN groups cleanly by spec section, and whole sections are unproven together — which is why
 they fall in blocks rather than one at a time. §E (presentation restraint, 19) is now done.
-Remaining whole-section blocks: §F never-rules 19, B.3 categorisation cascade 14, D.2 evidence
+Remaining whole-section blocks: B.3 categorisation cascade 14, D.2 evidence
 tiers 11, C.3 recurrence detection 11, D.3 recommend-with-uncertainty 10, C.4 interventions 9,
 A.2 Gmail parsing 9 (needs Joe's OAuth), D.1 the link object 7, C.1 necessity-is-a-tier 7,
 B.4 the correction loop 7.

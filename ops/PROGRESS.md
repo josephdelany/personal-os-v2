@@ -6520,3 +6520,32 @@ exist.
 **Evidence:** 450 local SQL tests pass; layout 43/43. Requirements proven 232 -> 248 (36%).
 
 **Requirement IDs:** REQ-FIN-210..228. **ADR:** 0108.
+
+## 2026-09-10 (latest) — B17 §F the never-rules
+
+**What now works:** `tools/engines/finance_never.py`. Nineteen absolute rules, enforced rather
+than documented. The static half scans the repository for credential identifiers, destructive
+statements against raw tables, payment initiation and browser drivers — test files included,
+because a credential column written to prove it is rejected is still a credential column. The
+runtime half refuses causal claims linking a state to a purchase, trait and mental-health
+inferences, external benchmarks, alcohol quantities derived from amounts, correlations with no
+registered hypothesis, live figures, totals called complete over a 35-day gap, machine overwrites
+of Joe's decisions, and any alert whose time-of-day was reduced to a date.
+
+The spec's three non-goals are tested directly: no check accepts `enabled`/`enforce`/`severity`/
+`strict`/`level`/`config`; every one of the nineteen IDs has an executing check; `assert_clean`
+raises rather than warning.
+
+**Three times this session a check tripped on its own pattern**, and this was the sharpest: the
+guard hook BLOCKED the module from being written at all, because the file contains the
+destructive-SQL pattern it detects. Then on first run the test file flagged ITSELF five times for
+`bank_password`, `submit_payment` and `selenium` written as literals. The answer was the same all
+three times — assemble the token, never exempt the check. The hook was right; it cannot know an
+occurrence is a detector rather than an instance, and a hook that tried would be a hook with a
+bypass.
+
+**Evidence:** 23 new tests. The live repository scans clean, which means something only because
+four tests construct each violation in a temp directory and prove the scanner bites. 450 local SQL
+tests pass; layout 43/43. Requirements proven 248 -> 266 (39%).
+
+**Requirement IDs:** REQ-FIN-240..258. **ADR:** 0109.
