@@ -6910,3 +6910,36 @@ tools/ to enforce "anywhere in the codebase" literally.
 and adding them would need the ADR-0103 treatment — installed and exercised before adoption.
 
 **Requirement IDs:** REQ-INF-400..413, 420..431. **ADR:** 0120.
+
+## 2026-09-10 (latest+12) — B19 §E scored forward predictions and auto-demotion
+
+**The premise:** a claim that never commits to anything observable cannot be wrong, and a system
+full of unfalsifiable claims looks exactly like a system full of correct ones. So a finding
+reaching PROMOTED inserts its prediction IN THE SAME TRANSACTION, and a promoted finding with no
+prediction is REFUSED on every surface — the absence is not a display bug, it is the claim having
+no exposure to being wrong.
+
+**The parameter that does not exist.** REQ-INF-322 forbids any interface that suppresses, defers
+or overrides a demotion, so `auto_demotion` has no force/skip/defer/reason_to_keep/approve — and a
+test inspects its signature and fails if one appears. The moment such an argument exists, the
+demotions that get suppressed are exactly the ones about findings somebody liked.
+
+Resolution reads the PAST: a prediction resolves against its own feature_snapshot_hash, because
+resolving against today's state would let a later correction change whether a past prediction came
+true, making the track record a function of the present. And no stored score is recomputed under a
+later model version — a track record that improves when the model changes is a redraft.
+
+**Unresolvable is not false, and it is not hypothetical here.** The Watch stopped 2026-08-21 and
+24 predictions came due afterwards with nothing to resolve against. Counting them wrong would
+compute a Brier score saying the system is badly calibrated when an instrument stopped — and the
+demotions would look earned. Above 25% unresolvable the system reports its OWN calibration at
+INSUFFICIENT.
+
+Miscalibration widens rather than hides: a bucket where "70% likely" comes true half the time is
+one whose numbers mean something different from what they say, so the interval widens and the
+EFSA term follows the OBSERVED frequency. The claim survives; its confidence does not.
+
+**Evidence:** 22 new tests. 450 local SQL tests pass; layout 43/43; never-rule scan clean.
+Requirements proven 450 -> 468 (68%). REQ-INF unproven 81 -> 63.
+
+**Requirement IDs:** REQ-INF-300..307, 320..331. **ADR:** 0121.
