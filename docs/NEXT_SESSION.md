@@ -25,11 +25,13 @@ production). Passing tests and deployed tables are neither of the last two.
 | 0056 | the panel reads `core.atoms` | "Your Steps was typically 2206 count over the last 30 days (30 of 30 days)" |
 | 0057 | entities, merchant patterns, aliases | 93 merchant entities from 440 descriptors |
 | 0058 | `ask` separates its two clocks | the same question INSUFFICIENT at one as_of, 1262.14 usd at another |
-| 0059 | `spend` answers about a merchant | Hannaford 1262.14 across 30 charges via `resolved_merchant` |
+| 0059 | `spend` answers about a merchant, and discloses its capture sources | Hannaford 1262.14 across 30 charges via `resolved_merchant` |
+| 0060 | domain readiness says WHY a domain is empty | 2 resolved / 4 renamed / 4 unbuilt / 3 uncaptured / 1 no hero |
+| 0061 | the strength measures and their specification | the catalogue and the engine cannot drift (tested) |
 | — | transaction backfill | 1,052 legacy rows → 1,052 atoms, none dropped, none merged |
 | — | resolver / link / category population | 616 `paid_to` links, 88 category rules |
 
-The migration chain applies clean from empty at **58 files, 515 statements**.
+The migration chain applies clean from empty at **61 files**.
 
 ## IMPLEMENTED AND TESTED, NOT DEPLOYED
 
@@ -40,7 +42,17 @@ The migration chain applies clean from empty at **58 files, 515 statements**.
   can conclude nothing; that is by design and it is not coverage.
 - **B13 set extractor** — `tools/extract_workouts.py`. Runs clean and writes nothing, because
   no set has ever been logged.
-- **The merchant review sheet** — `~/merchant_review.tsv`, outside the repo.
+- **The merchant review sheet** — `~/merchant_review.tsv`, outside the repo. 40 lines carry a
+  plausible suggestion; 157 need a name.
+- **B18 strength** — e1RM as an interval across the registered formulas, volume, ACWR on rates.
+  Correct and idle: no set has ever been logged.
+- **B20 narration** — the tier vocabulary linter. Zero breaches and zero moralising terms
+  across the 13 live templates, after two false positives were fixed (the month of May; the
+  preposition "on").
+- **B21 sleep** — duration, window and midpoint as three distinct facts; `specs/11-sleep`
+  authored (REQ-SLP-001..013 built and tested, 020..023 open).
+- **Source continuity** — `tools/check_source_continuity.py`, which detects an instrument
+  change masquerading as a change in Joe's life. It found the finance handover.
 
 ## WORKER OWNERSHIP AND INTEGRATION
 
@@ -62,7 +74,11 @@ and deployment.
 
 ## ACTIVE UNIT
 
-**B15 period/compare — blocked on OQ-60's shape, not on its schedule.** Eight of fourteen
+**B19 cross-lens discovery.** The last unstarted M5 unit. B9 already built the promotion and
+confirmation gates (migrations 0044/0046); B19 is the registry-driven exploration that feeds
+them.
+
+**B15 period/compare remains blocked on OQ-60's shape, not on its schedule.** Eight of fourteen
 domain hero metrics do not resolve against the registry, and two (`hrv_sdnn`, `rhr`) are the
 same measures the atom lane holds as `hrv_sdnn_ms` and `resting_hr`. A weekly report iterating
 domains today would say "no data" for recovery and vitals while 1,333 observations sit in
@@ -77,6 +93,9 @@ domains today would say "no data" for recovery and vitals while 1,333 observatio
 | OQ-55 | the Watch — worn / paired / permissions / storage | 17 stale metrics |
 | OQ-57 | the 20 unruled Health types | what the next import takes |
 | OQ-59 | two category vocabularies (`Food & Drink` vs `dining`) | category-level spend |
+| OQ-61 | are `Online Transfer to/from CHK\|SAV` and `AUTOMATIC PAYMENT` all Joe's own accounts? | any income, savings-rate or net-spend measure. 94% of inbound money is internal; reading it as income overstates seventeen-fold |
+| OQ-62 | should INSUFFICIENT copy have its own permitted vocabulary? | whether refusals are governed as tightly as claims |
+| — | **the bank CSV export died 2026-05-13** | 38 empty days, then a source carrying a seventh of the value. Capture cannot be recovered later |
 | — | the review sheet (40 ticks, 157 names) | 197 descriptors, ~19% of spend |
 | — | install the Log Workout shortcut | strength — the stated primary objective |
 
@@ -85,6 +104,18 @@ domains today would say "no data" for recovery and vitals while 1,333 observatio
 361 local SQL tests under `America/New_York` and `UTC`; 104 pure-Python tests;
 `validate_layout` 42/42; migration chain clean at 58; last full production suite
 220 passed / 248 skipped / 1 failed, that failure fixed in `c38a6da`.
+
+## FINDINGS THAT CHANGE WHAT THE NUMBERS MEAN
+
+- **Both devices count the whole day.** Summing steps across them doubles them (measured, 1.98x).
+- **The Watch stopped 2026-08-21**, in five stages. The phone never did.
+- **The bank CSV export stopped 2026-05-13.** `chase_email` carries a third of the transactions
+  and a seventh of the value, with 38 empty days between them.
+- **94% of inbound money is internal transfer.** True merchant spending is $23,508, not the
+  $32,105 of gross outflow.
+- **Legacy `sleep_deep_min` is in HOURS** despite the `_min` suffix. Lanes are never blended.
+- **A nap and a night share a subject day.** One night's 352-minute gap pushed sleep regularity
+  from 87 to 208 minutes until sessions were split on the importer's own gap constant.
 
 ## DO NOT REPEAT
 
