@@ -6411,3 +6411,32 @@ layout 43/43. Requirements proven 215 -> 223 (33%).
 §G.3 requirement constrains behaviour rather than tooling. OQ-74.
 
 **Requirement IDs:** REQ-INF-541..547. **ADRs:** 0103 (amended), 0105. **OQ:** 74, 75.
+
+## 2026-09-10 (night) — B12 the nutrition source cascade
+
+**Attempted:** §G.2 was confirmed blocked (REQ-INF-520 says "SHALL use NumPyro as its sole
+probabilistic programming language" — the same shape as REQ-INF-540's `dynamax`, so OQ-75 is a
+real decision and not mine). Moved to B12, which the checkpoint named as explicitly incomplete.
+
+**What was actually wrong:** `SOURCE_PRECEDENCE` was declared in `nutrition.py` and **never
+used**. `resolve_item` did a single cache lookup. The four-source ordering existed only as a
+constant nothing read.
+
+**What now works:** `tools/engines/nutrition_cascade.py`. The order is a claim about how directly
+each source knows THIS food, not about convenience. A branded item never falls back to a generic
+source (REQ-NUT-016) — "Chipotle chicken burrito" resolving to USDA's generic "burrito, chicken"
+is roughly double the calories and looks entirely ordinary on the plate, which is what makes it
+dangerous. "Could not find it" and "could not look" are separated: an unconfigured source yields
+`no_source_available` with no review row, because handing Joe a review list of items nothing was
+ever going to resolve is an operations failure disguised as a data gap. A 429 stops that source
+for an hour and the cascade continues past it. A `usda_branded` match without a brand owner
+RAISES rather than resolving.
+
+**Evidence:** 16 new tests, none touching the network — every source is a callable, so the
+ordering and refusals are testable without an API key or Joe's USDA registration. 450 local SQL
+tests still pass; layout 43/43. Requirements proven 223 -> 225.
+
+**What does not work:** the USDA HTTP legs are blocked on Joe creating an api.data.gov key, and
+that egress target needs RULE-29 recording before first use.
+
+**Requirement IDs:** REQ-NUT-012..016, 024, 036. **ADR:** 0106.

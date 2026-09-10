@@ -131,7 +131,12 @@ Both worker branches are **integrated** at `bc61844`; neither touched a shared f
 
 Integration notes: the capture worker's ADR-0091 was **renumbered 0094** (0091 was taken by the
 two-clocks decision while it was in flight — parallel worktrees cannot reserve a number).
-B12 is explicitly **not** complete: the USDA legs and the five-step cascade are unwritten.
+B12: the **cascade is now written and tested** (`tools/engines/nutrition_cascade.py`, 16 tests,
+ADR-0106). `SOURCE_PRECEDENCE` had been declared as a constant and never used — `resolve_item`
+did one cache lookup, so the ordering existed only as documentation. Each source is a callable
+the caller supplies, so the ordering, the refusals and the brand rules are tested with **no API
+key and no socket**. The USDA *legs* (the HTTP clients) remain blocked on Joe's api.data.gov
+key.
 The capture schedule is built but **not installed**, so it is not yet running.
 
 I remain sole integration owner: entity resolution, reconstruction, migrations, shared
