@@ -200,7 +200,7 @@ Measured 2026-09-10, not estimated: **445 of the 460 unproven requirements are c
 nutrition cascade (a constant nothing read) and REQ-CAP-093..099, much of what reads as blocked
 is simply unwritten. `python3 tools/audit_requirements.py --open REQ-FIN` lists them.
 
-Largest code-only blocks: REQ-FIN **71** (was 153), REQ-INF 100, REQ-CAP 83, REQ-NUT 30,
+Largest code-only blocks: REQ-FIN **51** (was 153), REQ-INF 100, REQ-CAP 83, REQ-NUT 30,
 REQ-TIER 23, REQ-NAR 20.
 
 REQ-FIN groups cleanly by spec section, and whole sections are unproven together — which is why

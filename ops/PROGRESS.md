@@ -6652,3 +6652,32 @@ Requirements proven 297 -> 315 (46%).
 migration.
 
 **Requirement IDs:** REQ-FIN-160..166, REQ-FIN-170..180. **ADR:** 0112.
+
+## 2026-09-10 (latest+4) — B17 §C.4/§D.3 insights, and a gate that was wide open
+
+**What now works:** `tools/engines/finance_insights.py` and `tools/engines/habit_rhythm.py`.
+
+An unused-subscription insight is delivered on the NEXT CHARGE DATE, never on the day the
+evidence arrived. Payment depreciation erodes the salience of a sunk cost — a subscription bought
+in March feels free by June, which is why unused ones survive — so the delay IS the intervention.
+
+REQ-FIN-197 vs 198 resolved explicitly rather than fudged: an ESTIMATE answers "how much did I
+drink" with a number derived from a price and is forbidden always; a PRIOR is a disclosed, weak,
+labelled input discarded the moment a real consume atom exists. There is no function in the
+module that returns a drink count, and the prior's payload sets `drink_count` to None.
+
+**A real defect the tests caught.** REQ-FIN-199's false-alarm gate did not work:
+
+* The FAP formula was wrong — `exp(-p(N-3)/2)` belongs to a differently normalised periodogram,
+  and with N=400 it returned FAP exactly 0.000 for pure Gaussian noise, reporting a 19.5-day
+  "period" in random numbers. Corrected to `1 - (1 - (1-p)^((N-3)/2))^M`. Measured after: noise
+  gives 0.054 and is refused; a real 14-day sine gives ~0 and is reported.
+* The scipy call reached for `_sp.signal` where `_sp` is `scipy.stats`, which has no `.signal`,
+  so a `hasattr` guard fell through to a hand-rolled fallback on EVERY call, silently. It gave
+  plausible numbers, which is why it survived — a wrong branch that returns nonsense announces
+  itself; one that returns something reasonable does not. Fallback removed rather than left.
+
+**Evidence:** 37 new tests. 450 local SQL tests pass; layout 43/43; never-rule scan clean.
+Requirements proven 315 -> 335 (49%). REQ-FIN unproven 71 -> 51.
+
+**Requirement IDs:** REQ-FIN-150..158, REQ-FIN-190..200. **ADR:** 0113.
