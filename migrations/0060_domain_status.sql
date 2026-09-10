@@ -61,14 +61,23 @@ SELECT d.domain_key, d.display_name, d.hero_metric,
   LEFT JOIN panel  pn ON pn.metric = d.hero_metric
   LEFT JOIN latest l  ON l.metric  = d.hero_metric
   LEFT JOIN LATERAL (
-      -- The band is bounded on BOTH clocks. `analysis.baselines.computed_at` exists, so a
-      -- replay must not be given a band recomputed after the knowledge time — otherwise
-      -- `band_position` reports where a value sits inside a band that did not exist when the
-      -- question was asked (INV-4). This was accepted as a parameter and never applied.
+      -- The knowledge bound is NOT applied here, and that is a deliberate reversal.
+      --
+      -- I added `computed_at <= p_known_at` so a replay would not be given a band built after
+      -- the question. A second review showed what it actually does: `tools/engines/baselines.py`
+      -- DELETEs the whole table and reinserts on every nightly run, so `computed_at` is the
+      -- last rebuild time, not the band's knowledge time. After tonight's run, a replay pinned
+      -- to any earlier moment matches no baseline row at all — every band NULL for every
+      -- domain, while `resolution` still reads 'resolved' and nothing distinguishes "outside a
+      -- band" from "no band" from "band suppressed by a clock". INV-4 satisfied, RULE-06
+      -- broken, and the test I wrote could not see it because it inserted one hand-stamped row.
+      --
+      -- `analysis.panel` has the same shape of problem (OQ-45): a lane with no usable knowledge
+      -- time cannot be replayed, and pretending otherwise with the wrong column is worse than
+      -- saying so. Recorded as OQ-71.
       SELECT bl.band_lo, bl.band_hi FROM analysis.baselines bl
        WHERE bl.metric = d.hero_metric AND bl.day <= p_as_of
-         AND bl.computed_at <= p_known_at
-       ORDER BY bl.day DESC, bl.computed_at DESC LIMIT 1) b ON true
+       ORDER BY bl.day DESC LIMIT 1) b ON true
  ORDER BY d.domain_key
 $fn$;
 COMMENT ON FUNCTION analysis.f_domain_status(date, timestamptz) IS

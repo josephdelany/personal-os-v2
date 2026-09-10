@@ -49,16 +49,6 @@ REVOKE ALL ON FUNCTION public._ask_spend_sources(uuid[]) FROM PUBLIC, anon, auth
 -- would leave 0049's `public.ask(text, date)` alive beside the new three-argument form and
 -- every two-argument call would fail with "function public.ask(unknown, date) is not unique".
 -- The legacy single-argument `public.ask(text)` serving the previous build is untouched.
--- The observed span of each capture source, from the atoms themselves. A day inside some
--- source's span is a day the system could have seen a charge on; a day outside every span is a
--- day it could not, and the difference is what separates "spent nothing" from "we do not know".
-CREATE OR REPLACE VIEW __CORE__.v_capture_spans AS
-SELECT coalesce((regexp_match(a.evidence_span, '(?:legacy|bank):([^;]+)'))[1], 'unknown') AS source,
-       min(a.subject_day) AS first_day, max(a.subject_day) AS last_day, count(*) AS n
-  FROM __CORE__.atoms a WHERE a.kind = 'transaction'
- GROUP BY 1;
-REVOKE ALL ON __CORE__.v_capture_spans FROM anon, authenticated;
-
 DROP FUNCTION IF EXISTS public.ask(text, date, timestamptz);
 DROP FUNCTION IF EXISTS public.ask(text, date);
 
@@ -780,32 +770,22 @@ BEGIN
                  'n_in', count(*) FILTER (WHERE a.value_point > 0),
                  'first_day', min(a.subject_day) FILTER (WHERE a.value_point < 0),
                  'last_day', max(a.subject_day) FILTER (WHERE a.value_point < 0),
-                 -- REVIEW FINDING 13. The rate divided the real total by CALENDAR weeks, including the
-                 -- 38 days in which no transaction was captured by any source (ADR-0096). A
-                 -- "last 90 days" question spanning the handover understates by roughly 40% and
-                 -- nothing said so. `covered_weeks` counts only weeks with at least one charge
-                 -- from any source; `per_week` uses it, and both are reported so a reader can
-                 -- see when they disagree.
-                 'weeks', greatest(round((n_days::numeric / 7), 2), 0.01),
-                 -- REVIEW FINDING 13, disclosed rather than redefined. `per_week` divides by
-                 -- CALENDAR weeks, because "a week over the last N days" means calendar weeks
-                 -- and a day Joe spent nothing is a real zero, not missing data.
+                 -- REVIEW FINDING 13's disclosure is WITHDRAWN, not repaired.
                  --
-                 -- What IS missing data is a day no capture source covered — the 38-day hole
-                 -- between bank_csv ending and chase_email starting (ADR-0096). A 90-day
-                 -- question spanning it divides by 90/7 weeks of which ~5.4 had no capture path,
-                 -- understating by roughly 40%. So the coverage is REPORTED beside the rate and
-                 -- a reader can see 52 of 90; changing the denominator instead would answer a
-                 -- question nobody asked. Three attempts at redefining it each broke a test,
-                 -- which is what finally made the case for disclosure over redefinition.
-                 'covered_days', (SELECT count(*) FROM generate_series(rng.d_from, rng.d_to, interval '1 day') g(d)
-                    WHERE EXISTS (SELECT 1 FROM __CORE__.v_capture_spans v
-                                   WHERE g.d::date BETWEEN v.first_day AND v.last_day)),
-                 'covered_weeks', greatest(round((SELECT count(DISTINCT x.subject_day)
-                                                    FROM __CORE__.atoms x
-                                                   WHERE x.kind = 'transaction'
-                                                     AND x.subject_day BETWEEN rng.d_from AND rng.d_to
-                                                     AND x.recorded_at <= known_at)::numeric / 7, 2), 0.01),
+                 -- I added `covered_days`/`covered_weeks` so a reader could see 52 of 90. A
+                 -- second review measured them: the value was days/7 over ALL transactions in
+                 -- the range, so it was not weeks, was not filtered to the merchant asked, and
+                 -- carried no knowledge bound. Thirty charge-days spread across thirteen weeks
+                 -- reported "4.29 of 12.86". Its source key also missed the format
+                 -- tools/backfill_run.py writes, collapsing those atoms into one 'unknown'
+                 -- source whose span covers the whole history — so the figure would have
+                 -- reported full coverage across the very 38-day hole it existed to reveal.
+                 --
+                 -- A disclosure that is wrong is worse than none: it is read as reassurance.
+                 -- The gap is real and still needs disclosing; `source_discontinuity` and each
+                 -- source's own span already carry part of it, and the rest is OQ-70 rather
+                 -- than a number I could not make true.
+                 'weeks', greatest(round((n_days::numeric / 7), 2), 0.01),
                  'per_week', abs(round(coalesce(sum(a.value_point) FILTER (WHERE a.value_point < 0), 0)
                                        / greatest(n_days::numeric / 7, 0.01), 2)))
           INTO res
@@ -1059,10 +1039,17 @@ BEGIN
         SELECT coalesce(jsonb_agg(jsonb_build_object('table', 'core.atoms', 'id', a.id,
                                                      'day', a.subject_day)
                          ORDER BY a.subject_day, a.id), '[]'::jsonb)
-          INTO keys FROM __CORE__.atoms_current a
+          -- Same bounded supersession as the total. On `atoms_current` the trace excluded a
+          -- charge the total INCLUDED: in a replay the original is hidden by a correction that
+          -- does not yet exist, and the correction by `recorded_at <= known_at`. A number
+          -- traceable to a set of atoms that does not contain it is INV-3 failing in the one
+          -- query written to prove INV-3 holds.
+          INTO keys FROM __CORE__.atoms a
          WHERE a.kind = 'transaction'
            AND a.subject_day BETWEEN rng.d_from AND rng.d_to AND a.subject_day <= as_of
            AND a.recorded_at <= known_at
+           AND NOT EXISTS (SELECT 1 FROM __CORE__.atoms s
+                            WHERE s.supersedes = a.id AND s.recorded_at <= known_at)
            AND NOT EXISTS (SELECT 1 FROM __CORE__.atoms s
                             WHERE s.supersedes = a.id AND s.recorded_at <= known_at)            -- RULE-04, as above
            AND (CASE WHEN merchant_entity IS NOT NULL
@@ -1185,7 +1172,10 @@ BEGIN
                               -- adding it here widened the pool silently.
                               AND kv.key NOT IN ('rolling_28_clause','caveat','note',
                                                  'reverse_note','match_method','summary',
-                                                 'sources','would_raise_it'))
+                                                 -- `would_raise_it` is deliberately NOT here:
+                                                 -- it is never a key of `res`, so excluding it
+                                                 -- was a no-op presented as a fix.
+                                                 'sources'))
     ) THEN
         INSERT INTO analysis.render_violations (surface, rule, detail, question_id)
         VALUES ('ask', 'REQ-ASK-010', jsonb_build_object('reason', 'untraceable_numeral',

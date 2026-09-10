@@ -57,8 +57,11 @@ ON CONFLICT (metric_key) DO NOTHING;
 --
 -- Guarding on "the registry row exists in __CORE__" does not work and the first attempt proved
 -- it: the row DOES exist there, in the pytest registry, while the constraint checks the real
--- one. The condition that matters is whether the parameterised core IS the core the foreign key
--- targets, so that is what is asked.
+-- one. Nor does "am I the real core" — too blunt, and it makes the seed a silent no-op in a
+-- fixture that legitimately rebinds both schemas, which is how 0056 and this file ended up
+-- carrying two different guards for one problem. The condition is whether the CONSTRAINT THIS
+-- ROW WILL BE CHECKED AGAINST points at the registry being read, which is what 0056 now asks
+-- and what this now matches.
 --
 -- The deeper wrinkle is 0053's: a shared `config` table holding a foreign key into a
 -- parameterised schema cannot be right in both worlds. This guard makes 0061 safe; the
@@ -100,7 +103,11 @@ SELECT v.* FROM (VALUES
                'beside one until calibrated (REQ-WKT-012).'))
 ) AS v(measure, input_fields, method, method_version, unit, time_specification,
        missingness_rule, analytical_consumers, owner, parameters)
- WHERE to_regclass('__CORE__.metric_registry') = to_regclass('core.metric_registry')
+ WHERE (SELECT c.confrelid FROM pg_constraint c
+          WHERE c.conrelid = 'config.derivation_catalogue'::regclass AND c.contype = 'f'
+            AND c.conkey = ARRAY[(SELECT a.attnum FROM pg_attribute a
+                                   WHERE a.attrelid = c.conrelid AND a.attname = 'measure')]
+          LIMIT 1) = to_regclass('__CORE__.metric_registry')::oid
 ON CONFLICT (measure) DO NOTHING;
 
 -- NOT DONE HERE, deliberately. `config.domains.hero_metric` for the workouts domain is

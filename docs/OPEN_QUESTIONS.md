@@ -1675,3 +1675,81 @@ is more useful than either alone, and lets their disagreement be a finding.
 `sleep_minutes` atoms exist. It would have fired silently the first time Joe logged one.
 
 *Related:* OQ-48, INV-5, RULE-05, ADR-0089.
+
+**OQ-69 — "how is my sleep quality" resolves to the 3-day unstaged fragment, and the obvious
+fix makes it worse.**
+
+`_ask_resolve_metric('sleep quality')` returns `sleep_asleep_min` at similarity 0.429 —
+16 atoms over 3 days — rather than `sleep_minutes`. The part-vs-whole demotion does not fire
+because it requires the WHOLE to clear the same 0.35 floor, and "Sleep duration" scores 0.261
+against that phrase.
+
+I lowered the demotion floor to 0.20 and a review measured the result: the winner becomes
+`sleep_minutes` at 0.273, which then **fails the 0.35 answerability gate** two statements later
+in `ask`. The question stopped being answered at all — only the metric named in the refusal
+changed. Worse, `config.domains` contributes a second display name ('Sleep' for
+`sleep_asleep_min`), and at 0.20 that pair activates: **"asleep" — a similarity 1.000 match —
+resolved to `sleep_awake_min`, "Awake during sleep"**, for a question about being asleep.
+
+Reverted to 0.35. A demotion floor *below* the answerability floor can demote a part in favour
+of a whole the next check rejects.
+
+*Why it is open:* trigram similarity is the wrong instrument for this and no threshold fixes it.
+"quality" is a word about no metric in the registry, and the phrase's similarity to every
+candidate is low; the winner is then decided by string accident. My justification numbers for
+the 0.20 change did not reproduce (0.32/0.43 claimed, 0.261/0.138 measured), which is the
+RULE-00 signature — a gate constant moved on numbers nobody checked.
+
+*The options:* (a) an explicit synonym table mapping phrases Joe actually uses to metrics —
+data, inspectable, and it makes "sleep quality" a decision rather than an accident; (b) require
+the whole to beat the part by a MARGIN rather than clear an absolute floor; (c) refuse when no
+candidate clears a confident threshold and offer the nearest, which is honest and answers
+fewer questions.
+
+*Recommendation:* (a). Every other resolution problem in this system was solved by putting the
+decision in a table; this is the same shape.
+
+*What depends on it:* any question phrased with a word the registry does not contain.
+
+**OQ-70 — the finance capture gap is real and currently undisclosed in the answer.**
+
+ADR-0096 established that `bank_csv` stopped on 2026-05-13 and `chase_email` began 2026-06-20,
+with 38 days covered by neither. A spend total spanning that window is arithmetically correct
+and materially incomplete.
+
+I added `covered_days`/`covered_weeks` to the answer to disclose it, and a review measured them:
+the value was days÷7 over *all* transactions in the range, so it was not weeks, was not filtered
+to the merchant asked, and carried no knowledge bound. Its source key also missed the format
+`tools/backfill_run.py` writes, collapsing those atoms into one 'unknown' source whose span
+covers the whole history — so it would have reported full coverage across the very hole it
+existed to reveal.
+
+Withdrawn. **A disclosure that is wrong is worse than none, because it is read as reassurance.**
+
+*Still open:* the gap needs disclosing. `source_discontinuity` catches a window spanning two
+sources, and each source's own span is in the result, but neither says "this window contains
+days no source covered."
+
+*What would settle it:* a definition of capture coverage that does not derive from where
+charges happen to be — most likely a table recording when each source was active, written when
+a source is configured rather than inferred from its output.
+
+**OQ-71 — `analysis.baselines` has no usable knowledge time, so a band cannot be replayed.**
+
+`f_domain_status` takes `p_known_at`. I bounded the baseline lookup on `computed_at <=
+p_known_at` so a replay would not be handed a band built after the question. A review showed
+`tools/engines/baselines.py` DELETEs the entire table and reinserts on every nightly run — so
+`computed_at` is the last *rebuild* time, not the band's knowledge time. After one run, a replay
+pinned to any earlier moment matches no baseline at all: every band NULL for every domain, while
+`resolution` still reads 'resolved' and nothing distinguishes "outside a band" from "no band"
+from "band suppressed by a clock". INV-4 satisfied; RULE-06 broken.
+
+Reverted, and a test now pins the reversal so nobody reapplies it.
+
+*Why it is open:* this is OQ-45's shape in a second place. A lane rebuilt in place cannot answer
+"what did you believe then", and the fix is either an append-only baseline history or an
+explicit statement that band position is always as-of-now and never replayed.
+
+*Recommendation:* the explicit statement, until something needs the history. A band is a
+descriptive aid, not a claim being replayed, and an append-only baseline table for 104,391 rows
+a night is a large cost for a capability nothing has asked for.

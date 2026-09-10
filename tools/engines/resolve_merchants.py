@@ -145,6 +145,7 @@ def main() -> int:
             cur.execute("""INSERT INTO config.location_tokens (token, distinct_prefixes)
                            VALUES (%s, %s) ON CONFLICT (token) DO NOTHING""",
                         (token, evidence.get(token, 4)))
+        written = collections.Counter()
         cur.execute("DELETE FROM config.merchant_patterns WHERE provenance = 'discovered'")
         for p in patterns:
             cur.execute("""INSERT INTO config.merchant_patterns
@@ -164,12 +165,30 @@ def main() -> int:
             # RULE-10. A re-run supersedes the CURRENT HEAD for this alias rather than adding
             # a second current row. The trigger in 0057 now refuses both alternatives — a bare
             # insert over an existing head, and a fork off an already-superseded row.
-            cur.execute(f"""SELECT alias_id FROM {a.core}.entity_aliases a
+            cur.execute(f"""SELECT alias_id, resolved_by, canonical
+                              FROM {a.core}.entity_aliases a
                              WHERE a.alias = %s
                                AND NOT EXISTS (SELECT 1 FROM {a.core}.entity_aliases b
                                                 WHERE b.supersedes = a.alias_id)""",
                         (n.normalized,))
             head = cur.fetchone()
+            if head and head[1] == "human":
+                # RULE-10. Joe's correction stands and this run leaves it alone.
+                #
+                # The previous version set `supersedes` unconditionally, so the trigger raised
+                # on the first human-corrected alias — and with no exception handling the whole
+                # run was lost, every pattern and every token, identically on every subsequent
+                # run, forever, because a human head is permanent. "The resolver may revise
+                # itself but may not supersede Joe" became "the resolver dies the first time Joe
+                # corrects anything".
+                written["skipped_human_correction"] += 1
+                continue
+            if head and head[2] == r.canonical and head[1] == r.merchant_source:
+                # Idempotence. Without this an hourly run appended one superseding row per
+                # alias per run to an append-only table — ~12k rows a day at this scale — and
+                # "when did this resolution last change?" became unanswerable from the ledger.
+                written["unchanged"] += 1
+                continue
             cur.execute(f"""INSERT INTO {a.core}.entity_aliases
                 (alias, raw_descriptor, canonical, resolved_by, confidence,
                  normalization_rules, supersedes)
@@ -179,6 +198,8 @@ def main() -> int:
         conn.commit()
         print(f"\nCOMMITTED {len(patterns)} patterns, {len(location)} location tokens, "
               f"{len(resolutions) - len(review)} aliases, {len(review)} review rows")
+        if written:
+            print("  " + ", ".join(f"{k}={v}" for k, v in sorted(written.items())))
         return 0
     finally:
         conn.close()

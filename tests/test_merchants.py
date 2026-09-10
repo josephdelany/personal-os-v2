@@ -503,3 +503,32 @@ def test_RULE_01_a_location_token_stores_its_measured_evidence_not_the_floor():
     evidence = location_token_evidence(sample)
     assert evidence["HOUSTON"] == 5, "the real count, which is not the floor"
     assert "OAKLAND" not in evidence
+
+
+def test_RULE_10_the_resolver_skips_a_human_corrected_alias_instead_of_dying(ent):
+    """Second review, finding 1 — the worst defect either review found, and I introduced it.
+
+    My repair set `supersedes` unconditionally, and the resolver can only ever emit an
+    automated `resolved_by`. So the first time Joe corrected an alias, the trigger raised, the
+    run died with no exception handling and no commit, and EVERY pattern and token was lost —
+    identically on every subsequent run, forever, because a human head is permanent. "The
+    resolver may revise itself but may not supersede Joe" had become "the resolver dies the
+    first time Joe corrects anything"."""
+    import pathlib
+    source = pathlib.Path(__file__).resolve().parents[1].joinpath(
+        "tools/engines/resolve_merchants.py").read_text()
+    assert 'head[1] == "human"' in source, "the resolver must recognise a human head"
+    assert source.index('head[1] == "human"') < source.index("INSERT INTO {a.core}.entity_aliases"), \
+        "and it must check BEFORE inserting, not handle the exception afterwards"
+    assert "skipped_human_correction" in source, "and report how many it left alone"
+
+
+def test_RULE_10_the_resolver_does_not_rewrite_an_unchanged_resolution(ent):
+    """Second review, finding 9. Every run appended one superseding row per alias to an
+    append-only table that can never be pruned — roughly 12k rows a day at this scale — and
+    made "when did this resolution last change?" unanswerable from the ledger."""
+    import pathlib
+    source = pathlib.Path(__file__).resolve().parents[1].joinpath(
+        "tools/engines/resolve_merchants.py").read_text()
+    assert 'head[2] == r.canonical and head[1] == r.merchant_source' in source
+    assert '"unchanged"' in source

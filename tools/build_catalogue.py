@@ -131,6 +131,14 @@ def main():
     if not a.commit:
         print("\nDRY RUN — nothing written. Re-run with --commit.")
         return
+    # The RULE-13 parameters (formula names, validated rep range, ACWR windows) are seeded by
+    # migration 0061 and are NOT recomputed here. A blind DELETE-and-reinsert destroyed them
+    # silently — and because the column is nullable, the rows came back with `parameters` NULL
+    # for the two measures that genuinely have them, which is exactly the state nullability was
+    # introduced to distinguish. They are preserved across the rebuild.
+    cur.execute("SELECT measure, parameters FROM config.derivation_catalogue "
+                "WHERE parameters IS NOT NULL")
+    kept = dict(cur.fetchall())
     cur.execute("DELETE FROM config.derivation_catalogue")
     for r in catalogue:
         cur.execute("""INSERT INTO config.derivation_catalogue
@@ -140,6 +148,9 @@ def main():
             (r["measure"], r["input_fields"], r["method"], r["method_version"], r["unit"],
              r["time_specification"], r["missingness_rule"],
              r["earliest_supported_event_date"], r["analytical_consumers"], r["owner"]))
+        if r["measure"] in kept:
+            cur.execute("UPDATE config.derivation_catalogue SET parameters = %s "
+                        "WHERE measure = %s", (json.dumps(kept[r["measure"]]), r["measure"]))
     conn.commit()
     print(f"\nCOMMITTED {len(catalogue)} rows to config.derivation_catalogue")
 

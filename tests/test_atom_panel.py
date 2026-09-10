@@ -489,33 +489,39 @@ def test_RULE_12_the_composed_metric_obeys_device_precedence_too(cur):
         f"the Watch's night only, never the union of two devices: {rows}")
 
 
-def test_INV_4_a_band_recomputed_after_the_knowledge_time_is_not_used(domains):
-    """Review finding 12. `f_domain_status` accepted `p_known_at` and applied it to the atoms
-    and not to the baselines, although `analysis.baselines.computed_at` exists. A replay's
-    `band_position` was therefore computed against a band that did not exist when the question
-    was asked — reporting where a value sat inside a band built afterwards."""
+def test_OQ_71_the_baseline_band_is_not_knowledge_bounded_and_says_so(domains):
+    """A limitation recorded, not a capability asserted.
+
+    I bounded the band on `analysis.baselines.computed_at` so a replay would not be handed a
+    band built after the question. A review showed what that does: `tools/engines/baselines.py`
+    DELETEs the whole table and reinserts nightly, so `computed_at` is the last REBUILD time,
+    not the band's knowledge time. After one nightly run a replay pinned to any earlier moment
+    matches no baseline at all — every band NULL for every domain, while `resolution` still
+    reads 'resolved'. INV-4 satisfied, RULE-06 broken.
+
+    So the bound is gone and the band is as-of-now regardless of the knowledge clock. This test
+    exists so that stays deliberate: `analysis.baselines` has no usable knowledge time, exactly
+    as `analysis.panel` has none (OQ-45), and pretending otherwise with the wrong column is
+    worse than saying so.
+    """
     cur = domains
     day = AS_OF - dt.timedelta(days=1)
     _domain(cur, "activity", "steps")
     cur.execute("INSERT INTO analysis_pytest.panel (day, metric, value, src) "
                 "VALUES (%s,'steps',5000,'legacy')", (day,))
-    # A band computed LATER that would place the value inside it.
     cur.execute("""INSERT INTO analysis_pytest.baselines
         (day, metric, value, band_lo, band_hi, computed_at)
         VALUES (%s,'steps',5000,4000,6000,%s)""",
-        # After the replay's knowledge time, and before real `now()` — so the default
-        # one-argument call sees it and the pinned replay does not. Putting it beyond now()
-        # would have made both exclude it and proved nothing.
         (day, dt.datetime.combine(AS_OF + dt.timedelta(days=1), dt.time(12),
                                   tzinfo=dt.timezone.utc)))
     _apply_0056(cur); _apply_0060(cur)
 
+    pinned = dt.datetime.combine(AS_OF, dt.time(12), tzinfo=dt.timezone.utc)
     cur.execute("SELECT band_position FROM analysis_pytest.f_domain_status(%s, %s)",
-                (AS_OF, dt.datetime.combine(AS_OF, dt.time(12), tzinfo=dt.timezone.utc)))
-    assert cur.fetchone()[0] is None, "a band from the future must not place a past value"
-
-    cur.execute("SELECT band_position FROM analysis_pytest.f_domain_status(%s)", (AS_OF,))
-    assert cur.fetchone()[0] == "in_band", "and it must be used once it is known"
+                (AS_OF, pinned))
+    assert cur.fetchone()[0] == "in_band", (
+        "the band is deliberately NOT bounded by the knowledge clock; if this starts returning "
+        "None, someone reapplied the computed_at filter and every replay lost its bands")
 
 
 def test_REQ_NFR_005_a_stale_latest_value_is_marked_stale(domains):
@@ -532,3 +538,38 @@ def test_REQ_NFR_005_a_stale_latest_value_is_marked_stale(domains):
     _apply_0056(cur); _apply_0060(cur)
     cur.execute("SELECT value_is_stale FROM analysis_pytest.f_domain_status(%s)", (AS_OF,))
     assert cur.fetchone()[0] is True
+
+
+def test_RULE_06_an_empty_interval_is_unusable_like_an_open_one(cur):
+    """Second review, finding 2. `tstzrange(t, t)` is EMPTY and passes both `upper_inf` tests,
+    so range_agg returns {} and the night's sum is NULL — the row was emitted again, which is
+    the defect the first repair claimed to close. Any zero-duration sleep sample reaches it."""
+    day = dt.date(2026, 9, 1)
+    at = dt.datetime.combine(day, dt.time(3), dt.timezone.utc)
+    atom(cur, "sleep_core_min", day, 0, interval=f"[{at},{at})")
+    _apply_0056(cur)
+    assert [r for r in panel_rows(cur) if r[1] == "sleep_minutes"] == []
+
+
+def test_RULE_06_one_unusable_segment_excludes_the_night_rather_than_shortening_it(cur):
+    """The first repair dropped the bad SEGMENT and kept the night, turning a visibly-NULL
+    night into a plausible undercount with nothing recording the discard. The migration's own
+    comment argues that a night with no computable duration is worse than a missing one; a
+    partially computable night is the same argument."""
+    day = dt.date(2026, 9, 1)
+    atom(cur, "sleep_core_min", day, 90, interval=_seg(day, 1, 0, 2, 30))
+    cur.execute(f"""INSERT INTO {S}.raw_captures (capture_id, source, captured_at, payload,
+                    trust_level) VALUES (gen_random_uuid(),'file_import', now(), '{{}}','trusted')
+                    RETURNING capture_id""")
+    cap = cur.fetchone()[0]
+    cur.execute(f"""INSERT INTO {S}.atoms (raw_capture_id, kind, metric_key, valid_interval,
+        subject_day, subject_day_rule_version, presence, value_low, value_point, value_high,
+        estimate_method, unit, state_class, value_type, trust_level, provenance, evidence_span,
+        code_version)
+        VALUES (%s,'sleep','sleep_core_min', tstzrange(%s, NULL, '[)'), %s,'v1','observed',
+                1,1,1,'measured','min','total','numeric','trusted','extracted',
+                'apple_health:X;source=Joseph''s Apple Watch','t')""",
+        (cap, dt.datetime.combine(day, dt.time(5), dt.timezone.utc), day))
+    _apply_0056(cur)
+    rows = [r for r in panel_rows(cur) if r[1] == "sleep_minutes"]
+    assert rows == [], f"a partly-unusable night must be absent, not short: {rows}"

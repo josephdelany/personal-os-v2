@@ -172,3 +172,21 @@ def test_REQ_WKT_012_the_registry_gives_the_acwr_no_plausible_band():
     assert "'ratio', 'measurement'" in row, row
     assert "NULL, NULL, false" in row, (
         f"the ACWR must carry no plausible band while its windows are provisional: {row}")
+
+
+def test_RULE_13_the_catalogue_rebuild_preserves_the_seeded_parameters():
+    """Second review, finding 10. `build_catalogue.py` DELETEs the whole catalogue and
+    reinserts with a column list that omits `parameters`, so the next run silently destroyed
+    the formula names, the validated rep range and the ACWR windows that migration 0061 seeds.
+    And because the column is nullable, they came back NULL for the two measures that genuinely
+    have parameters — exactly the state nullability was introduced to distinguish from "this
+    method takes none"."""
+    import pathlib
+    source = pathlib.Path(__file__).resolve().parents[1].joinpath(
+        "tools/build_catalogue.py").read_text()
+    assert "SELECT measure, parameters FROM config.derivation_catalogue" in source, (
+        "the rebuild must read the seeded parameters before deleting")
+    assert source.index("kept = dict(cur.fetchall())") < source.index(
+        'cur.execute("DELETE FROM config.derivation_catalogue")'), (
+        "they must be read BEFORE the delete, not after")
+    assert "SET parameters = %s" in source, "and written back after the reinsert"

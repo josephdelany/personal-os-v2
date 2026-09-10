@@ -210,8 +210,23 @@ LANGUAGE sql STABLE AS $$
      -- row is still EMITTED, counted toward coverage and toward `n`. A night with no
      -- computable duration reported as a night with data is worse than a missing night
      -- (RULE-06). HealthKit can emit an open end when an export is truncated mid-session.
-     WHERE r.valid_interval IS NOT NULL
+     -- NOT NULL is not enough on three counts, and the first repair caught only one.
+     --   * an OPEN end passes NOT NULL; upper() is then NULL and the night's sum is NULL.
+     --   * an EMPTY range — tstzrange(t, t), which any zero-duration sample produces — also
+     --     passes both `upper_inf` tests, range_agg returns {}, and the sum is NULL again.
+     --   * dropping the bad SEGMENT rather than the night turns a visibly-NULL night into a
+     --     plausible undercount, which the comment above argues against for the night case and
+     --     which applies just as much to a partial one.
+     -- So a night containing any unusable segment is excluded ENTIRELY and counted, rather
+     -- than silently short (RULE-06).
+     WHERE r.valid_interval IS NOT NULL AND NOT isempty(r.valid_interval)
        AND NOT upper_inf(r.valid_interval) AND NOT lower_inf(r.valid_interval)),
+  unusable AS (
+    SELECT DISTINCT c.metric AS composed, r.subject_day
+      FROM config.panel_composition c
+      JOIN analysis.f_atom_rows(p_as_of, p_known_at) r ON r.metric = c.component
+     WHERE r.valid_interval IS NULL OR isempty(r.valid_interval)
+        OR upper_inf(r.valid_interval) OR lower_inf(r.valid_interval)),
   -- Device precedence, applied to the COMPOSITION as well as to its components. Without this
   -- `range_agg` unioned a Watch segment and a phone segment into one night and then labelled
   -- the total with `min(device)` — 150 minutes attributed to the Watch of which 90 came from
@@ -243,6 +258,8 @@ LANGUAGE sql STABLE AS $$
          (SELECT min(c.method_version) FROM config.panel_composition c
            WHERE c.metric = m.composed)
     FROM merged m
+   WHERE NOT EXISTS (SELECT 1 FROM unusable u
+                      WHERE u.composed = m.composed AND u.subject_day = m.subject_day)
 $$;
 
 -- REQ-INF-108. The panel Ask reads. Its signature is unchanged on purpose: `public.ask` is
@@ -356,13 +373,27 @@ AS $fn$
         SELECT DISTINCT s.metric
           FROM scored s
           JOIN config.panel_composition k ON k.component = s.metric
-          -- The whole no longer has to clear the SAME floor as the part. "sleep quality"
-          -- strips to `sleep quality`, against which "Sleep duration" scores 0.32 and
-          -- "Asleep (unspecified)" scores 0.43 — so the demotion did not fire and the answer
-          -- came from the 3-day unstaged fragment, the exact failure this rule was written to
-          -- stop. A part is demoted whenever its whole is a PLAUSIBLE reading of the phrase,
-          -- and a whole that scores at all is more plausible than a fragment of itself.
-          JOIN scored w ON w.metric = k.metric AND w.sim >= 0.20
+          -- REVERTED to 0.35, and the reason is worth keeping.
+          --
+          -- "sleep quality" reaches the 3-day unstaged fragment, and I lowered this floor to
+          -- 0.20 to demote the part. A second review measured what that actually did: the
+          -- justification numbers in my commit ("Sleep duration 0.32, Asleep (unspecified)
+          -- 0.43") do not reproduce — they are 0.261 and 0.138 — and at 0.20 the winner for
+          -- "sleep quality" is `sleep_minutes` at 0.273, which then FAILS the 0.35
+          -- answerability gate two statements later in `ask`. So the question stopped being
+          -- answered at all; only the metric named in the refusal changed.
+          --
+          -- Worse, `config.domains` contributes a second display name ('Sleep' for
+          -- `sleep_asleep_min`), and at 0.20 that pair activates: "asleep" — a 1.000 match —
+          -- resolved to `sleep_awake_min`, "Awake during sleep", for a question about being
+          -- asleep.
+          --
+          -- A demotion floor BELOW the answerability floor can demote a part in favour of a
+          -- whole the next check rejects. Moving a gate constant on numbers that do not
+          -- reproduce, with no test pinning the new behaviour, is the RULE-00 signature. The
+          -- "sleep quality" case is left OPEN as OQ-69 rather than closed by a number I could
+          -- not defend.
+          JOIN scored w ON w.metric = k.metric AND w.sim >= 0.35
          WHERE NOT EXISTS (
                  SELECT 1 FROM regexp_split_to_table(
                                  regexp_replace(lower(p_text), '[^a-z0-9 ]', ' ', 'g'),
