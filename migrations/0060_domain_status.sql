@@ -22,13 +22,16 @@ CREATE OR REPLACE FUNCTION analysis.f_domain_status(p_as_of date,
 RETURNS TABLE (domain_key text, display_name text, hero_metric text,
                resolution text, last_day date, days_with_data integer,
                latest_value numeric, band_lo numeric, band_hi numeric,
-               band_position text, capture_action text)
+               band_position text, capture_action text, value_is_stale boolean)
 LANGUAGE sql STABLE AS $fn$
 WITH d AS (
     SELECT dm.domain_key, dm.display_name, dm.hero_metric, dm.capture_action
       FROM config.domains dm WHERE dm.enabled
 ), panel AS (
-    SELECT p.metric, max(p.day) AS last_day, count(*)::int AS days_with_data
+    -- count(DISTINCT day), not count(*): the column is DAYS with data, and a metric served by
+    -- more than one lane would have counted the same day twice (review finding 1). Counting
+    -- rows where the name says days is the shape of that error, not just its consequence.
+    SELECT p.metric, max(p.day) AS last_day, count(DISTINCT p.day)::int AS days_with_data
       FROM analysis.f_daily_panel(p_as_of, p_known_at) p GROUP BY p.metric
 ), latest AS (
     SELECT DISTINCT ON (p.metric) p.metric, p.value, p.day
@@ -50,15 +53,22 @@ SELECT d.domain_key, d.display_name, d.hero_metric,
             WHEN l.value < b.band_lo THEN 'below'
             WHEN l.value > b.band_hi THEN 'above'
             ELSE 'in_band' END,
-       d.capture_action
+       d.capture_action,
+       CASE WHEN pn.last_day IS NULL OR r.max_staleness_days IS NULL THEN NULL
+            ELSE (p_as_of - pn.last_day) > r.max_staleness_days END
   FROM d
   LEFT JOIN __CORE__.metric_registry r ON r.metric_key = d.hero_metric
   LEFT JOIN panel  pn ON pn.metric = d.hero_metric
   LEFT JOIN latest l  ON l.metric  = d.hero_metric
   LEFT JOIN LATERAL (
+      -- The band is bounded on BOTH clocks. `analysis.baselines.computed_at` exists, so a
+      -- replay must not be given a band recomputed after the knowledge time — otherwise
+      -- `band_position` reports where a value sits inside a band that did not exist when the
+      -- question was asked (INV-4). This was accepted as a parameter and never applied.
       SELECT bl.band_lo, bl.band_hi FROM analysis.baselines bl
        WHERE bl.metric = d.hero_metric AND bl.day <= p_as_of
-       ORDER BY bl.day DESC LIMIT 1) b ON true
+         AND bl.computed_at <= p_known_at
+       ORDER BY bl.day DESC, bl.computed_at DESC LIMIT 1) b ON true
  ORDER BY d.domain_key
 $fn$;
 COMMENT ON FUNCTION analysis.f_domain_status(date, timestamptz) IS

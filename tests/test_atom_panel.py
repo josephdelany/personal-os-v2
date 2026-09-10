@@ -347,8 +347,12 @@ def domains(cur):
     # would drown these cases, so the table is emptied rather than recreated.
     cur.execute("DELETE FROM config_pytest.domain_metrics")
     cur.execute("DELETE FROM config_pytest.domains")
+    # `computed_at` matters: it is the baseline's knowledge time, and the stub omitted it, so
+    # no test in this file could exercise the bound f_domain_status is supposed to apply.
+    # The reviewer found that gap by reading the fixture, not by running it.
     cur.execute("""CREATE TABLE IF NOT EXISTS analysis_pytest.baselines (
-        day DATE, metric TEXT, value NUMERIC, band_lo NUMERIC, band_hi NUMERIC)""")
+        day DATE, metric TEXT, value NUMERIC, band_lo NUMERIC, band_hi NUMERIC,
+        computed_at TIMESTAMPTZ NOT NULL DEFAULT now())""")
     return cur
 
 
@@ -483,3 +487,48 @@ def test_RULE_12_the_composed_metric_obeys_device_precedence_too(cur):
     rows = [r for r in panel_rows(cur) if r[1] == "sleep_minutes"]
     assert rows == [(day, "sleep_minutes", 60.0)], (
         f"the Watch's night only, never the union of two devices: {rows}")
+
+
+def test_INV_4_a_band_recomputed_after_the_knowledge_time_is_not_used(domains):
+    """Review finding 12. `f_domain_status` accepted `p_known_at` and applied it to the atoms
+    and not to the baselines, although `analysis.baselines.computed_at` exists. A replay's
+    `band_position` was therefore computed against a band that did not exist when the question
+    was asked — reporting where a value sat inside a band built afterwards."""
+    cur = domains
+    day = AS_OF - dt.timedelta(days=1)
+    _domain(cur, "activity", "steps")
+    cur.execute("INSERT INTO analysis_pytest.panel (day, metric, value, src) "
+                "VALUES (%s,'steps',5000,'legacy')", (day,))
+    # A band computed LATER that would place the value inside it.
+    cur.execute("""INSERT INTO analysis_pytest.baselines
+        (day, metric, value, band_lo, band_hi, computed_at)
+        VALUES (%s,'steps',5000,4000,6000,%s)""",
+        # After the replay's knowledge time, and before real `now()` — so the default
+        # one-argument call sees it and the pinned replay does not. Putting it beyond now()
+        # would have made both exclude it and proved nothing.
+        (day, dt.datetime.combine(AS_OF + dt.timedelta(days=1), dt.time(12),
+                                  tzinfo=dt.timezone.utc)))
+    _apply_0056(cur); _apply_0060(cur)
+
+    cur.execute("SELECT band_position FROM analysis_pytest.f_domain_status(%s, %s)",
+                (AS_OF, dt.datetime.combine(AS_OF, dt.time(12), tzinfo=dt.timezone.utc)))
+    assert cur.fetchone()[0] is None, "a band from the future must not place a past value"
+
+    cur.execute("SELECT band_position FROM analysis_pytest.f_domain_status(%s)", (AS_OF,))
+    assert cur.fetchone()[0] == "in_band", "and it must be used once it is known"
+
+
+def test_REQ_NFR_005_a_stale_latest_value_is_marked_stale(domains):
+    """Review finding 12c. `latest_value` was rendered beside a band as "latest" with nothing
+    saying it was two years old — `last_day` was returned and nothing said the two disagreed."""
+    cur = domains
+    _domain(cur, "activity", "steps")
+    cur.execute("""INSERT INTO pan_core_pytest.metric_registry
+        (metric_key, display_name, family, unit, state_class, max_staleness_days)
+        VALUES ('steps','Steps','activity','count','total',3)
+        ON CONFLICT (metric_key) DO UPDATE SET max_staleness_days = 3""")
+    cur.execute("INSERT INTO analysis_pytest.panel (day, metric, value, src) "
+                "VALUES (%s,'steps',5000,'legacy')", (AS_OF - dt.timedelta(days=400),))
+    _apply_0056(cur); _apply_0060(cur)
+    cur.execute("SELECT value_is_stale FROM analysis_pytest.f_domain_status(%s)", (AS_OF,))
+    assert cur.fetchone()[0] is True

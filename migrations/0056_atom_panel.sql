@@ -356,7 +356,13 @@ AS $fn$
         SELECT DISTINCT s.metric
           FROM scored s
           JOIN config.panel_composition k ON k.component = s.metric
-          JOIN scored w ON w.metric = k.metric AND w.sim >= 0.35
+          -- The whole no longer has to clear the SAME floor as the part. "sleep quality"
+          -- strips to `sleep quality`, against which "Sleep duration" scores 0.32 and
+          -- "Asleep (unspecified)" scores 0.43 — so the demotion did not fire and the answer
+          -- came from the 3-day unstaged fragment, the exact failure this rule was written to
+          -- stop. A part is demoted whenever its whole is a PLAUSIBLE reading of the phrase,
+          -- and a whole that scores at all is more plausible than a fragment of itself.
+          JOIN scored w ON w.metric = k.metric AND w.sim >= 0.20
          WHERE NOT EXISTS (
                  SELECT 1 FROM regexp_split_to_table(
                                  regexp_replace(lower(p_text), '[^a-z0-9 ]', ' ', 'g'),

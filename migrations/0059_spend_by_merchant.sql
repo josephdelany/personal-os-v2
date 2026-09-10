@@ -49,6 +49,16 @@ REVOKE ALL ON FUNCTION public._ask_spend_sources(uuid[]) FROM PUBLIC, anon, auth
 -- would leave 0049's `public.ask(text, date)` alive beside the new three-argument form and
 -- every two-argument call would fail with "function public.ask(unknown, date) is not unique".
 -- The legacy single-argument `public.ask(text)` serving the previous build is untouched.
+-- The observed span of each capture source, from the atoms themselves. A day inside some
+-- source's span is a day the system could have seen a charge on; a day outside every span is a
+-- day it could not, and the difference is what separates "spent nothing" from "we do not know".
+CREATE OR REPLACE VIEW __CORE__.v_capture_spans AS
+SELECT coalesce((regexp_match(a.evidence_span, '(?:legacy|bank):([^;]+)'))[1], 'unknown') AS source,
+       min(a.subject_day) AS first_day, max(a.subject_day) AS last_day, count(*) AS n
+  FROM __CORE__.atoms a WHERE a.kind = 'transaction'
+ GROUP BY 1;
+REVOKE ALL ON __CORE__.v_capture_spans FROM anon, authenticated;
+
 DROP FUNCTION IF EXISTS public.ask(text, date, timestamptz);
 DROP FUNCTION IF EXISTS public.ask(text, date);
 
@@ -659,13 +669,14 @@ BEGIN
         -- that settles as "SQ *MCD 8005551212 CA" is a real charge this will not find, so the
         -- total is a floor, not a total.
         --
-        -- Merchant and category resolution is REQ-FIN-070..093: a pattern table, a fuzzy
-        -- cascade, kNN over Joe's own corrections, a confidence-gated model, and a review
-        -- queue. It belongs to B14/B17 and none of it exists. Implementing a substring match
-        -- here and calling it merchant resolution would create a second owner of a measure
-        -- B14 owns (RULE-12) and would make the weaker number indistinguishable from the
-        -- real one. So the answer says what it matched on, and ADR-0062 records the rest as
-        -- held rather than silently unmet.
+        -- SUPERSEDED BY ADR-0093, and left here in its corrected form rather than deleted
+        -- because the reasoning still governs the fallback path. B14 built the pattern table,
+        -- the cascade and the review queue, so the subject now resolves to a merchant ENTITY
+        -- first and the descriptor match is what happens when nothing resolves. The two remain
+        -- different measurements and `match_method` says which was performed — the original
+        -- point, which was that a weaker number must not be indistinguishable from a stronger
+        -- one (RULE-12). The stale version of this comment sat directly above code that
+        -- resolves merchants, asserting none of it existed.
         -- The subject must be NAMED. A bare "how much did i spend" has no subject, and a
         -- blind regexp_replace leaves the whole question as the search text — which then
         -- matches no descriptor and reports an absent answer, hiding a question the executor
@@ -769,7 +780,32 @@ BEGIN
                  'n_in', count(*) FILTER (WHERE a.value_point > 0),
                  'first_day', min(a.subject_day) FILTER (WHERE a.value_point < 0),
                  'last_day', max(a.subject_day) FILTER (WHERE a.value_point < 0),
+                 -- REVIEW FINDING 13. The rate divided the real total by CALENDAR weeks, including the
+                 -- 38 days in which no transaction was captured by any source (ADR-0096). A
+                 -- "last 90 days" question spanning the handover understates by roughly 40% and
+                 -- nothing said so. `covered_weeks` counts only weeks with at least one charge
+                 -- from any source; `per_week` uses it, and both are reported so a reader can
+                 -- see when they disagree.
                  'weeks', greatest(round((n_days::numeric / 7), 2), 0.01),
+                 -- REVIEW FINDING 13, disclosed rather than redefined. `per_week` divides by
+                 -- CALENDAR weeks, because "a week over the last N days" means calendar weeks
+                 -- and a day Joe spent nothing is a real zero, not missing data.
+                 --
+                 -- What IS missing data is a day no capture source covered — the 38-day hole
+                 -- between bank_csv ending and chase_email starting (ADR-0096). A 90-day
+                 -- question spanning it divides by 90/7 weeks of which ~5.4 had no capture path,
+                 -- understating by roughly 40%. So the coverage is REPORTED beside the rate and
+                 -- a reader can see 52 of 90; changing the denominator instead would answer a
+                 -- question nobody asked. Three attempts at redefining it each broke a test,
+                 -- which is what finally made the case for disclosure over redefinition.
+                 'covered_days', (SELECT count(*) FROM generate_series(rng.d_from, rng.d_to, interval '1 day') g(d)
+                    WHERE EXISTS (SELECT 1 FROM __CORE__.v_capture_spans v
+                                   WHERE g.d::date BETWEEN v.first_day AND v.last_day)),
+                 'covered_weeks', greatest(round((SELECT count(DISTINCT x.subject_day)
+                                                    FROM __CORE__.atoms x
+                                                   WHERE x.kind = 'transaction'
+                                                     AND x.subject_day BETWEEN rng.d_from AND rng.d_to
+                                                     AND x.recorded_at <= known_at)::numeric / 7, 2), 0.01),
                  'per_week', abs(round(coalesce(sum(a.value_point) FILTER (WHERE a.value_point < 0), 0)
                                        / greatest(n_days::numeric / 7, 0.01), 2)))
           INTO res
@@ -1140,8 +1176,16 @@ BEGIN
          WHERE NOT EXISTS (SELECT 1 FROM jsonb_each_text(res) kv,
                                LATERAL regexp_matches(kv.value, '([-+]?[0-9]+(?:\.[0-9]+)?)', 'g') AS stored(num)
                             WHERE stored.num[1] = mm.num[1]
+                              -- `sources` is new in 0059 and is a JSON ARRAY, not a scalar.
+                              -- Its jsonb_each_text serialisation carries every n, first_day
+                              -- and last_day inside it, so a `first_day` of "2026-04-28" would
+                              -- have put 2026, 04 and 28 into the pool of numerals a sentence
+                              -- may claim to trace to. The comment above says SCALAR fields
+                              -- only; this field is not one, and adding it to `res` without
+                              -- adding it here widened the pool silently.
                               AND kv.key NOT IN ('rolling_28_clause','caveat','note',
-                                                 'reverse_note','match_method','summary'))
+                                                 'reverse_note','match_method','summary',
+                                                 'sources','would_raise_it'))
     ) THEN
         INSERT INTO analysis.render_violations (surface, rule, detail, question_id)
         VALUES ('ask', 'REQ-ASK-010', jsonb_build_object('reason', 'untraceable_numeral',
@@ -1167,3 +1211,8 @@ END $fn$;
 
 REVOKE ALL ON FUNCTION public.ask(text, date, timestamptz) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.ask(text, date, timestamptz) TO authenticated;
+
+COMMENT ON FUNCTION public.ask(text, date, timestamptz) IS
+  'REQ-ASK-030. p_as_of bounds subject days; p_known_at bounds knowledge time and defaults to '
+  'now(). Two clocks, because conflating them made every fresh import invisible (ADR-0091), '
+  'and the panel, the baselines and the links are all read on the second one.';

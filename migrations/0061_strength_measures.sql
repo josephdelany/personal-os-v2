@@ -12,8 +12,11 @@
 -- RULE-13 true rather than intended: the windows and the formula set can be changed without a
 -- code change, and any figure can cite the version that produced it.
 
+-- NULLABLE, and deliberately so. `NOT NULL DEFAULT '{}'` backfills every row already in the
+-- catalogue with "this method has no parameters", which is a claim, and an unrecorded method
+-- then looks identical to a parameterless one. Missing must look missing (RULE-06).
 ALTER TABLE config.derivation_catalogue
-    ADD COLUMN IF NOT EXISTS parameters JSONB NOT NULL DEFAULT '{}'::jsonb;
+    ADD COLUMN IF NOT EXISTS parameters JSONB;
 
 COMMENT ON COLUMN config.derivation_catalogue.parameters IS
   'RULE-13. The numbers a method needs — formula names, window lengths, validated ranges — as '
@@ -30,8 +33,12 @@ INSERT INTO __CORE__.metric_registry
     (metric_key, display_name, family, unit, state_class, expected_cadence,
      max_staleness_days, plausible_low, plausible_high, self_report)
 VALUES
+    -- plausible_low is 1, not 0. Zero contradicts this measure's own missingness rule three
+    -- statements below — "a bodyweight set has an UNDEFINED e1RM, never zero, because zero
+    -- would sort as the weakest set ever performed" — and import_drop.bounded() uses this bound
+    -- to ADMIT values, so a zero would have been let in by the very column that forbids it.
     ('strength_e1rm_lb',   'Strength — estimated 1RM', 'strength', 'lb',    'measurement',
-     'irregular', NULL, 0, 1500, false),
+     'irregular', NULL, 1, 1500, false),
     ('strength_volume_lb', 'Strength — session volume', 'strength', 'lb',   'total',
      'irregular', NULL, 0, 200000, false),
     ('strength_acwr',      'Strength — acute:chronic', 'strength', 'ratio', 'measurement',
