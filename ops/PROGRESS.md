@@ -6331,3 +6331,42 @@ PROMOTED. The engine is tested, nothing is observed. B19.1 (regimes, Bayesian la
 **Requirement IDs:** REQ-INF-560..565, REQ-TIER-046, RULE-16, RULE-21.
 
 **ADR:** 0102.
+
+## 2026-09-10 (later still) — B19 dependency ADR, and §D micro-trials
+
+**Attempted:** the dependency ADR named as B19's gate, then whatever it unblocked.
+
+**What the ADR found:** the brief's dependency list described all of B19, and three of its five
+packages have been installed since B9. **B19.3 had no gate at all** — its power calculation uses
+`statsmodels`, already present. Only B19.1 needs anything new (`jax`, `jaxlib`, `numpyro`,
+`dynamax`; `jaxlib` is 88 MB of the 92). All BSD/Apache, no service, no runtime network call.
+
+Measured the minutes budget under OQ-67's private-repo scenario: 1,230 of 2,000/mo today, and
+B19.1 would add 60. **The binding cost is not jax — it is the hourly `extract` job, which bills
+720 minutes a month (59% of the budget) for a job whose measured median duration is 12 seconds**,
+because GitHub rounds per job to a whole minute. That connection between OQ-67 and the extract
+schedule was not visible from either question alone.
+
+**What now works:** `tools/engines/trials.py` + migration 0063. Power computed before any trial
+may start and refused below 0.80, with both counter-offers. Seeded permutation of balanced arms
+(BLAKE2b, not `hash()`, which is salted per process — an assignment that changes on rerun is not
+a randomisation). Block must outlast the washout, or the arms bleed together and bias the result
+TOWARD the null, which reads as a clean negative. Deviating days retained and flagged; ITT
+primary, per-protocol labelled secondary. A failed randomisation is INSUFFICIENT, never demoted
+to CONFIRMED_OBSERVATIONAL. Pre-registration freezes at the FIRST ASSIGNMENT, not at insert.
+
+**The arithmetic, stated:** 12 blocks detect only 1.6 SD at 80% power; 0.5 SD needs 126 blocks.
+Most proposals will be refused. That is the correct behaviour.
+
+**Evidence:** 450 local SQL tests pass under America/New_York; 35 pure tests; chain clean from
+empty at 62 files / 550 statements; layout 43/43. Requirements proven 200 -> 215.
+
+**What does not work:** all three trial tables are empty and stay empty, because
+`metric_registry.role` defaults to `context` and **no metric has been marked `lever`**. That is
+Joe's classification and defaulting it is what REQ-INF-565 forbids.
+
+**Spec defect recorded:** REQ-INF-216 says `tier='lever'`; there is no `tier` column and `tier`
+is already RULE-16's ladder. Implemented as `role`, recorded in ADR-0104 for correction rather
+than quietly reinterpreted.
+
+**Requirement IDs:** REQ-INF-200..217. **ADRs:** 0103, 0104.

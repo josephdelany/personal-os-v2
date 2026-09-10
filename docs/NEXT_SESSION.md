@@ -150,11 +150,21 @@ the engine is not the only possible writer.
 `analysis.chains` will be empty until hypotheses reach PROMOTED. That is correct and **it is
 not coverage.**
 
-**Still unstarted in B19:** §G.2 the Bayesian effect layer and §G.3 regimes (B19.1), and §D
-randomized micro-trials (B19.3). Both need dependencies the project does not have — `numpyro`,
-`jax[cpu]`, `dynamax`, `statsmodels` — and CLAUDE.md requires an ADR documenting limits,
-projected usage and failure at the limit before any is added. That ADR is the next gate for
-B19, not more code.
+**§D randomized micro-trials (B19.3) is now implemented and tested, not deployed:**
+`tools/engines/trials.py`, migration **0063**, 29 tests, ADR-0104. It needed **no new
+dependency** — the brief's dependency list described all of B19, and `statsmodels`/`scipy`/
+`networkx` have been installed since B9. Treating that list as one gate would have held back a
+unit that had no gate.
+
+The arithmetic is sobering and is stated rather than hidden: **twelve blocks can only detect a
+1.6 SD effect at 80% power; a 0.5 SD effect needs 126 blocks.** Most proposals will be refused,
+and that is correct — an underpowered trial costs six weeks of Joe's compliance and returns a
+null meaning "we could not have seen it" that reads as "it does not work".
+
+**Still unstarted: B19.1** (§G.2 Bayesian effect layer, §G.3 regimes). ADR-0103 measured its
+cost: only `jax`+`jaxlib`+`numpyro`+`dynamax` are new, `jaxlib` is 88 MB of the 92, all are
+BSD/Apache with no service and no runtime network call. It fits the minutes budget even if the
+repo goes private. **The finding that matters there is not jax** — see below.
 
 **B15 period/compare remains blocked on OQ-60's shape, not on its schedule.** Eight of fourteen
 domain hero metrics do not resolve against the registry, and two (`hrv_sdnn`, `rhr`) are the
@@ -176,6 +186,8 @@ domains today would say "no data" for recovery and vitals while 1,333 observatio
 | — | **the bank CSV export died 2026-05-13** | 38 empty days, then a source carrying a seventh of the value. Capture cannot be recovered later |
 | — | the review sheet (40 ticks, 157 names) | 197 descriptors, ~19% of spend |
 | — | install the Log Workout shortcut | strength — the stated primary objective |
+| — | **mark at least one metric `role='lever'`** | any micro-trial at all. The column defaults to `context` and nothing has been classified; defaulting it for Joe is what REQ-INF-565 forbids |
+| OQ-67 | private repo? **it now interacts with a second decision** | if private, Actions minutes are metered at 2,000/mo. The hourly `extract` job alone bills **720 of them — 59% of the budget — for a job whose measured median duration is 12 seconds**, because GitHub rounds per job to a whole minute. Halving its frequency recovers 360 minutes, six times what B19.1 costs |
 
 ## VERIFICATION AT THIS REVISION
 
