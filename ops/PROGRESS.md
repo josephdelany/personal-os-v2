@@ -7214,3 +7214,34 @@ renders.
 593 -> 611 (89%). REQ-FIN unproven 36 -> 18.
 
 **ADR:** 0129.
+
+## 2026-09-10 (latest+21) — B16 §A: the ingest endpoint contract
+
+**The ordering IS the contract:** authenticate, validate identity, insert, THEN enrich. The
+raw_captures row lands before any Workers AI call and the 202 follows THAT insert, because
+everything downstream is a recomputable view over the capture and the capture is not — a capture
+lost while waiting for a model is lost permanently, and the model is the least reliable thing in
+the path.
+
+The client owns the identity. The Shortcut generates capture_id before the first attempt so the
+same id survives a timeout, a queue and an hourly replay; a server-generated id would give every
+retry a new identity, and the offline queue retries BY DESIGN, so it would duplicate every
+capture it ever held.
+
+Two refusals that read as small and are not. A bad token means the body is never read — parsing
+an unauthenticated body is doing work on behalf of whoever sent it, and the body of a capture
+request is audio. And a rejected request KEEPS its raw body, because a rejected capture is still
+the only copy of whatever it was and a rejection with no body cannot be replayed after the fix.
+
+The PWA gets two writable fields, and that constraint is what keeps it a surface rather than a
+second capture path — a second capture path is a second set of rules to keep in step with the
+first. Images use a file input with `capture`, which hands the OS camera the job and never holds
+a stream that can be left recording.
+
+A correction supersedes the DERIVED row and never touches the capture: the transcript is the
+evidence, so "what did Joe actually say" survives every later opinion about what he meant.
+
+**Evidence:** 14 new tests. 450 local SQL tests pass; layout 43/43; never-rule scan clean.
+Requirements proven 611 -> 625 (91%). REQ-CAP unproven 34 -> 20.
+
+**ADR:** 0130.
