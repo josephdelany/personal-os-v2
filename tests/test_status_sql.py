@@ -2,6 +2,8 @@
 
 Closes the cursor-double query gap called out by the September 8 review.
 """
+import os
+
 import pytest
 
 from tests._sql_fixture import ROOT, sql_connection
@@ -23,6 +25,14 @@ class OpsTwinCursor:
 
 @pytest.fixture
 def cur(sql_connection):
+    # RULE-01. This fixture runs CREATE SCHEMA and migration DDL on whatever connection it is
+    # given. Every other sql_connection fixture guards on the disposable socket; this one did
+    # not, so in CI's `pytest` job — where SUPABASE_DB_URL IS set — it executed DDL against
+    # PRODUCTION and relied entirely on the rollback to undo it. The workflow's comment claimed
+    # that job skipped these tests. It did not; nothing made it true. Found by the evidence
+    # audit, not by a failure, because a rolled-back CREATE SCHEMA leaves no trace to notice.
+    if not os.environ.get("PERSONAL_OS_TEST_SOCKET"):
+        pytest.skip("builds ops DDL; disposable local server only (tools/test_local_sql.py)")
     cur = sql_connection.cursor()
     cur.execute("CREATE SCHEMA ops_pytest")
     sql = (ROOT / "migrations/0011_ops.sql").read_text().replace("__OPS__", "ops_pytest")

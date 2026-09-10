@@ -112,8 +112,12 @@ def reconstruct_day(method, day, *, watch, phone, last_recorded):
     return r, ev
 
 
-def rows_for(cur, method, *, core="core", since=None, until=None):
+def rows_for(cur, method, *, core="core", since=None, until=None, coverage=None):
+    """Rows to store. `coverage`, if given a list, receives the days examined without a
+    conclusion — reported rather than stored, so coverage stays answerable without filling the
+    event table with rows that assert nothing."""
     out = []
+    unknown = coverage if coverage is not None else []
     for day, watch, phone, last_recorded, n_atoms in device_days(cur, core=core, since=since,
                                                                  until=until):
         r, ev = reconstruct_day(method, day, watch=watch, phone=phone,
@@ -128,6 +132,28 @@ def rows_for(cur, method, *, core="core", since=None, until=None):
             # A first version skipped only `contradicted`, and a read of its own output against
             # production showed 37 rows of the second kind: days the Watch captured and the
             # phone did not, recorded as `unknown` about a device that was demonstrably on.
+            continue
+        if r.presence == "unknown":
+            # AN UNKNOWN IS NOT A CONCLUSION, AND `inferred_events` STORES CONCLUSIONS.
+            #
+            # REQ-REC-009 requires the ENGINE to return `unknown` rather than `did_not_occur`
+            # when the required evidence is absent, and it does — that is asserted directly
+            # against `reconstruct_day`. It does not require storing a row for every day about
+            # which this method has nothing to say, and doing so is actively harmful.
+            #
+            # Found by running the full pending stack against production: the transaction
+            # backfill puts legacy financial atoms into `core.atoms` going back years, so
+            # `device_days` yielded 438 subject days rather than the 71 of the HealthKit era.
+            # 404 of them had neither an iPhone nor a Watch atom — because on those days
+            # neither device had produced anything into this system at all — and every one was
+            # stored as `unknown`. The event table came out 92% rows asserting nothing, the
+            # search path returned them ahead of the real episodes, and the first hit a caller
+            # inspected had one citation instead of two.
+            #
+            # "This method cannot speak to this day" is the DEFAULT state of every day nobody
+            # examined. Writing it down does not make it more true; it makes the days that do
+            # carry a conclusion harder to find.
+            unknown.append(day)
             continue
         start = dt.datetime.combine(day, dt.time(0), dt.timezone.utc)
         out.append((day, r, ev, to_row(
@@ -186,7 +212,9 @@ def main() -> int:
     cur = conn.cursor()
     try:
         method = load_method(cur, a.method, core=a.core, config=a.config)
-        rows = rows_for(cur, method, core=a.core, since=a.since, until=a.until)
+        coverage: list = []
+        rows = rows_for(cur, method, core=a.core, since=a.since, until=a.until,
+                        coverage=coverage)
         by_presence: dict = {}
         for _, r, _, _ in rows:
             by_presence[(r.presence, r.reason)] = by_presence.get((r.presence, r.reason), 0) + 1
@@ -197,6 +225,11 @@ def main() -> int:
         if rows:
             days = [d for d, _, _, _ in rows]
             print(f"  span {min(days)} .. {max(days)}")
+        # Coverage is REPORTED, never stored. A day this method cannot speak to is the default
+        # state of every day nobody examined, and a row saying so asserts nothing.
+        if coverage:
+            print(f"  {len(coverage)} day(s) examined without a conclusion "
+                  f"({min(coverage)} .. {max(coverage)}) — reported, not stored")
         if not a.commit:
             print("\nDRY RUN — nothing written. Re-run with --commit.")
             return 0
