@@ -6588,3 +6588,31 @@ layout 43/43; never-rule scan clean. Requirements proven 266 -> 286 (42%).
 work. `categorise.py` is untouched and the two do not yet meet.
 
 **Requirement IDs:** REQ-FIN-080..093, REQ-FIN-100..106. **ADR:** 0110.
+
+## 2026-09-10 (latest+2) — B17 §C.3 recurrence detection
+
+**What now works:** `tools/engines/recurrence.py`, the substrate §C.4 and §D are built on.
+
+Two decisions carry it. Median and MAD rather than mean and SD: a subscription skipped once
+gives intervals [31, 59, 30], whose mean is 40 and SD 12.4 — a mean/SD rule loses a real
+subscription because a card declined once. The median is 31 and the MAD is 1. The test asserts
+the mean/SD numbers directly so the claim cannot quietly stop being true.
+
+And monthly means SAME DAY OF MONTH +/- 3, not 30 days. A charge on the 31st recurs on the 28th
+in February; as a fixed interval those are misses. A 30-day rule is also wrong by construction —
+it drifts a full day per month, so after a year it compares against a date the merchant never
+used. The implementation is month-end aware.
+
+Amount stability is NOT required: requiring it would detect Netflix and miss the electricity, and
+the electricity is where a step change hides. A rounding change ($9.99 -> $10.00) is not a price
+rise. A wandering series is `variable`, not `fixed_with_step`, because that label promises a price
+that holds. The insight names the MONTH, not the index. A cancelled stream is returned, never
+dropped, because a restart would otherwise look like a first-ever charge.
+
+**Evidence:** 21 new tests against series whose answer is known by construction. 450 local SQL
+tests pass; layout 43/43; never-rule scan clean. Requirements proven 286 -> 297 (43%).
+
+**Not claimed:** nothing is wired to real transaction data — `core.atoms` holds zero transaction
+atoms until the pending backfill is authorised.
+
+**Requirement IDs:** REQ-FIN-130..140. **ADR:** 0111.
