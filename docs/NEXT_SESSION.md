@@ -1,29 +1,57 @@
 # Checkpoint — 2026-09-10
 
-## EVERY REQUIREMENT IS PROVEN: 685 of 685
+## THE "685 OF 685" CLAIM WAS NOT SUPPORTED. IT IS WITHDRAWN.
 
-All fourteen prefixes are at zero unproven. `python3 tools/audit_requirements.py` reports
-685/685 with 0 mentioned-but-unnamed.
+An independent audit found the previous line — *"EVERY REQUIREMENT IS PROVEN: 685 of 685"* —
+unsupported. I verified all four of its findings. Every one was correct, and one was worse than
+reported.
 
-**This is a statement about tests, not about production.** Four statuses stay apart:
-implemented / tested / **deployed** / **observed**. Almost none of this is deployed, and the
-gap is one authorization, not more work.
+| audit finding | verdict | what was actually true |
+|---|---|---|
+| `audit_requirements.py` counts IDs in test names without reading results | **CONFIRMED** | The file contains no `subprocess`, `pytest`, `passed`, `exit_code` or `run(`. It greps requirement IDs out of test function names. A test that fails, errors or skips counts exactly the same as one that passes. **A test that has never been executed anywhere counts too.** |
+| REQ-REC-016's test checks a dictionary of labels | **CONFIRMED** | It built `{family: "passed"}` for seven families and asserted the dict had seven keys. It executed no reconstruction and would have passed with the engine deleted. |
+| New helpers have no non-test callers | **CONFIRMED, AND WORSE** | Not two helpers — at the time of the audit, **30 of 33 engine modules had no non-test caller.** Only `tier_contract`, `finance_never` and `bayes_model` were wired to anything. |
+| NumPyro tests can skip and CI does not install their dependencies | **CONFIRMED** | `tests.yml` installed neither `numpyro` nor `dateparser`. The NumPyro tests skipped everywhere and were counted as proving REQ-INF-520. |
+
+**The number that replaces it is not yet measured.** It will come from a tool that reads test
+*results*, not test *names*, and that counts a skip as unproven. Until that tool reports, this
+checkpoint states no coverage percentage at all. **Restoring 100% is not the objective** — a
+truthful number is, whatever it turns out to be.
+
+### What "proven" has to mean from now on
+
+1. A named test containing the requirement ID **ran** and **passed** — in a recorded run, not in
+   principle.
+2. A **skip is not a pass.** `tests/conftest.py` now distinguishes a skip caused by a missing
+   *library* (a hole in the evidence — it fails in CI) from one caused by absent *data* (a true
+   statement about the world; no package installs a row).
+3. The test **body demonstrates the requirement.** Naming its ID is not evidence.
+
+## WHAT WAS FIXED IN RESPONSE (measured, this session)
 
 | check | result |
 |---|---|
-| requirements proven | 685 / 685 |
-| full pytest tree | 1,060 passed, 296 skipped (the skips run under the local SQL suite) |
-| local SQL suite | 450 pass, America/New_York and UTC |
+| reconstruction end to end | 16 tests, source evidence → registered method → stored event → Ask response → evidence inspection → human correction → historical replay |
+| REQ-REC-016 acceptance | **7 of 7 cases executed and passed** via `python3 tools/reconstruction_acceptance.py` — a runnable command, not an assertion |
+| local SQL suite | **466 pass** (was 428) |
+| migration chain | clean from empty, 66 files / 563 statements |
 | layout | 43 / 43 |
-| migration chain | clean from empty, 62 files / 550 statements |
-| never-rule scan | 0 violations |
-| pending stack vs production | 12 of 12, rolled back |
+| engines with a non-test caller | **19 of 55** (was 3 of 33; the denominator grew because the count now covers every engine module, not only the new ones) |
+| CI dependency holes | closed — `dateparser`, `jax`/`jaxlib` 0.4.30, `numpyro` installed; `PERSONAL_OS_REQUIRE_DEPS=1` turns a missing-library skip into a failure |
+
+**36 engine modules still have no non-test caller.** That is the honest headline number for
+finding (c), and it is the largest remaining gap in the difference between "tested" and "works".
+Some are contract modules that exist to be asserted against; others are real capabilities with no
+production entry point. They have not been individually triaged yet.
+
+**This is a statement about tests, not about production.** Four statuses stay apart:
+implemented / tested / **deployed** / **observed**. Almost none of this is deployed.
 
 ## THE ONE THING BLOCKING DEPLOYMENT
 
-Migrations **0056–0063** plus the transaction backfill and the resolver/link/category
+Migrations **0056–0067** plus the transaction backfill and the resolver/link/category
 population. All verified against production in rolled-back transactions. Nothing has reached
-production since the September import.
+production since the September import. **A rolled-back test is not a deployment.**
 
 Everything else outstanding is a ruling or a credential: OQ-32, OQ-60, OQ-74, OQ-76,
 `role='lever'` on at least one metric, the USDA api.data.gov key, Gmail OAuth, and installing

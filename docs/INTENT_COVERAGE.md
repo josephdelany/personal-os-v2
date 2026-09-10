@@ -89,6 +89,40 @@ Private inventory seed: `_legacy_snapshot/data_capability_inventory_2026-09-09.j
 contains archive table metadata and Health type counts/date ranges. It is gitignored;
 source inventory implementation must finish live-use mapping and archive date scans.
 
+## Acceptance status — 2026-09-10 (reconstruction wired; ADR-0134, ADR-0135)
+
+**What changed since the block below:** the preconditions that made every case engine-only are
+gone. Migration 0054 applies in a clean chain, `config.reconstruction_methods` has two registered
+methods (0064 `watch_non_wear`/`device_state`, 0067 `sleep_gap_explained`/`data_coverage`),
+`tools/reconstruct_run.py` writes real reconstructions, and 0065 surfaces them through
+`public.search_record` — which is what `ask`'s `search` operation delegates to.
+
+**STORED means the case runs through the real path** — method read from the registry, engine
+decides, row written by the production writer, assertion reads back what was stored — in
+`tests/test_reconstruction_e2e.py` (16 tests) or `tools/reconstruction_acceptance.py` (7 of 7
+executed cases). It still does not mean **deployed**: none of 0064–0067 has been applied to
+production.
+
+| Case | Status | Evidence |
+|---|---|---|
+| R1 purchase vs consumption | **OPEN** | unchanged. Needs B14 entity resolution. A charge is registered evidence and a portion is not derivable from it — **a purchase is not a consumption**, and no method here will be allowed to equate them |
+| R2 training history without sets | **OPEN** | unchanged. Needs B18 workout import; 32 workouts were deferred by the 2026-09-09 import. **Pending observation, not missing implementation** |
+| R3 outing with contradicting source | **STORED** | `case_contradictory_evidence` — level contradiction resolves to `unknown`/`contradicted` with the ambiguity disclosed, executed against a database |
+| R4 recurring service and usage | **OPEN** | unchanged. Needs B17 finance; the logging-outage rule is not implemented. An outage is not proof of nonuse |
+| R5 dependent corroboration | **STORED** | `case_duplicated_evidence` (4 citations, 1 origin, stays DESCRIPTIVE) and `test_REQ_REC_008_one_export_read_twice_is_one_origin_not_two`. This is the defect that reached production output before it was caught |
+| R6 retrospective correction | **STORED** | `test_REQ_REC_011...`, `test_INV_4_a_replay_sees_the_interpretation_that_was_current_THEN`, and `test_INV_4_a_search_pinned_before_the_correction_still_answers_what_was_believed_then` — the same query at two knowledge bounds returns two different answers, through `search_record` |
+| R7 unavailable detail | **STORED** | **upgraded from PARTIAL.** 0068 adds `public.derivation_support(measure)`: a catalogued measure returns its whole derivation including the missingness rule; an uncatalogued one is refused with a disposition, and `substitute` is present and always null. `test_R7_a_refusal_never_hands_back_a_substitute_measure` is the scenario — asked for screen hours with only visit timestamps, it must not answer with visits |
+| R8 useful clarification | **PARTIAL** | unchanged. `discriminating_evidence` is returned by the evaluator (REQ-REC-015); the B16 prompting integration and cadence rules are not built |
+| R9 inferred input in analysis | **STORED** | **upgraded from OPEN.** `Evidence` now carries `provenance`/`input_tier`; a reconstruction resting on a conclusion is capped at its weakest inferred input, and 0066's CHECK enforces it in the table. `case_inferred_input_propagation` stores a row with 2 independent origins held at DESCRIPTIVE. This is exactly "preserve uncertainty and dependence; do not confirm the inference using its own inputs" |
+| R10 extensibility / model fallback | **STORED** | `case_model_unavailable` — an unregistered method refuses and names REQ-REC-004 (RULE-13); `test_REQ_REC_004_the_method_is_read_from_the_registry_and_an_unregistered_one_cannot_run` |
+| R11 discovery across history | **OPEN** | unchanged. M5 |
+| R12 genuinely no evidence | **STORED** | `case_unknown_presence` and `test_REQ_REC_009_a_day_with_no_capture_at_all_is_unknown_not_a_non_wear_episode` — missing evidence names the missing inputs and never becomes `did_not_occur` |
+
+Seven STORED, one PARTIAL, four OPEN. **The four OPEN cases each depend on a build unit or on
+observations that do not exist yet, not on a reconstruction decision** — R2 in particular is
+pending observation rather than missing implementation. Recording them here does not authorise
+skipping them (ADR-0084).
+
 ## Acceptance status — 2026-09-09 (B14R steps 1-4)
 
 Engine-level only. A case is marked EVIDENCE (ENGINE) when a named test containing its REC

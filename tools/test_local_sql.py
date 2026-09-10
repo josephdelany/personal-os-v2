@@ -35,6 +35,8 @@ TESTS = ("tests/test_ask_ranges.py", "tests/test_ask.py", "tests/test_ask_operat
          # The reconstruction path end to end: schema, engine and read API were each
          # tested and nothing ran them together.
          "tests/test_reconstruction_e2e.py",
+         # INTENT_COVERAGE R7: the refusal path for an uncatalogued derivation.
+         "tests/test_derivation_refusal.py",
          "tests/test_ontology_constraints.py")
 
 
