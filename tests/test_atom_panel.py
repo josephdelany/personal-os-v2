@@ -202,6 +202,59 @@ def test_RULE_08_overlapping_sleep_segments_are_counted_once(cur):
     assert panel(cur)[(day, "sleep_minutes")] == 90, "naive summing would give 120"
 
 
+def test_RULE_12_a_bad_segment_on_the_LOSING_device_does_not_delete_the_night(cur):
+    """Third review, finding 2 — a regression created by the second round's repair.
+
+    That repair excluded a whole night whenever ANY component segment was unusable, keyed on
+    (metric, day) with NO device predicate — while the composition itself is restricted to the
+    winning device. Device precedence exists precisely so the losing device "is not read", and
+    one truncated iPhone segment therefore destroyed ninety minutes of complete Watch data.
+
+    Worse, it failed in a way that reads as correct: the COMPONENTS stayed visible, because
+    they need no interval. "How much core sleep" answered and "how much sleep" went silent for
+    the same night."""
+    day = dt.date(2026, 9, 1)
+    atom(cur, "sleep_core_min", day, 60, interval=_seg(day, 1, 0, 2, 0))
+    atom(cur, "sleep_deep_min", day, 30, interval=_seg(day, 2, 0, 2, 30))
+    base = dt.datetime.combine(day, dt.time(0), dt.timezone.utc)
+    atom(cur, "sleep_core_min", day, 10, device="iPhone",       # truncated export: open end
+         interval=f"[{base + dt.timedelta(hours=4)},)")
+    _apply_0056(cur)
+    assert panel(cur)[(day, "sleep_minutes")] == 90, (
+        "the winning device's night is complete and must survive junk from the losing one")
+
+
+def test_RULE_06_a_night_dropped_for_a_bad_segment_is_recorded_not_merely_absent(cur):
+    """Third review, finding 2. The repair's own comment claimed the night was "excluded
+    ENTIRELY and counted" — and nothing counted it. `unusable` was an anti-join with no
+    counter, no column and no view, so an excluded night was indistinguishable from a night
+    that never had data: exactly the confusion the comment was written to prevent."""
+    day = dt.date(2026, 9, 1)
+    base = dt.datetime.combine(day, dt.time(0), dt.timezone.utc)
+    atom(cur, "sleep_core_min", day, 60, interval=_seg(day, 1, 0, 2, 0))
+    atom(cur, "sleep_deep_min", day, 30, interval=f"[{base + dt.timedelta(hours=2)},)")
+    _apply_0056(cur)
+    assert (day, "sleep_minutes") not in panel(cur), "the night has no computable duration"
+    cur.execute("SELECT day, metric, device, reason FROM "
+                "analysis_pytest.f_composed_exclusions(%s, now()) ORDER BY 1,2", (AS_OF,))
+    rows = cur.fetchall()
+    assert rows, "and RULE-06 requires the drop to be a recorded fact, not a silence"
+    assert (rows[0][0], rows[0][1], rows[0][3]) == (day, "sleep_minutes", "unbounded_end"), rows
+
+
+def test_RULE_06_a_zero_duration_segment_is_reported_with_its_own_reason(cur):
+    """An EMPTY range — tstzrange(t, t), which any zero-duration sample produces — passes both
+    `upper_inf` tests, makes range_agg return {}, and turns the night's sum into NULL. It is a
+    different fault from a truncated export and is named differently."""
+    day = dt.date(2026, 9, 1)
+    base = dt.datetime.combine(day, dt.time(2), dt.timezone.utc)
+    atom(cur, "sleep_core_min", day, 60, interval=_seg(day, 1, 0, 2, 0))
+    atom(cur, "sleep_deep_min", day, 0, interval=f"[{base},{base})")
+    _apply_0056(cur)
+    cur.execute("SELECT reason FROM analysis_pytest.f_composed_exclusions(%s, now())", (AS_OF,))
+    assert [r[0] for r in cur.fetchall()] == ["zero_duration_segment"]
+
+
 def test_RULE_12_both_the_whole_and_its_parts_are_answerable(cur):
     """A component is served in its own right — "how much deep sleep did I get" must have
     something to answer from. Withholding components to prevent a double-count nothing
@@ -293,8 +346,12 @@ def test_RULE_10_a_correction_supersedes_and_the_replay_still_shows_the_old_valu
 
 def test_RULE_12_a_legacy_row_never_backfills_a_metric_the_atom_lane_owns(cur):
     """Measured before this was built: legacy sleep_deep_min is in HOURS despite the _min
-    suffix (1.3 vs 78.2) and legacy sleep_asleep_min means TOTAL sleep (411 vs 122). Blending
-    them would be wrong by a factor of sixty, silently, under a name asserting the unit."""
+    suffix — a sixtyfold ratio between the lanes — and legacy sleep_asleep_min means TOTAL
+    sleep where the atom means the unstaged portion, a threefold one. Blending them would be
+    wrong by a factor of sixty, silently, under a name asserting the unit.
+
+    The ratios stand in for the averages, which are Joe's own sleep figures (RULE-29). The
+    measuring query is in ADR-0089."""
     day, older = dt.date(2026, 9, 1), dt.date(2025, 1, 1)
     atom(cur, "steps", day, 1000)
     cur.execute("INSERT INTO analysis_pytest.panel (day, metric, value, src) "

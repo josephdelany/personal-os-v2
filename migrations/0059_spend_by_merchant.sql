@@ -38,7 +38,22 @@
 CREATE OR REPLACE FUNCTION public._ask_spend_sources(p_atom_ids uuid[])
 RETURNS TABLE (source text, n bigint, first_day date, last_day date)
 LANGUAGE sql STABLE SECURITY DEFINER SET search_path = '' AS $fn$
-    SELECT coalesce((regexp_match(a.evidence_span, '(?:legacy|bank):([^;]+)'))[1], 'unknown'),
+    -- THREE writer formats, not one. `tools/backfill_transactions.py` writes
+    -- `legacy:<source>;legacy_id=...`, the bank path writes `bank:<source>;...`, and
+    -- `tools/backfill_run.py` writes `transactions#<id>|src=<source>`. A regex matching only
+    -- the first two collapsed every atom from the third into a single bucket called 'unknown',
+    -- and `source_discontinuity` below is `count(*) > 1` over exactly this grouping. So two
+    -- genuinely different sources that both fell to 'unknown' reported NO discontinuity --
+    -- the ADR-0096 boundary this function exists to flag, unflagged -- while ONE source
+    -- written in both formats reported a discontinuity that was not one. Both directions
+    -- wrong, silently, on the disclosure that a total spanning 2026-05-13 depends on.
+    --
+    -- `core.atoms` holds no transaction atoms yet (measured 2026-09-10: zero rows), so this was
+    -- latent rather than live. The backfill that creates 1,052 of them is in the same pending
+    -- stack as this migration, which is why it is fixed now rather than after.
+    SELECT coalesce((regexp_match(a.evidence_span, '(?:legacy|bank):([^;|]+)'))[1],
+                    (regexp_match(a.evidence_span, '\|src=([^;|]+)'))[1],
+                    'unknown'),
            count(*), min(a.subject_day), max(a.subject_day)
       FROM __CORE__.atoms a WHERE a.id = ANY(p_atom_ids)
      GROUP BY 1 ORDER BY min(a.subject_day)
@@ -1048,10 +1063,8 @@ BEGIN
          WHERE a.kind = 'transaction'
            AND a.subject_day BETWEEN rng.d_from AND rng.d_to AND a.subject_day <= as_of
            AND a.recorded_at <= known_at
-           AND NOT EXISTS (SELECT 1 FROM __CORE__.atoms s
+           AND NOT EXISTS (SELECT 1 FROM __CORE__.atoms s   -- RULE-04, as the total does
                             WHERE s.supersedes = a.id AND s.recorded_at <= known_at)
-           AND NOT EXISTS (SELECT 1 FROM __CORE__.atoms s
-                            WHERE s.supersedes = a.id AND s.recorded_at <= known_at)            -- RULE-04, as above
            AND (CASE WHEN merchant_entity IS NOT NULL
                      THEN EXISTS (SELECT 1 FROM __CORE__.links l
                                    WHERE l.subject_atom = a.id AND l.predicate = 'paid_to'
@@ -1175,7 +1188,17 @@ BEGIN
                                                  -- `would_raise_it` is deliberately NOT here:
                                                  -- it is never a key of `res`, so excluding it
                                                  -- was a no-op presented as a fix.
-                                                 'sources'))
+                                                 'sources',
+                                                 -- `matched_on` is a MERCHANT NAME, and a
+                                                 -- merchant name can contain a digit. With
+                                                 -- "7-Eleven" resolved, `7` entered the pool
+                                                 -- of numerals a sentence could claim to
+                                                 -- trace to, so a sentence saying "7" about
+                                                 -- anything at all would verify. It is a
+                                                 -- scalar, but it is a NAME, not a measured
+                                                 -- quantity, and only quantities may license
+                                                 -- a numeral.
+                                                 'matched_on'))
     ) THEN
         INSERT INTO analysis.render_violations (surface, rule, detail, question_id)
         VALUES ('ask', 'REQ-ASK-010', jsonb_build_object('reason', 'untraceable_numeral',

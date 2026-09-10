@@ -40,8 +40,46 @@ have fired silently on the next import, the next check-in, or the first replay. 
 Every regression test was verified to FAIL against the unfixed migration. Three attempts at
 finding 13 each broke a test before disclosure beat redefinition.
 
-**A second review of the repairs is the next gate**, because in this project every review round
-has found defects introduced by the previous round's fixes.
+## THREE REVIEW ROUNDS — 42 findings
+
+| round | findings | caused by the previous round's repairs |
+|---|---|---|
+| first | 19 | — |
+| second | 12 | **10** |
+| third | 11 | 2 confirmed, plus 1 that was doubly dead |
+
+**All three ran against a green suite.** Passing was never the signal.
+
+The third round's worst finding was **pre-existing and untouched by both earlier rounds, which
+had each edited the very loop it lived in**: the resolver hit a NOT NULL and a CHECK violation
+on any ATM, transfer or fee descriptor, with the commit after the loop and no exception
+handling — so one such descriptor rolled back every pattern, token and alias in the run. Joe's
+data reaches that path routinely.
+
+Three defects sat underneath a test written to catch them, because those tests **read the
+source file as text and grepped it for string literals**:
+
+- Two grepped `resolve_merchants.py`. A crash on ordinary bank input passed them for a round.
+  Both also took a live-schema fixture and never used it, so they *skipped* in CI while looking
+  like database tests.
+- One grepped `build_catalogue.py`. The code it described was a no-op for **100%** of the rows
+  it was written to protect, and called `json.dumps` in a module that does not import `json` —
+  it would have raised `NameError` had it ever run. Two defects hiding each other.
+- 0061 was applied by **no pytest at all**; its tests read the migration as text.
+
+Those are now tests that run the code, each verified to fail against the old version. See
+ADR-0101.
+
+**What this round changed structurally** (not just repaired):
+
+- `entity_aliases.canonical` is nullable for REQ-FIN-051 non-merchants only, paired with a
+  required `non_merchant_kind`. OQ-72 is the consequence Joe must settle.
+- An exclusion may not reach past its own device lane; `analysis.f_composed_exclusions` records
+  the nights that are dropped, so an excluded night differs from a night with no data.
+- `strength.py` reads `config.derivation_catalogue.parameters`, so RULE-13 is true rather than
+  asserted.
+- Joe's merchant confirmations now reach the resolver. They previously went into a table
+  nothing queried — the review sheet with 157 names terminated in a write nobody read.
 
 ## AWAITING ONE AUTHORIZATION (all verified against production in rolled-back transactions)
 
@@ -56,7 +94,10 @@ has found defects introduced by the previous round's fixes.
 | — | transaction backfill | 1,052 legacy rows → 1,052 atoms, none dropped, none merged |
 | — | resolver / link / category population | 616 `paid_to` links, 88 category rules |
 
-The migration chain applies clean from empty at **61 files**.
+The migration chain applies clean from empty at **60 files, 528 statements**.
+
+**Verified 2026-09-10 after the third round:** 430 local SQL tests pass under both
+America/New_York and UTC; layout 43/43; chain clean from empty.
 
 ## IMPLEMENTED AND TESTED, NOT DEPLOYED
 

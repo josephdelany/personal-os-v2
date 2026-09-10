@@ -83,5 +83,12 @@ $fn$;
 COMMENT ON FUNCTION analysis.f_domain_status(date, timestamptz) IS
   'REQ-ASK-021 / RULE-18. Per-domain readiness. `unregistered_but_has_data` is the OQ-60 case: '
   'the hero metric names something the registry does not know while rows exist under that name '
-  '— a rename nobody has confirmed, never to be guessed at query time.';
+  '— a rename nobody has confirmed, never to be guessed at query time. '
+  'KNOWLEDGE-TIME CAVEAT (OQ-71): p_known_at bounds which ATOMS are read, but band_lo, band_hi '
+  'and band_position come from analysis.baselines, whose computed_at is REBUILD time, not the '
+  'time the evidence became known. Bounding the baseline by p_known_at therefore removed every '
+  'band from every replay rather than restoring the historical one. Until baselines are '
+  'versioned by evidence time, a replayed band is the CURRENT band, and only the atoms behind '
+  'it are replayed. The caveat is stated here, in the contract, because a consumer reads this '
+  'and not the body comment or OPEN_QUESTIONS.md.';
 REVOKE ALL ON FUNCTION analysis.f_domain_status(date, timestamptz) FROM anon, authenticated;

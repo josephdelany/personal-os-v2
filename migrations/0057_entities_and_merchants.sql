@@ -72,10 +72,30 @@ CREATE TABLE IF NOT EXISTS __CORE__.entity_aliases (
     alias_id       UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     alias          TEXT NOT NULL,               -- the NORMALIZED descriptor
     raw_descriptor TEXT,                        -- REQ-FIN-061: the original, verbatim
-    canonical      TEXT NOT NULL,
+    -- The other originals. Several raw descriptors normalise onto one alias -- "HANNAFORD
+    -- #8229 WATERVILLE ME" and "HANNAFORD #8230 WATERVILLE ME" are the same merchant -- so
+    -- "the original, verbatim" is ambiguous by construction. `raw_descriptor` holds the one
+    -- with the most transactions and this holds the rest, because the alternative in force
+    -- until now was dropping them, unrecorded, by dictionary-iteration order.
+    also_seen      TEXT[] NOT NULL DEFAULT '{}',
+    -- Nullable, and only for one reason. REQ-FIN-051 classifies ATM withdrawals, internal
+    -- transfers and bank fees as NOT MERCHANTS. That is a real, reusable resolution -- it is
+    -- the answer "there is no merchant here" -- but it has no merchant name to record, and
+    -- writing the CATEGORY into this column would let a downstream reader render "internal
+    -- transfer" as a payee. So the column is NULL exactly there, and the constraint below
+    -- makes that the ONLY place it can be NULL.
+    --
+    -- The writer and this schema previously disagreed: the resolver emitted these rows with
+    -- canonical NULL and resolved_by 'not_a_merchant', both illegal, with the commit after the
+    -- loop and no exception handling -- so ONE ATM descriptor rolled back every pattern, every
+    -- token and every alias in the run. Joe's own data reaches that path routinely; the tool
+    -- prints "7 are ATM/transfer/fee" as a normal line.
+    canonical      TEXT,
+    non_merchant_kind TEXT,                     -- REQ-FIN-051: why there is no merchant
     entity_id      UUID REFERENCES __CORE__.entities(id),
     resolved_by    TEXT NOT NULL
-        CHECK (resolved_by IN ('human','pattern_exact','pattern_regex','fuzzy','provisional')),
+        CHECK (resolved_by IN ('human','pattern_exact','pattern_regex','fuzzy','provisional',
+                               'not_a_merchant')),
     confidence     NUMERIC CHECK (confidence IS NULL OR (confidence >= 0 AND confidence <= 1)),
     normalization_rules TEXT[] NOT NULL DEFAULT '{}',   -- REQ-FIN-062
     unconfirmed    BOOLEAN NOT NULL DEFAULT false,
@@ -94,6 +114,17 @@ CREATE TABLE IF NOT EXISTS __CORE__.entity_aliases (
     -- that cannot fail is decoration, and this one's decoration read as a guarantee: downstream,
     -- "fuzzy at 1.00" and "Joe said so" would have been indistinguishable, which is the exact
     -- conflation this table exists to prevent.
+    -- The two columns move together: a merchant resolution names a merchant and no kind; a
+    -- non-merchant names a kind and no merchant. Neither "a nameless merchant" nor "an ATM
+    -- called Starbucks" is representable.
+    CONSTRAINT a_non_merchant_has_a_kind_instead_of_a_name
+        CHECK ((resolved_by = 'not_a_merchant'
+                AND canonical IS NULL AND non_merchant_kind IS NOT NULL)
+            OR (resolved_by <> 'not_a_merchant'
+                AND canonical IS NOT NULL AND non_merchant_kind IS NULL)),
+    -- REQ-FIN-051 carries no confidence: the classification is a rule match, not a comparison.
+    CONSTRAINT a_non_merchant_reports_no_confidence
+        CHECK (resolved_by <> 'not_a_merchant' OR confidence IS NULL),
     CONSTRAINT only_a_rule_or_a_human_is_certain
         CHECK (resolved_by IN ('human','pattern_exact','pattern_regex')
                OR confidence IS NULL OR confidence < 1.0)

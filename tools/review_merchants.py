@@ -150,6 +150,27 @@ def main() -> int:
                                          provenance = 'human'""", (p.pattern, p.canonical))
             cur.execute(f"""UPDATE {a.core}.merchant_review_queue SET status = 'confirmed'
                              WHERE alias = %s""", (p.pattern,))
+            # And into the ALIAS LEDGER, which is where RULE-10 actually lives. Writing only
+            # the pattern left `entity_aliases` with no human row anywhere in the system: the
+            # resolver's cascade step 1 -- "the answer, and it outranks every rule permanently"
+            # -- had no production caller, and the trigger enforcing RULE-10 guarded a table
+            # nothing wrote to and nothing read. The guarantee was real in the schema and
+            # unreachable in the code.
+            #
+            # RULE-02: this SUPERSEDES the current head rather than updating it. Re-confirming
+            # the same canonical appends nothing.
+            cur.execute(f"""SELECT alias_id, canonical, resolved_by
+                              FROM {a.core}.entity_aliases al
+                             WHERE al.alias = %s
+                               AND NOT EXISTS (SELECT 1 FROM {a.core}.entity_aliases b
+                                                WHERE b.supersedes = al.alias_id)""",
+                        (p.pattern,))
+            head = cur.fetchone()
+            if not (head and head[1] == p.canonical and head[2] == 'human'):
+                cur.execute(f"""INSERT INTO {a.core}.entity_aliases
+                    (alias, raw_descriptor, canonical, resolved_by, confidence, supersedes)
+                    VALUES (%s,%s,%s,'human',1.0,%s)""",
+                            (p.pattern, descriptor, p.canonical, head[0] if head else None))
         for descriptor, normalised, _ in ((d, n, c) for d, n, c in answers if c is None):
             cur.execute(f"""UPDATE {a.core}.merchant_review_queue SET status = 'dismissed'
                              WHERE alias = %s""", (normalised or descriptor,))

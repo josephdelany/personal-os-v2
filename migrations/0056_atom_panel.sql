@@ -4,15 +4,17 @@
 --
 -- WHY A SEPARATE LANE AND NOT A MERGE. `analysis.panel` holds 111,891 legacy rows across 350
 -- metrics whose definitions are unverified (OQ-51). Seven metric names exist in both lanes and
--- the overlap was measured before this was written:
+-- the overlap was measured before this was written. The ratio IS the argument; the per-metric
+-- averages are Joe's own health figures and RULE-29 keeps them out of a public repository.
+-- The measuring query is in ADR-0089 and re-running it reproduces these ratios from the data.
 --
---   metric              legacy avg   atoms avg   verdict
---   steps                   2,239       3,047    different populations
---   sleep_deep_min            1.3        78.2    legacy is in HOURS despite the _min suffix
---   sleep_rem_min             1.6       102.0    legacy is in HOURS despite the _min suffix
---   sleep_asleep_min        411.2       122.4    legacy means TOTAL sleep; the atom means the
---                                                UNSTAGED portion only
---   checkin_morning_energy    5.0         5.0    identical
+--   metric                  legacy : atoms   verdict
+--   steps                     0.73x            different populations, not a unit error
+--   sleep_deep_min            1/60th           legacy is in HOURS despite the _min suffix
+--   sleep_rem_min             1/64th           legacy is in HOURS despite the _min suffix
+--   sleep_asleep_min          3.4x             legacy means TOTAL sleep; the atom means the
+--                                              UNSTAGED portion only
+--   checkin_morning_energy    1.00x            identical
 --
 -- Two of those would corrupt an answer by a factor of sixty and one by a factor of three, in
 -- silence, under a name that asserts the unit. So a metric has ONE owning lane. Where atoms
@@ -217,12 +219,19 @@ LANGUAGE sql STABLE AS $$
      --   * dropping the bad SEGMENT rather than the night turns a visibly-NULL night into a
      --     plausible undercount, which the comment above argues against for the night case and
      --     which applies just as much to a partial one.
-     -- So a night containing any unusable segment is excluded ENTIRELY and counted, rather
-     -- than silently short (RULE-06).
+     -- So a night containing any unusable segment is excluded ENTIRELY rather than silently
+     -- short (RULE-06) -- and it is exclusion WITH A RECORD: analysis.f_composed_exclusions
+     -- below returns every night dropped this way, so an excluded night is distinguishable
+     -- from a night that never had data. An earlier draft of this comment claimed the night
+     -- was "counted" when nothing counted it, which is the very confusion it warns about.
      WHERE r.valid_interval IS NOT NULL AND NOT isempty(r.valid_interval)
        AND NOT upper_inf(r.valid_interval) AND NOT lower_inf(r.valid_interval)),
+  -- Scoped to the DEVICE as well as the night. Without the device predicate one truncated
+  -- iPhone segment deleted a complete Watch night -- ninety minutes of good data from the
+  -- winning device destroyed by junk from a device precedence had already decided not to
+  -- read (line 33). Exclusion must not reach further than the lane it belongs to.
   unusable AS (
-    SELECT DISTINCT c.metric AS composed, r.subject_day
+    SELECT DISTINCT c.metric AS composed, r.subject_day, r.device
       FROM config.panel_composition c
       JOIN analysis.f_atom_rows(p_as_of, p_known_at) r ON r.metric = c.component
      WHERE r.valid_interval IS NULL OR isempty(r.valid_interval)
@@ -259,7 +268,46 @@ LANGUAGE sql STABLE AS $$
            WHERE c.metric = m.composed)
     FROM merged m
    WHERE NOT EXISTS (SELECT 1 FROM unusable u
-                      WHERE u.composed = m.composed AND u.subject_day = m.subject_day)
+                      WHERE u.composed = m.composed AND u.subject_day = m.subject_day
+                        AND u.device = m.device)
+$$;
+
+-- The record the exclusion above owes. A night dropped for an unusable segment is NOT the same
+-- event as a night with no data, and RULE-06 turns on being able to tell them apart. This
+-- returns the dropped ones with the reason, for the winning device only -- a bad segment on a
+-- device precedence did not read is not an exclusion, because nothing was excluded.
+CREATE OR REPLACE FUNCTION analysis.f_composed_exclusions(p_as_of date, p_known_at timestamptz)
+RETURNS TABLE (day date, metric text, device text, reason text)
+LANGUAGE sql STABLE AS $$
+  WITH usable AS (
+    SELECT c.metric AS composed, r.subject_day, r.device
+      FROM config.panel_composition c
+      JOIN analysis.f_atom_rows(p_as_of, p_known_at) r ON r.metric = c.component
+     WHERE r.valid_interval IS NOT NULL AND NOT isempty(r.valid_interval)
+       AND NOT upper_inf(r.valid_interval) AND NOT lower_inf(r.valid_interval)),
+  winner AS (
+    SELECT u.composed, u.subject_day,
+           (ARRAY_AGG(u.device ORDER BY coalesce(array_position(
+                coalesce(g.device_precedence, ARRAY['Watch','iPhone']), u.device), 999),
+                u.device))[1] AS device
+      FROM usable u
+      LEFT JOIN config.panel_aggregation g ON g.metric = u.composed
+     GROUP BY u.composed, u.subject_day)
+  SELECT DISTINCT r.subject_day, c.metric, r.device,
+         CASE WHEN r.valid_interval IS NULL      THEN 'no_interval'
+              WHEN isempty(r.valid_interval)     THEN 'zero_duration_segment'
+              WHEN lower_inf(r.valid_interval)   THEN 'unbounded_start'
+              ELSE 'unbounded_end' END
+    FROM config.panel_composition c
+    JOIN analysis.f_atom_rows(p_as_of, p_known_at) r ON r.metric = c.component
+    -- LEFT, and the device predicate tolerates a missing winner on purpose: when EVERY
+    -- device's segments are unusable there is no winner at all, no row is emitted, and that
+    -- night would otherwise vanish without appearing here either -- silently missing, which
+    -- is the one outcome this function exists to prevent. Then every device is reported.
+    LEFT JOIN winner w ON w.composed = c.metric AND w.subject_day = r.subject_day
+   WHERE (w.device IS NULL OR w.device = r.device)
+     AND (r.valid_interval IS NULL OR isempty(r.valid_interval)
+      OR upper_inf(r.valid_interval) OR lower_inf(r.valid_interval))
 $$;
 
 -- REQ-INF-108. The panel Ask reads. Its signature is unchanged on purpose: `public.ask` is

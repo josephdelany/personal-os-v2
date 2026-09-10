@@ -21,11 +21,13 @@ counted as excluded, because treating its load as zero would make a hard session
 """
 from __future__ import annotations
 
+import copy
 import datetime as dt
 from dataclasses import dataclass, field
 
 # REQ-WKT-008/012: the formulas and the windows are DATA, named and versioned, never a choice
-# made at query time (RULE-13). `valid_reps` is each formula's own fitted range.
+# made at query time (RULE-13). `valid_reps` is each formula's own fitted range; the effective
+# range in force is PARAMETERS["strength_e1rm_lb"]["valid_reps"], which the catalogue can set.
 FORMULAS = {
     "epley":   dict(fn=lambda w, r: w * (1 + r / 30.0), valid_reps=(1, 10),
                     cite="Epley 1985"),
@@ -37,6 +39,81 @@ METHOD_VERSION = "strength-v1"
 # REQ-WKT-012: provisional placeholders (OQ-36). Every figure derived from them says so.
 ACWR_ACUTE_DAYS, ACWR_CHRONIC_DAYS = 7, 28
 ACWR_WINDOWS_ARE_CALIBRATED = False
+
+# RULE-13, made TRUE rather than asserted. Migration 0061's header says a method's numbers are
+# "DATA beside it rather than constants in Python", and that "the windows and the formula set
+# can be changed without a code change". That was false: nothing read
+# config.derivation_catalogue.parameters, and the only test on it asserted that the migration
+# TEXT contained the same literals this module holds -- proving the two copies agreed, not that
+# either was derived from the other. Changing the table changed no computed figure.
+#
+# The module stays PURE -- no database, no clock -- because that is what makes the arithmetic
+# exhaustively testable. So the catalogue rows are pushed IN by whatever holds a connection,
+# rather than pulled from here. The constants above are the fallback when nothing has been
+# loaded, not a second source of truth.
+# Seeded FROM the formula table rather than restating its numbers, so there is one source and
+# not two that a future edit could drift apart. Every registered formula currently shares the
+# same fitted range; if one ever does not, this raises rather than quietly widening the range
+# and licensing an extrapolation the narrower formula was never fitted for.
+_RANGES = {spec["valid_reps"] for spec in FORMULAS.values()}
+if len(_RANGES) != 1:
+    raise ValueError(f"registered formulas no longer share one fitted range ({_RANGES}); "
+                     f"e1rm must filter per formula again before this parameter is meaningful")
+
+PARAMETERS = {
+    "strength_e1rm_lb": dict(formulas=tuple(sorted(FORMULAS)), valid_reps=next(iter(_RANGES))),
+    "strength_acwr": dict(acute_days=ACWR_ACUTE_DAYS, chronic_days=ACWR_CHRONIC_DAYS,
+                          windows_calibrated=ACWR_WINDOWS_ARE_CALIBRATED),
+}
+
+
+def apply_catalogue_parameters(by_measure):
+    """Load RULE-13 parameters from config.derivation_catalogue rows.
+
+    `by_measure` maps a measure name to its `parameters` object. Unknown measures and unknown
+    keys are IGNORED rather than silently accepted: a typo in the table must not become a
+    parameter this module thinks it is honouring. An unknown FORMULA name raises, because
+    naming a formula that does not exist is a request for a number this module cannot compute,
+    and quietly dropping it would narrow the interval -- reporting MORE precision from a
+    configuration error (REQ-WKT-009).
+    """
+    # Validated into a CANDIDATE first, then committed in one step. Mutating PARAMETERS as it
+    # went meant a row that failed validation halfway left the module running on a mixture of
+    # the old configuration and the new one -- and the exception would name the bad value while
+    # saying nothing about the good ones already applied behind it.
+    candidate = copy.deepcopy(PARAMETERS)
+    for measure, params in (by_measure or {}).items():
+        target = candidate.get(measure)
+        if target is None or not isinstance(params, dict):
+            continue
+        for key, value in params.items():
+            if key not in target:
+                continue
+            if key == "formulas":
+                names = tuple(sorted(value))
+                unknown = [n for n in names if n not in FORMULAS]
+                if unknown:
+                    raise ValueError(
+                        f"config.derivation_catalogue names formula(s) this module cannot "
+                        f"compute: {', '.join(unknown)}; known are {', '.join(sorted(FORMULAS))}")
+                if not names:
+                    raise ValueError("at least one e1RM formula must be registered; an empty "
+                                     "set would make every e1RM an unexplained omission")
+                target[key] = names
+            elif key == "valid_reps":
+                lo, hi = int(value[0]), int(value[1])
+                if lo < 1 or hi < lo:
+                    raise ValueError(f"valid_reps {value} is not an ascending range at or above 1")
+                target[key] = (lo, hi)
+            elif key in ("acute_days", "chronic_days"):
+                target[key] = int(value)
+            elif key == "windows_calibrated":
+                target[key] = bool(value)
+    if candidate["strength_acwr"]["chronic_days"] <= candidate["strength_acwr"]["acute_days"]:
+        raise ValueError("the chronic window must be longer than the acute one")
+    PARAMETERS.clear()
+    PARAMETERS.update(candidate)
+    return PARAMETERS
 
 
 @dataclass(frozen=True)
@@ -77,11 +154,10 @@ def e1rm(load, reps):
         # undefined by this method, and zero would sort as the weakest set ever performed.
         return Omission("no_external_load", "load is not positive; the movement is bodyweight "
                                             "or assisted and this formula does not apply")
-    usable = [name for name, spec in FORMULAS.items()
-              if spec["valid_reps"][0] <= reps <= spec["valid_reps"][1]]
+    registered = PARAMETERS["strength_e1rm_lb"]["formulas"]
+    lo, hi = PARAMETERS["strength_e1rm_lb"]["valid_reps"]
+    usable = [name for name in registered if lo <= reps <= hi]
     if not usable:
-        lo = min(s["valid_reps"][0] for s in FORMULAS.values())
-        hi = max(s["valid_reps"][1] for s in FORMULAS.values())
         return Omission("reps_outside_validated_range",
                         f"{reps} repetitions is outside every registered formula's fitted "
                         f"range ({lo}-{hi}); extrapolating would produce a number that looks "
@@ -106,7 +182,7 @@ def volume(sets):
                   excluded_reasons=tuple(sorted(set(reasons))))
 
 
-def acwr(daily_volume, as_of, acute_days=ACWR_ACUTE_DAYS, chronic_days=ACWR_CHRONIC_DAYS):
+def acwr(daily_volume, as_of, acute_days=None, chronic_days=None):
     """REQ-WKT-012/018. Acute over chronic workload, or an Omission.
 
     `daily_volume` maps a date to that day's volume. A day ABSENT from the mapping is unknown,
@@ -114,6 +190,13 @@ def acwr(daily_volume, as_of, acute_days=ACWR_ACUTE_DAYS, chronic_days=ACWR_CHRO
     rest day (REQ-WKT-019). Coverage is returned so the caller can refuse a thin ratio rather
     than dividing two guesses.
     """
+    # Resolved at CALL time, not at import time. A default argument evaluated at import binds
+    # the constant forever, so a catalogue load after import would change nothing -- which is
+    # precisely the defect this is fixing.
+    if acute_days is None:
+        acute_days = PARAMETERS["strength_acwr"]["acute_days"]
+    if chronic_days is None:
+        chronic_days = PARAMETERS["strength_acwr"]["chronic_days"]
     if chronic_days <= acute_days:
         raise ValueError("the chronic window must be longer than the acute one")
 
@@ -139,6 +222,13 @@ def acwr(daily_volume, as_of, acute_days=ACWR_ACUTE_DAYS, chronic_days=ACWR_CHRO
         method_version=METHOD_VERSION,
         # REQ-WKT-012: the windows are provisional placeholders (OQ-36) and every figure
         # derived from them must say so until they are calibrated.
-        windows_calibrated=ACWR_WINDOWS_ARE_CALIBRATED,
-        caveat=("the 7 and 28 day windows are provisional placeholders, not calibrated to Joe; "
-                "this ratio orders sessions against each other and carries no threshold"))
+        windows_calibrated=PARAMETERS["strength_acwr"]["windows_calibrated"],
+        # The caveat states the windows it ACTUALLY used. It named 7 and 28 unconditionally
+        # while the windows were configurable, so a recalibrated pair would have been described
+        # by a sentence about the old one -- an untrue disclosure attached to a true number.
+        caveat=(f"the {acute_days} and {chronic_days} day windows are provisional placeholders, "
+                f"not calibrated to Joe; this ratio orders sessions against each other and "
+                f"carries no threshold")
+               if not PARAMETERS["strength_acwr"]["windows_calibrated"] else
+               (f"the {acute_days} and {chronic_days} day windows are calibrated; this ratio "
+                f"orders sessions against each other and carries no threshold"))

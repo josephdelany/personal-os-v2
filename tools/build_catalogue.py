@@ -99,6 +99,56 @@ def rows(cur, core):
     return out
 
 
+def write_catalogue(cur, catalogue, config="config"):
+    """Rebuild config.derivation_catalogue from `catalogue`. Returns the preserved measures.
+
+    Extracted from `main()` so the preservation rule can be tested by RUNNING it. The test
+    that pinned the previous version grepped this file for three string literals, and the
+    code it described was a no-op for every row it was written to protect.
+    """
+    # The RULE-13 parameters (formula names, validated rep range, ACWR windows) are seeded by
+    # migration 0061 and are NOT recomputed here. A blind DELETE-and-reinsert destroyed them.
+    #
+    # The first repair read them back and rewrote them AFTER the reinsert, which preserved
+    # nothing: `rows()` is `metric_registry JOIN atoms`, so a measure with no atoms yet -- which
+    # is all three that 0061 seeds, until B18's engine runs -- is not in `catalogue` at all. The
+    # DELETE removed the row and the write-back loop never reached it. It was a no-op for 100%
+    # of the rows it was written to protect, and the test that pinned it grepped this file for
+    # three string literals, so it passed on that state.
+    #
+    # A row carrying `parameters` was written by a migration, not derived by this tool, and this
+    # tool does not own it. So the DELETE now spares those rows, and a seeded measure that later
+    # acquires atoms is UPDATED in place rather than deleted and reinserted -- its derived
+    # columns refresh, its parameters survive.
+    cur.execute(f"SELECT measure FROM {config}.derivation_catalogue WHERE parameters IS NOT NULL")
+    seeded = [m for (m,) in cur.fetchall()]
+    if seeded:
+        cur.execute(f"DELETE FROM {config}.derivation_catalogue "
+                f"WHERE NOT (measure = ANY(%s))",
+                    (seeded,))
+    else:
+        cur.execute(f"DELETE FROM {config}.derivation_catalogue")
+    for r in catalogue:
+        cur.execute(f"""INSERT INTO {config}.derivation_catalogue
+            (measure, input_fields, method, method_version, unit, time_specification,
+             missingness_rule, earliest_supported_event_date, analytical_consumers, owner)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+            ON CONFLICT (measure) DO UPDATE SET
+              input_fields = EXCLUDED.input_fields, method = EXCLUDED.method,
+              method_version = EXCLUDED.method_version, unit = EXCLUDED.unit,
+              time_specification = EXCLUDED.time_specification,
+              missingness_rule = EXCLUDED.missingness_rule,
+              earliest_supported_event_date = EXCLUDED.earliest_supported_event_date,
+              analytical_consumers = EXCLUDED.analytical_consumers, owner = EXCLUDED.owner""",
+            (r["measure"], r["input_fields"], r["method"], r["method_version"], r["unit"],
+             r["time_specification"], r["missingness_rule"],
+             r["earliest_supported_event_date"], r["analytical_consumers"], r["owner"]))
+    if seeded:
+        print(f"\n{len(seeded)} seeded row(s) preserved (they carry RULE-13 parameters this "
+              f"tool does not own): " + ", ".join(sorted(seeded)))
+    return seeded
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--core", required=True)
@@ -131,26 +181,7 @@ def main():
     if not a.commit:
         print("\nDRY RUN — nothing written. Re-run with --commit.")
         return
-    # The RULE-13 parameters (formula names, validated rep range, ACWR windows) are seeded by
-    # migration 0061 and are NOT recomputed here. A blind DELETE-and-reinsert destroyed them
-    # silently — and because the column is nullable, the rows came back with `parameters` NULL
-    # for the two measures that genuinely have them, which is exactly the state nullability was
-    # introduced to distinguish. They are preserved across the rebuild.
-    cur.execute("SELECT measure, parameters FROM config.derivation_catalogue "
-                "WHERE parameters IS NOT NULL")
-    kept = dict(cur.fetchall())
-    cur.execute("DELETE FROM config.derivation_catalogue")
-    for r in catalogue:
-        cur.execute("""INSERT INTO config.derivation_catalogue
-            (measure, input_fields, method, method_version, unit, time_specification,
-             missingness_rule, earliest_supported_event_date, analytical_consumers, owner)
-            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
-            (r["measure"], r["input_fields"], r["method"], r["method_version"], r["unit"],
-             r["time_specification"], r["missingness_rule"],
-             r["earliest_supported_event_date"], r["analytical_consumers"], r["owner"]))
-        if r["measure"] in kept:
-            cur.execute("UPDATE config.derivation_catalogue SET parameters = %s "
-                        "WHERE measure = %s", (json.dumps(kept[r["measure"]]), r["measure"]))
+    write_catalogue(cur, catalogue)
     conn.commit()
     print(f"\nCOMMITTED {len(catalogue)} rows to config.derivation_catalogue")
 

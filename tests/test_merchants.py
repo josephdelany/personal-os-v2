@@ -505,30 +505,186 @@ def test_RULE_01_a_location_token_stores_its_measured_evidence_not_the_floor():
     assert "OAKLAND" not in evidence
 
 
-def test_RULE_10_the_resolver_skips_a_human_corrected_alias_instead_of_dying(ent):
-    """Second review, finding 1 — the worst defect either review found, and I introduced it.
+def _run(cur, descriptors):
+    """Run the real cascade and the real writer against the fixture schema."""
+    from tools.engines.merchants import location_token_evidence
+    from tools.engines.resolve_merchants import build, write_resolutions
+    location, patterns, resolutions, _ = build(descriptors)
+    return write_resolutions(cur, patterns, location, resolutions,
+                             location_token_evidence([d for d, _ in descriptors]),
+                             core=_S, config="config_pytest")
 
-    My repair set `supersedes` unconditionally, and the resolver can only ever emit an
-    automated `resolved_by`. So the first time Joe corrected an alias, the trigger raised, the
+
+def test_REQ_FIN_051_a_non_merchant_is_stored_rather_than_killing_the_whole_run(ent):
+    """Third review, finding 1. The worst of the three rounds, and the one both earlier rounds
+    edited this very loop without seeing.
+
+    REQ-FIN-051 classifies ATM withdrawals, transfers and fees as not-a-merchant, with
+    `canonical` None and `needs_review` False — so they fell straight through to the INSERT,
+    where `canonical` was NOT NULL and `resolved_by` had no such member. The commit is after
+    the loop and there was no exception handling, so ONE ATM descriptor rolled back every
+    pattern, every location token and every alias in the run. It needed no human correction to
+    trigger, only Joe's ordinary bank data: the tool's own output calls out ATM/transfer/fee
+    descriptors as a routine line.
+
+    The previous tests for this loop read the source file and grepped it for string literals,
+    which is why a crash on real input passed them."""
+    written = _run(ent, [("ONLINE TRANSFER FROM CHK 1234", 6),
+                         ("ATM WITHDRAWAL 555 MAIN ST", 3),
+                         ("STARBUCKS 111 PORTLAND ME", 9),
+                         ("STARBUCKS 222 PORTLAND ME", 7)])
+    assert written["not_a_merchant"] == 2, written
+    ent.execute(f"SELECT alias, canonical, non_merchant_kind, resolved_by, confidence "
+                f"FROM {_S}.entity_aliases WHERE resolved_by = 'not_a_merchant' ORDER BY alias")
+    rows = ent.fetchall()
+    assert len(rows) == 2, rows
+    for alias, canonical, kind, source, confidence in rows:
+        assert canonical is None, "a non-merchant has no merchant name"
+        assert kind, f"but it must say WHY there is no merchant: {alias}"
+        assert confidence is None, "a rule match reports no confidence"
+
+
+def test_REQ_FIN_051_the_classification_reads_the_raw_descriptor_not_the_normalised_one(ent):
+    """Third review, finding 11. `resolve()` documents that REQ-FIN-051 runs on the RAW string
+    because normalisation strips the evidence — and the one production caller omitted `raw=`.
+    `punctuation` turns E-PAYMENT into E PAYMENT, which the \bE-?PAYMENT\b rule no longer
+    matches, so that descriptor escaped classification and was resolved as a merchant called
+    "E Payment". The test that existed to protect this called `resolve` directly, passing the
+    argument the caller did not."""
+    _run(ent, [("E-PAYMENT THANK YOU 0001", 4), ("E-PAYMENT THANK YOU 0002", 4)])
+    ent.execute(f"SELECT resolved_by, non_merchant_kind FROM {_S}.entity_aliases")
+    rows = ent.fetchall()
+    assert rows and all(r[0] == "not_a_merchant" for r in rows), rows
+
+
+def test_RULE_10_the_resolver_skips_a_human_corrected_alias_instead_of_dying(ent):
+    """Second review, finding 1, now proven by running rather than by reading.
+
+    The repair set `supersedes` unconditionally, and the resolver can only ever emit an
+    automated `resolved_by`. So the first time Joe corrected an alias the trigger raised, the
     run died with no exception handling and no commit, and EVERY pattern and token was lost —
-    identically on every subsequent run, forever, because a human head is permanent. "The
-    resolver may revise itself but may not supersede Joe" had become "the resolver dies the
-    first time Joe corrects anything"."""
-    import pathlib
-    source = pathlib.Path(__file__).resolve().parents[1].joinpath(
-        "tools/engines/resolve_merchants.py").read_text()
-    assert 'head[1] == "human"' in source, "the resolver must recognise a human head"
-    assert source.index('head[1] == "human"') < source.index("INSERT INTO {a.core}.entity_aliases"), \
-        "and it must check BEFORE inserting, not handle the exception afterwards"
-    assert "skipped_human_correction" in source, "and report how many it left alone"
+    identically on every subsequent run, forever, because a human head is permanent."""
+    descriptors = [("STARBUCKS 111 PORTLAND ME", 9), ("STARBUCKS 222 PORTLAND ME", 7)]
+    _run(ent, descriptors)
+    # Joe's correction is recorded the way RULE-02 requires: a new row SUPERSEDING the head,
+    # not an UPDATE. The append-only trigger refuses the update, which is the point.
+    ent.execute(f"SELECT alias_id, alias FROM {_S}.entity_aliases LIMIT 1")
+    head_id, alias = ent.fetchone()
+    ent.execute(f"INSERT INTO {_S}.entity_aliases (alias, canonical, resolved_by, confidence, "
+                f"supersedes) VALUES (%s,'Joe Said So','human',1.0,%s)", (alias, head_id))
+    ent.execute(f"SELECT count(*) FROM {_S}.entity_aliases")
+    before = ent.fetchone()[0]
+
+    written = _run(ent, descriptors)          # must not raise
+
+    assert written["skipped_human_correction"] == 1, written
+    ent.execute(f"SELECT canonical FROM {_S}.v_current_aliases WHERE alias = %s", (alias,))
+    assert ent.fetchone()[0] == "Joe Said So", "RULE-10: the correction is permanent"
+    ent.execute(f"SELECT count(*) FROM {_S}.entity_aliases")
+    assert ent.fetchone()[0] == before, "and nothing was appended over it"
+
+
+def test_RULE_10_a_human_answered_alias_is_not_raised_for_review_again(ent):
+    """Third review, finding 7. The review-queue insert ran BEFORE the human-head check, so an
+    alias Joe had already answered could be queued again the moment the automated cascade
+    degraded — a discovered pattern dropping below MIN_DISTINCT_RAW was enough. His answer sat
+    in `entity_aliases` while the queue asked him for it a second time."""
+    strong = [("KROGER 111 HOUSTON TX", 9), ("KROGER 222 HOUSTON TX", 8),
+              ("KROGER 333 HOUSTON TX", 7)]
+    _run(ent, strong)
+    ent.execute(f"SELECT alias_id, alias FROM {_S}.entity_aliases")
+    for head_id, alias in ent.fetchall():
+        ent.execute(f"INSERT INTO {_S}.entity_aliases (alias, canonical, resolved_by, "
+                    f"confidence, supersedes) VALUES (%s,'Kroger','human',1.0,%s)",
+                    (alias, head_id))
+    ent.execute(f"DELETE FROM {_S}.merchant_review_queue")
+
+    _run(ent, [("KROGER 111 HOUSTON TX", 1)])   # one descriptor: no pattern survives discovery
+
+    ent.execute(f"SELECT count(*) FROM {_S}.merchant_review_queue")
+    assert ent.fetchone()[0] == 0, "Joe already answered this alias; it must not be re-asked"
 
 
 def test_RULE_10_the_resolver_does_not_rewrite_an_unchanged_resolution(ent):
     """Second review, finding 9. Every run appended one superseding row per alias to an
     append-only table that can never be pruned — roughly 12k rows a day at this scale — and
     made "when did this resolution last change?" unanswerable from the ledger."""
-    import pathlib
-    source = pathlib.Path(__file__).resolve().parents[1].joinpath(
-        "tools/engines/resolve_merchants.py").read_text()
-    assert 'head[2] == r.canonical and head[1] == r.merchant_source' in source
-    assert '"unchanged"' in source
+    descriptors = [("STARBUCKS 111 PORTLAND ME", 9), ("STARBUCKS 222 PORTLAND ME", 7)]
+    first = _run(ent, descriptors)
+    ent.execute(f"SELECT count(*) FROM {_S}.entity_aliases")
+    after_first = ent.fetchone()[0]
+    assert first["unchanged"] == 0, "nothing can be unchanged on an empty table"
+
+    second = _run(ent, descriptors)
+
+    assert second["unchanged"] >= 1 and second["written"] == 0, second
+    ent.execute(f"SELECT count(*) FROM {_S}.entity_aliases")
+    assert ent.fetchone()[0] == after_first, "a second identical run appends nothing"
+
+
+def test_REQ_FIN_061_collapsed_raw_descriptors_are_recorded_not_dropped(ent):
+    """Third review, finding 6. `resolutions` is keyed by RAW descriptor and N raws collapse
+    onto one alias, so the loop wrote the same alias N times: the first inserted, and every
+    later one found the row it had just written and was counted `unchanged` — on a table that
+    started EMPTY, which is what exposed it. The raws that lost the race vanished, chosen by
+    dictionary order, while REQ-FIN-061 asks for "the original, verbatim"."""
+    written = _run(ent, [("HANNAFORD 8229 WATERVILLE ME", 12),
+                         ("HANNAFORD 8230 WATERVILLE ME", 3),
+                         ("HANNAFORD 8231 WATERVILLE ME", 1)])
+    assert written["unchanged"] == 0, "nothing is unchanged on a first run"
+    assert written["raw_descriptors_collapsed"] == 2, written
+    ent.execute(f"SELECT raw_descriptor, also_seen FROM {_S}.entity_aliases")
+    raw, also = ent.fetchone()
+    assert raw == "HANNAFORD 8229 WATERVILLE ME", "the most-transacted original is kept"
+    assert sorted(also) == ["HANNAFORD 8230 WATERVILLE ME",
+                            "HANNAFORD 8231 WATERVILLE ME"], "and the others are not lost"
+
+
+def test_REQ_FIN_074_a_confirmed_pattern_changes_the_next_run_s_resolution(ent):
+    """Third review, finding 4. `build()` constructed its pattern list PURELY from discovered
+    normalised forms and never read `config.merchant_patterns`, while `review_merchants.py`
+    wrote Joe's confirmation only to that table. His answer went into a table the resolver did
+    not query, so REQ-FIN-074's "confirmation is what promotes a provisional merchant into a
+    pattern" changed no subsequent resolution — the review sheet with 157 descriptors needing
+    names terminated in a write nobody read."""
+    from tools.engines.resolve_merchants import build, read_stored_patterns
+    descriptors = [("HANNAFORD 8229 WATERVILLE ME", 12), ("HANNAFORD 8230 WATERVILLE ME", 8)]
+    _run(ent, descriptors)
+    ent.execute(f"SELECT canonical FROM {_S}.v_current_aliases")
+    machine = ent.fetchone()[0]
+
+    # Exactly the statement review_merchants.py runs: Joe's confirmation UPGRADES the
+    # discovered row in place rather than adding a second one.
+    ent.execute("""INSERT INTO config_pytest.merchant_patterns
+                   (pattern, canonical, is_regex, specificity, provenance)
+                   VALUES ('HANNAFORD WATERVILLE', 'Hannaford', false, 0, 'human')
+                   ON CONFLICT (pattern, is_regex)
+                   DO UPDATE SET canonical = EXCLUDED.canonical, provenance = 'human'""")
+    _, _, resolutions, stats = build(descriptors, read_stored_patterns(ent, "config_pytest"))
+
+    assert stats["patterns_stored"] == 1, stats
+    canonicals = {r.canonical for _, r, _ in resolutions.values()}
+    assert canonicals == {"Hannaford"}, (
+        f"Joe's confirmed name must win over the machine's {machine!r}: {canonicals}")
+
+
+def test_RULE_10_a_human_alias_in_the_ledger_reaches_cascade_step_one(ent):
+    """Third review, finding 4. `resolve()`'s `human_alias` parameter — cascade step 1, "the
+    answer, and it outranks every rule permanently" — had exactly ONE caller in the repository
+    and it was a test. No production path passed it, so RULE-10's alias guarantee was enforced
+    by a trigger on a table nothing consulted."""
+    from tools.engines.resolve_merchants import build, read_human_aliases
+    descriptors = [("KROGER 111 HOUSTON TX", 9), ("KROGER 222 HOUSTON TX", 8),
+                   ("KROGER 333 HOUSTON TX", 7)]
+    _run(ent, descriptors)
+    ent.execute(f"SELECT alias_id, alias FROM {_S}.entity_aliases")
+    for head_id, alias in ent.fetchall():
+        ent.execute(f"INSERT INTO {_S}.entity_aliases (alias, canonical, resolved_by, "
+                    f"confidence, supersedes) VALUES (%s,'Kroger Co','human',1.0,%s)",
+                    (alias, head_id))
+
+    _, _, resolutions, stats = build(descriptors, (), read_human_aliases(ent, _S))
+
+    assert stats["human_aliases_applied"] == len(descriptors), stats
+    for _, r, _ in resolutions.values():
+        assert (r.canonical, r.merchant_source) == ("Kroger Co", "human"), r

@@ -11,13 +11,13 @@ Implements Joe's rulings of 2026-09-09 on device precedence and sleep duration.
 (OQ-51). Seven metric names exist in both lanes. The overlap was **measured before the design
 was written**:
 
-| metric | legacy avg | atoms avg | verdict |
+| metric | legacy | legacy : atoms | verdict |
 |---|---|---|---|
-| `steps` | 2,239 | 3,047 | different populations |
-| `sleep_deep_min` | 1.3 | 78.2 | legacy is in **hours** despite the `_min` suffix |
-| `sleep_rem_min` | 1.6 | 102.0 | legacy is in **hours** despite the `_min` suffix |
-| `sleep_asleep_min` | 411.2 | 122.4 | legacy means **total** sleep; the atom means the **unstaged** part |
-| `checkin_morning_energy` | 5.0 | 5.0 | identical |
+| `steps` | — | 0.73x | different populations, not a unit error |
+| `sleep_deep_min` | — | 1/60th | legacy is in **hours** despite the `_min` suffix |
+| `sleep_rem_min` | — | 1/64th | legacy is in **hours** despite the `_min` suffix |
+| `sleep_asleep_min` | — | 3.4x | legacy means **total** sleep; the atom means the **unstaged** part |
+| `checkin_morning_energy` | — | 1.00x | identical |
 
 Two of those are wrong by a factor of sixty, silently, under a name that asserts the unit. So
 a metric has one owning lane: where atoms own it, the legacy rows are excluded — not blended,

@@ -6261,3 +6261,45 @@ correctly reports 14,640 accumulating atoms stored as instants (OQ-54's structur
 **Requirement IDs:** REQ-ASK-001..012/020..032, REQ-REC-001..014, REQ-NUT-*, RULE-08, RULE-12.
 
 **Commits:** 09cc041, 167a5bb, b9dbc52, 75bd46e, 56e872e, and this one.
+
+## 2026-09-10 — third adversarial review of the pending stack
+
+**Attempted:** a third review of the six unapplied migrations, focused on the second round's
+repairs, then repair of everything it found.
+
+**Found:** 11 findings, 3 reproduced with real data loss. Two were regressions created by the
+second round. The most severe was **pre-existing and untouched by both earlier rounds, which
+had each edited the very loop it lived in**.
+
+**What now works that did not:**
+
+- The resolver survives an ATM, transfer or fee descriptor. It previously hit a NOT NULL and a
+  CHECK violation, and with the commit after the loop and no exception handling, one such
+  descriptor rolled back every pattern, token and alias in the run.
+- A truncated segment from the *losing* device no longer deletes a complete night from the
+  winning one. `analysis.f_composed_exclusions` records the nights that are dropped.
+- `build_catalogue.py` preserves 0061's seeded RULE-13 parameters. The previous repair was a
+  no-op for 100% of the rows it targeted and called `json.dumps` without importing `json`.
+- `strength.py` computes with the catalogue's parameters, so RULE-13 is true rather than
+  asserted.
+- Joe's merchant confirmations reach the resolver. They previously went to a table nothing read.
+- `_ask_spend_sources` recognises all three writer formats, so `source_discontinuity` is not
+  wrong in both directions once the backfill lands.
+- REQ-FIN-051 classification runs on the raw descriptor at the one production call site.
+
+**Evidence:** 430 local SQL tests pass under America/New_York and UTC; layout 43/43; chain
+clean from empty at 60 files / 528 statements; `verify_pending_stack.py` composes 12 of 12
+against production, rolled back. Five regression checks confirmed the new tests fail against
+the old code — one of those checks silently did not match at first, which would have let me
+report a vacuous pass.
+
+**What does not work:** production still holds zero transaction atoms, so the spend path is
+unexercised on real data. B15 remains blocked on OQ-60. 492 of 685 requirements are unproven.
+
+**Requirement IDs:** REQ-FIN-051, REQ-FIN-061, REQ-FIN-074, REQ-INF-108, REQ-WKT-008,
+REQ-WKT-012, RULE-06, RULE-10, RULE-12, RULE-13, RULE-29.
+
+**Open questions added:** OQ-72 (nullable canonical), OQ-73 (which raw descriptor is "the
+original").
+
+**ADR:** 0101.

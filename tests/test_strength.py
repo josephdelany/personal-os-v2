@@ -3,10 +3,18 @@
 Pure arithmetic, so it is exercised exhaustively here rather than sampled against a database.
 Every test below is about a refusal or a distinction; the happy path is one line.
 """
+import copy
 import datetime as dt
 import inspect
+import json
 
 import pytest
+
+# The catalogue fixture is defined next to the migration it builds. Importing it rather than
+# duplicating it keeps ONE description of what 0053 creates.
+from tests._sql_fixture import ROOT, sql_connection  # noqa: F401
+from tests.test_source_inventory import inv_cur, rebind  # noqa: F401
+from tools.run_migration import split_statements
 
 from tools.engines import strength
 from tools.engines.strength import (ACWR_ACUTE_DAYS, ACWR_CHRONIC_DAYS, E1RM, FORMULAS,
@@ -174,19 +182,101 @@ def test_REQ_WKT_012_the_registry_gives_the_acwr_no_plausible_band():
         f"the ACWR must carry no plausible band while its windows are provisional: {row}")
 
 
-def test_RULE_13_the_catalogue_rebuild_preserves_the_seeded_parameters():
-    """Second review, finding 10. `build_catalogue.py` DELETEs the whole catalogue and
-    reinserts with a column list that omits `parameters`, so the next run silently destroyed
-    the formula names, the validated rep range and the ACWR windows that migration 0061 seeds.
-    And because the column is nullable, they came back NULL for the two measures that genuinely
-    have parameters — exactly the state nullability was introduced to distinguish from "this
-    method takes none"."""
-    import pathlib
-    source = pathlib.Path(__file__).resolve().parents[1].joinpath(
-        "tools/build_catalogue.py").read_text()
-    assert "SELECT measure, parameters FROM config.derivation_catalogue" in source, (
-        "the rebuild must read the seeded parameters before deleting")
-    assert source.index("kept = dict(cur.fetchall())") < source.index(
-        'cur.execute("DELETE FROM config.derivation_catalogue")'), (
-        "they must be read BEFORE the delete, not after")
-    assert "SET parameters = %s" in source, "and written back after the reinsert"
+def test_RULE_13_the_engine_computes_with_the_parameters_the_catalogue_holds():
+    """Third review, finding 8. 0061's header claims a method's numbers are "DATA beside it
+    rather than constants in Python" and that "the windows and the formula set can be changed
+    without a code change". That was false: `strength.py` hardcoded both, nothing read
+    `config.derivation_catalogue.parameters`, and changing the table changed no computed
+    figure. The only test asserted the migration TEXT held the same literals as the module —
+    proving the two copies agreed, not that either derived from the other.
+
+    `specs/07-workout/requirements.md` names "one hardcoded e1RM formula in code" as a REJECTED
+    alternative on exactly this ground."""
+    from tools.engines import strength as s
+    original = copy.deepcopy(s.PARAMETERS)
+    try:
+        assert isinstance(s.e1rm(225, 20), Omission), "20 reps is outside the seeded range"
+        s.apply_catalogue_parameters(
+            {"strength_e1rm_lb": {"formulas": ["epley"], "valid_reps": [1, 20]}})
+        widened = s.e1rm(225, 20)
+        assert not isinstance(widened, Omission), "the catalogue widened the validated range"
+        assert widened.formulas == ("epley",), "and narrowed the formula set"
+
+        s.apply_catalogue_parameters({"strength_acwr": {"acute_days": 5, "chronic_days": 21}})
+        volume = {dt.date(2026, 9, 10) - dt.timedelta(days=i): 100.0 for i in range(21)}
+        r = s.acwr(volume, dt.date(2026, 9, 10))
+        assert (r["acute_window"], r["chronic_window"]) == (5, 21), r
+        # The caveat must describe the windows ACTUALLY used. It named 7 and 28 unconditionally,
+        # so a recalibrated pair would have carried a sentence about the old one.
+        assert "5 and 21" in r["caveat"], r["caveat"]
+    finally:
+        s.PARAMETERS.clear()
+        s.PARAMETERS.update(original)
+
+
+def test_RULE_13_a_formula_the_engine_cannot_compute_is_refused_not_dropped():
+    """Silently ignoring an unknown formula name would NARROW the interval — reporting more
+    precision because of a configuration error. REQ-WKT-009 makes the spread the whole point."""
+    from tools.engines import strength as s
+    original = copy.deepcopy(s.PARAMETERS)
+    try:
+        with pytest.raises(ValueError, match="cannot compute"):
+            s.apply_catalogue_parameters({"strength_e1rm_lb": {"formulas": ["wathan"]}})
+    finally:
+        s.PARAMETERS.clear()
+        s.PARAMETERS.update(original)
+
+
+def test_RULE_13_the_catalogue_rebuild_preserves_the_seeded_parameters(inv_cur):
+    """Second review finding 10, and third review finding 3 — the repair for the first was a
+    no-op for 100% of the rows it targeted.
+
+    `build_catalogue.rows()` is `metric_registry JOIN atoms`, so a measure with no atoms yet —
+    which is all three that 0061 seeds, until B18's engine runs — never appears in `catalogue`.
+    The DELETE removed the row and the write-back loop, keyed on membership of `catalogue`,
+    never reached it. The test that pinned it grepped `build_catalogue.py` for three string
+    literals and passed on that state. (The write-back also called `json.dumps` in a module
+    that does not import `json`; it would have raised NameError had it ever executed.)"""
+    # 0061 itself, applied. The third review found that NO pytest applied this migration —
+    # its two tests read the file as text — so its OQ-64 guard and its seed rows had no
+    # behavioural coverage at all. Applying it here gives both, and gives this test the
+    # `parameters` column and the real seeded values rather than a hand-written imitation.
+    for statement in split_statements((ROOT / "migrations/0061_strength_measures.sql").read_text()):
+        inv_cur.execute(rebind(statement))
+    inv_cur.execute("SELECT parameters FROM config_pytest.derivation_catalogue "
+                    "WHERE measure = 'strength_acwr'")
+    seeded_row = inv_cur.fetchone()
+    assert seeded_row is not None, "0061 must seed the ACWR row it claims to"
+    seeded = seeded_row[0]
+    assert seeded["acute_days"] == ACWR_ACUTE_DAYS, seeded
+    assert seeded["chronic_days"] == ACWR_CHRONIC_DAYS, seeded
+
+    from tools.build_catalogue import write_catalogue
+    # A rebuild that regenerates one unrelated measure, exactly as production would: `rows()`
+    # yields only measures that already have atoms, and `strength_acwr` has none.
+    write_catalogue(inv_cur, [dict(
+        measure="steps", input_fields=["value"], method="daily_sum", method_version="v1",
+        unit="count", time_specification="instant", missingness_rule="absent_is_unknown",
+        earliest_supported_event_date=None, analytical_consumers=["ask"], owner="joe")],
+        config="config_pytest")
+
+    inv_cur.execute("SELECT parameters FROM config_pytest.derivation_catalogue "
+                    "WHERE measure = 'strength_acwr'")
+    row = inv_cur.fetchone()
+    assert row is not None, "the rebuild deleted a row it cannot regenerate"
+    assert row[0] == seeded, f"and its RULE-13 parameters must survive: {row[0]}"
+
+
+def test_RULE_13_a_rejected_parameter_row_leaves_the_engine_on_its_previous_configuration():
+    """A partially applied configuration is worse than a rejected one: the exception names the
+    bad value while saying nothing about the good ones already applied behind it, and the
+    engine then computes with a mixture nobody chose. Validated into a candidate, committed in
+    one step."""
+    from tools.engines import strength as s
+    before = copy.deepcopy(s.PARAMETERS)
+    with pytest.raises(ValueError):
+        # The widened range is valid and would have been applied first; the formula is not.
+        s.apply_catalogue_parameters(
+            {"strength_e1rm_lb": {"valid_reps": [1, 20], "formulas": ["wathan"]}})
+    assert s.PARAMETERS == before, "a rejected row must change nothing at all"
+    assert isinstance(s.e1rm(225, 20), Omission), "including the range it would have widened"

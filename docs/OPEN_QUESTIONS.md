@@ -1753,3 +1753,37 @@ explicit statement that band position is always as-of-now and never replayed.
 *Recommendation:* the explicit statement, until something needs the history. A band is a
 descriptive aid, not a claim being replayed, and an append-only baseline table for 104,391 rows
 a night is a large cost for a capability nothing has asked for.
+
+**OQ-72 — `entity_aliases.canonical` is nullable, and one reader must now handle it.**
+
+REQ-FIN-051 non-merchant resolutions (ATM, internal transfer, fee) are real answers with no
+merchant name, so 0057 makes `canonical` NULL exactly there and pairs it with a required
+`non_merchant_kind`. Before this, the writer emitted those rows and the schema rejected them,
+and because the commit is after the loop, ONE ATM descriptor rolled back an entire resolver run.
+
+*Why it is open:* the nullability is settled, but `v_current_aliases` now returns rows whose
+`canonical` is NULL, and any future consumer that renders an alias must decide whether a
+non-merchant appears in merchant lists at all. Today the only consumers are the resolver's own
+head lookup and `read_human_aliases`, which filters `canonical IS NOT NULL`.
+
+*What depends on it:* B14's spend-by-merchant surfaces, once they read the ledger rather than
+recomputing from the cascade.
+
+*What would settle it:* Joe saying whether "ATM withdrawal" should appear as a line in a
+spend breakdown, or be excluded from merchant reporting entirely and counted separately.
+
+**OQ-73 — the resolver picks one raw descriptor of several as "the original".**
+
+REQ-FIN-061 asks for "the original, verbatim". Several raw descriptors normalise onto one alias
+by design, so there is no single original. The writer now records the most-transacted one in
+`raw_descriptor` and the rest in `also_seen`, replacing a version that dropped them silently in
+dictionary order.
+
+*Why it is open:* most-transacted is a defensible tie-break, not a ruling. Most-recent would
+also be defensible and would track a merchant's current descriptor format.
+
+*What depends on it:* nothing blocking; both are recorded, so a later ruling can re-derive.
+
+*What would settle it:* Joe saying which he would rather see quoted back when asked where a
+charge came from.
+
