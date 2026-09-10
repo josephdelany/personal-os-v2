@@ -6681,3 +6681,38 @@ module that returns a drink count, and the prior's payload sets `drink_count` to
 Requirements proven 315 -> 335 (49%). REQ-FIN unproven 71 -> 51.
 
 **Requirement IDs:** REQ-FIN-150..158, REQ-FIN-190..200. **ADR:** 0113.
+
+## 2026-09-10 (latest+5) — B17 §A.4 dedupe and §C.1 usage status
+
+**What now works:** `tools/engines/dedupe.py` and `tools/engines/usage_status.py`.
+
+Dedupe: two timestamps read by disjoint layers — behavioural reads occurred_at only, because a
+Thursday 22:40 bar charge settling Friday is a Thursday night and reading posted_at would move
+every late-week evening into the weekend, manufacturing the weekend pattern the analysis was
+looking for. Collapsing the two is an INGEST REJECTION, not a lint, because once both columns
+hold the settlement date the swipe time is unrecoverable — but only when a swipe timestamp was
+actually available, since a date-only CSV row is a limitation and rejecting it would refuse the
+only finance data this system has.
+
+25% tolerance because the tip lands between pending and posted, so an exact-amount key would fail
+on precisely the transactions this system cares most about. Ambiguity is never resolved
+automatically: two $40 charges at one merchant on one day are commonly two real meals, and
+merging destroys a transaction while queueing costs one question. Split tabs are LINKED, not
+netted away, and both gross and net are shown — showing only the net hides that a $120 evening
+happened; showing only the gross claims Joe spent $120 when he spent $40.
+
+Usage status: three tiers, never a boolean or a score. Collapsing `unknown` into `unused` is what
+turns a system that lacks data into a system that accuses, and "68% used" is a number with no
+referent. A bare label is refused — "unused" alone is an accusation, "last gym place_visit 71
+days ago" is a fact Joe can confirm or correct. The five forbidden words are banned on WRITE, not
+filtered on display, because a stored word leaks into an export or a prompt later.
+
+**Deliberately not decided:** REQ-FIN-114 says in its own text that the direct-human-override
+representation is "a modeling decision for Joe" (OQ-32, still open). `UsageStatus` raises on any
+third provenance and names OQ-32 in the message rather than inventing one that would become
+load-bearing.
+
+**Evidence:** 30 new tests. 450 local SQL tests pass; layout 43/43; never-rule scan clean.
+Requirements proven 335 -> 350 (51%). REQ-FIN unproven 51 -> 36.
+
+**Requirement IDs:** REQ-FIN-040..051, REQ-FIN-110..116. **ADR:** 0114.
