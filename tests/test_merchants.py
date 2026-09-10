@@ -162,7 +162,9 @@ def test_REQ_FIN_051_an_atm_withdrawal_is_not_a_merchant():
     Naming it puts it in category rollups REQ-FIN-051 explicitly excludes it from, and
     "Non Chase Atm Withdraw Main" is not a shop."""
     assert classify_non_merchant("NON-CHASE ATM WITHDRAW MAIN ST") == "atm"
-    assert classify_non_merchant("Online Transfer from CHK transaction#:") == "transfer"
+    # `internal_transfer` since the internal/external split: the kind became more precise,
+    # the obligation (a transfer is not a merchant) did not.
+    assert classify_non_merchant("Online Transfer from CHK transaction#:") == "internal_transfer"
     assert classify_non_merchant("NON-CHASE ATM FEE-WITH") in ("atm", "fee")
     assert classify_non_merchant("HANNAFORD #8229") is None
 
@@ -180,8 +182,8 @@ def test_REQ_FIN_051_the_classification_is_offered_the_raw_descriptor():
     it. Today's rules happen to preserve that token — asserted below so the day they stop is
     a visible change — but the resolver does not depend on their continuing to."""
     raw = "Online Transfer from CHK transaction#: 12345"
-    assert classify_non_merchant(raw) == "transfer"
-    assert classify_non_merchant(normalize(raw).normalized) == "transfer", (
+    assert classify_non_merchant(raw) == "internal_transfer"
+    assert classify_non_merchant(normalize(raw).normalized) == "internal_transfer", (
         "today's rules preserve the marker; if this ever fails, normalisation changed and the "
         "raw-descriptor path below is what keeps the classification correct")
 
@@ -403,3 +405,42 @@ def test_REQ_FIN_051_a_non_merchant_never_acquires_a_category():
     from tools.engines.merchants import classify_non_merchant
     assert classify_non_merchant("NON-CHASE ATM WITHDRAW MAIN") == "atm"
     assert classify_non_merchant("Hannaford") is None
+
+
+# ---------------------------------------------------------------- internal vs external money
+
+def test_REQ_FIN_049_moving_money_between_your_own_accounts_is_not_income():
+    """Measured on the real data: of $32,384 inbound, $30,532 — 94.3% — is an internal
+    transfer. Counting it as income overstates by seventeen times, and netting it against
+    outflow makes total spend look like $279 against a true $32,105. Both would be
+    arithmetically perfect and entirely false."""
+    from tools.engines.merchants import classify_non_merchant
+    for descriptor in ("Online Transfer from CHK transaction#:",
+                       "Online Transfer to SAV transaction#:",
+                       "AUTOMATIC PAYMENT - THANK YOU"):
+        assert classify_non_merchant(descriptor) == "internal_transfer", descriptor
+
+
+def test_REQ_FIN_049_a_person_to_person_receipt_is_distinguished_from_an_internal_one():
+    """REQ-FIN-049 nets a shared bill against a P2P receipt. Netting an INTERNAL transfer
+    against one would cancel a restaurant bill with Joe's own savings."""
+    from tools.engines.merchants import classify_non_merchant
+    for descriptor in ("VENMO CASHOUT", "CASH APP*JOHN", "PAYPAL *SOMEONE", "ZELLE PAYMENT"):
+        assert classify_non_merchant(descriptor) == "p2p", descriptor
+
+
+def test_REQ_FIN_049_the_internal_rule_is_tested_before_the_generic_transfer_rule():
+    """"Online Transfer from CHK" matches both patterns and only the first is true. Order in
+    NON_MERCHANT is load-bearing, so a reordering must fail here rather than silently
+    reclassify $30,532."""
+    from tools.engines.merchants import NON_MERCHANT, classify_non_merchant
+    kinds = [kind for kind, _ in NON_MERCHANT]
+    assert kinds.index("internal_transfer") < kinds.index("transfer")
+    assert classify_non_merchant("Online Transfer from CHK") == "internal_transfer"
+
+
+def test_REQ_FIN_051_a_real_merchant_is_still_a_merchant():
+    """A classifier that swallows ordinary spending is worse than none."""
+    from tools.engines.merchants import classify_non_merchant
+    for descriptor in ("HANNAFORD #8229", "UBER EATS", "BLUE BOTTLE COFFEE"):
+        assert classify_non_merchant(descriptor) is None, descriptor

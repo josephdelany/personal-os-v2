@@ -1375,3 +1375,45 @@ iterate domains until each hero metric either resolves or is explicitly marked u
 about naming; four are scope statements needing only a yes.
 
 *Related:* OQ-51 (canonical names vs what the feeds emit), ADR-0089 (two lanes never blended).
+
+**OQ-61 — 94% of "inbound" money is Joe moving his own money, and nothing downstream knew.**
+
+Measured across all 1,052 legacy transactions:
+
+| kind | inbound n | inbound $ | outbound n | outbound $ |
+|---|---|---|---|---|
+| **internal transfer** | 81 | **30,532.28** | 11 | 2,290.00 |
+| merchant | 20 | 1,295.70 | 712 | **23,507.93** |
+| ATM | 1 | 3.00 | 118 | 3,522.16 |
+| person-to-person | 1 | 537.98 | 66 | 2,624.56 |
+| fee | 2 | 15.00 | 40 | 160.60 |
+
+`Online Transfer from CHK` alone is 56 rows and $25,609. Of $32,383.96 total inbound, **only
+$1,851.68 is external money**.
+
+Two figures that would be arithmetically perfect and entirely false:
+
+- **Income.** Reading inbound as income overstates it by roughly **seventeen times**.
+- **Net spend.** $32,384 in against $32,105 out nets to **$279**, against true merchant
+  spending of **$23,508**.
+
+`spend` is not affected: it reports `total_out` and `total_in` separately and has never netted
+them, which this data has now validated rather than assumed. `tools/engines/merchants.py` now
+classifies `internal_transfer` distinctly from `p2p` and from a generic `transfer`, and the
+resolver counts them among the non-merchants, so no internal movement can acquire a merchant
+edge or a category.
+
+*Why it is open:* the classification is by descriptor pattern and is therefore a heuristic
+about Joe's own accounts. `AUTOMATIC PAYMENT - THANK YOU` is a credit-card payment — internal
+if the card is his, external if he is paying someone else's. Only Joe knows which accounts are
+his, and the constitution does not let that be inferred.
+
+*What depends on it:* any income, savings-rate, net-worth or net-spend measure. None exists
+yet, and none should be built until this is settled, because each would be wrong by an order
+of magnitude in the direction that flatters.
+
+*Recommendation:* confirm that `Online Transfer to/from CHK|SAV` and `AUTOMATIC PAYMENT` are
+all movements between Joe's own accounts. If so, the current classification stands and
+external inbound is $1,851.68 over the whole record. If any is a third party, name it.
+
+*What would settle it:* one confirmation. Related: REQ-FIN-049/050, ADR-0096, OQ-59.

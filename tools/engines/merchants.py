@@ -31,9 +31,22 @@ FUZZY_FLOOR = 0.80          # REQ-FIN-072/073, verbatim from the requirement.
 # cannot see — and a transfer or a fee is a movement of Joe's own money, not a purchase.
 # Calling any of them a merchant would put them in category rollups the requirement explicitly
 # excludes them from, and "Non Chase Atm Withdraw Main" is not a shop.
+# The order matters: `internal_transfer` is tested before the generic `transfer`, because
+# "Online Transfer from CHK" matches both and only the first is true.
 NON_MERCHANT = (
     ("atm",      re.compile(r"\bATM\b|\bWITHDRAW", re.I)),
-    ("transfer", re.compile(r"\bONLINE TRANSFER\b|\bZELLE\b|\bWIRE\b|\bTRANSFER (TO|FROM)\b", re.I)),
+    # MONEY MOVING BETWEEN JOE'S OWN ACCOUNTS IS NOT INCOME AND NOT SPENDING. Measured on the
+    # real data: of $32,384 of inbound transactions, $30,532 — 94% — is this. Counting it as
+    # income overstates by seventeen times, and netting it against outflow makes total spend
+    # look like $279 against a true $32,105. Both figures would be arithmetically perfect and
+    # entirely false, which is why this needs its own kind rather than sharing `transfer`.
+    ("internal_transfer",
+     re.compile(r"\bONLINE TRANSFER (TO|FROM)\b|\bTRANSFER (TO|FROM) (CHK|SAV)\b"
+                r"|\bAUTOMATIC PAYMENT\b|\bPAYMENT THANK YOU\b|\bE-?PAYMENT\b", re.I)),
+    # A genuine person-to-person receipt or payment: someone else's money, or Joe's going to
+    # someone else. REQ-FIN-049 nets THESE against a shared bill, never the internal ones.
+    ("p2p",      re.compile(r"\bVENMO\b|\bCASH ?APP\b|\bPAYPAL\b|\bZELLE\b", re.I)),
+    ("transfer", re.compile(r"\bONLINE TRANSFER\b|\bWIRE\b|\bTRANSFER (TO|FROM)\b", re.I)),
     ("fee",      re.compile(r"\bFEE\b|\bINTEREST CHARGE\b|\bSERVICE CHARGE\b", re.I)),
 )
 
