@@ -17,7 +17,7 @@ threshold. An item nothing resolves gets NULL values and a row in `unresolved_it
 Cache first, always (§D.1): a lookup done once is not repeated. It costs a request, it can
 fail, and the answer does not change.
 
-**ADR-0135 — the cascade is the path, not a diagram of one.** Until this revision
+**ADR-0137 — the cascade is the path, not a diagram of one.** Until this revision
 `SOURCE_PRECEDENCE` was declared here and read nowhere, `tools/engines/nutrition_cascade.py`
 had sixteen passing tests and no caller, and `resolve_item` did a single `foods_cache` lookup
 and raised `Unresolved` on a miss. The declared order was documentation. It is now what runs:
@@ -172,7 +172,7 @@ def portion_grams(cur, name, schema="core"):
     return (float(row[0]), row[1]) if row else (None, None)
 
 
-# ---------------------------------------------------------------- the cascade legs (ADR-0135)
+# ---------------------------------------------------------------- the cascade legs (ADR-0137)
 #
 # Each leg is a callable `(item_text, brand) -> result | None` and raises `SourceUnavailable`
 # when it could not be asked, which is the contract `nutrition_cascade.resolve` walks. They are
@@ -368,7 +368,7 @@ def remember_alias(cur, phrase, row, schema="core"):
     source payload stays on the canonical row it was derived from (INV-1), and the pair is
     liftable into a real `food_aliases` table by one mechanical migration over
     `raw ? 'alias_of'`. The cost of the bridge is that a re-fetch under REQ-NUT-008 must update
-    both rows; that is the argument for the table, and it is recorded in ADR-0135.
+    both rows; that is the argument for the table, and it is recorded in ADR-0137.
 
     Nothing is written when the phrase already reads back through `lookup_cached` — which
     matches on `lower(canonical_name)`, so that, and not a normaliser, is the test used here.
@@ -391,7 +391,7 @@ def resolve_item(cur, item_text, *, grams=None, servings=None, brand=None, sourc
                  **source_kw):
     """One food item -> {metric_key: (low, point, high)} plus the method that produced it.
 
-    The walk is `nutrition_cascade.resolve` over `build_sources` (ADR-0135); `sources` is
+    The walk is `nutrition_cascade.resolve` over `build_sources` (ADR-0137); `sources` is
     injectable so a test drives the real path with a transport it controls rather than a
     reimplementation of it.
 

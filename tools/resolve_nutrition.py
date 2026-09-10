@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Resolve one food item through the real source cascade (ADR-0106, ADR-0135).
+"""Resolve one food item through the real source cascade (ADR-0106, ADR-0137).
 
     PYTHONPATH=. python3 tools/resolve_nutrition.py "hazelnut spread" --servings 1
     PYTHONPATH=. python3 tools/resolve_nutrition.py "chicken burrito" --brand Chipotle

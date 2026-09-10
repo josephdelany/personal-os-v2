@@ -37,6 +37,13 @@ TESTS = ("tests/test_ask_ranges.py", "tests/test_ask.py", "tests/test_ask_operat
          "tests/test_reconstruction_e2e.py",
          # INTENT_COVERAGE R7: the refusal path for an uncatalogued derivation.
          "tests/test_derivation_refusal.py",
+         # B12. The nutrition cascade became the execution path; without these three lines
+         # none of that evidence runs anywhere — test_nutrition_off.py's SQL half had never
+         # run in CI at all, which is the same "counted but never executed" failure the
+         # evidence audit found in the requirement ledger.
+         "tests/test_nutrition_off.py",
+         "tests/test_nutrition_integration.py",
+         "tests/test_nutrition_persistence.py",
          "tests/test_ontology_constraints.py")
 
 

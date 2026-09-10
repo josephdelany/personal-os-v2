@@ -1,4 +1,4 @@
-"""B12 end to end: `resolve_item` really walks the cascade (ADR-0106, ADR-0135).
+"""B12 end to end: `resolve_item` really walks the cascade (ADR-0106, ADR-0137).
 
 These are not unit tests of the pieces. `tests/test_nutrition_cascade.py` proves the ordering
 with stub sources, `tests/test_nutrition_off.py` proves the parser with fixed payloads, and both
@@ -149,7 +149,7 @@ def test_REQ_NUT_002_REQ_NUT_012_a_cached_food_never_reaches_a_network_leg(sql_c
 def test_REQ_NUT_001_REQ_NUT_036_a_cache_miss_falls_through_the_declared_order(sql_connection):
     """The order is now what RUNS, not what a constant says.
 
-    Before ADR-0135 this assertion was impossible to make: `SOURCE_PRECEDENCE` was declared in
+    Before ADR-0137 this assertion was impossible to make: `SOURCE_PRECEDENCE` was declared in
     `nutrition.py` and read by nothing, and a cache miss raised immediately. The sequence below
     is read off the walk the resolver actually performed.
     """

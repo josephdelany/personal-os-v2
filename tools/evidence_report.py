@@ -5,7 +5,7 @@ WHY THIS EXISTS. `tools/audit_requirements.py` used to report "685 of 685 requir
 proven" by globbing requirement IDs out of test function NAMES in the source tree. It never
 started pytest and never opened a result file, so a green test, a skipped test, a failing
 test and a test that was never collected all produced the same word. That number was quoted
-as a completion claim. ADR-0134 records the defect; `tools/audit_requirements.py` was rewritten
+as a completion claim. ADR-0136 records the defect; `tools/audit_requirements.py` was rewritten
 to read JUnit results and now owns the question "did it run and pass?".
 
 Fixing that leaves a second, quieter over-claim standing, and this tool exists for it.
@@ -380,7 +380,7 @@ def render(result):
       f"file, so a green test, a skipped test, a failing test and a test that was never "
       f"collected all counted identically. The gap between the two figures is "
       f"**{name_count - passed} requirements** whose entire evidence was a filename. "
-      f"ADR-0134 records the defect.")
+      f"ADR-0136 records the defect.")
     w("")
     w("**Neither figure is a completion figure.** A passing named test is evidence about the "
       "assertions in that test. It is not evidence that the test's subject is the "
@@ -529,7 +529,7 @@ def main(argv=None):
     except audit_tool.NoResults as e:
         print(f"REFUSED: {e}\n"
               "  This tool reports what RAN. With no result file every status is unknown, and\n"
-              "  counting test names instead is the defect it exists to correct (ADR-0134).\n"
+              "  counting test names instead is the defect it exists to correct (ADR-0136).\n"
               "  Produce one with:  PYTHONPATH=. python3 -m pytest tests/ "
               "--junitxml=/tmp/junit.xml", file=sys.stderr)
         return 2

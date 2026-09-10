@@ -1,4 +1,4 @@
-# ADR-0135 — The nutrition cascade becomes the execution path
+# ADR-0137 — The nutrition cascade becomes the execution path
 
 **Status:** accepted
 **Date:** 2026-09-10

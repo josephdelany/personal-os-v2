@@ -294,7 +294,7 @@ def test_the_report_states_both_figures_and_names_the_gap(repo):
     assert "2 of 7 requirements (28.6%) have a named test that ran and passed" in document
     assert "6 of 7 (85.7%) proven" in document, "the superseded name count, for comparison"
     assert "4 requirements** whose entire evidence was a filename" in document
-    assert "ADR-0134" in document
+    assert "ADR-0136" in document
     for column in ("vacuous", "not run", "tests-only", "scheduled"):
         assert column in document
 
