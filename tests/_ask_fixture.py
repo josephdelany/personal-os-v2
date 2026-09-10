@@ -99,6 +99,8 @@ def ask_cur(sql_connection):
     apply_file("0036_search_record.sql")
     apply_file("0037_get_entity.sql")
     apply_file("0049_ask_core.sql")
+    # 0058 replaces ask(text,date) with ask(text,date,timestamptz) — two clocks.
+    apply_file("0058_ask_two_clocks.sql")
     cur.execute("SELECT set_config('request.jwt.claims', %s, true)",
                 ('{"email":"joseph.delany21@gmail.com"}',))
     fixture = (ROOT / "tests/fixtures/ask_describe.sql").read_text()

@@ -21,8 +21,12 @@ from tests._sql_fixture import sql_connection   # noqa: F401  (pytest fixture)
 AS_OF = dt.date(2026, 9, 8)
 
 
-def ask(cur, question, as_of=AS_OF):
-    cur.execute("SELECT public_pytest.ask(%s, %s)", (question, as_of))
+def ask(cur, question, as_of=AS_OF, known_at=None):
+    """`as_of` bounds subject days; `known_at` bounds knowledge time and defaults to now()."""
+    if known_at is None:
+        cur.execute("SELECT public_pytest.ask(%s, %s)", (question, as_of))
+    else:
+        cur.execute("SELECT public_pytest.ask(%s, %s, %s)", (question, as_of, known_at))
     r = cur.fetchone()[0]
     return r if isinstance(r, dict) else json.loads(r)
 
@@ -1718,14 +1722,17 @@ def test_RULE_04_spend_excludes_a_charge_recorded_after_the_as_of(ask_cur):
     day = as_of - dt.timedelta(days=5)
     _txn_atom(cur, day, -10.00, "bank:x;merchant=Coffee;descriptor=COFFEE BAR")
 
-    before = ask(cur, "how much did i spend at coffee last 30 days", as_of=as_of)
+    known_then = dt.datetime.combine(as_of, dt.time(23), tzinfo=dt.timezone.utc)
+    before = ask(cur, "how much did i spend at coffee last 30 days",
+                 as_of=as_of, known_at=known_then)
     assert float(stored_result(cur, before)["total_out"]) == 10.00
 
     # A charge for the SAME old day, learned today.
     _txn_atom(cur, day, -25.00, "bank:x;merchant=Coffee;descriptor=COFFEE LATE",
               recorded_at=dt.datetime.combine(AS_OF, dt.time(12), tzinfo=dt.timezone.utc))
 
-    after = ask(cur, "how much did i spend at coffee last 30 days", as_of=as_of)
+    after = ask(cur, "how much did i spend at coffee last 30 days",
+                as_of=as_of, known_at=known_then)
     assert float(stored_result(cur, after)["total_out"]) == 10.00, \
         "a charge recorded after the as_of must not enter an earlier answer"
 
@@ -1826,3 +1833,35 @@ def test_REQ_ASK_031_a_tracked_metric_whose_name_contains_morning_still_answers(
     r = ask(cur, "how is my morning mood")
     assert r.get("reason") != "time_of_day", "refused a question it can answer"
     assert r.get("metric") == "checkin_morning_mood", r
+
+
+def test_REQ_ASK_030_a_fresh_import_is_visible_at_the_default_as_of(ask_cur):
+    """The two clocks. `as_of` defaults to YESTERDAY because today is an incomplete subject
+    day, and an import is recorded TODAY. Cutting knowledge at as_of made every freshly
+    imported transaction invisible to every default question — bitemporally defensible and
+    practically useless. Demonstrated against 1,052 backfilled transactions before this was
+    written: the same question returned INSUFFICIENT at one as_of and 1262.14 usd at another,
+    purely because the cutoff moved past the moment the rows were written."""
+    cur = ask_cur
+    _txn_atom(cur, AS_OF - dt.timedelta(days=3), -40.00,
+              "bank:x;merchant=Hannaford;descriptor=HANNAFORD 8229",
+              # AFTER the as_of boundary — an import that landed the following morning. Not
+              # `now()`: Postgres now() is the TRANSACTION start, so a row written mid-test is
+              # timestamped later than it and would be excluded for the wrong reason.
+              recorded_at=dt.datetime.combine(AS_OF + dt.timedelta(days=1), dt.time(12),
+                                              tzinfo=dt.timezone.utc))
+    r = ask(cur, "how much did i spend at hannaford last 30 days")
+    assert r["tier"] == "DESCRIPTIVE", r
+    assert float(stored_result(cur, r)["total_out"]) == 40.00, r
+
+
+def test_REQ_ASK_030_a_replay_pinned_before_the_import_does_not_see_it(ask_cur):
+    """The other half: the replay clock still works, and is now the only thing that moves it."""
+    cur = ask_cur
+    _txn_atom(cur, AS_OF - dt.timedelta(days=3), -40.00,
+              "bank:x;merchant=Hannaford;descriptor=HANNAFORD 8229",
+              recorded_at=dt.datetime.combine(AS_OF + dt.timedelta(days=1), dt.time(12),
+                                              tzinfo=dt.timezone.utc))
+    r = ask(cur, "how much did i spend at hannaford last 30 days",
+            known_at=dt.datetime(2020, 1, 1, tzinfo=dt.timezone.utc))
+    assert r["tier"] == "INSUFFICIENT", r
