@@ -6745,3 +6745,39 @@ the amendment ADR-0103 earned.
 Requirements proven 350 -> 367 (54%). REQ-CAP unproven 83 -> 66.
 
 **Requirement IDs:** REQ-CAP-050..066, 108, 109. **ADR:** 0115.
+
+## 2026-09-10 (latest+7) — B16 §A.5/§A.6/§F.1 offline, downstream failure, attention budget
+
+**The asymmetry these rules exist for:** a transaction can be re-imported next month and a
+HealthKit sample is still on the watch, but a spoken sentence about what Joe just ate exists
+exactly once, for about four seconds.
+
+**What now works:** `tools/engines/capture_resilience.py`. A network failure queues locally and
+shows NO error dialog — the prohibition matters more than it looks, because an error at the moment
+of capture teaches Joe that capturing sometimes fails and the lesson he draws is to stop
+bothering. A line leaves the queue only on 200/202, since removing on send loses exactly the
+captures that were hardest to make. Stop-on-first-failure exists but is deliberately NOT the
+default: one poisoned line would block every capture behind it forever.
+
+`received_at` may bucket nothing, and the check RAISES. A capture queued Tuesday and replayed
+Wednesday is a Tuesday capture, and offline captures are not random — they cluster where the
+signal is bad, which for Joe means exactly the places worth knowing about. The distortion is
+invisible in the output.
+
+Ingest returns 202 even when enrichment failed, because the capture is safe once stored and
+surfacing a downstream error would report a failure for something that already succeeded, with
+the Shortcut's only response being to make Joe do it again. 72 hours pending becomes a review
+item rather than another retry, since retrying forever hides a provider that changed its
+contract. One push after 48 hours, not a stream — a repeating alarm about a job he cannot fix
+from his phone is one he turns off.
+
+The attention budget: REQ-CAP-084 is the most interesting rule — showing the day BEFORE asking
+for recall turns "what did you do" into "is this right", a different and much cheaper task.
+Review items order by interval width because width IS the uncertainty. Leaving the review screen
+is an answer, and re-prompting would turn a review list into a backlog.
+
+**Evidence:** 22 new tests, no network and no clock of its own — every function takes `now`
+explicitly. 450 local SQL tests pass; layout 43/43; never-rule scan clean. Requirements proven
+367 -> 385 (56%). REQ-CAP unproven 66 -> 48.
+
+**Requirement IDs:** REQ-CAP-019..029, 080..086. **ADR:** 0116.
