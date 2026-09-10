@@ -6982,3 +6982,39 @@ defects earlier reviews found: a check that cannot fail is decoration and passes
 468 -> 490 (72%). REQ-INF unproven 63 -> 41.
 
 **Requirement IDs:** REQ-INF-001..009, 020..026, 030..038. **ADR:** 0122.
+
+## 2026-09-10 (latest+14) — B9 §C/§G.1 pre-registration and the registry
+
+**The premise:** the difference between a discovery and a story is entirely a matter of WHEN the
+claim was written down. Every analytic choice — lag, direction, transformation, adjustment set,
+test statistic — can be made after seeing the data, and each is defensible on its own; making all
+of them after the fact is how a null result becomes a finding without anybody lying.
+
+**Both clocks, or neither.** A row about last Tuesday that arrived today is not post-registration
+data — it is old data that showed up late, and a backfill can deliver thousands at once. Filtering
+on subject_day alone would let one import silently supply the entire confirmation window. A leaked
+row ABORTS the confirmation rather than downgrading it, because the weaker claim would still rest
+on data the hypothesis may have been mined from.
+
+The E-value cap asks the honest question — how strong would an unmeasured confounder have to be to
+explain this away? Below 1.5 the answer is "not very". A refutation is surfaced, not deleted: a
+register that quietly drops its failures reports 100% success and means nothing. Nothing is
+imputed, because an imputed value is indistinguishable from a measured one once it is in the
+matrix.
+
+§G.1: no hardcoded pairs (a hardcoded list stops matching the data the first time a metric is
+added, silently). An observation with no registry row is REFUSED, because a metric with no unit,
+state class, plausible range or staleness rule is not data — and the row would sit there looking
+like it. A fired negative control suppresses the WHOLE RUN, not the offending finding, because
+the pipeline is finding effects where there cannot be any. And REQ-INF-508 shifts the exposure
+into the FUTURE: if tomorrow's caffeine predicts today's sleep, the association is something
+slower moving both.
+
+**One rename:** `testable_hypotheses` -> `hypotheses_from_registry`. pytest collects any imported
+callable whose name begins with `test`, so the original produced a baffling "fixture 'registry'
+not found" error in an unrelated file.
+
+**Evidence:** 18 new tests. 450 local SQL tests pass; layout 43/43; never-rule scan clean.
+Requirements proven 490 -> 509 (74%). REQ-INF unproven 41 -> 22.
+
+**Requirement IDs:** REQ-INF-100..114, 500..508. **ADR:** 0123.
