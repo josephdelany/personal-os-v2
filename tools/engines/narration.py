@@ -49,6 +49,34 @@ MORALISING = ("excessive", "wasteful", "necessary", "unnecessary", "too much", "
               "guilty")
 
 
+# REQ-NAR-025 / RULE-24. Four surfaces this system may never show, banned as CONCEPTS rather
+# than as words, because each is a way of converting a measurement into a verdict:
+#
+#   a streak       — makes a missing day a failure. Joe's capture has stopped twice this year
+#                    through no act of his; a streak would have scored both as lapses.
+#   a compliance   — measures obedience to a plan rather than what happened.
+#     score
+#   a composite    — averages incomparable measures into one number whose movement cannot be
+#     wellness       attributed to anything, and whose inputs have wildly different coverage.
+#     score
+#   a celebration  — attaches an emotional reward to a number, which is what makes a metric
+#                    worth gaming.
+FORBIDDEN_SURFACES = (
+    ("streak", re.compile(r"\bstreaks?\b|\bdays? in a row\b|\bconsecutive days?\b", re.I)),
+    ("compliance_score", re.compile(r"\bcompliance\b|\badherence score\b", re.I)),
+    ("composite_score", re.compile(r"\bwellness score\b|\bhealth score\b|\breadiness score\b"
+                                   r"|\boverall score\b", re.I)),
+    ("celebration", re.compile(r"\bcongratulations?\b|\bwell done\b|\bkeep it up\b"
+                               r"|\bnice work\b|🎉|🔥", re.I)),
+)
+
+
+def forbidden_surface(text: str):
+    """REQ-NAR-025 / RULE-24. Which banned surface a string would render, if any."""
+    return tuple(kind for kind, pattern in FORBIDDEN_SURFACES
+                 if pattern.search(text or ""))
+
+
 @dataclass(frozen=True)
 class Violation:
     term: str

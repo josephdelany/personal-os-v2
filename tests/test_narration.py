@@ -107,3 +107,57 @@ def test_REQ_NAR_022_a_template_is_linted_against_the_tier_it_is_declared_for():
     assert clean == ()
     bad = check_templates([("DESCRIPTIVE", "Your {display} causes {other}.")], V)
     assert len(bad) == 1 and bad[0][2].term == "causes"
+
+
+# ---------------------------------------------------------------- REQ-NAR-025 / RULE-24
+
+def test_REQ_NAR_025_a_streak_is_never_rendered():
+    """A streak makes a missing day a failure. Joe's capture has stopped twice this year
+    through no act of his — the Watch on 2026-08-21 and the bank export on 2026-05-13 — and a
+    streak would have scored both as lapses of his."""
+    from tools.engines.narration import forbidden_surface
+    assert forbidden_surface("7 day streak!") == ("streak",)
+    assert forbidden_surface("4 days in a row") == ("streak",)
+    assert forbidden_surface("12 consecutive days logged") == ("streak",)
+
+
+def test_REQ_NAR_025_a_compliance_or_composite_score_is_never_rendered():
+    """A compliance score measures obedience to a plan rather than what happened. A composite
+    averages incomparable measures into one number whose movement cannot be attributed to
+    anything — and whose inputs here have wildly different coverage, so it would silently
+    become a proxy for whichever input still has data."""
+    from tools.engines.narration import forbidden_surface
+    assert forbidden_surface("your compliance was 82%") == ("compliance_score",)
+    assert forbidden_surface("your wellness score is 82") == ("composite_score",)
+    assert forbidden_surface("readiness score: 61") == ("composite_score",)
+
+
+def test_REQ_NAR_025_a_celebration_is_never_rendered():
+    """A celebration attaches an emotional reward to a number, which is what makes a metric
+    worth gaming."""
+    from tools.engines.narration import forbidden_surface
+    assert forbidden_surface("Congratulations! 🎉") == ("celebration",)
+    assert forbidden_surface("Nice work, keep it up") == ("celebration",)
+
+
+def test_REQ_NAR_025_a_plain_descriptive_sentence_is_not_flagged():
+    """A detector that fires on ordinary copy is noise, and noise is ignored precisely when it
+    matters."""
+    from tools.engines.narration import forbidden_surface
+    for ok in ("Your Steps was typically 2206 count over the last 30 days.",
+               "Charges matching \"Hannaford\" total 1262.14 usd across 30 charges.",
+               "There is not enough data on HRV to make this claim."):
+        assert forbidden_surface(ok) == (), ok
+
+
+def test_REQ_NAR_025_no_live_template_or_string_renders_a_banned_surface():
+    """The build-time half. A template is a promise about every answer it will ever produce."""
+    from tools.engines.narration import forbidden_surface
+    import pathlib
+    sql = pathlib.Path(__file__).resolve().parents[1].joinpath(
+        "migrations/0049_ask_core.sql").read_text()
+    templates = [line for line in sql.splitlines()
+                 if "'DESCRIPTIVE','" in line or "'INSUFFICIENT','" in line]
+    assert templates, "the template seed must be present for this to mean anything"
+    for line in templates:
+        assert forbidden_surface(line) == (), line[:100]
