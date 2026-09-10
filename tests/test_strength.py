@@ -136,3 +136,39 @@ def test_RULE_09_no_strength_number_can_come_from_a_model_or_a_clock():
     for token in forbidden:
         assert token not in source, token
     assert ("now" + "()") not in source and ("datetime." + "now") not in source
+
+
+# ---------------------------------------------------------------- the specification is data
+
+def test_RULE_13_the_migration_records_the_same_numbers_the_engine_uses():
+    """REQ-WKT-008 puts the formula in the registry and REQ-WKT-012 the windows. If the
+    catalogue and the code can disagree, the catalogue is decoration: a figure would cite
+    parameters that did not produce it. This asserts they cannot drift apart silently."""
+    import pathlib
+    sql = pathlib.Path(__file__).resolve().parents[1].joinpath(
+        "migrations/0061_strength_measures.sql").read_text()
+
+    for name in FORMULAS:
+        assert f"'{name}'" in sql, f"{name} is used by the engine and absent from the catalogue"
+    lo = min(spec["valid_reps"][0] for spec in FORMULAS.values())
+    hi = max(spec["valid_reps"][1] for spec in FORMULAS.values())
+    assert f"jsonb_build_array({lo}, {hi})" in sql, "the validated rep range must match"
+    assert f"'acute_days', {ACWR_ACUTE_DAYS}" in sql
+    assert f"'chronic_days', {ACWR_CHRONIC_DAYS}" in sql
+    assert "'windows_calibrated', false" in sql, (
+        "REQ-WKT-012: an uncalibrated window must be recorded as uncalibrated")
+    assert METHOD_VERSION in sql, "a stored figure must be able to cite its method version"
+
+
+def test_REQ_WKT_012_the_registry_gives_the_acwr_no_plausible_band():
+    """A band implies a threshold, and the windows are provisional (OQ-36). Publishing one
+    would let a reader treat 1.5 as meaningful when nothing has established that it is."""
+    import pathlib
+    sql = pathlib.Path(__file__).resolve().parents[1].joinpath(
+        "migrations/0061_strength_measures.sql").read_text()
+    import re
+    flat = re.sub(r"\s+", " ", sql)
+    row = re.search(r"\('strength_acwr',.*?\)", flat).group(0)
+    assert "'ratio', 'measurement'" in row, row
+    assert "NULL, NULL, false" in row, (
+        f"the ACWR must carry no plausible band while its windows are provisional: {row}")
