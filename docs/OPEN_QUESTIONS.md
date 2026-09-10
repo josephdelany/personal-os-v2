@@ -1490,3 +1490,40 @@ the Watch is fixed (OQ-55).
 
 *What depends on it:* every calibration figure, and therefore auto-demotion. Related:
 REQ-INF-300..309, REQ-NFR-005..014, ADR-0100.
+
+**OQ-64 — `config.*` is not schema-parameterised while `__CORE__` is, so a shared config table
+holding a foreign key into core cannot be correct in both worlds.**
+
+Migrations rewrite `__CORE__` and `__OPS__` to a target schema pair, which lets the spine test
+apply the whole chain to a throwaway schema inside a rolled-back transaction (ADR-0022).
+`config.*` is written literally and is therefore **shared** between that test and production.
+
+That was harmless while config tables only held their own data. `config.derivation_catalogue`
+(0053, mine) broke it by carrying `measure REFERENCES __CORE__.metric_registry(metric_key)`.
+Applied to production the constraint targets `core.metric_registry`; applied to a pytest schema
+pair the table already exists, so `CREATE TABLE IF NOT EXISTS` is a no-op and the constraint
+still points at the real core. A migration that inserts into both then writes the registry row
+to the pytest registry and the catalogue row to the shared table — **73 errors in the
+production suite**, and pytest-only measures leaking into a shared table.
+
+0061 is guarded (it inserts only when the parameterised core *is* the real core) and the suites
+pass, but the guard treats a symptom.
+
+*Why it is open:* three answers with different costs.
+(a) Parameterise `config.*` as `__CONFIG__` throughout — correct, and it touches every
+migration that mentions config, which is most of them since 0034.
+(b) Drop the foreign key from `config.derivation_catalogue` and enforce the relationship in a
+check tool — cheap, and loses a real integrity guarantee.
+(c) Leave it, and require every future migration inserting into a config table with a core
+foreign key to carry the same guard — cheapest now, and it is a rule nobody will remember in
+six months.
+
+*What depends on it:* every future config table that references core. `config.panel_aggregation`
+and `config.panel_composition` (0056) already do, and only avoid the problem because nothing
+inserts into them from a parameterised context yet.
+
+*Recommendation:* (a). It is the only one that makes the test and production the same shape,
+and the alternative is a rule that has to be remembered every time. It is mechanical, and the
+migration chain verifier would catch a mistake immediately.
+
+*What would settle it:* Joe choosing. Related: ADR-0022, ADR-0082, ADR-0097.

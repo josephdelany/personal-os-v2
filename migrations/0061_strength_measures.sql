@@ -40,10 +40,26 @@ ON CONFLICT (metric_key) DO NOTHING;
 
 -- REQ-WKT-004/018: a missing training input is never imputed, and the wording is per measure
 -- because the three fail differently.
+-- INSERT ... SELECT, guarded on the parameterised core BEING the real core.
+--
+-- `config.*` is not schema-parameterised; `__CORE__` is. When the spine test applies the chain
+-- to a throwaway core schema, a plain VALUES insert put the registry row in the PYTEST registry
+-- and the catalogue row in the SHARED `config.derivation_catalogue`, whose foreign key still
+-- points at `core.metric_registry` — 73 errors, and it would also have leaked pytest-only
+-- measures into a shared table.
+--
+-- Guarding on "the registry row exists in __CORE__" does not work and the first attempt proved
+-- it: the row DOES exist there, in the pytest registry, while the constraint checks the real
+-- one. The condition that matters is whether the parameterised core IS the core the foreign key
+-- targets, so that is what is asked.
+--
+-- The deeper wrinkle is 0053's: a shared `config` table holding a foreign key into a
+-- parameterised schema cannot be right in both worlds. This guard makes 0061 safe; the
+-- inconsistency itself is recorded as OQ-64.
 INSERT INTO config.derivation_catalogue
     (measure, input_fields, method, method_version, unit, time_specification,
      missingness_rule, analytical_consumers, owner, parameters)
-VALUES
+SELECT v.* FROM (VALUES
     ('strength_e1rm_lb',
      ARRAY['strength_load_lb','strength_reps'],
      'formula_spread', 'strength-v1', 'lb', 'instant',
@@ -75,6 +91,9 @@ VALUES
        'note', 'OQ-36. Provisional placeholders, not calibrated to Joe. The ratio orders '
                'sessions against each other and carries no threshold; it must not be rendered '
                'beside one until calibrated (REQ-WKT-012).'))
+) AS v(measure, input_fields, method, method_version, unit, time_specification,
+       missingness_rule, analytical_consumers, owner, parameters)
+ WHERE to_regclass('__CORE__.metric_registry') = to_regclass('core.metric_registry')
 ON CONFLICT (measure) DO NOTHING;
 
 -- NOT DONE HERE, deliberately. `config.domains.hero_metric` for the workouts domain is
