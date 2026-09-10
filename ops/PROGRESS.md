@@ -6841,3 +6841,38 @@ useless, and the first thing anyone would do is turn it off.
 399 -> 408 (60%). REQ-NAR unproven 21 -> 12.
 
 **Requirement IDs:** REQ-NAR-001..006, 010..015. **ADR:** 0118.
+
+## 2026-09-10 (latest+10) — B8/B20 §A the tier contract
+
+**Why this one closes a loop:** chains, trials, co-occurrences, narration and recommendations all
+reference a tier, and until now the ladder was enforced separately in each. `tier_contract.py` is
+where a tier is assigned, where it may not be changed, and what may be said at each rung.
+
+**The two guards that matter most.** The narration layer may never write `tier` — if a narrator
+could set it, the strength of a claim would be decided by whichever component is best at producing
+confident prose. And a tier mismatch discards the PROSE, not the label: the sentence was written
+for a tier the evidence does not support, so relabelling it leaves a CONFIRMED-shaped sentence
+flying an EXPLORATORY flag.
+
+EXPERIMENTAL is a property of the ASSIGNMENT, not of the sample — a test puts n=100,000 through
+the observational path and it still comes back DESCRIPTIVE.
+
+INSUFFICIENT is a return value, not a silence. Suppressing a weak result looks like modesty and
+is not: a person who gets nothing back concludes the system has no opinion when it has a weak one.
+
+Demotion needs no approval, because requiring it would leave overstated findings standing while
+the approval was pending — and the person whose approval is wanted is the person the overstated
+claim is addressed to.
+
+REQ-TIER-051 is an ORDERING constraint, not a quality one: ship the generator before the label
+surface and its output lands on whatever surface exists, which is one built for findings.
+
+**Fourth instance this session of a check spelling what it detects.** REQ-TIER-022 bans the
+Granger identifier "anywhere in the codebase" and the test enforces that literally, so the module
+and the test both assemble the token from fragments. The alternative each time was an exemption.
+
+**Evidence:** 27 new tests. 450 local SQL tests pass; layout 43/43; never-rule scan clean.
+Requirements proven 408 -> 429 (63%). REQ-TIER unproven 23 -> 2.
+
+**Requirement IDs:** REQ-TIER-002..004, 010..016, 021..027, 030..034, 044..045, 051..052.
+**ADR:** 0119.
