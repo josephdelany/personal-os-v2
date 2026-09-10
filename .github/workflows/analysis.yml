@@ -33,7 +33,11 @@ jobs:
         with: {python-version: '3.12'}
       # B9 (ADR-0050/0051): the specification curve needs scipy, the confirmation gate statsmodels and
       # networkx. All three are free libraries, pinned; no service, no recurring cost (RULE-28).
-      - run: pip install 'pg8000>=1.30,<2' 'numpy>=1.26,<3' 'scipy>=1.11,<2' 'statsmodels>=0.14,<0.15' 'networkx>=3,<4'
+      # B16 §C.3 (REQ-CAP-064) names dateparser: the model emits the verbatim temporal SPAN and
+      # never a timestamp, so something has to resolve it. 0.3 MB, pure Python, BSD, no service
+      # and no runtime network call. Installed and exercised locally before this line was added
+      # (ADR-0103's amendment: a dependency ADR from package metadata is a plan, not evidence).
+      - run: pip install 'pg8000>=1.30,<2' 'numpy>=1.26,<3' 'scipy>=1.11,<2' 'statsmodels>=0.14,<0.15' 'networkx>=3,<4' 'dateparser>=1.2,<2'
       - name: resolve matured watches
         env:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}

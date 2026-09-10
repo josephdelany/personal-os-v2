@@ -6716,3 +6716,32 @@ load-bearing.
 Requirements proven 335 -> 350 (51%). REQ-FIN unproven 51 -> 36.
 
 **Requirement IDs:** REQ-FIN-040..051, REQ-FIN-110..116. **ADR:** 0114.
+
+## 2026-09-10 (latest+6) — B16 §C.1/§C.2/§C.3 the extractive-only contract
+
+**What now works:** `tools/engines/extraction.py`. The model may point at the transcript; it may
+not add to it. Three guards that fail differently: the forbidden words never enter the SCHEMA
+(a model asked for a `calories` field will produce one); the span assertion turns "did the model
+make this up" into `transcript[start:start+len(evidence)] == evidence`, a string comparison
+rather than a judgement; and any calorie or macronutrient number is stripped at the ADAPTER
+BOUNDARY before a row exists — explicitly not at reduced confidence, because a stored number with
+low confidence is still a stored number and confidence decays out of memory faster than digits do.
+
+On a span mismatch the VALUE is discarded, not flagged.
+
+**The label that would have quietly broken the guard:** REQ-CAP-065's fallback is `defaulted`,
+not `inferred`. REQ-CAP-062 filters `defaulted` out of statistics and does NOT filter `inferred`,
+so the wrong label would let a substituted timestamp into a trend as though measured. The
+requirement's own text records a reviewer catching exactly that in an earlier draft.
+
+Measured: `dateparser` returns None for both "this morning" and "last Tuesday", so that fallback
+is a common path rather than an exotic one. A test pins it.
+
+**One dependency added:** `dateparser`, named by REQ-CAP-064. 0.3 MB, pure Python, BSD, no
+service, no runtime network call. Installed and exercised locally BEFORE the ADR was written —
+the amendment ADR-0103 earned.
+
+**Evidence:** 21 new tests, no network and no model call. 450 local SQL tests pass; layout 43/43.
+Requirements proven 350 -> 367 (54%). REQ-CAP unproven 83 -> 66.
+
+**Requirement IDs:** REQ-CAP-050..066, 108, 109. **ADR:** 0115.
