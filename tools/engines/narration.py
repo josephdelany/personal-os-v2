@@ -26,8 +26,17 @@ from dataclasses import dataclass
 
 # The ladder, lowest first. `_ask_tier_rank` in 0049 orders the same way; this is the render
 # side of the same ordering and a test pins them together.
+#
+# CANDIDATE AND EXPLORATORY ARE ONE RUNG UNDER TWO NAMES, and the system genuinely uses both.
+# `core.findings.tier` (0007) permits 'CANDIDATE'; `config.tier_vocabulary` (0049) names the
+# same rung 'EXPLORATORY', because REQ-NAR-013 defines the EXPLORATORY SURFACE as where a
+# CANDIDATE finding may appear. A linter that knew only one of them would RAISE on a real
+# findings row rather than lint it — and REQ-NAR-020 requires every generated claim to be
+# linted, so raising is not a safe failure. Both rank identically here; which name is canonical
+# is a decision, recorded as OQ-66.
 TIER_ORDER = ("INSUFFICIENT", "DESCRIPTIVE", "EXPLORATORY", "PROMOTED",
               "CONFIRMED_OBSERVATIONAL", "EXPERIMENTAL")
+TIER_ALIASES = {"CANDIDATE": "EXPLORATORY"}
 
 # Terms that are also ordinary English proper nouns or nouns. Matched in lower case only, so a
 # date or a name cannot trip the linter. Anything not listed here is matched case-insensitively.
@@ -86,6 +95,7 @@ class Violation:
 
 
 def rank(tier: str) -> int:
+    tier = TIER_ALIASES.get(tier, tier)
     try:
         return TIER_ORDER.index(tier)
     except ValueError:

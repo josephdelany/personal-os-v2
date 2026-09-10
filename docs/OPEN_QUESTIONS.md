@@ -1565,3 +1565,41 @@ discrepancy became visible.
 
 *Recommendation:* (a). The rule is constitutional, not domain-specific, and INV-2 already says
 it for every append-only table in the system.
+
+**OQ-66 — One rung of the evidence ladder has two names, and two live tables disagree about
+which.**
+
+`core.findings.tier` (migration 0007, applied) permits:
+`DESCRIPTIVE, CANDIDATE, PROMOTED, CONFIRMED_OBSERVATIONAL, EXPERIMENTAL, INSUFFICIENT`.
+
+`config.tier_vocabulary` (migration 0049, applied) carries rows for:
+`DESCRIPTIVE, EXPLORATORY, PROMOTED, CONFIRMED_OBSERVATIONAL, EXPERIMENTAL` — **no CANDIDATE**,
+and no INSUFFICIENT (that second gap is OQ-62).
+
+REQ-TIER-001 names the tier set with `CANDIDATE`. REQ-NAR-013 defines "the **EXPLORATORY
+surface**" as where a `CANDIDATE` finding may be shown. So the two words are not a rename: one
+is a tier, the other is the surface that displays it — and the vocabulary table, which the
+linter reads, is keyed by the surface name while findings are stored under the tier name.
+
+*Why it matters.* REQ-NAR-020 requires the linter to lint **every** generated claim against the
+vocabulary for its tier. A claim carrying `tier = 'CANDIDATE'` has no row to lint against. The
+first version of `tools/engines/narration.py` raised `unknown tier 'CANDIDATE'` on exactly that
+input — and raising is not a safe failure for a linter whose job is to run on everything.
+CANDIDATE is now aliased to EXPLORATORY so both rank alike, which is correct but is a
+workaround for a naming split that should not exist.
+
+*Why it is open:* two answers, and one of them touches applied migrations.
+(a) Add a `CANDIDATE` row to `config.tier_vocabulary` duplicating EXPLORATORY's terms. Cheapest,
+and leaves two names for one rung — the condition that produced this.
+(b) Choose one name. `CANDIDATE` is what REQ-TIER-001 and `core.findings` use, so renaming the
+vocabulary row is the smaller change; but `EXPLORATORY` is what RULE-17 and the surface
+requirements say, and `config.operations` already stores it as a default tier.
+
+*What depends on it:* the narration linter, `analysis.f_domain_status`'s band language, and any
+future surface that reads a tier's permitted words. Nothing is currently broken — the alias
+holds — but a third consumer written against one name will meet rows carrying the other.
+
+*Recommendation:* (b), choosing `CANDIDATE`, because the tier is what gets stored on a row and
+the surface can be named anything. It is a data change to one table plus the alias's removal.
+
+*What would settle it:* Joe choosing a name. Related: REQ-TIER-001, REQ-NAR-013, RULE-17, OQ-62.

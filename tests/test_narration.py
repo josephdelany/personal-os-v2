@@ -161,3 +161,20 @@ def test_REQ_NAR_025_no_live_template_or_string_renders_a_banned_surface():
     assert templates, "the template seed must be present for this to mean anything"
     for line in templates:
         assert forbidden_surface(line) == (), line[:100]
+
+
+def test_REQ_TIER_001_candidate_and_exploratory_are_one_rung_under_two_names():
+    """The system genuinely uses both. `core.findings.tier` (0007) permits 'CANDIDATE';
+    `config.tier_vocabulary` (0049) calls the same rung 'EXPLORATORY', because REQ-NAR-013
+    defines the EXPLORATORY *surface* as where a CANDIDATE *finding* appears.
+
+    A linter that knew only one would raise on a real findings row instead of linting it —
+    and REQ-NAR-020 requires every generated claim to be linted, so raising is not a safe
+    failure. Which name is canonical is OQ-66; that they rank alike is not in doubt.
+    """
+    from tools.engines.narration import rank
+    assert rank("CANDIDATE") == rank("EXPLORATORY")
+    assert lint("Sleep causes higher HRV.", "CANDIDATE", V)[0].term == "causes"
+    assert lint("Your steps was typically 2206.", "CANDIDATE", V) == ()
+    with pytest.raises(ValueError, match="unknown tier"):
+        rank("SOMEWHAT_SURE")
