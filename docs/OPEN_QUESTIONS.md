@@ -1787,3 +1787,54 @@ also be defensible and would track a merchant's current descriptor format.
 *What would settle it:* Joe saying which he would rather see quoted back when asked where a
 charge came from.
 
+
+**OQ-74 — REQ-INF-540 names `dynamax`, and `dynamax` cannot responsibly be used.**
+
+The requirement says the regime HMM SHALL be fitted "using `dynamax`". Attempting the install
+found two blockers that package metadata does not show: `dynamax` depends on **`tfp-nightly`**, a
+nightly build with no pinnable version whose contents change daily, and it requires `jaxlib`,
+which **ships no macOS x86_64 wheel** — so it cannot run on this development machine at all.
+
+The behaviour every other §G.3 requirement specifies is implemented and tested against synthetic
+series with known regimes (ADR-0105): state means recovered within 0.15 h, run-length median
+recovered as exactly the true 50-day switching period, K=2 selected by the pre-registered
+held-out criterion. Only the named implementation differs.
+
+*Why it is open:* a requirement naming a specific library is a requirement, and substituting for
+it is a scope decision, not an implementation detail. I should not ratify my own deviation.
+
+*Options:* (a) amend REQ-INF-540 to specify the MODEL rather than the library — "a Gaussian HMM
+with 2-4 latent states", which is what the requirement is actually about; (b) keep `dynamax` as
+the requirement and accept that regimes cannot be developed or tested locally, only in CI; (c)
+drop regimes.
+
+*Recommendation:* (a). Every other requirement in §G.3 constrains behaviour rather than tooling,
+and this is the only one that names a package — most likely because the brief was written with a
+library in mind rather than because the library is the requirement. A nightly dependency also
+cannot satisfy RULE-28's failure-at-the-limit clause, so (b) conflicts with an existing rule.
+
+*What depends on it:* nothing is blocked; the code exists and passes. This is about whether the
+requirement or the implementation is corrected.
+
+**OQ-75 — the Bayesian effect layer needs a machine this one is not.**
+
+§G.2 (REQ-INF-520..527) specifies NUTS with named priors, partial pooling over day-of-week and
+season, and a latent missingness indicator. NumPyro is the right tool and `jaxlib` has no macOS
+x86_64 wheel, so it cannot be run on this machine. CI (`ubuntu-latest`) would run it.
+
+*Why it is open:* building it anyway would mean writing a sampler that is never executed once
+where it is written, whose tests only ever run on a nightly CI job. That is unverified code
+behind a green badge earned somewhere else, and this project's whole discipline is that a claim
+is worth what its runnable evidence is worth.
+
+*Options:* (a) implement it and accept CI-only verification, with every iteration costing a push
+and a wait; (b) hand-roll a Gibbs sampler in numpy — tractable for this model, since a Normal
+likelihood with Normal priors and half-normal scales has conjugate conditionals, and it would run
+and be tested locally; (c) defer §G.2 until it can be developed on hardware that supports jax.
+
+*Recommendation:* (b) if the layer is wanted soon, (c) if it is not urgent. Not (a). The model
+REQ-INF-520 specifies is a hierarchical linear model, which is exactly the case where a Gibbs
+sampler is straightforward and exactly checkable — recovery of a known beta within its HDI is the
+same test either way.
+
+*What depends on it:* B19 is otherwise complete. §G.2 is its last unstarted piece.

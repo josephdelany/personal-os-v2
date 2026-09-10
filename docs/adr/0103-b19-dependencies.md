@@ -109,3 +109,60 @@ B19.3 proceeds now, with no new dependency.
 Whether to make the repository private (OQ-67) and whether to reduce the hourly extract
 frequency. Both are Joe's. This ADR records that **the second only becomes urgent if he chooses
 the first**, and that the two are connected — which was not visible from either question alone.
+
+---
+
+## Amendment, 2026-09-10 — the install was attempted, and two of the three assumptions were wrong
+
+This ADR was accepted on wheel sizes and licences read from PyPI. **Actually attempting the
+install found two blockers that metadata does not show**, and both change the decision.
+
+### 1. `jaxlib` ships no macOS x86_64 wheel
+
+```
+jaxlib 0.11.1 platform tags:
+   macosx_11_0_arm64                6 wheels
+   manylinux_2_27_aarch64           6 wheels
+   manylinux_2_27_x86_64            6 wheels
+   win_amd64                        4 wheels
+macOS x86_64 wheel present: False
+```
+
+This development machine is `x86_64 Darwin`. `pip install jaxlib` returns *"Could not find a
+version that satisfies the requirement jaxlib (from versions: none)"*, and `numpyro` fails to
+resolve at **every** version because all of them require it.
+
+The CI runner is `ubuntu-latest` (manylinux x86_64), so B19.1 would install and run there. That
+is not good enough. **It would mean writing a NUTS model that cannot be executed once on the
+machine where it is written, whose tests run only on a nightly CI job.** For a project whose
+whole discipline is that a claim is worth what its runnable evidence is worth, that is code
+nobody has verified, checked in behind a green badge that ran somewhere else.
+
+### 2. `dynamax` depends on `tfp-nightly`
+
+```
+dynamax 1.0.2 requires: ['jax', 'jaxlib', 'tfp-nightly', 'fastprogress', 'optax', ...]
+```
+
+`tfp-nightly` is a **nightly build**. It has no stable version to pin, its contents change every
+day, and a build that works today can break tomorrow with no release note and no diff. For a
+system that must be $0, reproducible, and must not silently break a nightly analysis job, that
+is a worse property than the 88 MB ever was — and it is invisible in a wheel-size table.
+
+### Revised decision
+
+- **`dynamax` is rejected.** Not for size or licence but for `tfp-nightly`. A nightly dependency
+  cannot be pinned, and RULE-28's requirement to state failure-at-the-limit cannot be met for a
+  dependency whose contents are undefined tomorrow.
+- **The regime HMM is implemented directly in `numpy`/`scipy`**, which are already present.
+  Baum-Welch for a diagonal-Gaussian HMM is about 80 lines, runs everywhere, is deterministic,
+  and is tested against synthetic series with known regimes (ADR-0105). This is a **deviation
+  from REQ-INF-540, which names `dynamax` explicitly** — recorded as OQ-74, not decided here.
+- **`jax` + `numpyro` are deferred, not rejected.** §G.2's Bayesian effect layer is genuinely
+  better served by NUTS than by anything hand-rolled, and the constraint is this machine, not the
+  library. It is the one remaining B19 piece and it needs Joe's decision (OQ-75).
+- REQ-INF-546's `UnobservedComponents` is `statsmodels`, already present, and is implemented.
+
+**The general lesson, recorded because it will recur:** a dependency ADR written from package
+metadata is a *plan* to add a dependency. It is not evidence the dependency can be added. The
+install must be attempted before the ADR is accepted, and this one was not.

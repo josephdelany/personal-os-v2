@@ -161,10 +161,26 @@ The arithmetic is sobering and is stated rather than hidden: **twelve blocks can
 and that is correct — an underpowered trial costs six weeks of Joe's compliance and returns a
 null meaning "we could not have seen it" that reads as "it does not work".
 
-**Still unstarted: B19.1** (§G.2 Bayesian effect layer, §G.3 regimes). ADR-0103 measured its
-cost: only `jax`+`jaxlib`+`numpyro`+`dynamax` are new, `jaxlib` is 88 MB of the 92, all are
-BSD/Apache with no service and no runtime network call. It fits the minutes budget even if the
-repo goes private. **The finding that matters there is not jax** — see below.
+**§G.3 regimes is now implemented and tested, not deployed:** `tools/engines/regimes.py`,
+16 tests, ADR-0105. Validated against synthetic series with a KNOWN answer — both state means
+recovered within 0.15 h / 200 steps, run-length median recovered as exactly the true 50-day
+switching period, K=2 chosen by the pre-registered held-out criterion. REQ-INF-546's latent
+level is included: ten days after a real step change it is out by **0.45** where a 28-day
+rolling mean is out by **9.02**.
+
+**ADR-0103 was amended after attempting the install, and two of its three assumptions were
+wrong.** A dependency ADR written from package metadata is a PLAN to add a dependency, not
+evidence it can be added:
+
+- `jaxlib` ships **no macOS x86_64 wheel**. This machine is an Intel Mac, so `numpyro` fails to
+  resolve at every version. CI would work; developing code that can never be run once where it
+  is written would not.
+- `dynamax` depends on **`tfp-nightly`** — a nightly build, unpinnable, contents change daily.
+  That is a worse property than its size ever was and it is invisible in a wheel table. Rejected
+  on that ground, and the HMM was written in numpy instead (~80 lines).
+
+**Still unstarted: §G.2, the Bayesian effect layer** — the last piece of B19. Deferred, not
+replaced: see **OQ-75**.
 
 **B15 period/compare remains blocked on OQ-60's shape, not on its schedule.** Eight of fourteen
 domain hero metrics do not resolve against the registry, and two (`hrv_sdnn`, `rhr`) are the
@@ -187,6 +203,8 @@ domains today would say "no data" for recovery and vitals while 1,333 observatio
 | — | the review sheet (40 ticks, 157 names) | 197 descriptors, ~19% of spend |
 | — | install the Log Workout shortcut | strength — the stated primary objective |
 | — | **mark at least one metric `role='lever'`** | any micro-trial at all. The column defaults to `context` and nothing has been classified; defaulting it for Joe is what REQ-INF-565 forbids |
+| OQ-74 | REQ-INF-540 names `dynamax`, which needs `tfp-nightly` and cannot run here | nothing is blocked; the behaviour is built and tested. This is whether the REQUIREMENT or the implementation gets corrected |
+| OQ-75 | §G.2 Bayesian layer: CI-only, hand-rolled Gibbs, or defer? | the last unstarted piece of B19 |
 | OQ-67 | private repo? **it now interacts with a second decision** | if private, Actions minutes are metered at 2,000/mo. The hourly `extract` job alone bills **720 of them — 59% of the budget — for a job whose measured median duration is 12 seconds**, because GitHub rounds per job to a whole minute. Halving its frequency recovers 360 minutes, six times what B19.1 costs |
 
 ## VERIFICATION AT THIS REVISION

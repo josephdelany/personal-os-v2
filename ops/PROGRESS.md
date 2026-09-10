@@ -6370,3 +6370,44 @@ is already RULE-16's ladder. Implemented as `role`, recorded in ADR-0104 for cor
 than quietly reinterpreted.
 
 **Requirement IDs:** REQ-INF-200..217. **ADRs:** 0103, 0104.
+
+## 2026-09-10 (evening) — B19 §G.3 regimes; the dependency ADR corrected by attempting it
+
+**Attempted:** B19.1, starting by installing the dependencies ADR-0103 had approved.
+
+**What the install found, which the metadata did not:**
+
+- `jaxlib` ships **no macOS x86_64 wheel** (arm64, linux, win only). This machine is an Intel
+  Mac, so `numpyro` fails to resolve at every version. CI would run it; writing a sampler that
+  is never executed once where it is written would not be verification.
+- `dynamax` depends on **`tfp-nightly`**, a nightly build with no pinnable version whose
+  contents change daily. That cannot satisfy RULE-28's failure-at-the-limit clause, and it is
+  invisible in a wheel-size table.
+
+ADR-0103 amended. **A dependency ADR written from package metadata is a plan to add a
+dependency, not evidence it can be added. The install must be attempted before acceptance.**
+
+**What now works:** `tools/engines/regimes.py` — Baum-Welch for a diagonal-Gaussian HMM in
+numpy, ~80 lines, forward-backward in LOG space (linear space underflows float64 within a few
+hundred days and every posterior silently becomes NaN, on series of the length this project
+holds). Seeded deterministic init, because a state whose numbering changes between runs cannot
+have a run-length history.
+
+Validated against a known answer: two regimes at 7.5h/9,500 and 5.9h/4,200 switching every 50
+days -> means recovered within 0.15h and 200 steps, run-length median recovered as exactly 50,
+K=2 selected by the pre-registered held-out criterion.
+
+REQ-INF-546 latent level via statsmodels `UnobservedComponents` (already a dependency). Measured
+rather than asserted: 10 days after a real step the latent level is out by 0.45, the 28-day
+rolling mean by 9.02; at 40 days they agree. The rolling mean is not wrong, it is LATE, and
+while it is late it is indistinguishable from a stable baseline.
+
+**Evidence:** 450 local SQL tests + 51 pure tests pass; chain clean at 62 files / 550 statements;
+layout 43/43. Requirements proven 215 -> 223 (33%).
+
+**What does not work:** §G.2, the Bayesian effect layer, is unstarted — the last piece of B19.
+
+**Spec deviation recorded, not ratified:** REQ-INF-540 names `dynamax` explicitly. Every other
+§G.3 requirement constrains behaviour rather than tooling. OQ-74.
+
+**Requirement IDs:** REQ-INF-541..547. **ADRs:** 0103 (amended), 0105. **OQ:** 74, 75.
