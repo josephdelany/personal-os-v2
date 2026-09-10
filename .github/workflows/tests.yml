@@ -25,11 +25,26 @@ jobs:
       # REQ-FIN-014 requires; ofxtools parses OFX/QFX/QBO, which REQ-FIN-013 mandates by name
       # (its Direct-Connect fetch client is never used). Both MIT, pure Python, no service, no
       # network use at runtime, $0 recurring with no overage surface.
-      - run: pip install 'pg8000>=1.30,<2' 'pytest>=8,<9' 'numpy>=1.26,<3' 'scipy>=1.11,<2' 'statsmodels>=0.14,<0.15' 'networkx>=3,<4' 'pyyaml>=6,<7' 'ofxtools>=0.9,<1'
+      # dateparser (ADR-0115): `extraction.py` imports it INSIDE resolve_event_time with no
+      # guard, so without it every capture carrying a temporal span raises ImportError here —
+      # an error, not a skip. jax/jaxlib/numpyro (ADR-0103, ADR-0133): the second, independent
+      # posterior implementation. It was allowed to skip while this file never installed it,
+      # so REQ-INF-520 was counted as proven by a test that had run in no CI job ever. Pinned
+      # to the 0.4.x line ADR-0103 records as verified. All pip-only, no service, no network at
+      # runtime, $0 recurring with no overage surface (RULE-28).
+      #
+      # pyarrow is deliberately NOT here: it is imported only by tools/backfill_run.py, a
+      # one-off local reader for the legacy parquet snapshot, and no test imports it.
+      - run: pip install 'pg8000>=1.30,<2' 'pytest>=8,<9' 'numpy>=1.26,<3' 'scipy>=1.11,<2' 'statsmodels>=0.14,<0.15' 'networkx>=3,<4' 'pyyaml>=6,<7' 'ofxtools>=0.9,<1' 'dateparser>=1.2,<2' 'jax==0.4.30' 'jaxlib==0.4.30' 'numpyro>=0.19,<0.20'
       - name: full suite via the ledger writer (fails on any test failure)
         env:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
           PYTHONPATH: ${{ github.workspace }}
+          # tests/conftest.py: a test that steps aside because a LIBRARY is missing FAILS here.
+          # CI is the environment where nothing is missing, so a dependency skip in this job is
+          # a hole in the evidence, not a tolerable condition. Skips about absent DATA are
+          # unaffected — no package installs a row.
+          PERSONAL_OS_REQUIRE_DEPS: '1'
         run: python3 tools/update_features.py --strict
       - name: commit the ledger if it moved
         if: always()

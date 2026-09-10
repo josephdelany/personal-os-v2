@@ -32,6 +32,9 @@ TESTS = ("tests/test_ask_ranges.py", "tests/test_ask.py", "tests/test_ask_operat
          "tests/test_strength.py",
          "tests/test_chains_sql.py",
          "tests/test_trials_sql.py",
+         # The reconstruction path end to end: schema, engine and read API were each
+         # tested and nothing ran them together.
+         "tests/test_reconstruction_e2e.py",
          "tests/test_ontology_constraints.py")
 
 

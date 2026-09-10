@@ -183,10 +183,16 @@ def test_REQ_REC_015_name_what_would_distinguish_the_alternatives_or_say_nothing
     assert distinguishing_evidence(["lunch"], discriminators=[]) is None
 
 
-def test_REQ_REC_016_each_family_is_passed_or_explicitly_open_never_one_verdict():
-    """A single pass/fail hides which family failed, and these fail for different reasons:
-    contradictory evidence is a data problem, model unavailability is an ops problem, and
-    inferred-input propagation is a correctness one."""
+def test_REQ_REC_016_the_reporting_shape_refuses_a_single_aggregate_verdict():
+    """The REPORTING half of REQ-REC-016, and only that half.
+
+    This test checks the shape of the report: no aggregate verdict, and a refusal when a family
+    is absent. It deliberately does NOT claim the acceptance cases pass — it hands in labels it
+    made up, so it cannot. Executing the cases is tests/test_reconstruction_acceptance.py, which
+    needs a database; an earlier version of this test fed `acceptance_report` a dictionary of
+    seven "passed" strings and was read as proof that reconstruction acceptance had been run. It
+    would have kept passing with the engine deleted.
+    """
     cases = {f: "passed" for f in EVENT_FAMILIES_REQUIRED}
     cases["model_unavailable"] = "open"
     out = acceptance_report(cases)

@@ -26,6 +26,16 @@ from dataclasses import dataclass, field
 TIERS = ("INSUFFICIENT", "DESCRIPTIVE", "EXPLORATORY")
 
 
+# The three tiers a reconstruction can occupy, weakest first. The causal tiers are deliberately
+# absent: a reconstruction cannot reach them at all (RULE-19).
+TIER_ORDER = ("INSUFFICIENT", "DESCRIPTIVE", "EXPLORATORY")
+
+
+def weaker(a: str, b: str) -> str:
+    """The weaker of two tiers. A chain is as strong as its weakest link, never its longest."""
+    return a if TIER_ORDER.index(a) <= TIER_ORDER.index(b) else b
+
+
 @dataclass(frozen=True)
 class Evidence:
     """One citation. `origin_group` is what makes independence countable: two copies of one
@@ -35,10 +45,23 @@ class Evidence:
     stance: str            # 'supports' | 'contradicts'
     origin_group: str
     recorded_at: dt.datetime
+    # INV-5, REQ-REC-016 (inferred-input propagation). A citation is either something that was
+    # MEASURED or something this system previously CONCLUDED. The distinction has to travel with
+    # the citation, because by the time a reconstruction is stored, both look like rows.
+    provenance: str = "measured"        # 'measured' | 'inferred'
+    input_tier: str | None = None       # the tier of an inferred input; None when measured
 
     def __post_init__(self):
         if self.stance not in ("supports", "contradicts"):
             raise ValueError(f"stance must be supports or contradicts, not {self.stance!r}")
+        if self.provenance not in ("measured", "inferred"):
+            raise ValueError(f"provenance must be measured or inferred, not {self.provenance!r}")
+        if self.provenance == "inferred" and self.input_tier not in TIER_ORDER:
+            raise ValueError(
+                "INV-5: an inferred citation must carry the tier it was concluded at; without it "
+                "a conclusion built on a guess cannot be held below the guess")
+        if self.provenance == "measured" and self.input_tier is not None:
+            raise ValueError("a measured citation has no tier; only a conclusion has one")
 
 
 @dataclass(frozen=True)
@@ -65,6 +88,10 @@ class Reconstruction:
     missing_evidence: tuple[str, ...] = ()
     discriminating_evidence: tuple[str, ...] = ()
     evidence: tuple[Evidence, ...] = ()
+    # Which of the supporting citations were themselves conclusions. Stored, not derived at
+    # render time: the reader of a stored row must be able to see that it rests on an inference
+    # without re-walking the evidence graph.
+    inferred_inputs: tuple[str, ...] = ()
 
     @property
     def independent_support(self) -> int:
@@ -124,8 +151,21 @@ def evaluate(method: Method, evidence, as_of: dt.datetime,
     # something that looks like a percentage.
     score = float(support - against) / float(support + against) if (support + against) else 0.0
     tier = "EXPLORATORY" if support >= 2 else "DESCRIPTIVE"
+
+    # REQ-REC-016, inferred-input propagation. A reconstruction resting on an earlier
+    # reconstruction cannot be more certain than the thing it rests on. Two inferred
+    # corroborations are not the same as two observations, and without this cap they would
+    # promote each other: infer A at DESCRIPTIVE, infer B from A and A' at EXPLORATORY, and the
+    # system now believes something more strongly than any measurement ever supported. The cap
+    # is the WEAKEST inferred input, not an average — averaging would let a strong input launder
+    # a weak one.
+    inferred = tuple(e for e in visible if e.stance == "supports" and e.provenance == "inferred")
+    for e in inferred:
+        tier = weaker(tier, e.input_tier)
+
     return Reconstruction(
         presence="occurred", tier=tier, reason="supported", rule_score=score,
+        inferred_inputs=tuple(e.ref for e in inferred),
         evidence=visible, alternatives=alternatives,
         no_alternative_generator=not alternatives,
         unresolved_ambiguity=(None if not alternatives else
@@ -166,4 +206,6 @@ def to_row(r: Reconstruction, method: Method, event_time_from, event_time_to,
         rule_score=r.rule_score, probability=r.probability,
         calibration_ref=r.calibration_ref,
         alternatives=r.alternatives, no_alternative_generator=r.no_alternative_generator,
-        unresolved_ambiguity=r.unresolved_ambiguity, author=author)
+        unresolved_ambiguity=r.unresolved_ambiguity, author=author,
+        # Carried into the row so the fact that this rests on a conclusion survives storage.
+        inferred_inputs=list(r.inferred_inputs))

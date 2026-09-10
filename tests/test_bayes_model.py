@@ -8,6 +8,8 @@ sampler that runs and is checkable on this machine.
 import numpy as np
 import pytest
 
+from tests.conftest import dependency_skip
+
 from tools.engines.bayes_model import (COEF_PRIOR_SD, DEFAULT_ROPE_SD, ModelViolation, POOLABLE,
                                        SCALE_PRIOR_SD, check_no_p_value, check_pooling, fit, hdi,
                                        missingness_disclosure, standardise, summarise)
@@ -237,8 +239,8 @@ def test_REQ_INF_520_numpyro_is_the_probabilistic_programming_language_and_it_RU
     """
     from tools.engines import bayes_numpyro
     if not bayes_numpyro.available():
-        pytest.skip("NumPyro not importable in this interpreter (needs py3.9-3.13 for a macOS "
-                    "x86_64 jaxlib wheel); proven under the venv recorded in ADR-0103")
+        dependency_skip("numpyro", "needs py3.9-3.13 for a macOS x86_64 jaxlib wheel; "
+                                   "proven under the venv recorded in ADR-0103")
     x, dow, y, _ = synthetic(beta=-0.20)
     true_std = -0.20 / float(np.std(y))
     f = bayes_numpyro.fit(y, exposure=x, groups={"day_of_week": dow}, seed=3,
@@ -255,7 +257,7 @@ def test_REQ_INF_520_the_two_implementations_agree_on_a_planted_coefficient():
     notice it."""
     from tools.engines import bayes_numpyro
     if not bayes_numpyro.available():
-        pytest.skip("NumPyro not importable in this interpreter")
+        dependency_skip("numpyro")
     x, dow, y, _ = synthetic(beta=-0.20)
     g = summarise(fit(y, exposure=x, groups={"day_of_week": dow}, draws=1500, warmup=800, seed=3))
     n = summarise(bayes_numpyro.fit(y, exposure=x, groups={"day_of_week": dow}, seed=3,
