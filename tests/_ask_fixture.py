@@ -65,6 +65,10 @@ def ask_cur(sql_connection):
     # without them that branch could only fail at runtime.
     apply_file("0004_raw_captures.sql")
     apply_file("0005_atoms.sql")
+    # 0059 resolves the spend subject to a merchant entity and follows paid_to
+    # edges, so the entity and link tables are now prerequisites of `ask`.
+    apply_file("0003_entities.sql")
+    apply_file("0006_links.sql")
     apply_file("0026_analysis_schema.sql")
     # The hypothesis register and its resolutions. `ask`'s effect/contrast branch reads both —
     # a registered finding turns an exploratory contrast into a PROMOTED/CONFIRMED effect
@@ -101,6 +105,8 @@ def ask_cur(sql_connection):
     apply_file("0049_ask_core.sql")
     # 0058 replaces ask(text,date) with ask(text,date,timestamptz) — two clocks.
     apply_file("0058_ask_two_clocks.sql")
+    # 0059 wires resolved merchants into spend (ADR-0093).
+    apply_file("0059_spend_by_merchant.sql")
     cur.execute("SELECT set_config('request.jwt.claims', %s, true)",
                 ('{"email":"joseph.delany21@gmail.com"}',))
     fixture = (ROOT / "tests/fixtures/ask_describe.sql").read_text()

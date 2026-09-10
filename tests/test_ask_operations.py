@@ -431,7 +431,11 @@ def test_REQ_ASK_009_spend_states_the_match_method_in_the_answer_itself(ask_cur)
     # The Square-routed charge is genuinely missed. That is the point: the number is a floor.
     assert float(stored["total_out"]) == 12.50, stored
     assert "matched on the statement descriptor" in r["answer_text"]
-    assert "merchant resolution is not built" in r["answer_text"]
+    # The caveat's WORDING changed when merchant resolution landed (ADR-0093); its obligation
+    # did not. The descriptor path must still say why a charge could be missing, and it must
+    # not claim to be the merchant measurement.
+    assert "no merchant resolved for this subject" in r["answer_text"], r["answer_text"]
+    assert "another descriptor are not included" in r["answer_text"]
 
 
 def test_REQ_ASK_021_spend_reports_a_weekly_rate_over_the_requested_window(ask_cur):
@@ -1864,4 +1868,84 @@ def test_REQ_ASK_030_a_replay_pinned_before_the_import_does_not_see_it(ask_cur):
                                               tzinfo=dt.timezone.utc))
     r = ask(cur, "how much did i spend at hannaford last 30 days",
             known_at=dt.datetime(2020, 1, 1, tzinfo=dt.timezone.utc))
+    assert r["tier"] == "INSUFFICIENT", r
+
+
+def _merchant(cur, name, provenance="extracted", confidence=1.0):
+    cur.execute("""INSERT INTO ask_core_pytest.entities
+        (entity_type, canonical_name, provenance, confidence, code_version)
+        VALUES ('merchant', %s, %s, %s, 't') RETURNING id""", (name, provenance, confidence))
+    return cur.fetchone()[0]
+
+
+def _paid_to(cur, atom_id, entity_id, confidence=1.0, recorded_at=None):
+    cur.execute("""INSERT INTO ask_core_pytest.links
+        (subject_atom, predicate, object_entity, provenance, confidence, code_version)
+        VALUES (%s,'paid_to',%s,'inferred',%s,'t') RETURNING id""",
+        (atom_id, entity_id, confidence))
+    link_id = cur.fetchone()[0]
+    if recorded_at is not None:
+        cur.execute("UPDATE ask_core_pytest.links SET recorded_at = %s WHERE id = %s",
+                    (recorded_at, link_id))
+    return link_id
+
+
+def _txn(cur, day, amount, descriptor):
+    cur.execute("SELECT count(*) FROM ask_core_pytest.atoms WHERE kind='transaction'")
+    _txn_atom(cur, day, amount, descriptor)
+    cur.execute("""SELECT id FROM ask_core_pytest.atoms WHERE kind='transaction'
+                    ORDER BY recorded_at DESC, id DESC LIMIT 1""")
+    return cur.fetchone()[0]
+
+
+def test_REQ_FIN_070_spend_counts_every_descriptor_the_merchant_settled_under(ask_cur):
+    """ADR-0062's held contract. A Hannaford charge that settles as "SQ *HANN 8229" is a real
+    charge the substring match never found — the descriptor total was a floor, not a total.
+    Resolved merchants count the charge whatever the descriptor read."""
+    cur = ask_cur
+    day = AS_OF - dt.timedelta(days=3)
+    a1 = _txn(cur, day, -10.00, "bank:x;merchant=Hannaford;descriptor=HANNAFORD 8229")
+    a2 = _txn(cur, day, -15.00, "bank:x;merchant=Hannaford;descriptor=SQ *HANN 8229 ME")
+    eid = _merchant(cur, "Hannaford")
+    _paid_to(cur, a1, eid); _paid_to(cur, a2, eid)
+
+    r = ask(cur, "how much did i spend at hannaford last 30 days")
+    assert r["tier"] == "DESCRIPTIVE", r
+    stored = stored_result(cur, r)
+    assert stored["match_method"] == "resolved_merchant", stored
+    assert float(stored["total_out"]) == 25.00, "the second descriptor was not counted"
+
+
+def test_REQ_ASK_021_the_caveat_states_the_measurement_that_was_actually_performed(ask_cur):
+    """An answer whose structured result says `resolved_merchant` while its SENTENCE says
+    merchant resolution is not built is worse than either alone — the prose is what a reader
+    sees, and it would understate an answer that had in fact improved."""
+    cur = ask_cur
+    day = AS_OF - dt.timedelta(days=3)
+    a1 = _txn(cur, day, -10.00, "bank:x;merchant=Hannaford;descriptor=HANNAFORD 8229")
+    _paid_to(cur, a1, _merchant(cur, "Hannaford"))
+
+    resolved = ask(cur, "how much did i spend at hannaford last 30 days")
+    assert "resolved merchant" in (resolved.get("answer_text") or ""), resolved
+    assert "not built" not in (resolved.get("answer_text") or "")
+
+    _txn(cur, day, -4.00, "bank:x;merchant=Kiosk;descriptor=CORNER KIOSK")
+    fell_back = ask(cur, "how much did i spend at kiosk last 30 days")
+    assert stored_result(cur, fell_back)["match_method"] == "statement_descriptor_contains"
+    assert "no merchant resolved" in (fell_back.get("answer_text") or ""), fell_back
+
+
+def test_RULE_04_a_link_recorded_after_the_knowledge_time_is_not_used(ask_cur):
+    """The edge is read as of the knowledge time like the atoms: a merchant resolved next month
+    does not change the answer to a question asked today."""
+    cur = ask_cur
+    day = AS_OF - dt.timedelta(days=3)
+    a1 = _txn(cur, day, -10.00, "bank:x;merchant=Hannaford;descriptor=SQ *HANN 8229")
+    _paid_to(cur, a1, _merchant(cur, "Hannaford"),
+             recorded_at=dt.datetime.combine(AS_OF + dt.timedelta(days=5), dt.time(12),
+                                             tzinfo=dt.timezone.utc))
+    r = ask(cur, "how much did i spend at hannaford last 30 days",
+            known_at=dt.datetime.combine(AS_OF, dt.time(12), tzinfo=dt.timezone.utc))
+    # The link is invisible, so the entity resolves but matches nothing: an honest absence,
+    # not a silent fall back to the descriptor (which would have found this charge).
     assert r["tier"] == "INSUFFICIENT", r
