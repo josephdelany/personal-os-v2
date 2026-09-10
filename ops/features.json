@@ -12,15 +12,15 @@
       "id": "F-002",
       "description": "PWA never calls getUserMedia",
       "requirement": "REQ-CAP-001",
-      "status": "failing",
-      "proving_test": null
+      "status": "passing",
+      "proving_test": "tests.test_capture_bans::test_REQ_CAP_001_the_pwa_never_calls_get_user_media"
     },
     {
       "id": "F-003",
       "description": "Transcript resolves to food names only, no quantities invented",
       "requirement": "REQ-NUT-001",
-      "status": "failing",
-      "proving_test": null
+      "status": "passing",
+      "proving_test": "tests.test_nutrition_off::test_REQ_NUT_001_REQ_NUT_024_an_unknown_barcode_is_not_found_and_is_settled"
     },
     {
       "id": "F-004",
