@@ -79,6 +79,8 @@ def rec(sql_connection):
               "0064_watch_wear_method.sql",
               # Inferred-input propagation and the second event family (REQ-REC-016).
               "0066_inferred_inputs.sql", "0067_sleep_gap_method.sql",
+              # REQ-REC-015: what would settle it, stored and surfaced.
+              "0069_discriminating_evidence.sql",
               # The read surface: 0036 is the measured-lane function 0065 extends.
               "0036_search_record.sql", "0065_search_reconstructions.sql"):
         for stmt in split_statements((ROOT / "migrations" / f).read_text()):
@@ -123,7 +125,9 @@ def correct(c, *, day, supersedes, knowledge_time, presence="unknown", author="h
     """Insert a superseding interpretation.
 
     REQ-REC-007 binds a human correction exactly as it binds the engine: the row must disclose
-    the reading it rejects. Joe saying "I was wearing it" without recording that the engine
+    the reading it rejects. REQ-REC-015 binds it too — and for a FIRST-HAND correction the
+    honest value is `no_discriminating_evidence`: Joe was there, so no further observation
+    would settle it. That is an answer, not an absence. Joe saying "I was wearing it" without recording that the engine
     concluded otherwise would leave the revision history unable to show what changed and why,
     which is the whole point of keeping the superseded row.
     """
@@ -131,8 +135,9 @@ def correct(c, *, day, supersedes, knowledge_time, presence="unknown", author="h
         {"presence": "occurred", "note": "the engine's reading: the Watch contributed nothing"}]
     c.execute(f"""INSERT INTO {S}.inferred_events
         (event_family, method_key, method_version, event_time_from, event_time_to, subject_day,
-         knowledge_time, tier, presence, author, supersedes, alternatives)
-        VALUES ('device_state','watch_non_wear',1,%s,%s,%s,%s,'DESCRIPTIVE',%s,%s,%s,%s)
+         knowledge_time, tier, presence, author, supersedes, alternatives,
+         no_discriminating_evidence)
+        VALUES ('device_state','watch_non_wear',1,%s,%s,%s,%s,'DESCRIPTIVE',%s,%s,%s,%s,true)
         RETURNING event_id""",
         (dt.datetime.combine(day, dt.time(0), dt.timezone.utc),
          dt.datetime.combine(day, dt.time(0), dt.timezone.utc) + dt.timedelta(days=1),
@@ -447,3 +452,67 @@ def test_INV_5_an_inferred_citation_must_declare_the_tier_it_was_concluded_at(re
     with pytest.raises(ValueError, match="only a conclusion has one"):
         Evidence(ref="x", kind="k", stance="supports", origin_group="o",
                  recorded_at=dt.datetime.now(dt.timezone.utc), input_tier="DESCRIPTIVE")
+
+
+def test_REQ_REC_015_what_would_settle_it_is_stored_and_surfaced(rec):
+    """The engine has computed `discriminating_evidence` since B14R and there was no column to
+    put it in: `evaluate` returned it and `to_row` dropped it. A question the system knows how
+    to answer, thrown away between the engine and the table."""
+    from tools.engines.reconstruct import Evidence, evaluate, to_row
+    m = load_method(rec, "watch_non_wear", core=S, config="config_pytest")
+    k = dt.datetime(2026, 8, 23, tzinfo=dt.timezone.utc)
+    ev = [Evidence(ref="e:1", kind="phone_capture_present", stance="supports",
+                   origin_group="export:D", recorded_at=k),
+          Evidence(ref="e:2", kind="watch_capture_absent", stance="supports",
+                   origin_group="export:D", recorded_at=k)]
+    r = evaluate(m, ev, as_of=k,
+                 alternatives=[{"presence": "occurred", "note": "charging on the desk"},
+                               {"presence": "occurred", "note": "worn but not syncing"}],
+                 discriminating=("a charge-cycle record for the Watch that day",))
+    day = dt.date(2026, 8, 22)
+    row = to_row(r, m, event_time_from=dt.datetime.combine(day, dt.time(0), dt.timezone.utc),
+                 event_time_to=dt.datetime.combine(day, dt.time(0), dt.timezone.utc)
+                 + dt.timedelta(days=1), subject_day=day, knowledge_time=k)
+    write(rec, [(day, r, ev, row)], core=S)
+
+    rec.execute(f"SELECT event_id FROM {S}.inferred_events")
+    event_id = rec.fetchone()[0]
+    rec.execute("SELECT public_pytest.get_reconstruction(%s)", (event_id,))
+    got = rec.fetchone()[0]
+    if isinstance(got, str):
+        got = json.loads(got)
+    assert got["discriminating_evidence"] == ["a charge-cycle record for the Watch that day"]
+    assert got["no_discriminating_evidence"] is False
+    assert len(got["alternatives"]) == 2
+
+
+def test_REQ_REC_015_a_row_with_alternatives_must_address_what_would_settle_them(rec):
+    """"Nothing identified would settle this" is an ANSWER. An empty list on its own cannot be
+    told apart from nobody having looked, and only one of those is a finding — so the database
+    refuses the ambiguous row rather than storing it."""
+    day = dt.date(2026, 8, 25)
+    rec.execute("SAVEPOINT s")
+    with pytest.raises(Exception, match="discrimination_is_addressed"):
+        rec.execute(f"""INSERT INTO {S}.inferred_events
+            (event_family, method_key, method_version, event_time_from, event_time_to,
+             subject_day, knowledge_time, tier, presence, author, alternatives,
+             discriminating_evidence, no_discriminating_evidence)
+            VALUES ('device_state','watch_non_wear',1,%s,%s,%s,%s,'DESCRIPTIVE','occurred',
+                    'engine','[{{"presence":"occurred","note":"one"}}]'::jsonb,
+                    ARRAY[]::text[], false)""",
+            (dt.datetime.combine(day, dt.time(0), dt.timezone.utc),
+             dt.datetime.combine(day, dt.time(0), dt.timezone.utc) + dt.timedelta(days=1),
+             day, dt.datetime(2026, 8, 26, tzinfo=dt.timezone.utc)))
+    rec.execute("ROLLBACK TO SAVEPOINT s")
+
+    # The same row, declaring that nothing identified would settle it, is accepted.
+    rec.execute(f"""INSERT INTO {S}.inferred_events
+        (event_family, method_key, method_version, event_time_from, event_time_to,
+         subject_day, knowledge_time, tier, presence, author, alternatives,
+         discriminating_evidence, no_discriminating_evidence)
+        VALUES ('device_state','watch_non_wear',1,%s,%s,%s,%s,'DESCRIPTIVE','occurred',
+                'engine','[{{"presence":"occurred","note":"one"}}]'::jsonb,
+                ARRAY[]::text[], true)""",
+        (dt.datetime.combine(day, dt.time(0), dt.timezone.utc),
+         dt.datetime.combine(day, dt.time(0), dt.timezone.utc) + dt.timedelta(days=1),
+         day, dt.datetime(2026, 8, 26, tzinfo=dt.timezone.utc)))

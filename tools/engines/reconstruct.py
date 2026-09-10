@@ -208,4 +208,9 @@ def to_row(r: Reconstruction, method: Method, event_time_from, event_time_to,
         alternatives=r.alternatives, no_alternative_generator=r.no_alternative_generator,
         unresolved_ambiguity=r.unresolved_ambiguity, author=author,
         # Carried into the row so the fact that this rests on a conclusion survives storage.
-        inferred_inputs=list(r.inferred_inputs))
+        inferred_inputs=list(r.inferred_inputs),
+        # REQ-REC-015. The engine has computed this since B14R and there was no column to put
+        # it in, so `evaluate` returned it and `to_row` dropped it. The flag distinguishes
+        # "nothing identified would settle this" — an answer — from "nobody looked".
+        discriminating_evidence=list(r.discriminating_evidence),
+        no_discriminating_evidence=not r.discriminating_evidence)

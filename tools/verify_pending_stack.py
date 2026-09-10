@@ -32,7 +32,8 @@ PENDING = ("0055_get_reconstruction.sql", "0056_atom_panel.sql",
            "0061_strength_measures.sql", "0062_chains_and_roles.sql",
            "0063_micro_trials.sql", "0064_watch_wear_method.sql",
            "0065_search_reconstructions.sql", "0066_inferred_inputs.sql",
-           "0067_sleep_gap_method.sql", "0068_derivation_refusal.sql")
+           "0067_sleep_gap_method.sql", "0068_derivation_refusal.sql",
+           "0069_discriminating_evidence.sql")
 OWNER = '{"email":"joseph.delany21@gmail.com"}'
 
 

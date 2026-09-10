@@ -161,9 +161,10 @@ def case_historical_corrections(cur, *, core, config):
     later = k0 + dt.timedelta(days=2)
     cur.execute(f"""INSERT INTO {core}.inferred_events
         (event_family, method_key, method_version, event_time_from, event_time_to, subject_day,
-         knowledge_time, tier, presence, author, supersedes, alternatives)
+         knowledge_time, tier, presence, author, supersedes, alternatives,
+         no_discriminating_evidence)
         VALUES (%s,%s,%s,%s,%s,%s,%s,'DESCRIPTIVE','unknown','human',%s,
-                '[{{"presence":"occurred","note":"the engine reading"}}]'::jsonb)""",
+                '[{{"presence":"occurred","note":"the engine reading"}}]'::jsonb, true)""",
         (m.event_family, m.key, m.version, dt.datetime.combine(day, dt.time(0), UTC),
          dt.datetime.combine(day, dt.time(0), UTC) + dt.timedelta(days=1), day, later, original))
 
@@ -288,8 +289,9 @@ def main() -> int:
             if cur.fetchone() is None:
                 cur.execute(f"CREATE ROLE {role}")
         for f in ("0002_metric_registry.sql", "0004_raw_captures.sql", "0005_atoms.sql",
-                  "0054_inferred_events.sql", "0064_watch_wear_method.sql",
-                  "0066_inferred_inputs.sql", "0067_sleep_gap_method.sql"):
+                  "0054_inferred_events.sql", "0055_get_reconstruction.sql",
+                  "0064_watch_wear_method.sql", "0066_inferred_inputs.sql",
+                  "0067_sleep_gap_method.sql", "0069_discriminating_evidence.sql"):
             for stmt in split_statements((ROOT / "migrations" / f).read_text()):
                 cur.execute(rebind(stmt))
         report = run(cur, core=S, config="config_pytest")

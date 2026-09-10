@@ -173,8 +173,8 @@ def write(cur, rows, *, core="core"):
             (event_family, method_key, method_version, event_time_from, event_time_to,
              subject_day, knowledge_time, tier, presence, rule_score, probability,
              calibration_ref, alternatives, no_alternative_generator, unresolved_ambiguity,
-             author, inferred_inputs)
-            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+             author, inferred_inputs, discriminating_evidence, no_discriminating_evidence)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
             RETURNING event_id""",
             (row["event_family"], row["method_key"], row["method_version"],
              row["event_time_from"], row["event_time_to"], row["subject_day"],
@@ -182,7 +182,9 @@ def write(cur, rows, *, core="core"):
              row["probability"], row["calibration_ref"], json.dumps(row["alternatives"]),
              row["no_alternative_generator"], row["unresolved_ambiguity"], row["author"],
              # REQ-REC-016. Which inputs were themselves conclusions; 0066's CHECK reads it.
-             row["inferred_inputs"]))
+             row["inferred_inputs"],
+             # REQ-REC-015. What would settle it, or an explicit statement that nothing would.
+             row["discriminating_evidence"], row["no_discriminating_evidence"]))
         event_id = cur.fetchone()[0]
         # REQ-REC-012. Every citation, so `get_reconstruction` can show what it stood on.
         for e in ev:
