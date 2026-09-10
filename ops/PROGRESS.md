@@ -7144,3 +7144,38 @@ is inside it and every reader outside statistics reads it as one.
 564 -> 581 (85%).
 
 **ADR:** 0127.
+
+## 2026-09-10 (latest+19) — B20 §B the render pipeline; REQ-NAR complete
+
+**Eleven of fourteen prefixes complete.** Only REQ-FIN (36), REQ-CAP (34) and REQ-INF (22) remain.
+
+`render()` has NO error branch for the model being down — the template path is the DEFAULT the
+model improves on, not a fallback it replaces. A surface that goes blank when the model is
+unavailable has made the model load-bearing for facts it did not produce, and it will go blank on
+exactly the day something is worth reading.
+
+The chart goes BELOW the verdict, because above the text it is read first and a reader who has
+already formed a view from the shape reads the sentence as confirmation. A CANDIDATE gets no chart
+at all: a chart is the most persuasive object this system renders, and on an unconfirmed candidate
+it converts "a generator flagged this" into something that looks measured — no label under it
+undoes that.
+
+The forgotten half of REQ-NAR-026: a skipped day is never mentioned. "You did not log yesterday"
+is a reproach dressed as a status line, and it is the sentence most likely to end the logging.
+
+RULE-25's line: "you spent too much" is a verdict on Joe; "consider moving caffeine earlier
+(DESCRIPTIVE, 22 +/- 18 min)" is an option with its evidence attached. Banning both would leave
+the system unable to suggest anything.
+
+**A defect this module's own test found in it.** `check_recommendation_numerals` parsed "22
+minutes (4-40)" as 4 and MINUS 40, flagging its own example sentence as containing an invented
+number. The hyphen in a range is not a minus sign, and a hyphenated range is exactly how every
+interval here is rendered. Fixed with a lookbehind; a test pins both the range and a genuinely
+negative effect size. Same shape as the numeral-verifier defects the earlier reviews found in
+0059 — a checker subtly wrong about what a number is will reject correct output and be switched
+off for it.
+
+**Evidence:** 18 new tests. 450 local SQL tests pass; layout 43/43; never-rule scan clean.
+Requirements proven 581 -> 593 (87%). REQ-NAR 12 -> 0.
+
+**ADR:** 0128.
