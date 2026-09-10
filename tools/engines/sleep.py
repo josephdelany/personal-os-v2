@@ -133,7 +133,7 @@ def midpoint_minutes(n: Night, tz=ET):
     return round(minutes - 1440 if minutes >= 720 else minutes, 1)
 
 
-def regularity(nights, tz=ET, min_nights=MIN_NIGHTS_FOR_REGULARITY):
+def regularity(nights, tz=ET, min_nights=MIN_NIGHTS_FOR_REGULARITY, window_nights=None):
     """REQ-SLP. The spread of sleep midpoints, or an Omission.
 
     A missing night is UNKNOWN, not "the usual" (RULE-07): it is absent from the input and
@@ -149,6 +149,9 @@ def regularity(nights, tz=ET, min_nights=MIN_NIGHTS_FOR_REGULARITY):
         sd_minutes=round(statistics.stdev(points), 1),
         median_midpoint_minutes=round(statistics.median(points), 1),
         nights_used=len(points),
+        window_nights=window_nights,
+        coverage=(round(len(points) / window_nights, 3)
+                  if window_nights else None),
         method_version=METHOD_VERSION,
         # RULE-08: a spread is the measure here. A single "usual bedtime" would state a
         # precision a 23-night sample does not have.

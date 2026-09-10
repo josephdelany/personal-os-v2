@@ -22,7 +22,7 @@ response is observable. Numbers, never adjectives.
 
 ---
 
-## Current coverage — 670 requirements, 36 scenarios
+## Current coverage — 685 requirements, 36 scenarios
 
 | Prefix | Count | Subsystem | File |
 |---|---|---|---|
@@ -49,7 +49,7 @@ either pass or fail visibly.
 | Prefix | Subsystem | Blocked by |
 |---|---|---|
 | `REQ-BOD` | Body composition — Kalman weight and TDEE, lean mass | ADR-0005 |
-| `REQ-SLP` | Sleep and recovery | — |
+| `REQ-SLP` | Sleep and recovery — `specs/11-sleep` (§A specified and built, §B/§C open) | ADR-0098 |
 | `REQ-CTX` | Context — media and screen time (location split out to `REQ-LOC`; alcohol handled in `REQ-NUT` §D.6) | Extraction from archived `08`; lower priority, scope-and-defer |
 | `REQ-ACT` | 12 | Action — the generation machinery for recommendations: who may be recommended from (PROMOTED floor for patterns; Joe's own standing orders as a separate DESCRIPTIVE channel), in what words (hedged below CONFIRMED, direct at it), how often (one read-only instruction per subject day, not a push), and what happens when one is wrong (scored forward prediction, auto-demotion, never deleted) | `specs/09-action/requirements.md` — **authored 2026-09-02, ADR-0052, closing OQ-30** |
 | `REQ-UI` | Interface | Phase 7, deliberately last |
