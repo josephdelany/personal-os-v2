@@ -13,13 +13,21 @@ reported.
 | New helpers have no non-test callers | **CONFIRMED, AND WORSE** | Not two helpers — at the time of the audit, **30 of 33 engine modules had no non-test caller.** Only `tier_contract`, `finance_never` and `bayes_model` were wired to anything. |
 | NumPyro tests can skip and CI does not install their dependencies | **CONFIRMED** | `tests.yml` installed neither `numpyro` nor `dateparser`. The NumPyro tests skipped everywhere and were counted as proving REQ-INF-520. |
 
-## THE MEASURED NUMBER: 636 of 685 (92.8%)
+## THE MEASURED NUMBER: 635 of 685 (92.7%)
 
 From `tools/evidence_report.py`, which reads pytest **results** and counts a skip as unproven.
-Two independent implementations reached 636 separately.
+Regenerated at this revision from two runs: the deterministic suite (937 passed, 540 skipped,
+**0 errors**) and the disposable-server SQL suite (527 passed). The evidence worker measured 636
+at the previous revision with two independent implementations agreeing; the difference is churn
+in which tests carry which IDs, not a regression.
 
-- **The 49-requirement shortfall is entirely skips. Zero failures.** 125 of the run's 127 skips
-  read `SUPABASE_DB_URL not set`.
+- **The 50-requirement shortfall is entirely skips. Zero failures, zero errors.** They are the
+  tests that need the live database — `REQ-LOC-*`, `REQ-ONT-001/002`, the spine invariants, the
+  tier gates — plus `REQ-INF-520`, which needs NumPyro and now installs in CI.
+- **313 fixture ERRORS became 0.** With neither the disposable socket nor `SUPABASE_DB_URL`,
+  `tests/_sql_fixture.py` fell through to a connection attempt that raised, so pytest reported
+  313 fixture errors. An error is indistinguishable from a broken test — which is exactly what
+  made the audit's "38 errors against production" so hard to read. It now skips with a reason.
 - A **caveat that belongs with the number**: a third run against the live database finished
   later with 38 errors (all `57014 canceling statement due to statement timeout`) and 1 failure.
   Merging it gives **666 / 685**. It started against a dirty tree and its errors are
@@ -28,9 +36,13 @@ Two independent implementations reached 636 separately.
 - **Nobody has evidence the live-database suite passes.** CI's `pytest` job takes that path and
   whether it survives depends on pooler latency.
 
-**Two-thirds of "proven" rests on code nothing outside `tests/` calls.** Of the 636: 168
-scheduled, 7 cli, **444 tests-only**, 17 unreachable. Of 55 engine modules, 42 have no entry
-point. That is the real shape of the gap between "tested" and "works", and it is larger than the
+**Two-thirds of "proven" still rests on code nothing outside `tests/` calls.** Of the 635: **223
+scheduled** (up from 168 when the audit ran), 21 cli, **423 tests-only**, 18 unreachable. The
+improvement came from wiring `reconstruct_run.py` into the nightly `analysis` workflow — one
+scheduled step pulls its whole import closure into the reachable set, which is a fair measure of
+how little it takes to move this number and how little "reachable" guarantees on its own.
+
+That remains the real shape of the gap between "tested" and "works", and it is larger than the
 coverage percentage suggests.
 
 **Restoring 100% is not the objective** — a truthful number is, whatever it turns out to be.
@@ -50,7 +62,8 @@ coverage percentage suggests.
 |---|---|
 | reconstruction end to end | 16 tests, source evidence → registered method → stored event → Ask response → evidence inspection → human correction → historical replay |
 | REQ-REC-016 acceptance | **7 of 7 cases executed and passed** via `python3 tools/reconstruction_acceptance.py` — a runnable command, not an assertion |
-| local SQL suite | **525 pass** (was 428 at session start) |
+| local SQL suite | **527 pass** (was 428 at session start) |
+| deterministic suite | **937 pass, 540 skip, 0 errors** (was 937 pass, 227 skip, **313 errors**) |
 | pending stack vs production | **20 of 20**, one transaction, rolled back — including 34 non-wear episodes reconstructed from real atoms, all DESCRIPTIVE, findable through `search_record`, every hit labelled inferred |
 | production DDL in the CI pytest job | **closed** — `tests/test_status_sql.py` ran `CREATE SCHEMA` against production behind a rollback; the workflow comment claimed that job skipped it and nothing made that true |
 | migration chain | clean from empty, 66 files / 563 statements |

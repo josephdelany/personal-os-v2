@@ -28,6 +28,20 @@ def sql_connection():
         conn = pg8000.dbapi.connect(
             user=getpass.getuser(), database="postgres", unix_sock=str(path), timeout=10,
         )
+    elif not os.environ.get("SUPABASE_DB_URL"):
+        # NO DATABASE IS REACHABLE AT ALL. That is a skip, and it has to LOOK like one.
+        #
+        # Previously this fell through to db.connect(), which raised, and pytest reported a
+        # fixture ERROR — 313 of them on a developer machine with neither the disposable socket
+        # nor the live URL. An error is indistinguishable from a broken test, which is exactly
+        # what made the evidence audit's "38 errors against production" so hard to read: real
+        # timeouts and merely-unrunnable tests looked identical in the same column.
+        #
+        # This is deliberately NOT a dependency skip (tests/conftest.py) — no package installs a
+        # database. Both CI jobs supply one: `local-sql` sets PERSONAL_OS_TEST_SOCKET and
+        # `pytest` sets SUPABASE_DB_URL, so neither can reach this line.
+        pytest.skip("no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, "
+                    "via tools/test_local_sql.py) or SUPABASE_DB_URL")
     else:
         conn = db.connect()
     try:
