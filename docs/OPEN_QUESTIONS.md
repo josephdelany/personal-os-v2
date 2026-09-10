@@ -1889,3 +1889,81 @@ rename also makes the frontend brief self-consistent, which it currently is not.
 *What depends on it:* the frontend, when it is built. Nothing backend is blocked. `lint_envelope`
 in `tools/engines/compliance.py` will fail this envelope the moment it is wired to a surface,
 which is the intended behaviour and is why this must be settled before the frontend, not after.
+
+## OQ-77 — deployment authorization for the fourteen pending migrations
+
+*The question:* may migrations **0055 through 0068** be applied to production, together with the
+transaction backfill (1,053 legacy rows → atoms) and the merchant entity / `paid_to` link /
+category population?
+
+*Why it is open:* it is an authorization, not a technical gap. The last granted authorization
+covered 0049–0054 and those are applied (2026-09-09). Everything since has been verified and
+rolled back, never committed. Nothing about this is waiting on code.
+
+*State of the evidence:* `tools/verify_pending_stack.py` applies all fourteen in **one
+transaction**, exercises the stack against the real database, and rolls back. On 2026-09-10 it
+reported **STACK VERIFIED — 20 of 20**, including 34 Watch non-wear episodes reconstructed from
+real atoms (all DESCRIPTIVE, no stored probability), found through `search_record`, every hit
+labelled inferred, citations inspectable, and the R7 refusal returning no substitute. The
+migration chain applies clean from empty (67 files, 567 statements). **A rolled-back test is not
+a deployment**, which is exactly why this is still open.
+
+*What it costs to say no:* the reconstruction capability stays invisible in production —
+`config.reconstruction_methods` is empty there and `public.get_reconstruction` does not exist, so
+nothing can be reconstructed, found or inspected however well it is tested here. The 1,053 legacy
+transactions stay outside the spine.
+
+*What it costs to say yes:* fourteen migrations at once is a larger single step than any before
+it. They are forward-only. The mitigations are that each is verified individually and in
+composition, and that the whole set has now been executed against production and undone.
+
+*Options:* (a) authorize all fourteen plus the backfill and population, in dependency order, with
+invariants checked after each — recommended, since they have been verified as a set and splitting
+them re-tests combinations nothing has exercised; (b) authorize only 0055 and 0064–0067, the
+reconstruction path, leaving finance and panel for a later step; (c) hold everything.
+
+*Recommendation:* (a).
+
+*What depends on it:* every "deployed" and "observed" status in the checkpoint. Nothing else.
+
+## OQ-78 — the live-database test path has never been proven green
+
+*The question:* should CI's `pytest` job keep running against the production database at all?
+
+*Why it is open:* the evidence audit ran the suite against the live database and got **38 setup
+errors** (all `57014 canceling statement due to statement timeout`) and 1 failure, across
+`test_spine_invariants`, `test_spine_insert_paths`, `test_confirmation_gate`,
+`test_restricted_location`, `test_movements_api` and `test_derive_visits`. CI's `tests` job takes
+the same path; whether it survives depends on pooler latency on the day. **Nobody has evidence
+those tests pass against production**, and a job that errors intermittently teaches everyone to
+ignore it.
+
+*Related, and already fixed:* `tests/test_status_sql.py` was running `CREATE SCHEMA` and
+migration DDL **against production** inside that job, behind a rollback, because its fixture had
+no disposable-server guard. The workflow comment asserted the job skipped such tests; nothing
+made that true. It is guarded now.
+
+*Options:* (a) move every schema-building test to the `local-sql` job and leave the live job only
+data-reading assertions — recommended; (b) raise the statement timeout for the CI role; (c) leave
+it and accept intermittent red.
+
+*Recommendation:* (a). A timeout is not a defect in the test and re-running it is not evidence.
+
+*What depends on it:* whether the green tick on `main` means anything.
+
+## OQ-79 — two requirement-evidence documents now exist
+
+*The question:* which of `docs/EVIDENCE_REPORT.md` and `docs/REQUIREMENT_EVIDENCE_AUDIT.md` is
+authoritative?
+
+*Why it is open:* two agent sessions were assigned the same brief in the same worktree and both
+produced one. They agree on the headline number (636 of 685) and differ in structure — one adds a
+reachability column, the other does not. Keeping both guarantees they diverge.
+
+*Recommendation:* keep `docs/EVIDENCE_REPORT.md` (it is generated, has a `--check` mode that
+fails on a hand-edit, and carries the reachability column) and delete the other, recording the
+merge in ADR-0136. This is a judgement about which document Joe will read, so it is his.
+
+*What depends on it:* nothing technical. It is a correctness-of-the-record question, and the
+reason it is written down is that duplicated status documents are how the "685 of 685" claim
+survived as long as it did.

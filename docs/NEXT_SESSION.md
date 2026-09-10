@@ -13,10 +13,27 @@ reported.
 | New helpers have no non-test callers | **CONFIRMED, AND WORSE** | Not two helpers — at the time of the audit, **30 of 33 engine modules had no non-test caller.** Only `tier_contract`, `finance_never` and `bayes_model` were wired to anything. |
 | NumPyro tests can skip and CI does not install their dependencies | **CONFIRMED** | `tests.yml` installed neither `numpyro` nor `dateparser`. The NumPyro tests skipped everywhere and were counted as proving REQ-INF-520. |
 
-**The number that replaces it is not yet measured.** It will come from a tool that reads test
-*results*, not test *names*, and that counts a skip as unproven. Until that tool reports, this
-checkpoint states no coverage percentage at all. **Restoring 100% is not the objective** — a
-truthful number is, whatever it turns out to be.
+## THE MEASURED NUMBER: 636 of 685 (92.8%)
+
+From `tools/evidence_report.py`, which reads pytest **results** and counts a skip as unproven.
+Two independent implementations reached 636 separately.
+
+- **The 49-requirement shortfall is entirely skips. Zero failures.** 125 of the run's 127 skips
+  read `SUPABASE_DB_URL not set`.
+- A **caveat that belongs with the number**: a third run against the live database finished
+  later with 38 errors (all `57014 canceling statement due to statement timeout`) and 1 failure.
+  Merging it gives **666 / 685**. It started against a dirty tree and its errors are
+  environmental. **636 is the reproducible figure; 666 is the better-covered one.** Neither is
+  quoted without this sentence.
+- **Nobody has evidence the live-database suite passes.** CI's `pytest` job takes that path and
+  whether it survives depends on pooler latency.
+
+**Two-thirds of "proven" rests on code nothing outside `tests/` calls.** Of the 636: 168
+scheduled, 7 cli, **444 tests-only**, 17 unreachable. Of 55 engine modules, 42 have no entry
+point. That is the real shape of the gap between "tested" and "works", and it is larger than the
+coverage percentage suggests.
+
+**Restoring 100% is not the objective** — a truthful number is, whatever it turns out to be.
 
 ### What "proven" has to mean from now on
 
@@ -33,16 +50,18 @@ truthful number is, whatever it turns out to be.
 |---|---|
 | reconstruction end to end | 16 tests, source evidence → registered method → stored event → Ask response → evidence inspection → human correction → historical replay |
 | REQ-REC-016 acceptance | **7 of 7 cases executed and passed** via `python3 tools/reconstruction_acceptance.py` — a runnable command, not an assertion |
-| local SQL suite | **466 pass** (was 428) |
+| local SQL suite | **525 pass** (was 428 at session start) |
+| pending stack vs production | **20 of 20**, one transaction, rolled back — including 34 non-wear episodes reconstructed from real atoms, all DESCRIPTIVE, findable through `search_record`, every hit labelled inferred |
+| production DDL in the CI pytest job | **closed** — `tests/test_status_sql.py` ran `CREATE SCHEMA` against production behind a rollback; the workflow comment claimed that job skipped it and nothing made that true |
 | migration chain | clean from empty, 66 files / 563 statements |
 | layout | 43 / 43 |
-| engines with a non-test caller | **19 of 55** (was 3 of 33; the denominator grew because the count now covers every engine module, not only the new ones) |
+| engines with an entry point | **13 of 55** (8 scheduled, 5 cli) — measured by `evidence_report.py`, where an entry point is a script named in a workflow or `RUN_TONIGHT.sh`, not merely a module with `__main__` |
 | CI dependency holes | closed — `dateparser`, `jax`/`jaxlib` 0.4.30, `numpyro` installed; `PERSONAL_OS_REQUIRE_DEPS=1` turns a missing-library skip into a failure |
 
-**36 engine modules still have no non-test caller.** That is the honest headline number for
-finding (c), and it is the largest remaining gap in the difference between "tested" and "works".
-Some are contract modules that exist to be asserted against; others are real capabilities with no
-production entry point. They have not been individually triaged yet.
+**42 of 55 engine modules have no entry point.** That is the honest headline for finding (c) —
+the brief said 30 of 33; measured across every engine, it is 42 of 55. It is the largest
+remaining gap between "tested" and "works". Some are contract modules that exist to be asserted
+against; others are real capabilities nothing calls. They have not been individually triaged.
 
 **This is a statement about tests, not about production.** Four statuses stay apart:
 implemented / tested / **deployed** / **observed**. Almost none of this is deployed.
