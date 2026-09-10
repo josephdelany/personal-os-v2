@@ -136,7 +136,15 @@ def resolve(item_text, sources, *, brand=None, cooldowns=None, now=None):
             tried.append({"source": name, "outcome": e.reason, "detail": e.detail})
             skipped.append(name)
             continue
-        asked += 1
+        # REQ-NUT-024. A source that was ASKED and answered "I do not know this food" is
+        # evidence about the food. The local cache is not: it is a record of answers already
+        # obtained, and it cannot know a food nobody has ever looked up. A leg may therefore
+        # declare `counts_as_asked = False`, and the cache leg in `nutrition.py` does --
+        # otherwise a run with no USDA key and no reachable Open Food Facts would report
+        # `no_source_match` for every item and hand Joe a review list of foods nothing was
+        # ever going to resolve, which is the exact confusion this branch exists to prevent
+        # (ADR-0106, ADR-0135).
+        asked += 1 if getattr(fn, "counts_as_asked", True) else 0
         if result is None:
             tried.append({"source": name, "outcome": "no_match"})
             continue
@@ -165,8 +173,15 @@ def resolve(item_text, sources, *, brand=None, cooldowns=None, now=None):
 
 
 def resolvable_sources(sources, cooldowns=None, now=None, brand=None):
-    """Which sources could answer right now. Used to explain a refusal, never to reorder one."""
+    """Which sources could answer right now. Used to explain a refusal, never to reorder one.
+
+    A leg that is REGISTERED but cannot answer -- the USDA legs, which exist in code and are
+    blocked on an api.data.gov key -- declares `unavailable_reason` and is excluded here. Being
+    present in the mapping is not the same as being able to answer, and a function whose job is
+    to explain a refusal must not report a source that is guaranteed to refuse (ADR-0135).
+    """
     cooldowns = cooldowns if cooldowns is not None else Cooldowns()
     return tuple(n for n in SOURCE_PRECEDENCE
                  if n in sources and not cooldowns.active(n, now)
+                 and not getattr(sources[n], "unavailable_reason", None)
                  and (not brand or n in BRANDED_SOURCES))

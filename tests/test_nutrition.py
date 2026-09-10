@@ -129,8 +129,13 @@ def test_REQ_NUT_042_a_mixed_meal_takes_the_widest_method(sql_connection):
 
 def test_REQ_NUT_012_resolution_reads_the_cache_and_scales_by_grams(sql_connection):
     cur = world(sql_connection.cursor())
+    # The brand owner is not decoration. REQ-NUT-014 requires a `usda_branded` row to record
+    # whose label it is, and the cache leg now enforces that (ADR-0106: a `labelled` figure
+    # with no referent cannot be re-checked against the product it came from). A branded row
+    # without one is an illegal row rather than a terse fixture. No assertion below changes.
     cache_food(cur, "big mac", "usda_branded",
-               {"kcal": 257.0, "protein_g": 12.5, "fat_g": 14.0}, serving_g=219.0)
+               {"kcal": 257.0, "protein_g": 12.5, "fat_g": 14.0}, serving_g=219.0,
+               brand="McDonald's")
 
     r = nutrition.resolve_item(cur, "big mac", grams=219, schema=CORE, config=CONFIG)
     lo, pt, hi = r["nutrients"]["kcal"]
