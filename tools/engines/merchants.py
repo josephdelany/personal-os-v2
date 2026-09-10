@@ -57,6 +57,10 @@ STRIP_RULES: tuple[tuple[str, str], ...] = (
     # It must go before punctuation stripping, or "10/14" becomes "10 14" and sits between the
     # merchant and the state, blocking both the state and the city rule. That single omission
     # split one supermarket into three merchants.
+    # A price in the descriptor is not part of the name. Without this "$1.50 FRESH PIZZA"
+    # normalised to "1 50 FRESH PIZZA" — punctuation stripping turned the amount into two
+    # tokens that then blocked nothing and matched nothing.
+    ("currency_amount",    r"[$£€]\s?\d+(?:[.,]\d{2})?"),
     ("embedded_date",      r"\b\d{1,2}/\d{1,2}(?:/\d{2,4})?\b"),
     # ...and the truncated "Purchase" the same descriptors trail.
     ("purchase_suffix",    r"\s+PURC\w*\s*$"),
