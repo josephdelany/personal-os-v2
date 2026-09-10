@@ -212,7 +212,7 @@ def test_F_NON_GOALS_there_is_no_configuration_toggle():
             assert banned not in params, f"{name} accepts {banned!r}"
 
 
-def test_F_NON_GOALS_the_rules_are_not_documentation_only():
+def test_REQ_FIN_240_F_NON_GOALS_the_rules_are_not_documentation_only():
     """"Where a rule can be a database constraint or a blocking test, it must be one." Every one
     of the nineteen has at least one executing check behind it."""
     import tools.engines.finance_never as m

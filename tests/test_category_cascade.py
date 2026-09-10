@@ -248,3 +248,12 @@ def test_REQ_FIN_106_a_review_session_is_bounded_and_ordered_by_amount():
     assert len(page) == 20
     assert [i["amount"] for i in page] == list(range(39, 19, -1))
     assert review_page([{"id": 1, "amount": -500}, {"id": 2, "amount": 20}])[0]["id"] == 1
+
+
+def test_REQ_FIN_088_the_llm_layer_receives_the_complete_taxonomy_and_asks_for_confidence():
+    """The complete taxonomy, because a model given a partial list will invent a category that
+    fits the item rather than choosing badly from the list it was shown — and an invented
+    category is one no downstream rollup knows about."""
+    p = build_llm_prompt(normalized_descriptor="SHELL OIL", amount=42.1, taxonomy=TAXONOMY)
+    assert tuple(p["taxonomy"]) == TAXONOMY
+    assert "confidence" in p["instruction"]

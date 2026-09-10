@@ -28,7 +28,7 @@ def test_REQ_CAP_108_the_profile_set_is_closed_and_unknown_subjects_route_to_not
     assert validate_profile(None) == "note"
 
 
-def test_REQ_CAP_051_the_food_profile_has_exactly_seven_fields_not_at_least_seven():
+def test_REQ_CAP_050_051_the_food_profile_has_exactly_seven_fields_under_a_json_schema():
     validate_schema("food", {"properties": {f: {} for f in FOOD_FIELDS}})
     with pytest.raises(SchemaViolation, match="REQ-CAP-051"):
         validate_schema("food", {"properties": {f: {} for f in FOOD_FIELDS + ("notes",)}})
@@ -206,3 +206,15 @@ def test_REQ_CAP_062_defaulted_fields_are_excluded_or_counted_never_silently_inc
 def test_REQ_CAP_062_nothing_is_disclosed_when_nothing_was_defaulted():
     out = statistical_inclusion([Field("a", 1, "extracted")])
     assert out["n_defaulted_excluded"] == 0 and out["disclosure"] == ""
+
+
+def test_REQ_CAP_109_the_extractive_only_contract_binds_EVERY_profile():
+    """Not only the food profile. The span assertion and the discard-on-mismatch apply to
+    workout, drink, activity, mood and note alike — a profile exempt from them is a profile where
+    the model may add."""
+    for profile in PROFILES:
+        bad = resolve_field("x", "invented", TRANSCRIPT, evidence="not in the transcript",
+                            evidence_start=0)
+        assert bad.value is None and bad.reason == "span_mismatch", profile
+        validate_schema(profile, {"properties": {f: {} for f in FOOD_FIELDS}}
+                        if profile == "food" else {"properties": {"note": {}}})

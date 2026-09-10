@@ -88,7 +88,7 @@ def test_REQ_INF_217_a_declined_trial_is_not_re_proposed_for_seven_days():
                                   declined_days_ago=7, **kw), Refusal)
 
 
-def test_REQ_INF_201_207_an_accepted_proposal_carries_its_analysis_method_and_power():
+def test_REQ_INF_200_201_207_an_accepted_proposal_carries_every_registered_field():
     """REQ-INF-201 requires the COMPLETE row before the first assignment, and REQ-INF-213
     forbids changing the outcome or method afterwards. A trial that has to be edited after it
     starts was not thought through, and the register cannot express the edit."""

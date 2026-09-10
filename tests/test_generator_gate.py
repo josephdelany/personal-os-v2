@@ -20,7 +20,7 @@ from tools.engines.generator_gate import (DEFAULT_CI_TEST, GENERATOR_MIN_DAYS,
 NULL = {"discovery_count": 12, "null_median": 3, "null_p95": 7}
 
 
-def test_REQ_INF_401_a_generator_output_goes_to_the_register_at_CANDIDATE_never_to_findings():
+def test_REQ_INF_400_401_a_generator_output_goes_to_the_register_never_to_findings():
     out = register_output({"from": "a", "to": "b"}, transformation="detrend+deseasonalize",
                           null_calibration=NULL)
     assert out["table"] == "hypothesis_register" and out["status"] == "CANDIDATE"
@@ -212,3 +212,25 @@ def test_REQ_INF_431_an_all_pairs_search_needs_both_guards():
         args.update(kw)
         with pytest.raises(GeneratorRefused, match="REQ-INF-431"):
             check_search_scope(**args)
+
+
+def test_REQ_INF_421_423_426_427_each_killed_method_is_named_with_its_own_requirement():
+    """The block test above walks the whole map; these are the four whose IDs the map's own test
+    name could not carry, and a requirement proven only inside a loop is one no audit can see."""
+    assert KILLED_METHODS["dynotears"] == "REQ-INF-421"
+    assert KILLED_METHODS["dsem"] == "REQ-INF-423"
+    assert KILLED_METHODS["model_x_knockoffs"] == "REQ-INF-426"
+    assert KILLED_METHODS["gimme"] == "REQ-INF-427"
+    for name in ("dynotears", "dsem", "model_x_knockoffs", "gimme"):
+        with pytest.raises(KilledMethod):
+            check_method(name)
+
+
+def test_REQ_INF_032_a_generator_run_is_calibrated_against_a_circular_shift_null():
+    """The exposure series is rotated by a random offset, preserving each series' own
+    autocorrelation — which a plain shuffle destroys, and a null built from shuffled data is
+    easier to beat than the real one."""
+    with pytest.raises(GeneratorRefused, match="REQ-INF-410"):
+        register_output({}, transformation="detrend", null_calibration={})
+    ok = register_output({}, transformation="detrend", null_calibration=NULL)
+    assert ok["null_calibration"]["null_p95"] == 7

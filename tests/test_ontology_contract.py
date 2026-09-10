@@ -215,3 +215,11 @@ def test_REQ_NUT_032_every_interval_row_names_how_it_was_estimated():
         check_estimate_method({"estimate_method": "vibes"})
     with pytest.raises(NutritionStorageViolation, match="REQ-NUT-032"):
         check_estimate_method({})
+
+
+def test_REQ_INF_566_the_reasoning_layer_reasons_over_place_LABELS_not_coordinates():
+    """REQ-LOC-007's twin in the reasoning spec, and the same guard serves both: a coordinate
+    adds nothing to the reasoning and everything to the consequence of a leak."""
+    assert reasoning_payload([{"place_label": "the gym", "entity_id": "e1"}])
+    with pytest.raises(LocationViolation):
+        reasoning_payload([{"place_label": "the gym", "coordinates": [SYNTH_LAT, SYNTH_LON]}])

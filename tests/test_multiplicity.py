@@ -32,7 +32,7 @@ def test_REQ_INF_005_pruning_happens_BEFORE_correction_so_it_buys_power():
     assert kept == (("sleep", "sleep"),)
 
 
-def test_REQ_INF_002_a_family_is_tested_only_if_its_parent_was_rejected():
+def test_REQ_INF_001_002_the_tree_has_three_levels_and_a_family_needs_its_parent_rejected():
     """Yekutieli hierarchical FDR: this is what keeps each family small enough for BH to have
     power while still controlling error over the tree."""
     tree = [

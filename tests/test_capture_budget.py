@@ -159,7 +159,7 @@ def test_REQ_CAP_046_ios_dictation_costs_nothing_and_is_not_re_transcribed():
 
 # ---------------------------------------------------------------- §G.2
 
-def test_REQ_CAP_100_107_the_eight_things_capture_may_never_do():
+def test_REQ_CAP_100_102_103_105_107_the_things_capture_may_never_do():
     clean = {"event_time_field": "captured_at", "pwa_permissions": [],
              "missing_log_framing": "coverage"}
     assert check_capture_path(clean) == ()

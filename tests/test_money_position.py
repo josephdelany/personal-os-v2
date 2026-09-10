@@ -20,7 +20,7 @@ from tools.engines.money_position import (FORECAST_MIN_WIDTH, INCOME, INTERNAL_T
 AS_OF = dt.date(2026, 9, 10)
 
 
-def test_REQ_FIN_002_003_a_finance_figure_renders_with_its_n():
+def test_REQ_FIN_001_002_003_a_transaction_is_an_atom_and_a_figure_renders_with_its_n():
     """"$412 at Hannaford" over three charges and over ninety are different claims, and the
     figure alone is identical."""
     assert transaction_atom({"amount": 41.0}, n_observations=19)["n_observations"] == 19
