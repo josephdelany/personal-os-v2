@@ -7018,3 +7018,35 @@ not found" error in an unrelated file.
 Requirements proven 490 -> 509 (74%). REQ-INF unproven 41 -> 22.
 
 **Requirement IDs:** REQ-INF-100..114, 500..508. **ADR:** 0123.
+
+## 2026-09-10 (latest+15) — B12 §D.4/§D.4a/§E.3/§G.1 quantity and display
+
+**The premise:** a calorie figure is assembled from a food someone identified from a sentence, a
+portion nobody weighed, and a database entry for something similar — then rendered as "1,847
+kcal", which reads like a measurement. So the interval IS the value, and the honest width is the
+most informative thing about it.
+
+Four rules carry it. Bounds sum separately, because the errors are systematic (portion sizes drift
+the same direction all day) rather than independent, so they do not cancel. Rounding may never
+narrow — the low floors and the high ceils. Vision confidence may never narrow an interval,
+because its confidence is about IDENTIFICATION and the interval is about QUANTITY: a confident
+identification says nothing about how big the bagel was. And visual weight follows the METHOD, not
+the magnitude, because weighting by magnitude makes a big number look more certain than a small
+one when the opposite is usually true.
+
+REQ-NUT-047: a day logged by voice routinely has a 500 kcal width, so reporting a 300 kcal deficit
+against it is reporting a difference the data cannot see — and the number would be believed.
+
+"Most of a burrito" is not 0.75 of one: assigning a fraction would invent a number and carry it
+into the day's total, the figure Joe actually reads. An EXPLICIT fraction does resolve — the rule
+is about vagueness, not fractions.
+
+Two words refused: "deficiency", because a low LOGGED intake is a fact about the logging at least
+as often as about the eating; and the judgment framings, because an unresolved item shown as a
+failure reads as something Joe did wrong, while shown as a normal outcome it reads as a question
+he can answer.
+
+**Evidence:** 20 new tests. 450 local SQL tests pass; layout 43/43. Requirements proven
+509 -> 532 (78%). REQ-NUT unproven 30 -> 9.
+
+**Requirement IDs:** REQ-NUT-018..027, 041..053, 062..065. **ADR:** 0124.
