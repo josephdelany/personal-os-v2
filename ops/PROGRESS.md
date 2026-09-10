@@ -7245,3 +7245,38 @@ evidence, so "what did Joe actually say" survives every later opinion about what
 Requirements proven 611 -> 625 (91%). REQ-CAP unproven 34 -> 20.
 
 **ADR:** 0130.
+
+## 2026-09-10 (latest+22) — B17 §A: email ingest; REQ-FIN complete at 173/173
+
+**Twelve of fourteen prefixes done.** Only REQ-CAP (20) and REQ-INF (8, all OQ-75) remain.
+
+The rule the section turns on: the alert email arrives at the moment of the swipe and carries the
+CLOCK, while the CSV arrives days later carrying only a date. So the alert is the only source
+that will ever know a purchase happened at 22:40, and nothing later may overwrite it — "more
+recent" and "more accurate" are different things here. Same finding as §D.1's occurred_at/
+posted_at split, arriving from the ingest side.
+
+Template before model, and the ordering is not an optimisation: a regex either matches or does
+not and when it does the result is exact, while a model asked to parse the same email will ALWAYS
+return something that is plausible whether or not it is right. A template that stops matching for
+a sender previously parsed successfully means the bank changed its format — silent data loss with
+a clear cause, and nothing else notices because the transactions simply stop appearing.
+
+The pre-auth flag exists because a $50 bar pre-auth commonly settles at $67 after tip: treating
+an alert amount as final understates exactly the category where the gap is largest, in the
+flattering direction.
+
+No provider name may travel past raw_transactions, because every Tier 3 adapter is optional and
+liable to be reclassified away — a name downstream turns its disappearance into a code change.
+And an adapter that fails open, leaving categorisation or recurrence broken, turns an optional
+convenience into a single point of failure, so `on_adapter_error` RAISES if any downstream
+function is degraded.
+
+The credential distinction: an mTLS certificate authenticates THIS SYSTEM to a provider; a bank
+login authenticates JOE to his bank, and storing one puts this repository in a different category
+of thing entirely.
+
+**Evidence:** 16 new tests, no network. 450 local SQL tests pass; layout 43/43; never-rule scan
+clean. Requirements proven 642 -> 657 (96%). REQ-FIN 18 -> 0.
+
+**ADR:** 0131.
