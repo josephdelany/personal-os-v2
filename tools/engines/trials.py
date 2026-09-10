@@ -250,3 +250,46 @@ def analyse(blocks, per_protocol=False):
                        "random, so this is not an unbiased estimate of the exposure's effect."
                        if per_protocol else
                        "PRIMARY, intention-to-treat over assigned arms."))
+
+
+# ---------------------------------------------------------------- blinding and deviation
+
+def blinding(exposure, *, admits_indistinguishable_placebo):
+    """REQ-INF-204/205. Blind where a placebo is physically indistinguishable; say so where not.
+
+    Most of Joe's exposures are behavioural and cannot be blinded — he knows whether he had
+    caffeine. A supplement in an identical capsule can be. The distinction is physical, not a
+    matter of effort, so the function asks about the exposure rather than about intent.
+
+    Where blinding IS possible it is not optional: an unblinded supplement trial measures the
+    supplement plus Joe's expectation of it, and the expectation is the larger of the two often
+    enough to matter.
+    """
+    if admits_indistinguishable_placebo:
+        return {"blinded": True, "until": "trial_completes",
+                "note": ("This exposure admits an indistinguishable placebo, so the assignment is "
+                         "hidden until the trial completes. An unblinded version would measure "
+                         "the exposure plus the expectation of it.")}
+    return {"blinded": False,
+            "impossibility": (f"{exposure} cannot be blinded: there is no physically "
+                              f"indistinguishable placebo for it, and Joe necessarily knows "
+                              f"which arm he is in.")}
+
+
+def on_deviation_threshold(trial, *, deviation_rate, already_notified, block_days):
+    """REQ-INF-212. Notify ONCE, offer a shorter block, and never repeat.
+
+    A shorter block is the right offer rather than "try harder": a 20% deviation rate usually
+    means the block length does not fit Joe's life, and the fix is the design rather than the
+    discipline. Repeating the notification would make a design problem feel like a personal one.
+    """
+    if deviation_rate <= MAX_DEVIATION_RATE or already_notified:
+        return None
+    return {"notify": True, "once": True,
+            "offer": {"action": "restart_with_shorter_block",
+                      "current_block_days": block_days,
+                      "proposed_block_days": max(1, block_days // 2)},
+            "text": (f"{deviation_rate:.0%} of assigned days have deviated. A "
+                     f"{max(1, block_days // 2)}-day block may fit better than the current "
+                     f"{block_days}. Restart with the shorter block?"),
+            "repeat": False}

@@ -316,3 +316,32 @@ def discovery_count_vs_null(observed, null_counts):
             "exceeds_null_p95": observed > p95,
             "text": (f"{observed} discoveries; shuffled data gives a median of {median:g} and a "
                      f"95th percentile of {p95:g}.")}
+
+
+def enumerate_specifications(*, legal_transforms, estimators, windows, splits, adjustment_sets):
+    """REQ-INF-030. The FULL cross-product of defensible specifications, enumerated up front.
+
+    Up front and complete, because a specification curve computed over a subset somebody chose is
+    a curve of the choices that were made rather than of the choices that were available — and
+    the whole point of the curve is to show that the result does not depend on them.
+
+    Every dimension comes from a declared source: `legal_transforms` from `metric_registry`
+    (REQ-INF-503), the estimators and adjustment sets from the hypothesis register. Nothing here
+    is chosen at query time (RULE-13).
+    """
+    for name, dim in (("legal_transforms", legal_transforms), ("estimators", estimators),
+                      ("windows", windows), ("splits", splits),
+                      ("adjustment_sets", adjustment_sets)):
+        if not dim:
+            raise PipelineViolation(
+                f"REQ-INF-030: the cross-product needs at least one {name}; an empty dimension "
+                f"silently collapses the curve to the choices that happened to be available")
+    specs = []
+    for t in legal_transforms:
+        for e in estimators:
+            for w in windows:
+                for s in splits:
+                    for a in adjustment_sets:
+                        specs.append({"transform": t, "estimator": e, "window": w,
+                                      "split": s, "adjustment_set": tuple(a)})
+    return tuple(specs)

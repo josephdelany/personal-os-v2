@@ -7280,3 +7280,42 @@ of thing entirely.
 clean. Requirements proven 642 -> 657 (96%). REQ-FIN 18 -> 0.
 
 **ADR:** 0131.
+
+## 2026-09-10 (latest+23) — the last code-only requirements; 677/685 (99%)
+
+**Thirteen of fourteen prefixes complete. Every requirement that could be proven without Joe now
+is.** The remaining eight are REQ-INF-520..527, all of them OQ-75's NumPyro block.
+
+Vision asks for four things and not grams — a vision model asked "how many grams" will answer,
+and the answer is a guess about a photograph's scale dressed as a measurement. Dictation beats
+vision on disagreement and the discarded value is KEPT: the photo shows what was on the plate,
+the sentence says what Joe ate, and those differ predictably. Extraction runs twice at 0.7,
+because a field that differs between runs is one the model was not sure about — information its
+own confidence score does not reliably carry. A model ID missing from the catalogue fails the run
+non-zero rather than falling back, since a silent change in what the system extracts is invisible
+exactly when it starts mattering.
+
+Prompts are never random: a random prompt interrupts whatever is happening, while one fifteen
+minutes before Joe's own median eating time arrives while he is deciding what to eat. The
+schedule uses the MEDIAN, because one 02:00 kebab should not move the dinner prompt by half an
+hour.
+
+Blinding is physical rather than a matter of effort, and where it IS possible it is not optional:
+an unblinded supplement trial measures the supplement plus the expectation of it. A deviation
+breach offers a SHORTER BLOCK rather than "try harder" — the fix is the design, not the
+discipline.
+
+An interrupted time series needs a KNOWN date, or the method degenerates into searching for the
+best changepoint, which always finds one. Its control series is printed and vetoable, because
+choosing it is a judgement about Joe's life the system cannot make. And it is capped at
+CONFIRMED_OBSERVATIONAL, because a clean discontinuity is exactly when somebody would want to
+call it an experiment.
+
+**Evidence:** 26 new tests. 450 local SQL tests pass; layout 43/43; never-rule scan clean.
+Requirements proven 657 -> 677 (99%).
+
+**The whole of the remaining requirement work is one decision:** REQ-INF-520 says the layer
+"SHALL use NumPyro as its sole probabilistic programming language", and jaxlib ships no macOS
+x86_64 wheel. OQ-75.
+
+**ADR:** 0132.

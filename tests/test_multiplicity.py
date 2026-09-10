@@ -232,3 +232,27 @@ def test_REQ_INF_038_a_discovery_count_is_reported_against_the_shuffled_null():
     assert "shuffled data gives a median" in out["text"]
     with pytest.raises(PipelineViolation, match="REQ-INF-038"):
         discovery_count_vs_null(12, [])
+
+
+def test_REQ_INF_030_the_full_cross_product_is_enumerated_up_front():
+    """A curve computed over a subset somebody chose is a curve of the choices that were MADE
+    rather than of the choices that were available — and the whole point of the curve is to show
+    the result does not depend on them."""
+    from tools.engines.multiplicity import enumerate_specifications
+    specs = enumerate_specifications(legal_transforms=["raw", "log1p"],
+                                     estimators=["hac_ols", "mann_whitney"],
+                                     windows=["all_post", "last_60"],
+                                     splits=["median", "tertile"],
+                                     adjustment_sets=[["dow"], ["dow", "steps"]])
+    assert len(specs) == 2 * 2 * 2 * 2 * 2 == 32
+    assert len({tuple(sorted(s.items(), key=str)) for s in specs}) == 32, "no duplicates"
+
+
+def test_REQ_INF_030_an_empty_dimension_is_refused_rather_than_silently_collapsing_the_curve():
+    from tools.engines.multiplicity import enumerate_specifications
+    base = {"legal_transforms": ["raw"], "estimators": ["hac_ols"], "windows": ["all_post"],
+            "splits": ["median"], "adjustment_sets": [["dow"]]}
+    for dim in base:
+        kw = {**base, dim: []}
+        with pytest.raises(PipelineViolation, match="REQ-INF-030"):
+            enumerate_specifications(**kw)

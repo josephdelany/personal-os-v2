@@ -183,3 +183,33 @@ def test_REQ_INF_211_the_deviation_threshold_is_a_proportion_not_a_count():
     assert deviation_rate(84, 17) == pytest.approx(17 / 84)
     assert deviation_rate(0, 0) == 0.0
     assert MAX_DEVIATION_RATE == 0.20
+
+
+def test_REQ_INF_204_205_blinding_is_a_physical_question_not_a_matter_of_effort():
+    """Most of Joe's exposures are behavioural — he knows whether he had caffeine. A supplement in
+    an identical capsule can be blinded, and where it CAN be it is not optional: an unblinded
+    supplement trial measures the supplement plus his expectation of it, and the expectation is
+    the larger of the two often enough to matter."""
+    from tools.engines.trials import blinding
+    b = blinding("vitamin_d_iu", admits_indistinguishable_placebo=True)
+    assert b["blinded"] is True and b["until"] == "trial_completes"
+    assert "expectation" in b["note"]
+
+    u = blinding("caffeine_mg", admits_indistinguishable_placebo=False)
+    assert u["blinded"] is False
+    assert "no physically indistinguishable placebo" in u["impossibility"]
+
+
+def test_REQ_INF_212_a_deviation_breach_notifies_ONCE_and_offers_a_shorter_block():
+    """A shorter block is the right offer rather than "try harder": a 20% deviation rate usually
+    means the block length does not fit Joe's life, and the fix is the design rather than the
+    discipline. Repeating it would make a design problem feel like a personal one."""
+    from tools.engines.trials import on_deviation_threshold
+    out = on_deviation_threshold({}, deviation_rate=0.35, already_notified=False, block_days=14)
+    assert out["notify"] is True and out["repeat"] is False
+    assert out["offer"]["proposed_block_days"] == 7
+    assert "may fit better" in out["text"]
+    assert on_deviation_threshold({}, deviation_rate=0.35, already_notified=True,
+                                  block_days=14) is None
+    assert on_deviation_threshold({}, deviation_rate=0.10, already_notified=False,
+                                  block_days=14) is None
