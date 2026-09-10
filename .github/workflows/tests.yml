@@ -79,7 +79,13 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with: {python-version: '3.12'}
-      - run: pip install 'pg8000>=1.30,<2' 'pytest>=8,<9' 'pyyaml>=6,<7' 'ofxtools>=0.9,<1'
+      # dateparser is here because it is present on the development machine, so a green
+      # local-sql run here does NOT prove this job stays green without it. `extraction.py`
+      # imports it inside resolve_event_time with no guard, so any test in the TESTS tuple that
+      # reaches a temporal span raises ImportError rather than skipping. Cheaper to install the
+      # 0.3 MB package (ADR-0115, already installed in the pytest job) than to rely on nothing
+      # in that tuple ever touching that path.
+      - run: pip install 'pg8000>=1.30,<2' 'pytest>=8,<9' 'pyyaml>=6,<7' 'ofxtools>=0.9,<1' 'dateparser>=1.2,<2'
       - name: ensure PostgreSQL 17 binaries
         run: |
           set -euo pipefail
