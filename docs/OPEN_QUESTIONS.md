@@ -1450,3 +1450,43 @@ table row.
 
 *What would settle it:* Joe choosing (a) or (b). If (a), the permitted terms are a short list
 he can dictate. Related: REQ-TIER-018/020, REQ-NAR-020..022, ADR-0099.
+
+**OQ-63 — The forecaster issued 32 predictions for metrics whose capture had already stopped,
+and every one of them is unresolvable.**
+
+`core.predictions` holds 32 rows created 2026-09-02, resolving 2026-09-03 to 2026-09-10, across
+four metrics. Resolved read-only against the panel:
+
+| metric | predictions | panel data ends |
+|---|---|---|
+| `hrv_sdnn` | 8 | 2026-07-28 |
+| `rhr` | 8 | 2026-07-28 |
+| `sleep_asleep_min` | 8 | 2026-07-28 |
+| `steps` | 8 | 2026-07-17 |
+
+**All 32 are unresolvable — `no_observation`.** The forecaster predicted four metrics for days
+it had no way to observe, three of them dark since July.
+
+*Why this is dangerous rather than merely useless.* Each carries `p_forecast = 0.9`. A resolver
+that treated "no observation" as "the forecast was wrong" would score every one at Brier 0.81,
+produce a catastrophic calibration record, and — under REQ-INF-3xx's auto-demotion — demote
+findings on the strength of it. An instrument failure would become a forecasting failure, and
+the demotions would look earned. `tools/engines/calibration.py` refuses all 32 and refuses the
+summary; that is the correct behaviour and it is also a warning.
+
+*The gap:* nothing stops a forecast being issued for a metric whose capture is stale.
+`check_freshness.py` knows `hrv_sdnn_ms` and `resting_hr` are stale. The forecaster does not
+consult it. A prediction about a dark instrument is not a forecast; it is a guess with a
+timestamp.
+
+*Recommendation:* the forecast job should refuse to issue a prediction for a metric whose last
+observation is older than its `max_staleness_days`, and record the refusal. That is a new
+requirement in REQ-INF §E, not a code change to an existing one, so it needs Joe's assent
+before being written.
+
+*A second-order note:* once migration 0056 is applied, `steps` becomes resolvable — the atom
+lane runs to 2026-09-09 — so 8 of the 32 would resolve. The other 24 stay unresolvable until
+the Watch is fixed (OQ-55).
+
+*What depends on it:* every calibration figure, and therefore auto-demotion. Related:
+REQ-INF-300..309, REQ-NFR-005..014, ADR-0100.
