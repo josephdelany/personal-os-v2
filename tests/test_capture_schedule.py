@@ -1,4 +1,4 @@
-"""The scheduled local import and the freshness schedule it feeds (ADR-0091, ADR-0060).
+"""The scheduled local import and the freshness schedule it feeds (ADR-0094, ADR-0060).
 
 Two things are under test and they are deliberately in one file, because the only reason the
 local import has the schedule it has is the schedule the freshness check already has.

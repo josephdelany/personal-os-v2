@@ -1,4 +1,4 @@
-# ADR-0091: The import runs on Joe's Mac on a schedule, and a green run still means nothing
+# ADR-0094: The import runs on Joe's Mac on a schedule, and a green run still means nothing
 
 **Status:** Accepted (prepared — the schedule is not installed; see Activation)
 **Date:** 2026-09-09
@@ -147,3 +147,7 @@ because an ADR that also functions as an install script gets run.
   through it, and that the ordering against the freshness check holds in practice are all
   claims about a running system, and none of them is established by this decision or by its
   tests. The tests prove mechanism. `ops.runs` will prove firing, once it has fired.
+
+## Numbering note
+
+Written as ADR-0091 in the capture worktree and renumbered on integration: 0091 was taken by the two-clocks decision in `ask`, committed on the main branch while this was in flight. Parallel worktrees cannot reserve an ADR number, so the integration owner assigns it. Nothing in the decision changed.

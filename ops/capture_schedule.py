@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""The scheduled local import (ADR-0091). Wraps `tools/import_drop.py`; replaces nothing.
+"""The scheduled local import (ADR-0094). Wraps `tools/import_drop.py`; replaces nothing.
 
     PYTHONPATH=. python3 ops/capture_schedule.py --run           # the scheduled action
     PYTHONPATH=. python3 ops/capture_schedule.py --run --dry-run # invoke the importer read-only
@@ -10,7 +10,7 @@
 Mac. A GitHub-hosted runner cannot see `~/PersonalOS_Drop`, so no `.github/workflows/*.yml`
 can ever run this import, however convenient that would be. The scheduler therefore has to be
 local, and on macOS that is launchd. `--emit-launchd` writes the job description; it does not
-install it (ADR-0091: activation is Joe's, and it is a production-writing job).
+install it (ADR-0094: activation is Joe's, and it is a production-writing job).
 
 **What it adds to `import_drop.py`, which is not edited and not reimplemented.**
 
