@@ -1417,3 +1417,36 @@ all movements between Joe's own accounts. If so, the current classification stan
 external inbound is $1,851.68 over the whole record. If any is a third party, name it.
 
 *What would settle it:* one confirmation. Related: REQ-FIN-049/050, ADR-0096, OQ-59.
+
+**OQ-62 — `config.tier_vocabulary` has no row for INSUFFICIENT, so no INSUFFICIENT copy has a
+permitted vocabulary.**
+
+Found by building the REQ-NAR-020 linter and running it against the live table. Five tiers
+carry vocabulary — DESCRIPTIVE, EXPLORATORY, PROMOTED, CONFIRMED_OBSERVATIONAL, EXPERIMENTAL —
+and INSUFFICIENT carries none.
+
+Under REQ-NAR-021's reading (a term reserved for a higher tier is a violation), INSUFFICIENT
+sits at the bottom of the ladder, so *every* term in the table is above it. The live
+INSUFFICIENT templates pass today only because they happen to use structural words and words
+in no tier's list. That is luck, not design: one edit adding "typically" to a refusal would be
+caught, and one adding an unlisted claim word would not.
+
+REQ-TIER-018 makes INSUFFICIENT an answer rather than a silence, and REQ-TIER-030/031/033
+mandate its render forms — a data-requirement sentence and a trial sentence. So it is a tier
+with required wording and no vocabulary governing that wording.
+
+*Why it is open:* two defensible answers with different consequences.
+(a) INSUFFICIENT gets its own row — the words a refusal is allowed to use ("not enough", "would
+raise it", "stored and traceable"). The linter then governs refusals as tightly as claims.
+(b) INSUFFICIENT is exempt because a refusal makes no claim, and the linter skips it. Cheaper,
+and it leaves refusal copy ungoverned — which is where a hedge could quietly become a hint.
+
+*What depends on it:* whether REQ-NAR-022's build-time check can be turned on for the
+INSUFFICIENT templates at all. Today it runs and passes vacuously.
+
+*Recommendation:* (a). A refusal is the surface most likely to be softened into an implication
+over time, precisely because it feels unsatisfying to write. Governing its words costs one
+table row.
+
+*What would settle it:* Joe choosing (a) or (b). If (a), the permitted terms are a short list
+he can dictate. Related: REQ-TIER-018/020, REQ-NAR-020..022, ADR-0099.
