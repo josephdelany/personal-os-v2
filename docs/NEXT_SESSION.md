@@ -1,4 +1,37 @@
-# Checkpoint — 2026-09-09 (late)
+# Checkpoint — 2026-09-10
+
+## EVERY REQUIREMENT IS PROVEN: 685 of 685
+
+All fourteen prefixes are at zero unproven. `python3 tools/audit_requirements.py` reports
+685/685 with 0 mentioned-but-unnamed.
+
+**This is a statement about tests, not about production.** Four statuses stay apart:
+implemented / tested / **deployed** / **observed**. Almost none of this is deployed, and the
+gap is one authorization, not more work.
+
+| check | result |
+|---|---|
+| requirements proven | 685 / 685 |
+| full pytest tree | 1,060 passed, 296 skipped (the skips run under the local SQL suite) |
+| local SQL suite | 450 pass, America/New_York and UTC |
+| layout | 43 / 43 |
+| migration chain | clean from empty, 62 files / 550 statements |
+| never-rule scan | 0 violations |
+| pending stack vs production | 12 of 12, rolled back |
+
+## THE ONE THING BLOCKING DEPLOYMENT
+
+Migrations **0056–0063** plus the transaction backfill and the resolver/link/category
+population. All verified against production in rolled-back transactions. Nothing has reached
+production since the September import.
+
+Everything else outstanding is a ruling or a credential: OQ-32, OQ-60, OQ-74, OQ-76,
+`role='lever'` on at least one metric, the USDA api.data.gov key, Gmail OAuth, and installing
+the Log Workout shortcut.
+
+**OQ-75 is resolved** — by fact rather than by ruling. See ADR-0103's second amendment.
+
+# Superseded checkpoint — 2026-09-09 (late)
 
 Authoritative status. Reconciled against Git at `c3f3814`. Four statuses kept apart:
 **implemented** (code exists) / **tested** (a named test with the requirement ID passes) /

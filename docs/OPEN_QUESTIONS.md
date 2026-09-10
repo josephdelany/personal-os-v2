@@ -1816,6 +1816,17 @@ cannot satisfy RULE-28's failure-at-the-limit clause, so (b) conflicts with an e
 *What depends on it:* nothing is blocked; the code exists and passes. This is about whether the
 requirement or the implementation is corrected.
 
+**OQ-75 — RESOLVED 2026-09-10 by fact, not by ruling. NumPyro runs here.**
+
+*Resolution:* the premise was wrong. `jaxlib` has 77 macOS x86_64 wheels; jax dropped that
+platform only after 0.4.38, and the install failed because this machine's default interpreter is
+Python 3.14. Under Python 3.9.6 with `jax==jaxlib==0.4.30` and `numpyro==0.19.0`, NUTS runs and
+agrees with the hand-written Gibbs sampler to 0.0012 on a planted coefficient. REQ-INF-520 is
+implemented and proven; no decision from Joe is needed. See ADR-0103's second amendment and
+ADR-0133.
+
+*The original question, kept for the record:*
+
 **OQ-75 — the Bayesian effect layer needs a machine this one is not.**
 
 §G.2 (REQ-INF-520..527) specifies NUTS with named priors, partial pooling over day-of-week and

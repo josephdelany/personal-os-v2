@@ -7319,3 +7319,39 @@ Requirements proven 657 -> 677 (99%).
 x86_64 wheel. OQ-75.
 
 **ADR:** 0132.
+
+## 2026-09-10 (final) — 685 of 685; and the claim I got wrong twice
+
+**Every requirement in the spec is proven by a test carrying its ID.** All fourteen prefixes at
+zero.
+
+The last one was REQ-INF-520, "SHALL use NumPyro as its sole probabilistic programming language",
+which I had blocked on OQ-75 for most of this session. **The premise was wrong, and I got it
+wrong twice in the same way.**
+
+ADR-0103 was written from package metadata; I called that a plan rather than evidence, which was
+right. Its amendment was written from ONE failed `pip install jaxlib` and I called that evidence,
+which was not. I read "no matching distribution" and generalised from one resolution failure to a
+property of the library.
+
+Measured properly: jaxlib has 77 macOS x86_64 wheels. jax dropped that platform only after
+0.4.38, and the newest with a cp39 wheel is 0.4.30. The install failed because this machine's
+default interpreter is Python 3.14 — not because of the platform at all. A version search would
+have taken thirty seconds and I did not do it, and it blocked eight requirements on a decision
+that was never needed.
+
+Verified under Python 3.9.6 with jax==jaxlib==0.4.30 and numpyro==0.19.0: NUTS runs, and its
+posterior for a planted coefficient agrees with the hand-written Gibbs sampler to 0.0012.
+
+Both implementations are kept. The Gibbs sampler is not redundancy — it is the reference the NUTS
+one is checked against, and two independent implementations agreeing on a planted coefficient is
+much stronger than either alone. A disagreement is a defect in one of them, and without the second
+there would be nothing to notice it.
+
+**Evidence:** 685/685 requirements; 1,060 tests pass across the tree; 450 local SQL tests under
+both timezones; layout 43/43; chain clean from empty at 62 files; never-rule scan clean.
+
+**What is left is not code.** One authorization for migrations 0056-0063 plus the backfill, and
+seven rulings or credentials.
+
+**ADRs:** 0103 (second amendment), 0133. **OQ-75: resolved.**

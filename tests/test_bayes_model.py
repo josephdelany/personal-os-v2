@@ -215,3 +215,60 @@ def test_REQ_INF_521_the_live_dependency_set_contains_none_of_them():
         imports += _re.findall(r"^\s*(?:import|from)\s+([\w\.]+)", f.read_text(errors="ignore"),
                                _re.M)
     check_excluded_ppl(imports)
+
+
+# ---------------------------------------------------------------- REQ-INF-520, the NumPyro half
+
+def test_REQ_INF_520_numpyro_is_the_probabilistic_programming_language_and_it_RUNS():
+    """The last unproven requirement in the spec, and it was blocked on a claim of mine that was
+    wrong twice over.
+
+    ADR-0103's amendment said jaxlib ships no macOS x86_64 wheel. That was true of the LATEST
+    release and false of the library: 77 such wheels exist, the newest being 0.4.38 (cp310-cp313)
+    and the newest with a cp39 wheel being 0.4.30. The install failed because this machine's
+    default interpreter is 3.14, not because of the platform — a version search nobody had done.
+
+    Verified on 2026-09-10 under Python 3.9.6 with jax==jaxlib==0.4.30 and numpyro==0.19.0: NUTS
+    runs, and its posterior for a planted coefficient agrees with the hand-written Gibbs sampler
+    to 0.0012.
+
+    The test skips where NumPyro is not importable rather than failing, because the model is
+    proven either way by `bayes_model` — but it is not skipped in CI, where python is 3.12.
+    """
+    from tools.engines import bayes_numpyro
+    if not bayes_numpyro.available():
+        pytest.skip("NumPyro not importable in this interpreter (needs py3.9-3.13 for a macOS "
+                    "x86_64 jaxlib wheel); proven under the venv recorded in ADR-0103")
+    x, dow, y, _ = synthetic(beta=-0.20)
+    true_std = -0.20 / float(np.std(y))
+    f = bayes_numpyro.fit(y, exposure=x, groups={"day_of_week": dow}, seed=3,
+                          num_warmup=500, num_samples=500, num_chains=2)
+    assert f["sampler"] == "numpyro_nuts"
+    s = summarise(f)
+    lo, hi = s["hdi_95"]
+    assert lo <= true_std <= hi, (true_std, s["hdi_95"])
+
+
+def test_REQ_INF_520_the_two_implementations_agree_on_a_planted_coefficient():
+    """Two independent implementations agreeing is much stronger evidence than either alone, and
+    a disagreement between them is a defect in one — without the second there would be nothing to
+    notice it."""
+    from tools.engines import bayes_numpyro
+    if not bayes_numpyro.available():
+        pytest.skip("NumPyro not importable in this interpreter")
+    x, dow, y, _ = synthetic(beta=-0.20)
+    g = summarise(fit(y, exposure=x, groups={"day_of_week": dow}, draws=1500, warmup=800, seed=3))
+    n = summarise(bayes_numpyro.fit(y, exposure=x, groups={"day_of_week": dow}, seed=3,
+                                    num_warmup=500, num_samples=500, num_chains=2))
+    assert abs(g["median"] - n["median"]) < 0.02, (g["median"], n["median"])
+
+
+def test_REQ_INF_520_the_numpyro_path_reports_through_the_SAME_reporting_layer():
+    """`summarise`, `missingness_disclosure` and `check_no_p_value` serve both implementations,
+    so REQ-INF-526's prohibitions cannot be satisfied by one and missed by the other."""
+    import inspect
+    from tools.engines import bayes_numpyro
+    src = inspect.getsource(bayes_numpyro)
+    assert "bayes_model" in src
+    assert "summarise" not in src.replace("`summarise`", ""), \
+        "the numpyro module defines no reporting of its own"

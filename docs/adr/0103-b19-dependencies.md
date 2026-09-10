@@ -166,3 +166,54 @@ is a worse property than the 88 MB ever was — and it is invisible in a wheel-s
 **The general lesson, recorded because it will recur:** a dependency ADR written from package
 metadata is a *plan* to add a dependency. It is not evidence the dependency can be added. The
 install must be attempted before the ADR is accepted, and this one was not.
+
+---
+
+## Second amendment, 2026-09-10 — the first amendment was also wrong
+
+The amendment above says:
+
+> **`jaxlib` ships no macOS x86_64 wheel**
+
+That is true of the **latest release** and false of the **library**. Measured properly:
+
+```
+77 macOS x86_64 jaxlib wheels exist across releases.
+Newest: 0.4.38 (cp310, cp311, cp312, cp313)
+Newest with a cp39 wheel: 0.4.30
+```
+
+jax dropped macOS x86_64 support *after* 0.4.38. The install failed because this machine's
+default interpreter is **Python 3.14**, for which no jaxlib wheel exists on any platform yet —
+**not because of the platform at all.**
+
+I ran `pip install jaxlib` once, read *"Could not find a version that satisfies the requirement
+jaxlib (from versions: none)"*, and generalised from one failed resolution to a claim about the
+library. **A version search would have taken thirty seconds and I did not do it.**
+
+### Verified
+
+Python 3.9.6 (the system interpreter), `jax==0.4.30`, `jaxlib==0.4.30`, `numpyro==0.19.0`:
+NUTS runs, and its posterior for a planted coefficient agrees with the hand-written Gibbs sampler
+to **0.0012**.
+
+### Consequence
+
+**REQ-INF-520 is satisfiable and is now proven.** `tools/engines/bayes_numpyro.py` implements the
+model in NumPyro; `bayes_model.py` keeps the Gibbs version as the reference the NUTS one is
+checked against. CI pins `jax`/`jaxlib` below 0.5 so the same code runs on linux/py3.12 *and* on
+the machine it is written on.
+
+**OQ-75 is resolved by fact rather than by ruling.** It asked Joe to choose between CI-only
+verification, a hand-rolled sampler, and deferral — and the premise of all three was that NumPyro
+could not run here. It can.
+
+### The lesson, recorded because it is now the third instance
+
+The original ADR was written from package metadata and I called that a plan rather than evidence.
+The amendment was written from **one** install attempt and I called that evidence. It was one
+data point generalised into a property of the library, and it blocked eight requirements on a
+decision that was never needed.
+
+**"I tried it and it failed" is not the same as "it cannot work."** The gap between them is a
+search I skipped twice.
