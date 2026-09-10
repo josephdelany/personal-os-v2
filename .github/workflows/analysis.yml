@@ -57,6 +57,18 @@ jobs:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
           PYTHONPATH: ${{ github.workspace }}
         run: python3 tools/run_recommend.py
+      # Reconstruction (ADR-0134/0135). Runs EVERY REGISTERED method rather than a hardcoded
+      # one, because RULE-13 makes the registry the list — adding a method is a migration, not
+      # an edit here. Today this is a clean no-op in production: 0064/0067 are unapplied, so
+      # `config.reconstruction_methods` is empty and the runner exits 0 saying so. That is the
+      # rule being obeyed, not a failure, and it must not turn the nightly red while OQ-77 is
+      # open. The step is wired NOW so that applying the migrations is all that is left —
+      # a capability nothing ever runs is the exact failure ADR-0134 documents.
+      - name: reconstruction — every registered method (no-op while none is registered)
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          PYTHONPATH: ${{ github.workspace }}
+        run: python3 tools/reconstruct_run.py --all-methods --commit
   scan:
     runs-on: ubuntu-latest
     timeout-minutes: 45

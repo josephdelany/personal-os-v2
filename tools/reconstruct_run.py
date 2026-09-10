@@ -198,9 +198,19 @@ def write(cur, rows, *, core="core"):
     return written
 
 
+def live_methods(cur, *, config="config"):
+    """Every registered, unretired method key. RULE-13: the registry is the list, not this file."""
+    cur.execute(f"""SELECT DISTINCT method_key FROM {config}.reconstruction_methods
+                     WHERE retired_at IS NULL ORDER BY method_key""")
+    return [r[0] for r in cur.fetchall()]
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--method", default="watch_non_wear")
+    ap.add_argument("--all-methods", action="store_true",
+                    help="run every registered method; a clean no-op when none is registered "
+                         "(this is the scheduled mode)")
     ap.add_argument("--core", default="core")
     ap.add_argument("--config", default="config")
     ap.add_argument("--since")
@@ -211,31 +221,49 @@ def main() -> int:
     conn = db.connect()
     cur = conn.cursor()
     try:
-        method = load_method(cur, a.method, core=a.core, config=a.config)
-        coverage: list = []
-        rows = rows_for(cur, method, core=a.core, since=a.since, until=a.until,
-                        coverage=coverage)
-        by_presence: dict = {}
-        for _, r, _, _ in rows:
-            by_presence[(r.presence, r.reason)] = by_presence.get((r.presence, r.reason), 0) + 1
-        print(f"method {method.key} v{method.version} ({method.event_family}), "
-              f"requires {list(method.required_evidence)}")
-        for (presence, reason), n in sorted(by_presence.items()):
-            print(f"  {presence:<14} {reason:<28} {n}")
-        if rows:
-            days = [d for d, _, _, _ in rows]
-            print(f"  span {min(days)} .. {max(days)}")
-        # Coverage is REPORTED, never stored. A day this method cannot speak to is the default
-        # state of every day nobody examined, and a row saying so asserts nothing.
-        if coverage:
-            print(f"  {len(coverage)} day(s) examined without a conclusion "
-                  f"({min(coverage)} .. {max(coverage)}) — reported, not stored")
+        if a.all_methods:
+            keys = live_methods(cur, config=a.config)
+            if not keys:
+                # A CLEAN NO-OP, NOT A FAILURE. This is the scheduled mode, and an empty
+                # registry is the correct state of a database where the method migrations have
+                # not been applied yet — which is exactly production today. RULE-13 says an
+                # unregistered method may not run; running none of them is that rule being
+                # obeyed, so it must not turn the nightly red.
+                print("no registered reconstruction methods — nothing to run (RULE-13)")
+                return 0
+        else:
+            keys = [a.method]
+
+        total = 0
+        for key in keys:
+            method = load_method(cur, key, core=a.core, config=a.config)
+            coverage: list = []
+            rows = rows_for(cur, method, core=a.core, since=a.since, until=a.until,
+                            coverage=coverage)
+            by_presence: dict = {}
+            for _, r, _, _ in rows:
+                by_presence[(r.presence, r.reason)] = by_presence.get((r.presence, r.reason),
+                                                                      0) + 1
+            print(f"method {method.key} v{method.version} ({method.event_family}), "
+                  f"requires {list(method.required_evidence)}")
+            for (presence, reason), n in sorted(by_presence.items()):
+                print(f"  {presence:<14} {reason:<28} {n}")
+            if rows:
+                days = [d for d, _, _, _ in rows]
+                print(f"  span {min(days)} .. {max(days)}")
+            # Coverage is REPORTED, never stored. A day this method cannot speak to is the
+            # default state of every day nobody examined, and a row saying so asserts nothing.
+            if coverage:
+                print(f"  {len(coverage)} day(s) examined without a conclusion "
+                      f"({min(coverage)} .. {max(coverage)}) — reported, not stored")
+            if a.commit:
+                total += write(cur, rows, core=a.core)
+
         if not a.commit:
             print("\nDRY RUN — nothing written. Re-run with --commit.")
             return 0
-        n = write(cur, rows, core=a.core)
         conn.commit()
-        print(f"\nCOMMITTED {n} inferred event(s) with their evidence.")
+        print(f"\nCOMMITTED {total} inferred event(s) with their evidence.")
         return 0
     finally:
         conn.close()
