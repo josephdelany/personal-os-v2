@@ -6549,3 +6549,42 @@ four tests construct each violation in a temp directory and prove the scanner bi
 tests pass; layout 43/43. Requirements proven 248 -> 266 (39%).
 
 **Requirement IDs:** REQ-FIN-240..258. **ADR:** 0109.
+
+## 2026-09-10 (latest+1) — B17 §B.3/§B.4 the categorisation cascade and correction loop
+
+**What was already there:** `categorise.py`, a majority-vote assigner. The six-layer cascade was
+unwritten.
+
+**What now works:** `tools/engines/category_cascade.py`. hash -> merchant -> mcc -> knn -> llm ->
+ask Joe, each running only if every earlier layer abstained. REQ-FIN-091 is an explicit raise
+rather than "the LLM is last in the list", because a list can be reordered and this is the one
+ordering whose violation is invisible in the output: the LLM is cheap and fluent and answers
+everything, so reaching for it early produces a fully-categorised ledger that is 60% right, with
+nothing marking the wrong rows.
+
+MCC capped at 0.60 by the CASCADE, not by the layer, since the layer is caller-supplied. The
+reason is specific: 5812 (Eating Places) vs 5813 (Drinking Places) is set by the ACQUIRER, and
+that is the exact distinction every alcohol figure depends on.
+
+`NeedsReview` has no `category` field at all. A field holding the rejected guess is one a renderer
+eventually reads "just to show something", and REQ-FIN-090 forbids displaying it anywhere.
+
+kNN below 100 confirmed examples still votes and goes to review — the ~95% figure is reported at
+~100 examples and borrowing it below that would cite a result the study did not produce. Ties
+break on distance, not the alphabet.
+
+The LLM prompt is an ALLOWLIST built in one place: a banlist must anticipate every future field
+and the one it misses is the one that leaks.
+
+Correction loop returns the writes rather than performing them, which keeps the module pure and
+makes "in the same transaction" testable. Propagation skips siblings Joe already decided
+individually. A suspended layer is still consulted with its answer routed to review, because
+silencing it would lose the signal that it started working again.
+
+**Evidence:** 24 new tests, no network / no embeddings / no model. 450 local SQL tests pass;
+layout 43/43; never-rule scan clean. Requirements proven 266 -> 286 (42%).
+
+**Not claimed:** wiring the cascade to real layers (an embedding store, a model call) is separate
+work. `categorise.py` is untouched and the two do not yet meet.
+
+**Requirement IDs:** REQ-FIN-080..093, REQ-FIN-100..106. **ADR:** 0110.
