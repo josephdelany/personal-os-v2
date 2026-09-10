@@ -6781,3 +6781,34 @@ explicitly. 450 local SQL tests pass; layout 43/43; never-rule scan clean. Requi
 367 -> 385 (56%). REQ-CAP unproven 66 -> 48.
 
 **Requirement IDs:** REQ-CAP-019..029, 080..086. **ADR:** 0116.
+
+## 2026-09-10 (latest+8) — B16 §B.1/§B.2/§B.3/§G.2 the neuron budget and refusal
+
+**What now works:** `tools/engines/capture_budget.py`.
+
+The cost control's SHAPE is the point: REQ-CAP-042 makes the 10,000-neuron hard fail the
+enforcement mechanism for $0-recurring, with no payment method attached, so the account cannot
+spend money even if this code is wrong. A soft check in application code fails open the day
+somebody edits it; an account with no payment method fails closed forever.
+
+The 9,000/10,000 split reserves the margin EXCLUSIVELY for deferred retries. Without it a busy
+day starves yesterday's backlog permanently — the deferred captures are older, nobody is standing
+over them, and they lose every race. Deferred captures then run first and oldest-first, because
+the oldest is the one closest to being forgotten.
+
+A refusal is never a deletion: audio retained, status `deferred_budget`, retried tomorrow. A
+capture lost to a budget ceiling would be lost to an accounting decision.
+
+Empty is not failed and neither is complete: "" for two seconds is plausibly silence, "" for
+eleven seconds is a transcription that did not work, and treating it as a successful empty
+capture would file real speech as nothing — the failure mode with no symptom, because the row
+looks fine.
+
+`condition_on_previous_text: false` looks like a tuning detail and is not: with it ON, Whisper
+carries context between segments and will continue a sentence it hallucinated, so one bad segment
+contaminates the rest of the transcript. Asserted on every request rather than set once in config.
+
+**Evidence:** 21 new tests. 450 local SQL tests pass; layout 43/43; never-rule scan clean.
+Requirements proven 385 -> 399 (58%). REQ-CAP unproven 48 -> 34.
+
+**Requirement IDs:** REQ-CAP-030..046, 100..107. **ADR:** 0117.
