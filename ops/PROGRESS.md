@@ -6943,3 +6943,42 @@ EFSA term follows the OBSERVED frequency. The claim survives; its confidence doe
 Requirements proven 450 -> 468 (68%). REQ-INF unproven 81 -> 63.
 
 **Requirement IDs:** REQ-INF-300..307, 320..331. **ADR:** 0121.
+
+## 2026-09-10 (latest+13) — B9 §B.1/§B.2/§B.3 multiplicity and serial correlation
+
+**What now works:** `tools/engines/multiplicity.py`. A flat correction over every metric pair is
+a family of tens of thousands, and at that size nothing survives — so nothing is discovered and
+the search may as well not have run. Hierarchical FDR tests a family only if its parent was
+rejected. Plain Benjamini-Yekutieli is refused for the same reason from the other side: a
+harmonic penalty of ~10.9 at m=30,000 is a gate nothing passes.
+
+Pruning happens BEFORE correction, and the ordering is the point: a pair removed before
+correction does not count toward m, so pruning buys power. Pruning afterwards would shrink the
+reported family while leaving the penalty paid.
+
+The family size is passed in and never derived from the list length — deriving it would let a
+crashed test silently make every surviving q-value smaller. The catalog may not be authored after
+results are seen, and a new metric moves family sizes at the NEXT run, never mid-run.
+
+n is never shown alone: a metric with rho=0.6 over 400 days carries the information of about 100
+independent ones, so "n=400" is true and misleading. An estimate without robust SEs or without a
+stored rho and maxlags does not become a findings row.
+
+REQ-INF-026 is the sharpest: a washout without robust inference is forbidden, because discarding
+days around a transition makes the remaining points look cleaner and more independent than they
+are, and with naive inference that RAISED the false-positive rate. A procedure that looks like
+extra rigour while being the opposite is the most dangerous kind.
+
+The null is not a footnote. "41% of specifications were significant" sounds decisive until the
+shuffled data produces 38%, so the renderer refuses to produce one without the other. Same logic
+for a run: twelve discoveries against a null median of three is a result; against eleven it is a
+Tuesday.
+
+**A test that could not fail.** One assertion read `is False or ... is True` — it cannot fail and
+proved nothing. Replaced with real values on both sides of the threshold. Same shape as the
+defects earlier reviews found: a check that cannot fail is decoration and passes every suite.
+
+**Evidence:** 23 new tests. 450 local SQL tests pass; layout 43/43. Requirements proven
+468 -> 490 (72%). REQ-INF unproven 63 -> 41.
+
+**Requirement IDs:** REQ-INF-001..009, 020..026, 030..038. **ADR:** 0122.
