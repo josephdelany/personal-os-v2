@@ -49,7 +49,22 @@ verified in ADR-0093 — Hannaford's 1262.14 over 500 days is drawn almost entir
 `chase_email` lane. The figures are correct about the atoms; the atoms are not a complete
 record of that window, and only this check makes that visible.
 
+## Carried into the answer (0059)
+
+`spend`'s result now includes `sources` — each contributing capture source with its charge
+count and its own first and last day — and `source_discontinuity`, true when more than one
+source fed a single window. Computed from the matched atoms, so it cannot go stale when a new
+source appears, and silent when only one source is involved.
+
+**Two different failures, and only one is a "discontinuity".** Real data made the distinction:
+every one of Hannaford's 30 charges came from `bank_csv` alone and stopped on **2026-05-03**,
+so a "last 500 days" total was drawn from a source that had been dead for 129 of them.
+`source_discontinuity` is correctly *false* there — one source is one source. What exposes it
+is each source carrying its own span, which is why the spans are present even when nothing is
+flagged. A test asserts that.
+
 ## Not done here
 
-Wiring the disclosure into `spend`'s answer text. That is another `ask` migration and belongs
-with the next one; until then this is a tool Joe runs, not a caveat the answer carries.
+The caveat sentence still describes only the merchant-versus-descriptor limitation; the source
+facts live in the structured result rather than in the prose. Putting a coverage clause in the
+sentence needs a template change and belongs with the next `ask` migration.

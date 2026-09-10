@@ -19,6 +19,25 @@
 -- does not change the answer to a question asked today, and a human correction that supersedes
 -- an edge takes effect from when it was made (RULE-10, ADR-0091).
 
+-- ADR-0096, carried into the answer itself. A spend total whose window spans a change of
+-- capture source is not comparable end to end, and the reader cannot know that from the
+-- number. `bank_csv` carried 35-46 charges a month through 2026-05-13 and stopped;
+-- `chase_email` began 2026-06-20 carrying 9-16 — a third of the transactions and a seventh of
+-- the value, with 38 empty days between. A total spanning that boundary is arithmetically
+-- correct about the atoms and misleading about the spending.
+--
+-- It reports the sources that actually contributed to THIS answer, so it cannot go stale when
+-- a new source appears, and it says nothing when only one source is involved.
+CREATE OR REPLACE FUNCTION public._ask_spend_sources(p_atom_ids uuid[])
+RETURNS TABLE (source text, n bigint, first_day date, last_day date)
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = '' AS $fn$
+    SELECT coalesce((regexp_match(a.evidence_span, '(?:legacy|bank):([^;]+)'))[1], 'unknown'),
+           count(*), min(a.subject_day), max(a.subject_day)
+      FROM __CORE__.atoms a WHERE a.id = ANY(p_atom_ids)
+     GROUP BY 1 ORDER BY min(a.subject_day)
+$fn$;
+REVOKE ALL ON FUNCTION public._ask_spend_sources(uuid[]) FROM PUBLIC, anon, authenticated;
+
 DROP FUNCTION IF EXISTS public.ask(text, date, timestamptz);
 
 CREATE OR REPLACE FUNCTION public.ask(p_question text, p_as_of date,
@@ -716,6 +735,14 @@ BEGIN
                  'match_method', CASE WHEN merchant_entity IS NOT NULL
                      THEN 'resolved_merchant' ELSE 'statement_descriptor_contains' END,
                  'currency', term,
+                 'sources', (SELECT jsonb_agg(jsonb_build_object(
+                                 'source', x.source, 'n', x.n,
+                                 'first_day', x.first_day, 'last_day', x.last_day))
+                               FROM public._ask_spend_sources(array_agg(a.id)) x),
+                 -- ADR-0096: more than one capture source inside one window means the figures
+                 -- before and after it are not comparable, and the number alone cannot say so.
+                 'source_discontinuity',
+                     (SELECT count(*) > 1 FROM public._ask_spend_sources(array_agg(a.id))),
                  'total_out', abs(round(coalesce(sum(a.value_point) FILTER (WHERE a.value_point < 0), 0), 2)),
                  'n_out', count(*) FILTER (WHERE a.value_point < 0),
                  'total_in', round(coalesce(sum(a.value_point) FILTER (WHERE a.value_point > 0), 0), 2),

@@ -1954,3 +1954,47 @@ def test_RULE_04_a_link_recorded_after_the_knowledge_time_is_not_used(ask_cur):
     # The link is invisible, so the entity resolves but matches nothing: an honest absence,
     # not a silent fall back to the descriptor (which would have found this charge).
     assert r["tier"] == "INSUFFICIENT", r
+
+
+def test_ADR_0096_an_answer_spanning_two_capture_sources_says_so(ask_cur):
+    """bank_csv carried 35-46 charges a month through 2026-05-13 and stopped; chase_email
+    began 2026-06-20 carrying 9-16. A total spanning that boundary is arithmetically correct
+    about the atoms and misleading about the spending, and the number alone cannot say so."""
+    cur = ask_cur
+    _txn(cur, AS_OF - dt.timedelta(days=20), -10.00,
+         "legacy:bank_csv;merchant=Shop;descriptor=THE SHOP")
+    _txn(cur, AS_OF - dt.timedelta(days=3), -4.00,
+         "legacy:chase_email;merchant=Shop;descriptor=THE SHOP")
+    r = ask(cur, "how much did i spend at the shop last 30 days")
+    stored = stored_result(cur, r)
+    assert stored["source_discontinuity"] is True, stored
+    sources = {s["source"] for s in stored["sources"]}
+    assert sources == {"bank_csv", "chase_email"}, sources
+
+
+def test_ADR_0096_a_single_source_answer_claims_no_discontinuity(ask_cur):
+    """A detector that fires on healthy data is noise, and noise is ignored exactly when it
+    matters."""
+    cur = ask_cur
+    for days in (20, 10, 3):
+        _txn(cur, AS_OF - dt.timedelta(days=days), -5.00,
+             "legacy:bank_csv;merchant=Shop;descriptor=THE SHOP")
+    stored = stored_result(cur, ask(cur, "how much did i spend at the shop last 30 days"))
+    assert stored["source_discontinuity"] is False
+    assert [s["source"] for s in stored["sources"]] == ["bank_csv"]
+
+
+def test_ADR_0096_the_sources_carry_their_own_span_so_a_truncated_window_is_visible(ask_cur):
+    """The sharper case, found on real data: every Hannaford charge came from ONE source and
+    stopped on 2026-05-03, so a "last 500 days" total was drawn from a source that had been
+    dead for 129 of them. `source_discontinuity` is correctly false there; the span is what
+    exposes it, so it must be present even when nothing is flagged."""
+    cur = ask_cur
+    _txn(cur, AS_OF - dt.timedelta(days=25), -10.00,
+         "legacy:bank_csv;merchant=Shop;descriptor=THE SHOP")
+    _txn(cur, AS_OF - dt.timedelta(days=24), -10.00,
+         "legacy:bank_csv;merchant=Shop;descriptor=THE SHOP")
+    stored = stored_result(cur, ask(cur, "how much did i spend at the shop last 30 days"))
+    (source,) = stored["sources"]
+    assert source["last_day"] == str(AS_OF - dt.timedelta(days=24)), source
+    assert source["n"] == 2
