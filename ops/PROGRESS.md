@@ -6876,3 +6876,37 @@ Requirements proven 408 -> 429 (63%). REQ-TIER unproven 23 -> 2.
 
 **Requirement IDs:** REQ-TIER-002..004, 010..016, 021..027, 030..034, 044..045, 051..052.
 **ADR:** 0119.
+
+## 2026-09-10 (latest+11) — B19 §F.1/§F.2 the generator gate
+
+**The distinction the section protects:** a directed edge from PCMCI+ or VAR-LiNGAM LOOKS like a
+finding and is not — it is a hypothesis with an arrow drawn on it. Every generator output goes to
+`hypothesis_register` at CANDIDATE and no code path makes it a `findings` row, because a findings
+row is what every surface reads.
+
+Three leaks, closed separately: a finding surface refuses AND logs a `candidate_leak` (a surface
+that quietly shows nothing looks identical to one with nothing to show); the EXPLORATORY surface
+is not a leak at all, because the row is not the problem, the surface is; and a language-layer
+prompt is the quietest and worst, because a model handed a candidate edge writes about it in the
+same voice it uses for a confirmed finding.
+
+The coverage floors are hard because below 200 days a generator STILL RETURNS EDGES — they are
+just wrong, and they arrive with a p-value. The floor exists because the method cannot refuse.
+REQ-INF-412 says an on-demand run applies every floor a scheduled run would, so there is ONE
+check_run and `on_demand` changes nothing except adding the RULE-17 gate.
+
+REQ-INF-422 checks the PROPERTY rather than the name: scale non-invariance is the disqualifier
+(varsortability > 0.94 means the graph is an artifact of the variables' units — change minutes to
+hours and the arrows move), so a scale-invariant continuous learner passes.
+
+REQ-INF-429/430 are build failures rather than review comments, because a method that is merely
+discouraged gets used by whoever is in a hurry. A test runs the import check over every file in
+tools/ to enforce "anywhere in the codebase" literally.
+
+**Evidence:** 25 new tests. 450 local SQL tests pass; layout 43/43. Requirements proven
+429 -> 450 (66%). REQ-INF unproven 100 -> 81.
+
+**Not claimed:** no generator is wired; tigramite and the LiNGAM packages are not dependencies,
+and adding them would need the ADR-0103 treatment — installed and exercised before adoption.
+
+**Requirement IDs:** REQ-INF-400..413, 420..431. **ADR:** 0120.
