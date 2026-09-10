@@ -1,6 +1,16 @@
 -- 0049_ask_core.sql — B11.1: Ask, the deterministic core (REQ-ASK-001..012, 020..032; ADR-0053).
--- DRAFT: B11 is not complete and this migration is not ready for live apply.
--- See docs/adr/0053-ask-deterministic-core.md for remaining work and test scope.
+-- APPLIED 2026-09-09 under Joe's explicit authorization. The former "DRAFT / not ready for
+-- live apply" header predated four adversarial review rounds and 155 passing Ask tests; it is
+-- replaced rather than deleted, because what it warned about is still PARTLY true and a reader
+-- deserves the specific version:
+--   * `spend` answers totals and traces, but its MERCHANT and CATEGORY semantics are not
+--     implemented and are held on B14's entity resolution (ADR-0062). It refuses rather than
+--     guesses; it does not fabricate a merchant.
+--   * Historical replay after a CORRECTION is not proven (OQ-45). Point-in-time cutoffs are
+--     enforced on atoms; the panel has no per-row recorded_at to cut on.
+-- Applying it is safe because every unimplemented path REFUSES: the function is owner-only,
+-- SECURITY DEFINER, revoked from anon, and nothing calls it on a schedule.
+-- See docs/adr/0053-ask-deterministic-core.md for test scope.
 -- A question in, a traced and tiered answer out, with no model anywhere on the path (RULE-15).
 --
 -- NAME COLLISION, stated rather than worked around: `public.ask(text)` already exists — it belongs to the

@@ -6234,3 +6234,30 @@ are unwritten.
 INV-2, RULE-08, RULE-12, ADR-0019, ADR-0085.
 
 **Commits:** 47c918f, 90090c7, and this one.
+
+## 2026-09-09 (later) — five migrations applied; Ask is live; the devices double-count
+
+**Attempted:** apply the five authorised migrations; verify live behaviour; answer the three
+measurement questions from data rather than opinion.
+
+**Works, in production.** 0049 (Ask core), 0050 (nutrition), 0052 (neuron ledger), 0053
+(source inventory + derivation catalogue), 0054 (inferred events) applied in dependency order,
+invariants ALL PASS after each. `public.ask(text, date)` is live alongside the old stack's
+`ask(text)` — no collision, as designed. Real questions answered correctly: an untracked
+metric gets "I do not track that", an uncomputable shape gets "I cannot compute that."
+`config.source_inventory` holds 113 rows, `config.derivation_catalogue` 25, and
+`config.v_uncatalogued_measures` is empty.
+
+**The finding.** The Watch and iPhone do NOT hand off. Each records the whole day: Watch alone
+1.01x a one-device day, iPhone alone 0.97x, their sum 1.98x. Every summed activity total from
+2026-07-01 to 2026-08-21 is about double. Joe ruled Watch-preferred, never sum. Sleep is
+settled from non-overlapping intervals: core+deep+rem+unspecified, excluding awake.
+
+**Does not work.** `analysis.f_daily_panel` still reads legacy sources, so Ask returns
+INSUFFICIENT for metrics that have 33,355 atoms sitting in `core.atoms`. That is now the
+single highest-value unit and it is no longer blocked. `config.v_time_specification_violations`
+correctly reports 14,640 accumulating atoms stored as instants (OQ-54's structural half).
+
+**Requirement IDs:** REQ-ASK-001..012/020..032, REQ-REC-001..014, REQ-NUT-*, RULE-08, RULE-12.
+
+**Commits:** 09cc041, 167a5bb, b9dbc52, 75bd46e, 56e872e, and this one.
