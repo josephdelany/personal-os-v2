@@ -272,3 +272,72 @@ every number above — has ever executed them.
 The combined revision and its outcomes are main's to record once the merge and the registration
 land. The number that settles it is the one asked for in §2: `python3 tools/test_local_sql.py`
 reporting those 30 as **passed**, not skipped.
+
+---
+
+## 9. THE COMBINED REVISION AND ITS OUTCOMES — measured, not inferred
+
+§8 said the combined revision did not exist yet. It does now, and this is it.
+
+**Combined revision `c4628db`**, on local branch `integration/combined-probe-2`
+(worktree `/Users/default/PERSONAL_OS_V2_integration`). Not pushed. This is a **measurement
+probe**, not a proposed integration — main runs its own integration branch, and the two agree
+where they overlap (see the cross-check below).
+
+```
+c4628db = main 5a3f612
+        + work/nutrition-finish 5eb9f3b
+        + tests/test_nutrition_usda.py registered in the shared harness
+        - WORKER_BRIEF.md  (main's ruling: it collided add/add across all three worktrees)
+```
+
+| check | runner | result |
+|---|---|---|
+| **disposable-DB suite** | `tools/test_local_sql.py` — what CI's `local-sql` job runs | **720 passed, 1 skipped, 0 failed** |
+| the 30 socket-gated tests | `--tests tests/test_nutrition_usda.py` | **59 passed, 0 skipped** |
+| deterministic suite | `env -u SUPABASE_DB_URL pytest -q` | **1001 passed, 581 skipped, 0 failed** |
+| layout | `tools/validate_layout.py` | **43 / 43** (1 pre-existing WARN) |
+| nutrition acceptance | `tools/nutrition_acceptance.py` | **7 of 7** |
+
+**The number §2 asked for is settled: the 30 run and pass on the integrated tree.** Main
+measured `59 passed, 0 skipped` independently on its own integration branch and reported it
+back; this probe measured the same figure on a separately constructed tree. Two independent
+constructions agreeing is stronger than either alone.
+
+The single skip is `tests/test_derive_visits.py:123` — a production check requiring
+`PERSONAL_OS_PRODUCTION_CHECKS=1`, deliberately never run by the disposable suite. Of the 581
+deterministic skips exactly **2** are dependency skips (`numpyro`, pre-existing, ADR-0103).
+
+### Two corrections this worker owes, both caught by measurement
+
+**(a) "Nine registrations were lost" — WRONG, and withdrawn.** An earlier probe commit claimed
+main's integration dropped nine harness registrations. The ordering is the reverse:
+
+```
+8414e05  18:13:59  R2: one event per session        26 entries
+5a3f612  18:18:08  Integrate work/release-evidence  35 entries   (8414e05 is its ancestor)
+```
+
+`5a3f612` is the commit that **added** them. This worker read `session-21-recovery-and-ask`
+while it was moving, at a snapshot taken four minutes before the integration commit landed,
+and asserted a regression from it. Main integrated the harness correctly. The correction is
+committed on `integration/combined-probe`; the probe was rebuilt from `5a3f612`.
+
+**(b) "Three tests fail on the combined tree" — WRONG, and it was my runner.** A scratch script
+of mine started its disposable server without `-c timezone=UTC`, which
+`tools/test_local_sql.py` has always passed. Three tests in `tests/test_resolve_watches.py`
+then failed with `46 != 45` and `21 != 20` — day counts, because a server on the machine's
+local zone shifts every server-side `timestamptz::date` by the UTC offset.
+
+Isolated properly: **this project's own harness, driving that same un-pinned server, reproduced
+all three failures**; adding the single flag made all 18 pass. So it was never the branch and
+never the tests — it was one missing flag in my runner. `tools/nutrition_acceptance.py` had the
+same omission and is fixed at `5eb9f3b`.
+
+**`tools/reconstruction_acceptance.py:278` starts its server without the flag too.** Not this
+worker's file; raised with main rather than changed here. Any test with server-side date
+arithmetic will be one day out under it.
+
+The general lesson, which is the same one in both corrections: a number read off a tree or a
+runner that differs from the authoritative one is not evidence about the branch. Both times the
+fault was in how I measured, and both times only re-measuring found it.
