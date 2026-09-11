@@ -108,7 +108,7 @@ production.
 | R1 purchase vs consumption | **OPEN** | unchanged. Needs B14 entity resolution. A charge is registered evidence and a portion is not derivable from it — **a purchase is not a consumption**, and no method here will be allowed to equate them |
 | R2 training history without sets | **STORED** (2026-09-11) | **upgraded from OPEN, and the old reason was wrong.** It was recorded as *pending observation*; the 32 sessions were in the export all along and `apple_health.py` counted and discarded every one. 0070 registers `training_session` and the three `workout_*` measures; `tests/test_workout_session_r2.py` (19 tests) walks export -> atom -> registered method -> stored event. Against the real export on a disposable server: **30 events from 32 sessions, 2023-02-22..2026-08-21, all DESCRIPTIVE**. **Load, reps and volume remain refused** — no set has ever been logged and `strength.py` stays correctly idle. See ADR-0138, OQ-81 |
 | R3 outing with contradicting source | **STORED** | `case_contradictory_evidence` — level contradiction resolves to `unknown`/`contradicted` with the ambiguity disclosed, executed against a database |
-| R4 recurring service and usage | **OPEN** | unchanged. Needs B17 finance; the logging-outage rule is not implemented. An outage is not proof of nonuse |
+| R4 recurring service and usage | **STORED** (2026-09-11) | the logging-outage rule is implemented and structural. `usage_status.from_evidence` returned `unused` on any stale evidence with no concept of whether anything was watching; it now requires `source_last_seen`, and 0073's `service_usage` makes `usage_observation_window` REQUIRED evidence that a dead source cannot produce — so there is no branch from an outage to a conclusion. `unused` is reported, never stored: nonuse is the absence of a class of events, not an event. 11 tests through `tools/service_usage.py`, the first caller `recurrence.py` and `usage_status.py` have ever had. See ADR-0140 |
 | R5 dependent corroboration | **STORED** | `case_duplicated_evidence` (4 citations, 1 origin, stays DESCRIPTIVE) and `test_REQ_REC_008_one_export_read_twice_is_one_origin_not_two`. This is the defect that reached production output before it was caught |
 | R6 retrospective correction | **STORED** | `test_REQ_REC_011...`, `test_INV_4_a_replay_sees_the_interpretation_that_was_current_THEN`, and `test_INV_4_a_search_pinned_before_the_correction_still_answers_what_was_believed_then` — the same query at two knowledge bounds returns two different answers, through `search_record` |
 | R7 unavailable detail | **STORED** | **upgraded from PARTIAL.** 0068 adds `public.derivation_support(measure)`: a catalogued measure returns its whole derivation including the missingness rule; an uncatalogued one is refused with a disposition, and `substitute` is present and always null. `test_R7_a_refusal_never_hands_back_a_substitute_measure` is the scenario — asked for screen hours with only visit timestamps, it must not answer with visits |
@@ -118,7 +118,7 @@ production.
 | R11 discovery across history | **OPEN** | unchanged. M5 |
 | R12 genuinely no evidence | **STORED** | `case_unknown_presence` and `test_REQ_REC_009_a_day_with_no_capture_at_all_is_unknown_not_a_non_wear_episode` — missing evidence names the missing inputs and never becomes `did_not_occur` |
 
-**Eight STORED, one PARTIAL, three OPEN** (2026-09-11).
+**Nine STORED, one PARTIAL, two OPEN** (2026-09-11, second boundary).
 
 The sentence that stood here — *"the four OPEN cases each depend on a build unit or on
 observations that do not exist yet, not on a reconstruction decision, R2 in particular being
@@ -126,10 +126,13 @@ pending observation rather than missing implementation"* — **was wrong about R
 The 32 sessions existed in the export the whole time; the importer counted and discarded them
 (ADR-0138). It was missing implementation, and the framing had made it invisible.
 
-That is worth keeping in view for the three that remain. R1 and R4 are recorded as waiting on
-B14 entity resolution and B17 finance; **R11 is recorded as waiting on M5 and has no stated
-dependency at all.** Each deserves the same check R2 got — does the evidence already exist and is
-something discarding it — before the word "blocked" is used again. Recording a case here does not
+That check has now been run on R4 as well, and it found the same shape: R4 was recorded as
+waiting on B17 finance, and what it actually needed was a rule the engine did not have. The
+engines were written, tested and callerless, and the defect was live in one of them.
+
+**Two remain. R1 is recorded as waiting on B14 entity resolution; R11 is recorded as waiting on
+M5 and has no stated dependency at all.** Both get the same check before the word "blocked" is
+used again: does the evidence already exist, and is something discarding it? Recording a case here does not
 authorise skipping it (ADR-0084).
 
 ## Acceptance status — 2026-09-09 (B14R steps 1-4)

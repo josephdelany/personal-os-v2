@@ -1,4 +1,126 @@
-# Checkpoint — 2026-09-11
+# Checkpoint — 2026-09-11 (integration boundary, `5455c69`)
+
+All three workers have delivered and are integrated. **Five statuses stay apart: implemented /
+tested / integrated / deployed / observed. Nothing in this session reached the last two.**
+
+## VERIFIED ON THE COMBINED TREE at `5455c69`
+
+Every figure below was regenerated here, not inherited from a worker branch, with
+`SUPABASE_DB_URL` removed from the environment (OQ-80 — a bare `pytest` in this repo runs
+against production).
+
+| check | result |
+|---|---|
+| **requirements with a named test that ran and passed** | **673 of 685** (was 635 at the session checkpoint) |
+| deterministic suite | **1029 passed, 605 skipped, 0 failures, 0 errors** |
+| disposable SQL suite | **772 passed, 1 skipped** (was 527) |
+| layout | 43 / 43 |
+| migration chain | clean from empty, **72 migrations / 589 statements** |
+| reachability | 245 scheduled, 54 cli, 361 tests-only, 25 none |
+| engines with no caller | **34 of 56** (was 37 of 55) |
+
+**673 is both higher than the old 635 and reproducible without production**, which the old 666
+was not. The remaining 12 are all skips — no failures, no errors, no vacuous tests, nothing
+uncollected.
+
+## THE FINDING THAT MATTERS MOST: THE ALARM HAS NEVER RUNG
+
+Found by the capture worker, verified independently here against GitHub before being accepted.
+
+`.github/workflows/freshness.yml` is the one mechanism built to stop a repeat of 2026-07-28,
+where every scheduled job wrote `status='ok'` for 43 days while its inputs were dead.
+**It has never fired.** GitHub delivers `schedule` events only from the default branch; the
+default branch is `v2-day1`; the file has never reached it.
+
+It is worse than that, and this was measured rather than assumed:
+
+- **`tests.yml` is registered but absent from the default branch.** Its cron has never fired
+  either. Last run: **2026-09-03, `event=push`, branch `main`** — eight days ago.
+- **The nightly `analysis.yml` that IS firing is `v2-day1`'s copy**, which runs `run_analysis`,
+  `run_resolve` and `run_scan` only — not `run_confirm`, `run_recommend`, `reconstruct_run` or
+  the clarification dispatcher.
+- So the checkpoint's "223 scheduled" reachability figure — now 245 — is computed from workflow
+  files in the working tree, **four of which are not on the default branch at all.**
+  Reachability was never claimed to mean deployed; the gap is simply larger than it looks.
+
+The thing built to detect silent failure failed silently. Same class of error, one level up.
+
+## INTEGRATED THIS BOUNDARY
+
+| from | what landed |
+|---|---|
+| **main** | R2 workout-session reconstruction (0070); R4 service usage (0073); `food_aliases`/`portion_aliases` (0071); rate-limit persistence (0072); the clarification dispatcher wired into the nightly |
+| **Worker 1** evidence | eight test modules that were applying the migration chain **inside production** on every CI run — the real cause of OQ-78's 38 timeouts; the guard is now structural and a lint stops a ninth; JUnit artifacts and `tools/evidence_manifest.py` |
+| **Worker 2** nutrition | the two USDA FoodData Central legs (previously `UnconfiguredLeg`, a class whose only behaviour is to raise, while being the 1st and 2nd reference sources); REQ-NUT-017 `accept_correction`, without which Joe's review list could never be emptied |
+| **Worker 3** capture | the drop-folder acceptance harness; freshness workflow; `ops/clarification_prompts.py`; `--ops`/repeatable `--file` on `tools/import_drop.py` |
+
+**Three ADR-number collisions.** 0138 (nutrition → 0139), 0140 (capture → 0141), plus ADR-0091 →
+0094 last session. A worktree cannot reserve a number; `docs/WORKER_OWNERSHIP.md` now records
+ownership and every collision. `WORKER_BRIEF.md` is no longer on the integration branch — all
+three worktrees tracked it at one path, so every merge collided add/add.
+
+## R2 AND R4, THE TWO PRODUCT SCENARIOS CLOSED
+
+**R2 — the training history was in the file all along.** `apple_health.py` counted every
+`<Workout>` element and discarded it. 32 sessions, 25 of them strength, 2023-02-26 to
+2026-06-30. The previous checkpoint called this *"pending observation, not missing
+implementation"*; it was the opposite. **A counter recording a discard is not a deferral.**
+Against the real export on a disposable server: 93 atoms, **32 sessions → 32 events, 1:1**,
+all DESCRIPTIVE, 0 strength set atoms created, 0 `did_not_occur`.
+
+  *The 32→30 question, since it was asked:* a first version grouped by subject day and produced
+  30 events. Neither loss nor deduplication — 2023-04-05 carries a 120.31-minute lift at 14:06
+  and a 7.83-minute run at 21:10, and 2023-09-23 carries a 39.80-minute lift and a 27.72-minute
+  run. Every atom was stored either way, but an event count was silently two short of a session
+  count. Now one event per session, each timed by its own span and citing its own atom.
+
+**R4 — an outage is not proof of nonuse.** `usage_status.from_evidence` returned `unused`
+whenever evidence was older than the threshold, with no concept of whether anything had been
+watching. The Watch stopped 2026-08-21 and the bank CSV died 2026-05-13, so the largest silences
+here are this system's own instruments failing. `usage_observation_window` is now **required
+evidence** the gatherer emits only when something was demonstrably watching, so there is no
+branch from a dead sensor to a conclusion — the refusal is structural, not a check someone
+remembered. `unused` is reported and never stored: nonuse is the absence of a class of events,
+not an event.
+
+INTENT_COVERAGE: **nine STORED, one PARTIAL, two OPEN** (R1, R11).
+
+## DECISIONS THAT ARE GENUINELY JOE'S
+
+Everything else below the line is engineering work and is not waiting on him.
+
+| # | decision | recommendation | consequence of not deciding |
+|---|---|---|---|
+| **OQ-82** | RULE-01's fixture exception says "roll back the whole transaction". `tools/capture_acceptance.py` COMMITS inside a disposable server it creates and destroys. **A compliant version cannot exist**: case 5 is two concurrent processes, and two processes cannot share an uncommitted transaction, so an overlap test inside one would pass against a completely broken implementation | **amend**, exact text in OQ-82 | the two-process overlap and file-settling behaviour have **no executable evidence anywhere**. Until ruled, that harness counts toward no requirement |
+| **workflow publication** | `freshness.yml` and `tests.yml` must reach the default branch to ever fire. **Switching the default to `main` would make it worse** — `main` is at migration 0048 against this branch's 0073, so `tests.yml` would fire against B10-era code | push this branch to `v2-day1` **after** the migrations are applied, not before | the freshness alarm and the nightly suite never run |
+| **migrations 0055–0073** | nineteen, plus the transaction backfill and resolver/link/category population | apply, then publish the workflows | everything built since the September import stays unreachable in production |
+| **launchd activation** | `ops/capture_schedule.py --emit-launchd` installs nothing; `RunAtLoad` false. The first firing is a production write (ADR-0094) | Joe runs the documented steps in `docs/CAPTURE_ACTIVATION.md` §3 | the local import never runs unattended |
+| **OQ-81** | one strength record is 0.175 min / 0.54 Cal — started, paused 11 seconds in, closed 10.5 hours later | no threshold; show duration beside any count | nothing blocked; frequency counts include it |
+| still open | OQ-32, OQ-55, OQ-57, OQ-59, OQ-60, OQ-61, OQ-62, OQ-67, OQ-74, OQ-75, OQ-76; the USDA `api.data.gov` key; Gmail OAuth; `role='lever'` on one metric; the Log Workout shortcut; the review sheet (40 ticks, 157 names) | | |
+
+**OQ-78 can close** on its own recommendation (a): the 38 timeouts were eight test modules
+building schema inside production, now structurally prevented.
+
+## ENGINEERING WORK REMAINING — NOT BLOCKED, NOT WAITING ON JOE
+
+- **25 of the 28 required runtime capabilities still have no caller.** Three were connected this
+  session (`recurrence`, `usage_status`, `vision_and_prompts`) — each because a product scenario
+  needed it, never to move the statistic. The largest cluster is capture's own serving path:
+  `ingest_endpoint` (a complete dependency-injected REQ-CAP-003..018 endpoint with no HTTP
+  host), `extraction`, `capture_budget`, `capture_resilience`. **Assigned to Worker 3.**
+- **`nutrition_display.py` still has no caller** — priority 1 of Worker 2's brief, unstarted; its
+  session was scoped to the USDA path. B12 §D.4/§E.3/§G.1 remain tested and unreachable.
+  **Assigned to Worker 2.**
+- `remember_alias` onto the new `food_aliases` table, then a migration removing the bridge rows
+  and a CHECK so `foods_cache` can never carry `alias_of` again. **Worker 2**, requested.
+- R1 (purchase vs consumption) and R11 (discovery across history) — **main**.
+- `tools/import_drop.py` cannot be run against a disposable server: `lib/db.connect()` is
+  TLS-to-host only and the local harness disables TCP, so the real import CLI is exercisable
+  only against production. **Worker 1.**
+- **RULE-29 finding:** `tools/engines/resolve_merchants.py:7` carries a real merchant name from
+  Joe's transactions in a docstring, in a repo intended to be public. Pre-existing.
+
+# Superseded checkpoint — 2026-09-11 (R2)
 
 Session 21 continues. Starting revision `48745d9`, tree clean. Four worktrees from prior
 sessions were inspected and **fully harvested** — every file they carry is in HEAD, and the
