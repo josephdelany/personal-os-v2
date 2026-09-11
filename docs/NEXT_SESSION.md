@@ -1,4 +1,28 @@
-# Checkpoint — 2026-09-11 (integration boundary, `5455c69`)
+# Checkpoint — 2026-09-11 (integration boundary, `2e9f547`)
+
+## LATE ADDITION: five disposable servers were running on the wrong clock
+
+Reported by the nutrition worker, verified here, and it was **five files, not the two they
+found**. Only `tools/test_local_sql.py` passed `-c timezone=UTC`. Measured rather than argued:
+a server left on the machine's zone returns **2026-09-10** for
+`'2026-09-11 02:00:00+00'::timestamptz::date`, and 2026-09-11 with the flag. Production runs
+UTC, so every server-side date cast under those harnesses was a day out.
+
+**It fails open**, which is why it is now a lint and not a convention: none of the harnesses'
+own cases exposed it, because they use explicit `+00` timestamps. The harness is wrong and
+every test inside it passes, until one does date arithmetic.
+`test_every_disposable_server_is_pinned_to_UTC` found `verify_migration_chain.py` — which
+nobody had suspected — and was verified against a planted sixth harness.
+
+Re-verified after the fix: deterministic **1030 passed / 605 skipped / 0 failures**; disposable
+SQL **772 passed, 1 skipped**; **673 of 685**; layout 43/43; chain clean at 72 migrations.
+Acceptance tools under the corrected servers: reconstruction **7 of 7**, nutrition **7 of 7**,
+capture **10 of 10**.
+
+**OQ-82 narrows by one.** `tools/nutrition_acceptance.py` rolls back every case and commits
+nothing, so it is not in the class the capture worker disclosed. **Only
+`tools/capture_acceptance.py` is**, and only it is excluded from counting toward requirements.
+
 
 All three workers have delivered and are integrated. **Five statuses stay apart: implemented /
 tested / integrated / deployed / observed. Nothing in this session reached the last two.**
