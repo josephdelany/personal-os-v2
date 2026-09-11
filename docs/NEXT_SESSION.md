@@ -85,7 +85,51 @@ So R2 splits into two halves that the old status merged into one wrong word:
 | Load, reps, volume, e1RM | **Genuinely unobserved** | no set has ever been logged; the Log Workout shortcut is not installed |
 
 **Missing sets prohibit inventing load and reps. They do not prevent reconstructing that a
-session occurred.** R2 is implementable at this revision and is queued as the next unit.
+session occurred.**
+
+## UNIT CLOSED: R2 IS STORED (`f65d863`, ADR-0138, migration 0070)
+
+| status | evidence |
+|---|---|
+| **implemented** | `tools/importers/apple_health.py` yields workout atoms instead of discarding them; `migrations/0070` registers three `workout_*` measures and the `training_session` method; `tools/reconstruct_run.py` gained its gatherer and explicit per-method dispatch |
+| **test evidence** | **19 tests** in `tests/test_workout_session_r2.py`. Deterministic **947 passed / 549 skipped / 0 errors** (was 937/540). Local SQL **546 passed** (was 527). Layout **43/43**. Chain clean from empty, **69 migrations / 575 statements** |
+| **falsification** | every one of the 19 verified to FAIL against the unfixed tree — the importer tests against the old parse loop, all nine SQL tests against 0070 with the method registration stripped (RULE-13 refuses an unregistered method) |
+| **real data** | against the actual export on a disposable PostgreSQL 17: 93 workout atoms through the importer's own `insert_atoms`, **30 training-session events from 32 sessions**, 2023-02-22..2026-08-21, **all DESCRIPTIVE**, **0** strength set atoms created, **0** `did_not_occur` rows. Rolled back |
+| **integrated** | on `session-21-recovery-and-ask` |
+| **deployed** | **NO.** 0070 extends the unapplied stack to **0055–0070** |
+| **observed** | **NO.** Nothing has reached production |
+
+Three things this unit is deliberately NOT claiming:
+
+- **`tools/engines/strength.py` is still idle and still has no caller.** e1RM, volume and ACWR
+  need per-set records; this produces none. Connecting it is not part of R2 and was not done.
+- **Every session is DESCRIPTIVE and that is the correct answer**, not a defect to tune away. The
+  same day's exercise minutes come out of the same export and share its `origin_group`, so
+  REQ-REC-008 counts them once. A gym `place_visit` is a different capture path and does promote
+  — tested — and this system has never captured one.
+- **The reachability statistic barely moved**, because connecting engines was never the point.
+  R2 connected no engine from the callerless 28; it added a capture path and a method.
+
+### Two findings from this unit that outlive it
+
+- **A counter recording a discard is not a deferral.** `workout_deferred_to_B18` reported a
+  number nobody read while the code lost data permanently at import time. Worth checking the
+  other `Counters.bump` reasons for the same shape.
+- **`tools/import_drop.py` cannot be run against a disposable server.** `lib/db.connect()` builds
+  a TLS connection to a host and has no unix-socket path, while `tools/test_local_sql.py`
+  deliberately disables TCP. So the real import CLI can only be exercised against production.
+  Verification here had to call `insert_atoms` directly, which is the same writer but not the
+  same entry point. This is a genuine gap in the acceptance story and it belongs to Worker 1.
+
+## NEXT UNIT: R4 — recurring service and usage with a logging outage
+
+Chosen because its engines are already written and its defect is already visible.
+`tools/engines/usage_status.py` and `recurrence.py` are complete, correct and callerless, and
+`usage_status.from_evidence` has the exact bug R4 exists to prevent: it returns `unused` whenever
+the newest evidence is older than `unused_after_days`, **with no concept of a logging outage.**
+Given that the Watch stopped in five stages ending 2026-08-21 and the bank CSV export died
+2026-05-13, that path will call things unused on the strength of a dead logger. R4's requirement
+is precisely *"an outage is not proof of nonuse"*.
 
 # Superseded checkpoint — 2026-09-10
 

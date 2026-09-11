@@ -106,7 +106,7 @@ production.
 | Case | Status | Evidence |
 |---|---|---|
 | R1 purchase vs consumption | **OPEN** | unchanged. Needs B14 entity resolution. A charge is registered evidence and a portion is not derivable from it — **a purchase is not a consumption**, and no method here will be allowed to equate them |
-| R2 training history without sets | **OPEN** | unchanged. Needs B18 workout import; 32 workouts were deferred by the 2026-09-09 import. **Pending observation, not missing implementation** |
+| R2 training history without sets | **STORED** (2026-09-11) | **upgraded from OPEN, and the old reason was wrong.** It was recorded as *pending observation*; the 32 sessions were in the export all along and `apple_health.py` counted and discarded every one. 0070 registers `training_session` and the three `workout_*` measures; `tests/test_workout_session_r2.py` (19 tests) walks export -> atom -> registered method -> stored event. Against the real export on a disposable server: **30 events from 32 sessions, 2023-02-22..2026-08-21, all DESCRIPTIVE**. **Load, reps and volume remain refused** — no set has ever been logged and `strength.py` stays correctly idle. See ADR-0138, OQ-81 |
 | R3 outing with contradicting source | **STORED** | `case_contradictory_evidence` — level contradiction resolves to `unknown`/`contradicted` with the ambiguity disclosed, executed against a database |
 | R4 recurring service and usage | **OPEN** | unchanged. Needs B17 finance; the logging-outage rule is not implemented. An outage is not proof of nonuse |
 | R5 dependent corroboration | **STORED** | `case_duplicated_evidence` (4 citations, 1 origin, stays DESCRIPTIVE) and `test_REQ_REC_008_one_export_read_twice_is_one_origin_not_two`. This is the defect that reached production output before it was caught |
@@ -118,10 +118,19 @@ production.
 | R11 discovery across history | **OPEN** | unchanged. M5 |
 | R12 genuinely no evidence | **STORED** | `case_unknown_presence` and `test_REQ_REC_009_a_day_with_no_capture_at_all_is_unknown_not_a_non_wear_episode` — missing evidence names the missing inputs and never becomes `did_not_occur` |
 
-Seven STORED, one PARTIAL, four OPEN. **The four OPEN cases each depend on a build unit or on
-observations that do not exist yet, not on a reconstruction decision** — R2 in particular is
-pending observation rather than missing implementation. Recording them here does not authorise
-skipping them (ADR-0084).
+**Eight STORED, one PARTIAL, three OPEN** (2026-09-11).
+
+The sentence that stood here — *"the four OPEN cases each depend on a build unit or on
+observations that do not exist yet, not on a reconstruction decision, R2 in particular being
+pending observation rather than missing implementation"* — **was wrong about R2 and is withdrawn.**
+The 32 sessions existed in the export the whole time; the importer counted and discarded them
+(ADR-0138). It was missing implementation, and the framing had made it invisible.
+
+That is worth keeping in view for the three that remain. R1 and R4 are recorded as waiting on
+B14 entity resolution and B17 finance; **R11 is recorded as waiting on M5 and has no stated
+dependency at all.** Each deserves the same check R2 got — does the evidence already exist and is
+something discarding it — before the word "blocked" is used again. Recording a case here does not
+authorise skipping it (ADR-0084).
 
 ## Acceptance status — 2026-09-09 (B14R steps 1-4)
 
