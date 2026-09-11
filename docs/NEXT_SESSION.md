@@ -1,4 +1,93 @@
-# Checkpoint — 2026-09-10
+# Checkpoint — 2026-09-11
+
+Session 21 continues. Starting revision `48745d9`, tree clean. Four worktrees from prior
+sessions were inspected and **fully harvested** — every file they carry is in HEAD, and the
+capture worker's ADR-0091 is present as the renumbered `docs/adr/0094-scheduled-local-import.md`.
+Nothing unintegrated is at risk; none was discarded.
+
+Three new worktrees exist at `48745d9`:
+`work/release-evidence`, `work/nutrition-finish`, `work/capture-finish`.
+
+## FIRST TASK COMPLETE: the 37 unreachable engines are triaged
+
+Measured with `tools/evidence_report.module_reach()` at `48745d9`, with the reverse import
+graph supplying each module's non-test callers. **55 engine modules: 9 scheduled, 9 cli,
+37 tests-only.** The 37 were classified by reading each module's public API and its brief,
+not by counting lines.
+
+**The headline is worse than "37 modules have no entry point": 28 of the 37 are required
+runtime capabilities with no caller.** Only 9 are legitimately callerless.
+
+| Class | n | Modules |
+|---|---|---|
+| **(A) Required runtime capability, not connected** | **28** | ingest_endpoint, extraction, capture_budget, capture_resilience, vision_and_prompts, compliance, email_ingest, dedupe, recurrence, usage_status, money_position, cooccurrence, category_cascade, finance_insights, habit_rhythm, nutrition_display, strength, sleep, workout_contract, chains, regimes, trials, forecast_ledger, multiplicity, preregistration, interrupted_series, render_pipeline, bayes_model |
+| (B) Supporting library, caller is another engine | 2 | calibration (←forecast_ledger), tier_contract (←forecast_ledger, interrupted_series, multiplicity) |
+| (C) Validation-only contract — the test suite IS the enforcement | 6 | finance_never, finance_presentation, generator_gate, narration, narration_contract, ontology_contract |
+| (D) Superseded / duplicate | 1 | bayes_numpyro |
+
+Notes that change what the table means:
+
+- **(B) is real but inherited.** `calibration` and `tier_contract` are correctly libraries; they
+  have no entry point because *their consumers* have none either. Connecting the consumer
+  connects them. They are not separate work.
+- **(C) is not a gap and will not be "fixed".** `finance_never.scan_repository` greps the source
+  tree for banned language; `narration` lints the 13 live templates. A linter whose job is to
+  fail CI is connected when its test runs in CI. Wiring these to a runtime would be connecting a
+  module to improve a statistic, which is explicitly not the objective.
+- **(D)** `bayes_numpyro` is the same model as `bayes_model` in NumPyro. `jaxlib` publishes no
+  macOS x86_64 wheel (ADR-0103 amendment), so it cannot run on this machine. It is a duplicate
+  held for CI, and its disposition is **OQ-74/OQ-75**, not engineering work.
+- **`category_cascade` is NOT a duplicate of the connected `categorise`.** `categorise` (B14.3)
+  derives merchant category rules from Joe's existing classification; `category_cascade`
+  (B17 §B.3/B.4) is the rules→kNN→LLM cascade with a correction loop. Different capability.
+- Several (A) modules are **mixed**: `workout_contract`, `render_pipeline`, `compliance` and
+  `ontology_contract` each carry both a contract and a real runtime path. They are classified by
+  the unconnected runtime half, because that is what determines remaining work.
+
+The 28 are **not** 28 independent tasks. They cluster onto the open INTENT_COVERAGE scenarios,
+which is how they will be connected — driven by a product scenario, never by reachability:
+
+| Scenario | Engines it connects |
+|---|---|
+| R1 purchase vs consumption | cooccurrence, money_position, dedupe |
+| R2 workout session | workout_contract, strength |
+| R4 recurring service + outage | recurrence, usage_status, money_position |
+| R8 useful clarification | vision_and_prompts, compliance |
+| R11 discovery across history | preregistration, multiplicity, chains, regimes, trials, forecast_ledger |
+
+## R2 IS MISSING IMPLEMENTATION, NOT PENDING OBSERVATION — THE PREVIOUS CHECKPOINT WAS WRONG
+
+The 2026-09-10 checkpoint recorded R2 as *"Pending observation, not missing implementation."*
+That claim was inspected and **it does not hold.** Corrected here rather than left standing.
+
+Measured evidence:
+
+- `_legacy_snapshot/data_capability_inventory_2026-09-09.json` `health_workout_types`:
+  **32 workout sessions exist in the Health export** — 25 `TraditionalStrengthTraining`,
+  4 `Running`, 2 `Walking`, 1 `Cycling`. This is ADR-0087's "25 sessions in four years".
+- `tools/importers/apple_health.py:201` — a `<Workout>` element hits
+  `c.bump("workout_deferred_to_B18")` and **is never yielded**. The importer counts them and
+  drops them on the floor.
+- Production, queried read-only at this revision: **zero** workout-session atoms.
+  `core.metric_registry` carries `strength_load_lb`, `strength_reps`, `strength_rpe` and
+  **no session key**. `core.atoms` kinds are activity_sample 18,845 / vital_sample 11,171 /
+  heart_rate_variability 1,303 / environment_sample 1,294 / sleep 742 / self_report 3 / note 2.
+- The two alternative workout sources are both **EMPTY**: `csv__workouts`
+  ("empty file / parse error") and `supabase:public.workouts` (0 rows).
+- `exercise_minutes` has **407 atoms** over 2026-07-01..08-21. That is Apple's exercise ring,
+  which **corroborates** a session and is not a record of one.
+
+So R2 splits into two halves that the old status merged into one wrong word:
+
+| Half | Status | Why |
+|---|---|---|
+| A session **happened**, its type, start, end, duration | **Missing implementation.** 32 records available now | the importer discards them |
+| Load, reps, volume, e1RM | **Genuinely unobserved** | no set has ever been logged; the Log Workout shortcut is not installed |
+
+**Missing sets prohibit inventing load and reps. They do not prevent reconstructing that a
+session occurred.** R2 is implementable at this revision and is queued as the next unit.
+
+# Superseded checkpoint — 2026-09-10
 
 ## THE "685 OF 685" CLAIM WAS NOT SUPPORTED. IT IS WITHDRAWN.
 
