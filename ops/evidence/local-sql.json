@@ -1,0 +1,94 @@
+{
+  "generated_at": "2026-09-11T22:25:55+00:00",
+  "manifest_process": {
+    "dependency_versions": {
+      "dateparser": "1.4.3",
+      "jax": null,
+      "networkx": "3.6.1",
+      "numpy": "2.4.3",
+      "numpyro": null,
+      "ofxtools": "0.9.5",
+      "pg8000": "1.31.5",
+      "pytest": "9.0.3",
+      "scipy": "1.17.1",
+      "statsmodels": "0.14.6",
+      "yaml": "6.0.3"
+    },
+    "disposable_socket_present": false,
+    "machine": "x86_64",
+    "mode": "none",
+    "platform": "darwin",
+    "production_checks_enabled": false,
+    "python": "3.14.3",
+    "require_deps": false,
+    "supabase_url_present": false,
+    "timezone": {
+      "local": "EST",
+      "tz_env": null
+    }
+  },
+  "runs": [
+    {
+      "counts": {
+        "errors": 0,
+        "failures": 0,
+        "passed": 647,
+        "skipped": 1,
+        "tests": 648
+      },
+      "duration_seconds": 207.75,
+      "errors": [],
+      "failures": [],
+      "report": "local-sql.xml",
+      "report_path": "/private/tmp/claude-502/-Users-default-PERSONAL-OS-V2/8ad216c2-e485-4fc5-8616-d2b67d37fe76/scratchpad/local-sql.xml",
+      "run_environment": {
+        "database_mode": "disposable",
+        "production_checks": "False",
+        "python": "3.14.3",
+        "require_deps": "True",
+        "tz": "EST"
+      },
+      "skips": {
+        "dependency": [],
+        "dependency_count": 0,
+        "environment_or_data": [
+          {
+            "reason": "production check: set PERSONAL_OS_PRODUCTION_CHECKS=1 with SUPABASE_DB_URL. Read-only (information_schema only), and never run by the disposable suite.",
+            "test": "tests.test_derive_visits::test_REQ_LOC_012_live_visits_public_matches_the_twin_shape"
+          }
+        ],
+        "environment_or_data_count": 1
+      }
+    }
+  ],
+  "schema": "personal-os/evidence-manifest/1",
+  "stages": {
+    "behavioural_scope": "see tools/evidence_report.py \u2014 a passing name is not a demonstrated requirement",
+    "deployed": "NOT established here; requires a migration applied to production",
+    "observed": "NOT established here; requires verification against real production data",
+    "runtime_integration": "see tools/evidence_report.py reachability \u2014 an import edge is a static fact about source text",
+    "tested": "established by this manifest, for the revision and mode recorded above"
+  },
+  "suite": "local-sql",
+  "totals": {
+    "errors": 0,
+    "failures": 0,
+    "passed": 647,
+    "skipped": 1,
+    "tests": 648
+  },
+  "working_tree": {
+    "branch": "work/release-evidence",
+    "changed_files": [],
+    "describe": "f2e2115-dirty",
+    "dirty": false,
+    "generated_evidence_uncommitted": [
+      {
+        "path": "ops/evidence/deterministic.json",
+        "status": "M"
+      }
+    ],
+    "head": "f2e2115c25c8a5b5a1c29e775b4b208f88e82057",
+    "short": "f2e2115"
+  }
+}

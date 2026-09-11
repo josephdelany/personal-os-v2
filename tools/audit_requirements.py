@@ -420,9 +420,18 @@ def revision(root=ROOT):
         except (OSError, subprocess.SubprocessError):
             return None
     head = git("rev-parse", "HEAD")
+    # Generated evidence is excluded: writing docs/EVIDENCE_REPORT.md and ops/evidence/*.json
+    # dirties the tree, so a report that counted them always described itself as being about
+    # uncommitted source. "dirty" has to mean the SOURCE departs from the commit -- the thing
+    # that makes the run unreproducible. Same definition as tools/evidence_manifest.py, which
+    # is the point: two meanings for one word is how a status document starts lying.
+    porcelain = git("status", "--porcelain") or ""
+    generated = ("ops/evidence/", "docs/EVIDENCE_REPORT.md")
+    source_changes = [line for line in porcelain.splitlines() if line.strip()
+                      and not line[2:].lstrip().startswith(generated)]
     return {"head": head, "short": (head or "")[:7] or None,
             "branch": git("rev-parse", "--abbrev-ref", "HEAD"),
-            "dirty": bool(git("status", "--porcelain"))}
+            "dirty": bool(source_changes)}
 
 
 def environment():

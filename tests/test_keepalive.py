@@ -21,7 +21,8 @@ import pathlib
 
 import pytest
 
-from lib import db
+from tests._location_fixture import apply_chain
+from tests._sql_fixture import connect, requires_disposable
 from tools import run_migration
 from ops import keepalive
 
@@ -85,18 +86,20 @@ def test_REQ_NFR_002_stale_commit_fires_before_the_60_day_limit():
 # REQ-NFR-003 / REQ-NFR-004 — behavioural, disposable schema, rolled back
 # ---------------------------------------------------------------------------
 
-needs_db = pytest.mark.skipif(
-    not os.environ.get("SUPABASE_DB_URL"),
-    reason="SUPABASE_DB_URL not set — behavioural keepalive tests need the live PG engine",
-)
+# Applies the migration chain to a throwaway schema pair, so it is disposable-server work.
+# Gated on SUPABASE_DB_URL it built that pair inside PRODUCTION on every live CI run.
+needs_db = requires_disposable
 
 
 @pytest.fixture(scope="module")
 def spine():
-    conn = db.connect()
+    conn = connect()
     cur = conn.cursor()
     try:
-        run_migration.apply(cur, CORE, OPS)   # creates ops_pytest.runs among others
+        # The whole twin chain: roles, the pre-chain public.* tables, and every migration with
+        # its qualified core/ops/analysis references rewritten. run_migration.apply
+        # substitutes only the placeholders, leaving 30 files pointing at the real schemas.
+        apply_chain(cur)   # creates ops_pytest.runs among others
         yield conn, cur
     finally:
         conn.rollback()      # disposable schema + every row vanish here (ADR-0022)

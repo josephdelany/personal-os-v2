@@ -2040,3 +2040,84 @@ records over four years, a threshold would be fitted to a single data point.
 blocked** — the sessions are imported and reconstructable either way, and no surface currently
 counts them. The reconstruction stores each session individually with its measured duration, so
 applying any of these later is a query change, not a re-import.
+
+## OQ-82 — a two-process test cannot roll back, and RULE-01's exception says it must
+
+*The question:* does RULE-01's bounded fixture exception extend from "a transaction that rolls
+back" to "a disposable server that is destroyed", so that `tools/capture_acceptance.py` may
+commit fixture rows inside a server it created and deletes?
+
+*Why it is open:* the capture worker wrote the acceptance harness for the drop-folder path and
+said plainly that it exceeds the written exception rather than quietly fitting itself to it.
+That disclosure is the reason this entry exists, and it is the right way to hit a
+constitutional boundary.
+
+*Why a compliant rollback-only version cannot exist.* This is not a design preference and it is
+worth being exact about, because "find a compliant approach" is the obvious first instinct:
+
+> **Case 5 is two concurrent importer processes. Two processes cannot share an uncommitted
+> transaction.** An overlap test conducted inside a single transaction is not a weaker overlap
+> test; it is not an overlap test at all. The second process would see none of the first's rows
+> no matter what the code under test did, so the assertion would pass against a completely
+> broken implementation.
+
+The same is true of the file-settling check, which runs the real `import_drop.py` as a
+subprocess: a child process connects on its own and cannot join the parent's transaction.
+
+*What the harness actually does, verified by reading it:*
+
+- The server is created by the command and destroyed before it exits. `listen_addresses=''`, so
+  it is unreachable over any network.
+- The schema pair is `core_dryrun` / `ops_dryrun` — the throwaway pair **migration 0001 already
+  names**. Never `core`, never `public`.
+- Every child process gets `SUPABASE_DB_URL` replaced with an unroutable placeholder, and the
+  shim refuses to start if a real one is still in the environment.
+- **No test hook was added to `lib/db.py`.** Redirection is a `sitecustomize.py` written into
+  the command's own temporary directory and placed on the children's `PYTHONPATH`, so the
+  shipped code carries no escape hatch at all. That is stricter than an environment variable
+  inside `lib/db.py`, which once it exists can redirect a production run.
+
+So nothing fabricated can ever be read as data — which is RULE-01's stated purpose — while the
+literal words "roll back the whole transaction" are not satisfied.
+
+*The precedent already in the building:* **ADR-0082** established the disposable PostgreSQL 17
+server as an isolation boundary for the SQL suite. This asks to use the boundary ADR-0082
+already set, for the one class of test the transaction boundary cannot express.
+
+*Options:*
+
+**(a) Amend RULE-01's bounded exception to name the server lifetime alongside the transaction.**
+Recommended. Exact proposed text, replacing the exception's final sentence:
+
+> *A behavioural test MAY instead use a **disposable server** as its boundary — created by the
+> test, unreachable over any network, using a throwaway schema pair, and destroyed before the
+> command exits — where and only where the behaviour under test spans more than one process and
+> therefore cannot occur inside a single transaction. The test must state which case it is and
+> why one transaction cannot express it. Anything that outlives the server is fabrication and
+> forbidden.*
+
+*Consequence:* the concurrency and file-settling cases become admissible evidence. The risk
+added is that a future test could claim multi-process necessity when it has none — which is why
+the amendment requires the test to state the reason, making the claim reviewable. This does not
+touch the 30-rule cap (`.claude/rules/constitution-cap.md`): it edits RULE-01's exception text
+and adds no numbered rule.
+
+**(b) Refuse the amendment.** `tools/capture_acceptance.py` stays in the tree and its evidence
+counts toward nothing. The two-process overlap and the file-settling behaviour then have **no
+executable evidence anywhere** — they are not weakly tested, they are untested, and both guard
+real failures: a double import, and importing a file still being written.
+
+**(c) Delete the harness.** Loses the same coverage as (b) and also the seven cases that would
+be admissible under the current exception.
+
+*Recommendation:* **(a)**. The purpose of RULE-01 is that no fabricated row is ever read as
+data, and a server that cannot be reached and does not survive the command satisfies that at
+least as strongly as a rollback. The rule's letter was written with one shape of test in mind;
+the amendment keeps its meaning and states the new boundary just as narrowly.
+
+*Until Joe rules:* the harness is integrated and **its passing cases are counted toward no
+requirement.** Recorded in the checkpoint as integrated-but-not-evidence rather than quietly
+included in a total.
+
+*What depends on it:* REQ-CAP drop-folder acceptance evidence, and whether
+`.github/workflows/capture-acceptance.yml` is a gate or merely a job that runs.
