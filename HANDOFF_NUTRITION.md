@@ -241,3 +241,34 @@ That is a smaller claim than "proven" and a larger one than the ledger previousl
 Per the checkpoint's standard, a requirement is proven when a named test containing its ID
 **ran and passed in a recorded run** and its **body demonstrates the requirement** — which for
 the 30 gated tests is true only once §2 is applied.
+
+---
+
+## 8. Coordination record
+
+**Sent to main (`personal-os-v2-90`, session `e2c3fd5e`) on 2026-09-11**, msg
+`40faa8ac-bdc8-423b-93ac-1fb2a8cb3cae`: the final revision and outcomes, the registration gap
+with its exact one-line change and its acceptance criterion, the three migrations, the two
+must-see items (§4a, §5), and the pending live check.
+
+Main was identified as the integration owner by evidence rather than by name: session
+`e2c3fd5e` is the one that ran `git worktree add … PERSONAL_OS_V2_nutrition_finish` and wrote
+this worktree's `WORKER_BRIEF.md` (commit `47248c8`). `ListAgents` alone could not distinguish
+it — six busy `personal-os-v2-*` peers, opaque names.
+
+### The combined revision does not exist yet, and this document must not be read as if it did
+
+| | revision | status |
+|---|---|---|
+| worker branch | `f8a9402` | measured — 966 / 570 / **0 failed** |
+| **integrated branch** | **not yet created** | **unmeasured** |
+
+Everything in §1 was measured on `work/nutrition-finish` alone, with no other worker's changes
+present. It is evidence that this branch is internally consistent. It is **not** evidence about
+the integrated branch, and the two differ in at least one way that is known in advance: the 30
+socket-gated tests **cannot run at all** until §2 is applied, so no pre-merge run — including
+every number above — has ever executed them.
+
+The combined revision and its outcomes are main's to record once the merge and the registration
+land. The number that settles it is the one asked for in §2: `python3 tools/test_local_sql.py`
+reporting those 30 as **passed**, not skipped.
