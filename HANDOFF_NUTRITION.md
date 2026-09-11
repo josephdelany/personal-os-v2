@@ -25,7 +25,17 @@ migration created, no file outside this worker's ownership modified.
   All 11 skips are `tests/test_spine_insert_paths.py`, which needs the live database rather
   than the disposable socket. **No nutrition test skipped in that run**, which is the claim
   that matters: a skip is not a pass.
-- **149 passed** deterministic (no database).
+- **966 passed, 570 skipped, 0 failed** (2:52) — the FULL deterministic suite at `bcb1c13`,
+  run as `env -u SUPABASE_DB_URL python3 -m pytest -q`. The checkpoint records **937 / 540** at
+  the base revision `48745d9`; this worker did not re-measure that baseline, but the deltas are
+  **exactly +29 passed and +30 skipped**, which are this session's 29 pure and 30 socket-gated
+  tests. Nothing else moved: no pre-existing test changed column.
+  - Only 2 of the 570 are dependency skips (`numpyro`, pre-existing, ADR-0103). The rest are
+    absent data or an absent database — true statements about the world.
+  - **This run is itself the proof of §2.** The 30 new tests appear in the SKIPPED column here,
+    correctly, because no disposable socket is set. They will appear there in CI too, in the
+    only job that could have run them, until the one-line registration below is applied.
+- **149 passed** deterministic across the nutrition-touching files alone.
 - `tools/validate_layout.py` — **43 / 43**, 1 pre-existing WARN (`.claude/settings.local.json`).
 - `tools/nutrition_acceptance.py` — **7 of 7**.
 
