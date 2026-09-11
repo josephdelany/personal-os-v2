@@ -1995,3 +1995,48 @@ production, not merely fail to avoid it.
 
 *What depends on it:* nothing is blocked. It changes how easy it is to touch production by
 accident, which this session did twice without meaning to.
+
+## OQ-81 — does a 10-second workout record count as a training session?
+
+*The question:* when counting training frequency, does a recorded session need a minimum
+duration (or a minimum active energy) to count, and if so what is it?
+
+*Why it is open now:* migration 0070 imports the export's 32 `<Workout>` sessions, which had
+been counted and discarded since the September import (ADR-0138). One of the 25 strength records
+is degenerate, and it is not a marginal call:
+
+| | |
+|---|---|
+| started | 2025-07-29 08:53:18 |
+| paused | 08:53:29 — **eleven seconds in**, never resumed |
+| closed | 19:26:48, ten and a half hours later |
+| recorded duration | **0.175 min** |
+| active energy | **0.537 Cal** |
+
+It is plainly a workout started by accident and left open. It is equally plainly a true record of
+what the Watch did, so it is **stored exactly as recorded** — captures are append-only (INV-2),
+and filtering it in the parser would be the importer inventing a definition of "a workout".
+
+*Why it is Joe's and not the implementation's:* a minimum duration is a **measurement
+definition**. CLAUDE.md reserves those — models do not choose temporal specifications, and a
+threshold picked to make a number look sensible is exactly the kind of definition that later gets
+quoted as a finding. There is also no principled value available: 14.5 minutes is the next
+shortest strength record and may well be a real short session.
+
+*Options:*
+(a) **no threshold** — every record counts, and surfaces show the duration alongside the count,
+so a reader sees the 0.175 for themselves. Recommended;
+(b) a minimum active duration (Joe names the number);
+(c) a minimum active energy, which separates this case more cleanly (0.54 Cal against 700+ for a
+real session) but introduces a second measure into the definition;
+(d) mark this single record as a correction — a human ruling on one row rather than a rule, which
+RULE-10 already supports and which does not commit the system to a general threshold.
+
+*Recommendation:* (a) now, (d) if Joe wants this specific record excluded. A general threshold
+(b/c) should wait until there are enough sessions for one to be anything but a guess — with 25
+records over four years, a threshold would be fitted to a single data point.
+
+*What depends on it:* training-frequency counts and any "sessions per week" figure. **Nothing is
+blocked** — the sessions are imported and reconstructable either way, and no surface currently
+counts them. The reconstruction stores each session individually with its measured duration, so
+applying any of these later is a query change, not a re-import.

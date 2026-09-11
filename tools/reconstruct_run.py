@@ -23,10 +23,24 @@ from __future__ import annotations
 import argparse
 import datetime as dt
 import json
+import re
 import sys
 
 from lib import db
 from tools.engines.reconstruct import Evidence, Method, evaluate, to_row
+
+class NoGatherer(Exception):
+    """A registered method this runner cannot collect evidence for.
+
+    Not a failure and not a silent success. `sleep_gap_explained` is registered by 0067 and its
+    evidence (`sleep_record_absent`, `watch_non_wear_inferred`) is collected by
+    `tools/reconstruction_acceptance.py`, not here. Before this existed, `--all-methods` ran it
+    through the device-capture gatherer, which supplies neither input, so every day came back
+    `required_evidence_missing` and was reported as "examined without a conclusion" — a no-op
+    presented as a measurement. Raising turns that into one visible line; `main` keeps going, so
+    the scheduled job does not go red over a method nobody claimed this tool ran.
+    """
+
 
 WATCH = "Watch"
 PHONE = "iPhone"
@@ -112,10 +126,142 @@ def reconstruct_day(method, day, *, watch, phone, last_recorded):
     return r, ev
 
 
+def training_days(cur, *, core="core", since=None, until=None):
+    """Per subject day: the recorded training sessions, and what else that day holds.
+
+    `workout_session_min` atoms are written by `tools/importers/apple_health.py` from the
+    export's `<Workout>` elements.
+
+    IT DOES NOT READ THE DURATIONS. The reconstruction concludes that a session occurred; the
+    minutes stay in the measured lane where they were recorded (INV-5). Copying them onto the
+    inferred event would put a measured number in an inferred row and give a reader two places
+    to find one fact, which is how the two disagree later.
+    """
+    cur.execute(f"""
+        SELECT w.subject_day,
+               max(w.recorded_at)                          AS last_recorded,
+               -- The activity type lives in `evidence_span`, the way the record type and
+               -- device do for every Apple Health atom. One representation, not two.
+               string_agg(DISTINCT w.evidence_span, ' | ')  AS spans,
+               -- Corroboration from the SAME export. Counted as a citation and deliberately
+               -- NOT as an independent origin; see `training_evidence`.
+               (SELECT count(*) FROM {core}.atoms x
+                 WHERE x.subject_day = w.subject_day
+                   AND x.metric_key = 'exercise_minutes')  AS n_exercise,
+               -- Corroboration from a DIFFERENT capture path. This is the only thing here that
+               -- can raise the tier, and this system has never captured one.
+               (SELECT count(*) FROM {core}.atoms x
+                 WHERE x.subject_day = w.subject_day
+                   AND x.kind = 'place_visit')             AS n_place_visit
+          FROM {core}.atoms w
+         WHERE w.kind = 'workout'
+           AND w.metric_key = 'workout_session_min'
+           AND w.subject_day IS NOT NULL
+           AND (%s::date IS NULL OR w.subject_day >= %s::date)
+           AND (%s::date IS NULL OR w.subject_day <= %s::date)
+         GROUP BY w.subject_day
+         ORDER BY w.subject_day
+    """, (since, since, until, until))
+    return cur.fetchall()
+
+
+ACTIVITY = re.compile(r"apple_health:HKWorkoutActivityType([A-Za-z]+)")
+
+
+def activities_in(spans):
+    """The activity types recorded on a day, read out of the citations' own evidence spans.
+
+    The type is not a column and deliberately does not become one: it lives in `evidence_span`
+    exactly as the record type and source device do for every Apple Health atom, so there is one
+    representation of it rather than two that can drift.
+    """
+    return tuple(sorted(set(ACTIVITY.findall(spans or ""))))
+
+
+def training_evidence(day, *, activities=(), n_exercise, n_place_visit, last_recorded):
+    """One training day's capture state -> citations.
+
+    THE ACTIVITY TYPE IS CARRIED IN THE CITATION, and the method does not rank activities. A
+    recorded walk and a recorded lift both produce `occurred` for *a recorded workout session*.
+    Deciding that 25 minutes of walking is not "training" while 26 minutes of cycling is would be
+    inventing a measurement definition, which is Joe's (OQ-81). What this owes the reader instead
+    is the type, in the evidence, where a correction can act on it.
+
+    **THE EXERCISE MINUTES SHARE THE SESSION'S ORIGIN AND CANNOT PROMOTE IT.** Both come out of
+    one HealthKit export, so `origin_group` is the same string for both, and
+    `independent_origins` counts them once. This is REQ-REC-008 doing its job rather than being
+    asserted: without it, every session would arrive with two "independent" supports and be
+    promoted to EXPLORATORY on what is one observation read twice — the identical defect that
+    put 34 non-wear episodes at EXPLORATORY before it was caught.
+
+    The consequence is worth stating plainly rather than engineering around: **every session
+    reconstructed from this export alone lands at DESCRIPTIVE.** A gym `place_visit` is a
+    genuinely different capture path and would promote it. This system has never captured one.
+    """
+    origin = f"healthkit_export:{day.isoformat()}"
+    label = ",".join(activities) if activities else "unspecified"
+    ev = [Evidence(ref=f"atoms:{day.isoformat()}:workout_session:{label}",
+                   kind="workout_session_record", stance="supports",
+                   origin_group=origin, recorded_at=last_recorded)]
+    if n_exercise:
+        ev.append(Evidence(ref=f"atoms:{day.isoformat()}:exercise_minutes",
+                           kind="exercise_minutes_same_day", stance="supports",
+                           origin_group=origin,          # SAME export: not a second origin
+                           recorded_at=last_recorded))
+    if n_place_visit:
+        ev.append(Evidence(ref=f"atoms:{day.isoformat()}:place_visit",
+                           kind="place_visit_same_day", stance="supports",
+                           origin_group=f"location_capture:{day.isoformat()}",
+                           recorded_at=last_recorded))
+    return tuple(ev)
+
+
+def rows_for_training(cur, method, *, core="core", since=None, until=None, coverage=None):
+    """Training-session rows to store (R2, REQ-REC-004/005/009).
+
+    WHAT THIS REFUSES TO PRODUCE. No load, no reps, no volume, no e1RM, and no opinion about
+    whether a short session "really counts". The session record carries a duration and nothing
+    else about the training; `strength_load_lb`, `strength_reps` and `strength_rpe` have been
+    registered since B18 and have never received a row. A caller asking for a derived strength
+    measure is refused by `public.derivation_support` (0068), which names the missing inputs.
+    """
+    out = []
+    unknown = coverage if coverage is not None else []
+    for (day, last_recorded, spans, n_exercise,
+         n_place_visit) in training_days(cur, core=core, since=since, until=until):
+        ev = training_evidence(day, activities=activities_in(spans), n_exercise=n_exercise,
+                               n_place_visit=n_place_visit, last_recorded=last_recorded)
+        r = evaluate(method, ev, as_of=last_recorded)
+        if r.presence == "unknown":
+            # Same rule as every other method: an unknown is not a conclusion, and
+            # `inferred_events` stores conclusions. Reported, not written.
+            unknown.append(day)
+            continue
+        start = dt.datetime.combine(day, dt.time(0), dt.timezone.utc)
+        out.append((day, r, ev, to_row(
+            r, method,
+            event_time_from=start, event_time_to=start + dt.timedelta(days=1),
+            subject_day=day,
+            knowledge_time=last_recorded)))
+    return out
+
+
 def rows_for(cur, method, *, core="core", since=None, until=None, coverage=None):
-    """Rows to store. `coverage`, if given a list, receives the days examined without a
-    conclusion — reported rather than stored, so coverage stays answerable without filling the
-    event table with rows that assert nothing."""
+    """Rows to store, dispatched on the method. `coverage`, if given a list, receives the days
+    examined without a conclusion — reported rather than stored, so coverage stays answerable
+    without filling the event table with rows that assert nothing.
+
+    DISPATCH IS EXPLICIT AND AN UNKNOWN METHOD RAISES. Before this, every method key ran the
+    device-capture gatherer regardless of what it declared, so `--all-methods` fed
+    `sleep_gap_explained` evidence it does not accept and reported every day it examined as
+    inconclusive — a no-op that looked like a measurement. A method with no gatherer is now a
+    visible error rather than a quiet nothing.
+    """
+    if method.key == "training_session":
+        return rows_for_training(cur, method, core=core, since=since, until=until,
+                                 coverage=coverage)
+    if method.key != "watch_non_wear":
+        raise NoGatherer(method.key)
     out = []
     unknown = coverage if coverage is not None else []
     for day, watch, phone, last_recorded, n_atoms in device_days(cur, core=core, since=since,
@@ -240,8 +386,15 @@ def main() -> int:
         for key in keys:
             method = load_method(cur, key, core=a.core, config=a.config)
             coverage: list = []
-            rows = rows_for(cur, method, core=a.core, since=a.since, until=a.until,
-                            coverage=coverage)
+            try:
+                rows = rows_for(cur, method, core=a.core, since=a.since, until=a.until,
+                                coverage=coverage)
+            except NoGatherer:
+                # Said out loud, and counted as nothing. REQ-REC-004: a method whose inputs
+                # nothing collects has not run, and must not be reported as though it had.
+                print(f"method {method.key} v{method.version} ({method.event_family}): "
+                      f"NOT RUN — this tool collects no evidence for it")
+                continue
             by_presence: dict = {}
             for _, r, _, _ in rows:
                 by_presence[(r.presence, r.reason)] = by_presence.get((r.presence, r.reason),

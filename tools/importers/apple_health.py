@@ -152,6 +152,49 @@ SLEEP_STAGES = {
 }
 
 
+# --- workouts (B18/R2) ----------------------------------------------------------------
+# A `<Workout>` is a SESSION, not a sample, and until now the importer counted every one and
+# threw it away (`workout_deferred_to_B18`). Thirty-two of them sit in the export -- 25
+# TraditionalStrengthTraining spanning 2023-02 to 2026-06 -- and strength is the stated primary
+# objective, so "deferred" was costing the whole recorded training history.
+#
+# THE DURATION IS NOT THE SPAN, AND THE TWO ARE NEVER CONFLATED. Apple writes `duration` (the
+# ACTIVE minutes, pauses excluded) alongside `startDate`/`endDate` (wall clock). They routinely
+# disagree, and not slightly: the 2023-02-26 session carries duration=185.2 min inside a
+# 14:56->21:11 span of 375 minutes, because the Watch was paused at 16:36 and resumed at 19:38.
+# Reading the span as the session would have reported a three-hour training block that never
+# happened. So the VALUE is the recorded active duration and the INTERVAL is the wall-clock
+# span, stored as two different facts, which is what they are.
+#
+# WHAT IS DELIBERATELY NOT DERIVED HERE (RULE-09, REQ-WKT-003). No load, no reps, no volume, no
+# e1RM, and no judgement about whether a session "counts". A session record says a workout was
+# recorded and how long it ran; it says NOTHING about what was lifted. No set has ever been
+# logged, and a session record must never be allowed to stand in for one.
+WORKOUT_TYPES = {
+    "HKWorkoutActivityTypeTraditionalStrengthTraining": "strength_training",
+    "HKWorkoutActivityTypeFunctionalStrengthTraining":  "strength_training",
+    "HKWorkoutActivityTypeRunning":                     "running",
+    "HKWorkoutActivityTypeWalking":                     "walking",
+    "HKWorkoutActivityTypeCycling":                     "cycling",
+    "HKWorkoutActivityTypeHighIntensityIntervalTraining": "hiit",
+    "HKWorkoutActivityTypeCoreTraining":                "core_training",
+    "HKWorkoutActivityTypeElliptical":                  "elliptical",
+    "HKWorkoutActivityTypeRowing":                      "rowing",
+    "HKWorkoutActivityTypeSwimming":                    "swimming",
+    "HKWorkoutActivityTypeYoga":                        "yoga",
+}
+
+# `<WorkoutStatistics>` the session record carries. Each is a real measurement made across the
+# session by the same device, so each becomes its own atom against the session's interval.
+# They share the session's origin and are NOT independent corroboration of it (REQ-REC-008).
+WORKOUT_STATS = {
+    "HKQuantityTypeIdentifierActiveEnergyBurned":
+        ("workout_active_energy_kcal", "kcal", "sum", {"Cal", "kcal"}),
+    "HKQuantityTypeIdentifierHeartRate":
+        ("workout_hr_avg_bpm", "bpm", "average", {"count/min"}),
+}
+
+
 class Counters(dict):
     """Why records did not become atoms. Reported at the end of every import so a silent
     drop is impossible: 'skipped' is a number Joe sees, not a branch nobody takes."""
@@ -198,7 +241,13 @@ def parse(path, since=None, until=None, counters=None):
                 else:
                     c.bump("outside_window")
             else:
-                c.bump("workout_deferred_to_B18")
+                # A `<Workout>` is a session and yields SEVERAL specs (the session, plus each
+                # statistic it recorded), so it is iterated rather than yielded singly.
+                for spec in _workout(elem, c):
+                    if _in_window(spec, since, until):
+                        yield spec
+                    else:
+                        c.bump("outside_window")
         finally:
             elem.clear()
             # Detach every consumed child, not just the ones this element swept past.
@@ -323,6 +372,99 @@ def _kind_for(rtype):
     if rtype == "HKQuantityTypeIdentifierHeadphoneAudioExposure":
         return "environment_sample"
     return "vital_sample"
+
+
+def _workout(elem, c):
+    """One `<Workout>` -> a tuple of AtomSpec: the session, plus each statistic it recorded.
+
+    Returns () and counts the reason when the element cannot become an atom. A workout type
+    this map does not know is counted by name (`workout_type_not_mapped:<type>`) rather than
+    silently dropped, so a new activity shows up as a reported number the way an unmapped
+    record type does.
+
+    THE DEGENERATE SESSION IS STORED, NOT FILTERED. The export holds a
+    TraditionalStrengthTraining record starting 2025-07-29 08:53:18 that was paused eleven
+    seconds later, never resumed, and closed at 19:26 -- duration 0.175 min, active energy
+    0.54 Cal. It is obviously not a training session. It is equally obviously a real record of
+    what the Watch did, and INV-2 makes captures append-only. Dropping it here would be this
+    importer inventing a minimum-duration definition of "a workout", which is a MEASUREMENT
+    DEFINITION and therefore Joe's (CLAUDE.md), not a parser's. It is stored exactly as
+    recorded, and its own numbers say what it was. See OQ-81.
+    """
+    activity = elem.get("workoutActivityType")
+    kind_label = WORKOUT_TYPES.get(activity)
+    if kind_label is None:
+        c.bump(f"workout_type_not_mapped:{activity or 'missing'}")
+        return ()
+    start = parse_ts(elem.get("startDate"))
+    end = parse_ts(elem.get("endDate"))
+    if start is None or end is None or end < start:
+        c.bump("workout_without_interval")
+        return ()
+    if (elem.get("durationUnit") or "").strip() != "min":
+        # The unit is written into the file and is not assumed, exactly as for every quantity
+        # record. An unexpected one is reported, never converted by guess (RULE-06).
+        c.bump(f"workout_unconvertible_duration_unit:{elem.get('durationUnit') or 'missing'}")
+        return ()
+    try:
+        duration = float(elem.get("duration"))
+    except (TypeError, ValueError):
+        c.bump("workout_non_numeric_duration")
+        return ()
+
+    source_name = elem.get("sourceName") or "unknown"
+    # The activity type travels in the evidence, the way the record type and device already do
+    # for every sample. It is part of the dedupe key, so two different activities in one
+    # interval remain two facts.
+    span = f"apple_health:{activity};source={source_name}"
+    specs = [AtomSpec(
+        kind="workout",
+        metric_key="workout_session_min",
+        interval_start=start,
+        interval_end=end,
+        # RULE-05 / INV-5: the Watch measured this. The value is the ACTIVE duration and the
+        # interval is the wall-clock span; see the note on WORKOUT_TYPES for why conflating
+        # them reports training that did not happen.
+        value=duration,
+        unit="min",
+        state_class="measurement",
+        estimate_method="measured",
+        time_precision="exact",
+        evidence_span=span,
+    )]
+    c.bump(f"workout_session:{kind_label}")
+
+    for stat in elem.findall("WorkoutStatistics"):
+        mapped = WORKOUT_STATS.get(stat.get("type"))
+        if mapped is None:
+            continue
+        metric_key, unit, attr, accepted = mapped
+        raw_unit = (stat.get("unit") or "").strip()
+        if raw_unit not in accepted:
+            c.bump(f"workout_stat_unconvertible_unit:{stat.get('type')}:{raw_unit or 'missing'}")
+            continue
+        try:
+            value = float(stat.get(attr))
+        except (TypeError, ValueError):
+            # A statistic the session did not record (no heart rate on an untracked workout)
+            # is absent, not zero. Missing is not zero.
+            continue
+        specs.append(AtomSpec(
+            kind="workout",
+            metric_key=metric_key,
+            interval_start=start,
+            interval_end=end,
+            value=CONVERSIONS[raw_unit](value),
+            unit=unit,
+            state_class="measurement",
+            estimate_method="measured",
+            time_precision="exact",
+            # Same origin as the session: one Watch record, read once. Sharing the span keeps
+            # REQ-REC-008 true downstream -- these are not independent corroborations of the
+            # session, they are parts of it.
+            evidence_span=f"{span};stat={attr}",
+        ))
+    return tuple(specs)
 
 
 def _sleep(elem, start, end, source_name, c):
