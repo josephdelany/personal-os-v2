@@ -891,3 +891,22 @@ def test_ADR_0140_a_misnamed_export_is_counted_and_shown(tmp_path):
     assert record["unrecognised_files"] == 1
     assert record["exit_code"] == cs.EXIT_OK
     assert "unrecognised=1" in cs.render(record)
+
+
+def test_ADR_0140_the_wrapper_and_the_importer_accept_the_same_ops_schemas():
+    """Whatever the wrapper takes, the importer must take — it is handed straight through.
+
+    The original `--ops` defect was the wrapper and the importer disagreeing about where a run
+    row goes. An importer whose `--ops` accepted a SMALLER set than its only caller would be
+    the same disagreement in the other direction: the wrapper would validate the name, build
+    the argv, and the child would exit 2 on it.
+    """
+    from tools import import_drop
+    import argparse as _argparse
+    for good in ("ops", "ops_dryrun", "ops_import_pytest", "ops_schedule_pytest"):
+        assert cs.IDENTIFIER.match(good)
+        assert import_drop.ops_identifier(good) == good
+    for bad in ("ops runs", "Ops", "1ops", "", "ops-runs"):
+        assert not cs.IDENTIFIER.match(bad)
+        with pytest.raises(_argparse.ArgumentTypeError):
+            import_drop.ops_identifier(bad)

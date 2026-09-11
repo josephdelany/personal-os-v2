@@ -33,6 +33,7 @@ import argparse
 import datetime as dt
 import json
 import os
+import re
 import shutil
 import sys
 import uuid
@@ -315,6 +316,13 @@ def import_file(cur, schema, path, importer, since, until, code_version, ranges)
             "period": payload["period"], "counters": dict(counters2)}
 
 
+def ops_identifier(name):
+    """A plain lowercase SQL identifier, or an argparse error. See `--ops` below."""
+    if not re.match(r"^[a-z_][a-z0-9_]*$", name or ""):
+        raise argparse.ArgumentTypeError(f"not a plain schema identifier: {name!r}")
+    return name
+
+
 def code_version_for(importer):
     return {"apple_health": apple_health.CODE_VERSION,
             "bank": bank.CODE_VERSION,
@@ -334,9 +342,15 @@ def main(argv=None):
     # already took an `--ops` argument, used it to ask `<ops>.runs` whether the importer had
     # logged, and had no way to tell the importer where to log. Under any non-default pair the
     # wrapper therefore found no importer row and wrote a second heartbeat describing the same
-    # import, which is the one thing its own docstring says it must never do. `choices` rather
-    # than a free string: this name is interpolated into SQL and cannot be a bind parameter.
-    ap.add_argument("--ops", default="ops", choices=("ops", "ops_dryrun"),
+    # import, which is the one thing its own docstring says it must never do.
+    #
+    # Validated as a plain identifier rather than restricted to a fixed pair: the name is
+    # interpolated into SQL and cannot be a bind parameter, so it must be checked — but the
+    # wrapper accepts any identifier and hands this value straight through, and an importer
+    # accepting a SMALLER set than its only caller would simply exit 2 on the difference. That
+    # is the `--ops` defect above in the other direction. `--schema` keeps its fixed choices:
+    # that one decides where DATA goes.
+    ap.add_argument("--ops", default="ops", type=ops_identifier,
                     help="ops schema for the runs row (default: ops)")
     ap.add_argument("--commit", action="store_true",
                     help="write. Without it the transaction is rolled back and nothing changes.")

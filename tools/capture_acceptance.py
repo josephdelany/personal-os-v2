@@ -45,6 +45,13 @@ puts that directory on the children's `PYTHONPATH`. The shipped code therefore c
 escape hatch at all — which is deliberately stricter than an environment variable inside
 `lib/db.py` would be, because such a variable, once it exists, can redirect a production run.
 
+**Why a `tools/` command imports a `tests/` fixture.** `tests/_import_fixture.py` builds the
+spine by running the REAL migration files with their schema tokens rewritten, and its own
+docstring explains why that matters: a hand-copied approximation of the schema drifts from
+production silently, and a test that passes against a drifted copy proves nothing about the
+schema the importer will actually meet. Importing it is read-only reuse of exactly that
+property. A second schema builder written here would be the drift it warns about.
+
 Exit code 0 when every case passed, 1 otherwise.
 """
 import argparse
