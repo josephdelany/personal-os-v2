@@ -239,12 +239,13 @@ def wkt(sql_connection):
     return c
 
 
-def write_atom(c, *, day, metric, value, unit, kind="workout", recorded=None, span=None):
+def write_atom(c, *, day, metric, value, unit, kind="workout", recorded=None, span=None,
+               hour=15):
     cid, aid = uuid.uuid4(), uuid.uuid4()
     c.execute(f"""INSERT INTO {S}.raw_captures (capture_id, source, captured_at, payload,
                   trust_level) VALUES (%s,'healthkit_workout',%s,'{{}}'::jsonb,'trusted')""",
               (cid, dt.datetime(2026, 3, 2, tzinfo=dt.timezone.utc)))
-    start = dt.datetime.combine(day, dt.time(15), dt.timezone.utc)
+    start = dt.datetime.combine(day, dt.time(hour), dt.timezone.utc)
     c.execute(f"""INSERT INTO {S}.atoms
         (id, raw_capture_id, kind, metric_key, occurred_at, valid_interval, subject_day,
          subject_day_rule_version, recorded_at, presence, value_low, value_point, value_high,
@@ -267,7 +268,7 @@ def test_REQ_REC_004_training_session_is_read_from_the_registry_not_from_python(
     # happen, so no evidence state can produce one.
     assert m.permissible_outputs == ("occurred",)
     assert "did_not_occur" not in m.permissible_outputs
-    assert m.temporal_specification == "subject_day"
+    assert m.temporal_specification == "interval"
 
 
 def test_REQ_REC_005_a_recorded_session_is_stored_as_an_occurred_training_event(wkt):
@@ -324,14 +325,14 @@ def test_REQ_REC_005_the_activity_type_reaches_the_citation(wkt):
                span="apple_health:HKWorkoutActivityTypeWalking;source=Watch")
     m = load_method(wkt, "training_session", core=S, config="config_pytest")
     rows = rows_for(wkt, m, core=S)
-    assert len(rows) == 1, "one subject day, one conclusion"
-    _, r, ev, _ = rows[0]
-    session = next(e for e in ev if e.kind == "workout_session_record")
-    assert "TraditionalStrengthTraining" in session.ref
-    assert "Walking" in session.ref, "the walk is disclosed, not silently dropped"
-    assert r.presence == "occurred"
-    # Still one origin: two sessions out of one export are not two corroborations.
-    assert r.independent_support == 1
+    assert len(rows) == 2, "two recorded sessions are two events, even on one day"
+    refs = [next(e for e in ev if e.kind == "workout_session_record").ref
+            for _, _, ev, _ in rows]
+    assert any("TraditionalStrengthTraining" in r for r in refs)
+    assert any("Walking" in r for r in refs), "the walk is its own event, not folded in"
+    assert all(r.presence == "occurred" for _, r, _, _ in rows)
+    # Still one origin each: one export is not two corroborations.
+    assert all(r.independent_support == 1 for _, r, _, _ in rows)
 
 
 def test_REQ_REC_009_a_day_with_no_session_record_is_never_did_not_occur(wkt):
@@ -347,6 +348,47 @@ def test_REQ_REC_009_a_day_with_no_session_record_is_never_did_not_occur(wkt):
     assert wkt.fetchone()[0] == 0
     wkt.execute(f"""SELECT count(*) FROM {S}.inferred_events WHERE presence = 'did_not_occur'""")
     assert wkt.fetchone()[0] == 0
+
+
+def test_REQ_REC_005_two_sessions_on_one_day_are_two_events_not_one(wkt):
+    """THE 32-INTO-30 QUESTION, locked so it cannot silently come back.
+
+    The real export holds 32 session records on 30 distinct subject days: 2023-04-05 carries a
+    120-minute lift at 14:06 and a 7.8-minute run at 21:10, and 2023-09-23 carries a 39.8-minute
+    lift and a 27.7-minute run. Grouping by subject day lost neither atom — both are stored —
+    but it made the event count two short of the session count, so any surface counting events
+    would under-report training and nobody could see the discrepancy without re-reading atoms.
+
+    An event count and a session count must be the same number.
+    """
+    day = dt.date(2026, 3, 2)
+    write_atom(wkt, day=day, metric="workout_session_min", value=120.31, unit="min",
+               span="apple_health:HKWorkoutActivityTypeTraditionalStrengthTraining;source=Watch")
+    write_atom(wkt, day=day, metric="workout_session_min", value=7.83, unit="min", hour=21,
+               span="apple_health:HKWorkoutActivityTypeRunning;source=Watch")
+    m = load_method(wkt, "training_session", core=S, config="config_pytest")
+    rows = rows_for(wkt, m, core=S)
+    assert write(wkt, rows, core=S) == 2
+
+    wkt.execute(f"""SELECT count(*) FROM {S}.atoms WHERE metric_key='workout_session_min'""")
+    n_sessions = wkt.fetchone()[0]
+    wkt.execute(f"""SELECT count(*) FROM {S}.inferred_events
+                     WHERE method_key='training_session'""")
+    n_events = wkt.fetchone()[0]
+    assert n_sessions == n_events == 2, "one event per recorded session, no more and no fewer"
+
+    # And each event is timed by its OWN span, not by the day.
+    wkt.execute(f"""SELECT event_time_from, event_time_to FROM {S}.inferred_events
+                     WHERE method_key='training_session' ORDER BY event_time_from""")
+    spans = wkt.fetchall()
+    assert spans[0][0] != spans[1][0], "two events, two different start times"
+    for start, end in spans:
+        assert (end - start) < dt.timedelta(hours=3), (
+            "the event lasts as long as the session, not all day")
+
+    # Two sessions out of one export remain ONE origin apiece.
+    wkt.execute(f"""SELECT max(independent_support) FROM {S}.v_event_independence""")
+    assert wkt.fetchone()[0] == 1
 
 
 def test_REQ_WKT_003_a_session_reconstruction_yields_no_load_reps_or_volume(wkt):
@@ -417,8 +459,8 @@ def test_REQ_REC_008_a_place_visit_is_a_different_origin_and_does_promote(wkt):
     promotion path is real and currently unexercised by real data.
     """
     day = dt.date(2026, 3, 2)
-    ev = training_evidence(day, activities=("TraditionalStrengthTraining",), n_exercise=0,
-                           n_place_visit=1,
+    ev = training_evidence(day, atom_id="a-1", activities=("TraditionalStrengthTraining",),
+                           n_exercise=0, n_place_visit=1,
                            last_recorded=dt.datetime(2026, 3, 3, tzinfo=dt.timezone.utc))
     assert len({e.origin_group for e in ev}) == 2, "the gym visit is a second origin"
     m = load_method(wkt, "training_session", core=S, config="config_pytest")

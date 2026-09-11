@@ -127,7 +127,14 @@ def reconstruct_day(method, day, *, watch, phone, last_recorded):
 
 
 def training_days(cur, *, core="core", since=None, until=None):
-    """Per subject day: the recorded training sessions, and what else that day holds.
+    """ONE ROW PER RECORDED SESSION, with what else that day holds.
+
+    **It is one row per session, not per day, and that was a deliberate correction.** Grouping by
+    subject day made 32 real records into 30 events, because 2023-04-05 and 2023-09-23 each carry
+    a lift AND a run, hours apart. Nothing was lost — all 32 atoms are stored either way — but an
+    event count would then silently be two short of a session count, and a surface reporting
+    "30 training sessions" would be wrong about a number nobody could check without re-reading
+    the atoms. R2 asks to reconstruct a SESSION; this reconstructs a session.
 
     `workout_session_min` atoms are written by `tools/importers/apple_health.py` from the
     export's `<Workout>` elements.
@@ -138,11 +145,14 @@ def training_days(cur, *, core="core", since=None, until=None):
     to find one fact, which is how the two disagree later.
     """
     cur.execute(f"""
-        SELECT w.subject_day,
-               max(w.recorded_at)                          AS last_recorded,
+        SELECT w.id                                        AS atom_id,
+               w.subject_day,
+               lower(w.valid_interval)                     AS started_at,
+               upper(w.valid_interval)                     AS ended_at,
+               w.recorded_at                               AS last_recorded,
                -- The activity type lives in `evidence_span`, the way the record type and
                -- device do for every Apple Health atom. One representation, not two.
-               string_agg(DISTINCT w.evidence_span, ' | ')  AS spans,
+               w.evidence_span                             AS spans,
                -- Corroboration from the SAME export. Counted as a citation and deliberately
                -- NOT as an independent origin; see `training_evidence`.
                (SELECT count(*) FROM {core}.atoms x
@@ -159,8 +169,7 @@ def training_days(cur, *, core="core", since=None, until=None):
            AND w.subject_day IS NOT NULL
            AND (%s::date IS NULL OR w.subject_day >= %s::date)
            AND (%s::date IS NULL OR w.subject_day <= %s::date)
-         GROUP BY w.subject_day
-         ORDER BY w.subject_day
+         ORDER BY lower(w.valid_interval)
     """, (since, since, until, until))
     return cur.fetchall()
 
@@ -178,7 +187,8 @@ def activities_in(spans):
     return tuple(sorted(set(ACTIVITY.findall(spans or ""))))
 
 
-def training_evidence(day, *, activities=(), n_exercise, n_place_visit, last_recorded):
+def training_evidence(day, *, atom_id=None, activities=(), n_exercise, n_place_visit,
+                      last_recorded):
     """One training day's capture state -> citations.
 
     THE ACTIVITY TYPE IS CARRIED IN THE CITATION, and the method does not rank activities. A
@@ -200,7 +210,10 @@ def training_evidence(day, *, activities=(), n_exercise, n_place_visit, last_rec
     """
     origin = f"healthkit_export:{day.isoformat()}"
     label = ",".join(activities) if activities else "unspecified"
-    ev = [Evidence(ref=f"atoms:{day.isoformat()}:workout_session:{label}",
+    # THE CITATION NAMES THE SESSION'S OWN ATOM. `event_evidence`'s primary key is
+    # (event_id, origin_group, evidence_ref), so a day-wide reference would make the lift and
+    # the run on 2023-04-05 the same citation.
+    ev = [Evidence(ref=f"atoms:{atom_id or day.isoformat()}:workout_session:{label}",
                    kind="workout_session_record", stance="supports",
                    origin_group=origin, recorded_at=last_recorded)]
     if n_exercise:
@@ -227,20 +240,23 @@ def rows_for_training(cur, method, *, core="core", since=None, until=None, cover
     """
     out = []
     unknown = coverage if coverage is not None else []
-    for (day, last_recorded, spans, n_exercise,
+    for (atom_id, day, started_at, ended_at, last_recorded, spans, n_exercise,
          n_place_visit) in training_days(cur, core=core, since=since, until=until):
-        ev = training_evidence(day, activities=activities_in(spans), n_exercise=n_exercise,
-                               n_place_visit=n_place_visit, last_recorded=last_recorded)
+        ev = training_evidence(day, atom_id=atom_id, activities=activities_in(spans),
+                               n_exercise=n_exercise, n_place_visit=n_place_visit,
+                               last_recorded=last_recorded)
         r = evaluate(method, ev, as_of=last_recorded)
         if r.presence == "unknown":
             # Same rule as every other method: an unknown is not a conclusion, and
             # `inferred_events` stores conclusions. Reported, not written.
             unknown.append(day)
             continue
-        start = dt.datetime.combine(day, dt.time(0), dt.timezone.utc)
+        # The event's time is THE SESSION'S OWN wall-clock span, not midnight to midnight. The
+        # day-wide interval the first version used was wrong twice over: it claimed a 24-hour
+        # extent for a 90-minute event, and it made two sessions on one day indistinguishable.
         out.append((day, r, ev, to_row(
             r, method,
-            event_time_from=start, event_time_to=start + dt.timedelta(days=1),
+            event_time_from=started_at, event_time_to=ended_at,
             subject_day=day,
             knowledge_time=last_recorded)))
     return out

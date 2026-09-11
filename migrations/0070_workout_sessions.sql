@@ -72,9 +72,14 @@ VALUES (
     'training_session', 1, 'training_session',
     ARRAY['workout_session_record'],
     ARRAY['occurred'],
-    'subject_day',
-    'REQ-REC-004/005. Concludes that a training session occurred on a subject day, from a '
-    'recorded workout session, with its MEASURED active duration. Corroborating evidence from '
+    -- ONE EVENT PER SESSION, timed by the session's own span. `subject_day` here would make
+    -- 32 real records into 30 events: 2023-04-05 and 2023-09-23 each carry a lift AND a run,
+    -- hours apart. Nothing would be lost -- all 32 atoms are stored either way -- but an event
+    -- count would read two short of a session count, and R2 asks to reconstruct a SESSION.
+    'interval',
+    'REQ-REC-004/005. Concludes that a training session occurred, one event per recorded '
+    'session, timed by that session own wall-clock span, from a recorded workout session with '
+    'its MEASURED active duration. Two sessions on one day are two events. Corroborating evidence from '
     'an independent origin (exercise minutes, a place visit) raises the tier; none is required, '
     'because the session record is itself the observation. '
     'IT MAY NOT CONCLUDE ANYTHING ABOUT LOAD, REPS OR VOLUME. Those need per-set records, no '
