@@ -179,3 +179,62 @@ def test_ADR_0136_acceptance_checks_never_reach_production():
     env = _no_database_env()
     assert "SUPABASE_DB_URL" not in env
     assert "PERSONAL_OS_TEST_SOCKET" not in env
+
+
+# --------------------------------------------------------- no schema-building against production
+
+# Helpers that execute migration DDL. Any module calling one of these builds schema, and that is
+# disposable-server work by definition.
+SCHEMA_BUILDERS = ("apply_chain", "run_migration.apply", "migration_function",
+                   "apply_legacy_prerequisites", "ensure_supabase_roles")
+
+# How a module declares it needs the disposable server. Either names the gate or the variable.
+DISPOSABLE_GATE = ("requires_disposable", "PERSONAL_OS_TEST_SOCKET")
+
+
+def _test_modules():
+    return sorted(p for p in (ROOT / "tests").glob("*.py") if p.name != "__init__.py")
+
+
+def test_OQ_78_every_schema_building_test_module_is_gated_to_the_disposable_server():
+    """A module that builds schema must say it needs the disposable server.
+
+    This is the lint half of OQ-78. Eight modules were gated on SUPABASE_DB_URL instead, so CI's
+    live job applied the migration chain inside production on every run and timed out doing it.
+    Fixing those eight does not stop a ninth being written, which is what this check is for.
+
+    Source-text, deliberately: the point is to catch the mistake when the file is written, and a
+    module that imports `requires_disposable` and forgets to apply it is still caught by the
+    runtime guard below.
+    """
+    offenders = []
+    for path in _test_modules():
+        source = path.read_text(errors="ignore")
+        builds = [b for b in SCHEMA_BUILDERS if b in source]
+        if not builds:
+            continue
+        if not any(gate in source for gate in DISPOSABLE_GATE):
+            offenders.append(f"{path.name} calls {', '.join(builds)} with no disposable gate")
+    assert not offenders, (
+        "these modules build schema but do not require the disposable server, so they run "
+        "migration DDL against whatever database is configured — production, in CI's `pytest` "
+        "job:\n  " + "\n  ".join(offenders)
+    )
+
+
+def test_OQ_78_the_schema_builders_refuse_without_a_disposable_server():
+    """The guard is structural, not just declarative — the helpers themselves refuse.
+
+    A mark can be forgotten. These raise, so the failure is loud and local rather than a silent
+    CREATE SCHEMA on production behind a rollback.
+    """
+    from tests import _location_fixture as lf
+    from tests import _sql_fixture as sf
+
+    assert lf.disposable_socket() is None, (
+        "PERSONAL_OS_TEST_SOCKET is set in this process, so this check cannot prove the refusal"
+    )
+    with pytest.raises(RuntimeError, match="disposable"):
+        lf.apply_chain(None)
+    with pytest.raises(RuntimeError, match="disposable"):
+        sf.migration_function(None, "0040_movements_api.sql", "public.get_movements")

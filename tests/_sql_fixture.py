@@ -128,5 +128,15 @@ def migration_function(cur, filename, signature, schema="api_pytest"):
     statements = split_statements((ROOT / "migrations" / filename).read_text())
     matches = [s for s in statements if f"CREATE OR REPLACE FUNCTION {signature}" in s]
     assert len(matches) == 1, f"Expected exactly one production function: {signature}"
+    if disposable_socket() is None:
+        # `sql_connection` hands back a PRODUCTION connection whenever SUPABASE_DB_URL is set,
+        # and this helper then ran CREATE SCHEMA on it. The same shape as the test_status_sql.py
+        # defect the audit found, left standing in the generic helper after that one module was
+        # fixed. Structural, so forgetting a mark cannot reintroduce it.
+        raise RuntimeError(
+            "migration_function creates a schema and must only ever run against the disposable "
+            "PostgreSQL 17 server. PERSONAL_OS_TEST_SOCKET is not set. "
+            "Run these tests via tools/test_local_sql.py."
+        )
     cur.execute(f"CREATE SCHEMA IF NOT EXISTS {schema}")
     cur.execute(matches[0].replace("public.", f"{schema}."))

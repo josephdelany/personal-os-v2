@@ -45,6 +45,7 @@ TESTS = ("tests/test_ask_ranges.py", "tests/test_ask.py", "tests/test_ask_operat
          # REQ-NFR-008 was guarded for the disposable server but listed in no job, so it
          # could not run anywhere: a requirement unprovable by construction.
          "tests/test_capture_schedule.py",
+         "tests/test_keepalive.py",
          "tests/test_chains_sql.py",
          "tests/test_trials_sql.py",
          # The reconstruction path end to end: schema, engine and read API were each
