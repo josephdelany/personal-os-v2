@@ -44,7 +44,12 @@ TESTS = ("tests/test_ask_ranges.py", "tests/test_ask.py", "tests/test_ask_operat
          "tests/test_nutrition_off.py",
          "tests/test_nutrition_integration.py",
          "tests/test_nutrition_persistence.py",
-         "tests/test_ontology_constraints.py")
+         "tests/test_ontology_constraints.py",
+         # REQ-REC-015's second half (ADR-0140). Its pure decision tests run anywhere; the
+         # queries that feed them — which reconstruction is still open, what has already been
+         # asked — only run against a real schema, and a test that runs in no job is the
+         # "counted but never executed" failure the evidence audit found in the ledger.
+         "tests/test_clarification_prompts.py")
 
 
 def pg_bin():

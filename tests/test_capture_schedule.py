@@ -23,6 +23,8 @@ import plistlib
 import re
 import stat
 import subprocess
+
+import yaml
 import sys
 from pathlib import Path
 
@@ -42,6 +44,17 @@ _needs_local_server = pytest.mark.skipif(
     not os.environ.get("PERSONAL_OS_TEST_SOCKET"),
     reason="builds an ops schema from real migration DDL; disposable local server only "
            "(run via tools/test_local_sql.py)")
+
+
+@pytest.fixture(autouse=True)
+def _no_settle_wait(monkeypatch):
+    """The settle gate takes two observations of every pending file separated by a real wait.
+    That wait is the point in production and is dead time here, so the interval is zero for
+    every test in this file except the ones that drive `settle` directly with their own
+    numbers. Zero still means TWO observations — the gate is exercised, not bypassed.
+    """
+    monkeypatch.setattr(cs, "SETTLE_INTERVAL_SECONDS", 0)
+    monkeypatch.setattr(cs, "SETTLE_TIMEOUT_SECONDS", 0)
 
 
 # --------------------------------------------------------------------------- doubles
@@ -620,16 +633,43 @@ def test_ADR_0091_the_local_import_precedes_the_freshness_check_in_both_halves_o
             f"{freshness_local // 60:02d}:{freshness_local % 60:02d}")
 
 
-def test_ADR_0091_no_workflow_schedules_the_local_importer():
-    """A GitHub-hosted runner cannot see `~/PersonalOS_Drop`. A workflow that ran
+def test_ADR_0091_no_workflow_step_runs_the_local_importer():
+    """A GitHub-hosted runner cannot see `~/PersonalOS_Drop`. A workflow STEP that ran
     `import_drop.py` would find an empty folder, exit 0 for ever, and produce precisely the
-    green-job-over-dead-input signal this whole area of the system exists to prevent."""
+    green-job-over-dead-input signal this whole area of the system exists to prevent.
+
+    The assertion is on what a workflow EXECUTES, not on what its text mentions. It was the
+    whole file text, which is a coarser question than the one that matters and answers it
+    wrongly in both directions: `capture-acceptance.yml` names both scripts in a `paths:`
+    filter — which schedules nothing — while a workflow could invoke either through a wrapper
+    and never spell its name in a `run:` line at all. So two properties are asserted instead,
+    and together they are strictly stronger than the grep they replace:
+
+    1. no step's shell command invokes either script, and
+    2. any workflow that reaches them transitively — the acceptance harness spawns both — has
+       no production credential to reach production WITH. That is the property that actually
+       protects `core`: a hosted runner with `SUPABASE_DB_URL` and a drop folder it cannot see
+       is the hazard, and a runner without the credential cannot be one whatever it runs.
+    """
+    reaches_the_scripts = []
     for workflow in sorted((ROOT / ".github" / "workflows").glob("*.yml")):
+        spec = yaml.safe_load(workflow.read_text())
         text = workflow.read_text()
-        assert "import_drop.py" not in text, (
-            f"{workflow.name} schedules the drop-folder importer on a hosted runner, which "
-            f"cannot reach the drop folder on Joe's Mac")
-        assert "capture_schedule.py" not in text
+        for job in (spec.get("jobs") or {}).values():
+            for step in (job.get("steps") or []):
+                command = step.get("run") or ""
+                for script in ("import_drop.py", "capture_schedule.py"):
+                    assert script not in command, (
+                        f"{workflow.name} runs {script} on a hosted runner, which cannot reach "
+                        f"the drop folder on Joe's Mac")
+        if "import_drop.py" in text or "capture_schedule.py" in text:
+            reaches_the_scripts.append((workflow.name, "SUPABASE_DB_URL" in text))
+
+    for name, has_credential in reaches_the_scripts:
+        assert not has_credential, (
+            f"{name} names the local import scripts AND carries SUPABASE_DB_URL. A hosted "
+            f"runner that can reach production and cannot reach the drop folder is exactly "
+            f"the arrangement that reports a green job over a dead input.")
 
 
 # --------------------------------------------------------------------------- the CLI
@@ -655,3 +695,199 @@ def test_ADR_0091_the_bare_command_does_nothing_and_says_so(tmp_path):
                          env={**os.environ, "PYTHONPATH": str(ROOT)})
     assert out.returncode != 0
     assert "--run" in out.stdout
+
+
+# ------------------------------------------------------- ADR-0140: the settle gate
+#
+# These drive `settle` with their own numbers, so the autouse zero-interval fixture above is
+# irrelevant to them: each passes `interval` and `timeout` explicitly.
+
+def test_ADR_0140_a_file_that_stops_growing_is_ready(tmp_path):
+    """Two observations that agree. That is the whole definition."""
+    p = tmp_path / "export.xml"
+    p.write_text("<HealthData/>")
+    ready, arriving = cs.settle([p], interval=0, timeout=0, sleeper=lambda s: None)
+    assert ready == [p] and arriving == []
+
+
+def test_ADR_0140_a_file_still_being_written_is_never_imported(tmp_path):
+    """A growing file is held back, not imported.
+
+    This is the defect the gate exists for and it is not symmetric across formats. A truncated
+    Apple Health zip raises and is reported. A truncated bank CSV PARSES — it commits the rows
+    that happened to have landed and writes an append-only `raw_captures` row whose
+    `records_parsed` is wrong and can never be corrected (RULE-02). Nothing downstream can tell
+    those missing atoms from days Joe did not spend.
+    """
+    p = tmp_path / "statement.csv"
+    p.write_text("Date,Description,Amount\n")
+
+    def grow(_seconds):
+        with p.open("a") as fh:
+            fh.write("2026-01-01,X,-1.00\n")
+
+    ticks = iter([0, 1, 2, 3, 4, 5])
+    ready, arriving = cs.settle([p], interval=0, timeout=2, sleeper=grow,
+                                clock=lambda: next(ticks))
+    assert ready == []
+    assert arriving == [p]
+
+
+def test_ADR_0140_mtime_age_alone_would_have_passed_a_half_copied_file(tmp_path):
+    """The gate compares two observations; it does NOT ask how old the mtime is.
+
+    A file arriving by AirDrop, `cp -p` or an iCloud materialisation keeps the SOURCE file's
+    mtime, so a half-copied export can present an mtime from weeks ago while bytes are still
+    being written. Any age-based test passes it immediately. This asserts the property that
+    makes that impossible: a file whose mtime is ancient and whose SIZE is still changing is
+    held back anyway.
+    """
+    p = tmp_path / "old_looking_export.xml"
+    p.write_text("<HealthData>")
+    ancient = 1_000_000_000                      # 2001, far older than any settle threshold
+    os.utime(p, (ancient, ancient))
+
+    def grow(_seconds):
+        with p.open("a") as fh:
+            fh.write("<Record/>")
+        os.utime(p, (ancient, ancient))          # the copy preserves the old mtime too
+
+    ticks = iter([0, 1, 2, 3])
+    ready, arriving = cs.settle([p], interval=0, timeout=1, sleeper=grow,
+                                clock=lambda: next(ticks))
+    assert ready == [] and arriving == [p]
+
+
+def test_ADR_0140_a_file_that_vanishes_between_observations_is_neither(tmp_path):
+    p = tmp_path / "export.xml"
+    p.write_text("x")
+    ready, arriving = cs.settle([p], interval=0, timeout=0,
+                                sleeper=lambda s: p.unlink())
+    assert ready == [] and arriving == []
+
+
+def test_ADR_0140_REQ_NFR_012_a_stuck_file_is_an_error_not_an_empty_day(tmp_path):
+    """A drop folder holding only a file that never settles fails visibly.
+
+    `no_new_files` and `files_still_arriving` are different sentences: the first says capture
+    did not happen, the second says capture is BLOCKED. Reporting the second as the first is
+    the 43-day failure in miniature — a green run over an input that is silently stuck.
+    """
+    drop = tmp_path / "drop"
+    drop.mkdir()
+    stuck = drop / "statement.csv"
+    stuck.write_text("Date\n")
+    conn = FakeConn()
+    ran = []
+
+    record = cs.run(drop=drop, commit=True, ops=OPS,
+                    connect=lambda: conn,
+                    runner=lambda *a, **k: ran.append(a) or FakeProc(0),
+                    env={"SUPABASE_DB_URL": "x"},
+                    settler=lambda files: ([], list(files)))
+
+    assert record["outcome"] == "files_still_arriving"
+    assert record["exit_code"] == cs.EXIT_PARTIAL
+    assert record["new_data"] is False
+    assert ran == [], "the importer was invoked for a file that had not finished arriving"
+    beat = conn.heartbeats[-1]
+    assert beat["status"] == "error", (
+        f"a stuck file wrote status={beat['status']!r}, which reads as healthy")
+    assert beat["outcome"] == "files_still_arriving"
+    assert beat["new_data"] is False
+    assert beat["rows_written"] == 0
+    assert stuck.exists(), "the unfinished file was moved out of the drop folder"
+
+
+def test_ADR_0140_ready_files_are_named_when_others_are_still_arriving(tmp_path):
+    """The importer must not scan the folder when part of it is still being written."""
+    drop = tmp_path / "drop"
+    drop.mkdir()
+    done = drop / "export.xml"
+    done.write_text("<HealthData/>")
+    growing = drop / "statement.csv"
+    growing.write_text("Date\n")
+    calls = []
+
+    cs.run(drop=drop, commit=True, ops=OPS, connect=lambda: FakeConn(),
+           runner=lambda cmd, **k: calls.append(cmd) or FakeProc(0, '{"atoms_written": 1}\n'),
+           env={"SUPABASE_DB_URL": "x"},
+           settler=lambda files: ([done], [growing]))
+
+    assert calls, "the importer was never invoked"
+    cmd = calls[0]
+    assert "--file" in cmd and str(done) in cmd
+    assert str(growing) not in cmd, (
+        "the growing file was handed to the importer; a settle gate whose result nothing acts "
+        "on is not a gate")
+
+
+def test_ADR_0140_every_ready_file_leaves_the_importer_scanning_the_folder(tmp_path):
+    """With nothing held back, the ordinary folder scan is used — no behaviour change."""
+    drop = tmp_path / "drop"
+    drop.mkdir()
+    (drop / "export.xml").write_text("<HealthData/>")
+    calls = []
+    cs.run(drop=drop, commit=True, ops=OPS, connect=lambda: FakeConn(),
+           runner=lambda cmd, **k: calls.append(cmd) or FakeProc(0, '{"atoms_written": 1}\n'),
+           env={"SUPABASE_DB_URL": "x"})
+    assert "--file" not in calls[0]
+
+
+# ------------------------------------------------------- ADR-0140: schema passthrough
+
+def test_ADR_0140_REQ_NFR_008_the_importer_is_told_which_ops_schema_to_log_to():
+    """The wrapper asks `<ops>.runs` whether the importer logged; the importer must log there.
+
+    This was a real inconsistency, not a hypothetical one. `--ops` existed on the wrapper and
+    the importer's runs INSERT named `ops.runs` literally, so under any non-default pair the
+    wrapper looked in one schema, the importer wrote in another, the lookup found nothing and a
+    second heartbeat was written for an import that had already recorded itself — `ops.runs`
+    counting one import twice, which is exactly what the wrapper's docstring forbids.
+    """
+    cmd = cs.import_command(schema="core_dryrun", ops="ops_dryrun")
+    assert cmd[cmd.index("--ops") + 1] == "ops_dryrun"
+    assert cmd[cmd.index("--schema") + 1] == "core_dryrun"
+
+
+def test_ADR_0140_an_ops_schema_that_is_not_an_identifier_is_refused(tmp_path):
+    """The name is interpolated into SQL and cannot be a bind parameter, so it is validated."""
+    drop = tmp_path / "drop"
+    drop.mkdir()
+    for bad in ("ops runs", "ops-runs", "Ops", "1ops", ""):
+        with pytest.raises(ValueError):
+            cs.run(drop=drop, ops=bad, connect=lambda: FakeConn(),
+                   runner=lambda *a, **k: FakeProc(0), env={"SUPABASE_DB_URL": "x"})
+
+
+def test_ADR_0140_the_child_keeps_the_pythonpath_it_was_given():
+    """Repo root first, whatever was already there behind it.
+
+    Overwriting PYTHONPATH outright discarded an entry the parent had set, which made the
+    child's import path depend on which parent started it.
+    """
+    env = cs._child_env({"PYTHONPATH": "/elsewhere"}, "/repo")
+    assert env["PYTHONPATH"].split(os.pathsep) == ["/repo", "/elsewhere"]
+    assert cs._child_env({}, "/repo")["PYTHONPATH"] == "/repo"
+    assert cs._child_env({"PYTHONPATH": "/repo"}, "/repo")["PYTHONPATH"] == "/repo"
+
+
+def test_ADR_0140_a_misnamed_export_is_counted_and_shown(tmp_path):
+    """An unrecognised file is not a failure — but it must not be silent either.
+
+    `import_drop.classify` recognises `export.xml`, `*_export.xml`, `export.zip`, `Takeout*.zip`
+    and the bank extensions. A Health export saved as `health.xml`, or a second download named
+    `statement (1).csv`, is `unrecognised_file_type`: it imports nothing, exits 0 and stays in
+    the folder to be ignored again tomorrow. Without this count every line of the summary says
+    the job succeeded while the export Joe actually took never lands.
+    """
+    drop = tmp_path / "drop"
+    drop.mkdir()
+    (drop / "health.xml").write_text("<HealthData/>")
+    record = cs.run(drop=drop, commit=True, ops=OPS, connect=lambda: FakeConn(),
+                    runner=lambda *a, **k: FakeProc(
+                        0, '{"file": "health.xml", "status": "unrecognised_file_type"}\n'),
+                    env={"SUPABASE_DB_URL": "x"})
+    assert record["unrecognised_files"] == 1
+    assert record["exit_code"] == cs.EXIT_OK
+    assert "unrecognised=1" in cs.render(record)

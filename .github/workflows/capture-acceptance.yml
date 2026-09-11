@@ -1,0 +1,63 @@
+# capture-acceptance — the drop-folder path exercised as PROCESSES (ADR-0140).
+#
+# WHY THIS IS ITS OWN WORKFLOW AND NOT A JOB IN tests.yml. It is owned by the capture path and
+# it has a different trigger: it runs on a push that touches that path and on demand, and never
+# on a schedule. `tests.yml` runs nightly, and a nightly job that spends a minute of the 2,000
+# GitHub meters for a private repository (OQ-67) to re-prove a path nobody changed is exactly
+# the spend OQ-67 is about. A path-filtered push trigger costs nothing on the days the capture
+# code is untouched, which is most days.
+#
+# WHY IT EXISTS AT ALL, given that tests/test_capture_schedule.py is green. Every scheduling
+# test there drives the wrapper with an injected runner and an injected connect: no subprocess,
+# no database. That proves what the wrapper does with an exit code and cannot prove that a file
+# landing in a folder becomes rows, that a second run does not double them, or that two copies
+# firing at once do not both import. A flock tested against a fake is a test of the fake.
+#
+# NO CREDENTIAL IS SUPPLIED — and this file must never come to contain one. The harness starts
+# its own PostgreSQL 17 server with TCP disabled, builds the throwaway core_dryrun/ops_dryrun
+# pair, and destroys the instance before it exits. A hosted runner that can reach production and
+# cannot reach the drop folder on Joe's Mac is precisely the arrangement that reports a green
+# job over a dead input, so no production database secret is passed to any step below.
+# `tests/test_capture_schedule.py` asserts that, by checking this file for the secret's name.
+#
+# POSTGRESQL 17 comes from the runner image. There is no PGDG fallback here, unlike the
+# `local-sql` job in tests.yml: that fallback fetches a package signing key over the network,
+# and the repository guard (RULE-29) refuses shell-level outbound requests. If a future runner
+# image drops PostgreSQL 17 this job fails loudly with the message below, which is the correct
+# outcome — mirroring tests.yml's fallback is then a reviewed change, not an accident.
+name: capture-acceptance
+on:
+  push:
+    paths:
+      - 'ops/capture_schedule.py'
+      - 'ops/clarification_prompts.py'
+      - 'tools/import_drop.py'
+      - 'tools/importers/**'
+      - 'tools/check_freshness.py'
+      - 'tools/capture_acceptance.py'
+      - '.github/workflows/capture-acceptance.yml'
+  workflow_dispatch: {}
+concurrency: { group: capture-acceptance, cancel-in-progress: true }
+permissions: { contents: read }
+jobs:
+  acceptance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - run: pip install 'pg8000>=1.30,<2' 'pyyaml>=6,<7' 'ofxtools>=0.9,<1' 'dateparser>=1.2,<2'
+      - name: require PostgreSQL 17 from the runner image
+        run: |
+          set -euo pipefail
+          if [ ! -x /usr/lib/postgresql/17/bin/initdb ]; then
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq postgresql-17
+          fi
+          /usr/lib/postgresql/17/bin/initdb --version
+          echo "/usr/lib/postgresql/17/bin" >> "$GITHUB_PATH"
+      - name: the ten acceptance cases (real processes, disposable server)
+        env:
+          PYTHONPATH: ${{ github.workspace }}
+        run: python3 tools/capture_acceptance.py

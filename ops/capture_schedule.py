@@ -52,7 +52,8 @@ carries an outcome and numbers, and the importer's per-file JSON goes only to
 Exit codes, which are what launchd and a human both read:
 
     0  completed — imported, or nothing was pending
-    1  the import committed but at least one file failed or was quarantined
+    1  the import committed but at least one file failed or was quarantined, OR every
+       pending file was still being written and none could be imported
     2  a prerequisite is missing, the database is unreachable, or the import rolled back
     3  another run holds the lock; nothing was attempted
 """
@@ -63,8 +64,10 @@ import fcntl
 import json
 import os
 import plistlib
+import re
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 from lib import db
@@ -96,9 +99,22 @@ LAUNCHD_LABEL = "com.personalos.import"
 LAUNCHD_HOUR = 1
 LAUNCHD_MINUTE = 40
 
+# A file is READY when two observations of (size, mtime) taken this far apart agree.
+#
+# Deliberately NOT "mtime is older than N seconds". A file arriving by AirDrop, `cp -p`, a
+# Finder copy from another volume or an iCloud materialisation keeps the SOURCE file's mtime,
+# so a half-copied 300 MB export can present an mtime from last Tuesday while bytes are still
+# being written. An age test passes that file immediately. Size stability across two
+# observations is the property that actually distinguishes a finished file from a growing one.
+SETTLE_INTERVAL_SECONDS = 5
+SETTLE_TIMEOUT_SECONDS = 120
+
 # Outcomes. Every scheduled firing ends as exactly one of these.
+# `files_still_arriving` is deliberately absent: it is a fault, and it writes status='error'.
 OK_OUTCOMES = ("imported", "no_new_files", "imported_no_new_atoms", "dry_run")
 EXIT_OK, EXIT_PARTIAL, EXIT_FAILED, EXIT_LOCKED = 0, 1, 2, 3
+
+IDENTIFIER = re.compile(r"^[a-z_][a-z0-9_]*$")
 
 
 class Locked(Exception):
@@ -174,6 +190,62 @@ def pending_files(drop):
     return sorted(p for p in drop.iterdir() if p.is_file() and not p.name.startswith("."))
 
 
+def settle(files, interval=None, timeout=None, sleeper=time.sleep, clock=time.monotonic):
+    """Split `files` into (ready, still_arriving). A file still being written is NOT imported.
+
+    **The failure this closes.** `import_drop.py` hashes a file, counts its records, and writes
+    that count into a `core.raw_captures` payload which RULE-02 makes append-only. A file that
+    is still being copied into the drop folder is a shorter file than the one Joe dropped, and
+    the two failure shapes are not equally loud:
+
+    * An Apple Health `export.zip` truncated mid-copy raises `BadZipFile`, is reported
+      `failed`, and stays in the drop folder for the next run. That one is fine already.
+    * A bank CSV truncated mid-copy **parses cleanly**. It yields whatever rows had landed,
+      commits them, writes a capture row whose `records_parsed` is simply wrong, and moves the
+      file to `_done/`. Nothing is flagged, the atoms that never arrived are indistinguishable
+      from days Joe did not spend, and the capture row cannot be corrected because appending is
+      the only operation the spine allows. That is a permanent, silent, wrong number, which is
+      exactly the class of failure this whole path exists to stop.
+
+    A file that never settles is left in the drop folder and reported, not imported. Waiting is
+    the safe direction of the error: an import that happens one run late is recoverable and an
+    append-only capture row describing a partial file is not.
+
+    `interval` and `timeout` default to the module constants at CALL time rather than at
+    definition time, so a test can shorten the wait by setting them without reaching into a
+    function's default arguments. `sleeper` and `clock` are injected for the same reason.
+    """
+    interval = SETTLE_INTERVAL_SECONDS if interval is None else interval
+    timeout = SETTLE_TIMEOUT_SECONDS if timeout is None else timeout
+    pending = {p: _fingerprint(p) for p in files}
+    ready, gone = [], []
+    deadline = clock() + timeout
+    while pending:
+        sleeper(interval)
+        for path, before in list(pending.items()):
+            after = _fingerprint(path)
+            if after is None:                 # vanished between observations
+                gone.append(path)
+                del pending[path]
+            elif after == before:
+                ready.append(path)
+                del pending[path]
+            else:
+                pending[path] = after
+        if pending and clock() >= deadline:
+            break
+    return sorted(ready), sorted(pending)
+
+
+def _fingerprint(path):
+    """(size, mtime_ns) or None if the file is no longer there."""
+    try:
+        st = Path(path).stat()
+    except OSError:
+        return None
+    return (st.st_size, st.st_mtime_ns)
+
+
 @contextlib.contextmanager
 def exclusive_lock(path):
     """A non-blocking `flock`. Raises `Locked` rather than queueing.
@@ -200,10 +272,22 @@ def exclusive_lock(path):
 
 # --------------------------------------------------------------------------- the importer
 
-def import_command(repo_root=ROOT, drop=None, commit=True, since=None, until=None):
+def import_command(repo_root=ROOT, drop=None, commit=True, since=None, until=None,
+                   schema=None, ops=None, files=None):
     """The exact argv this wrapper runs. `tools/import_drop.py` is invoked, never imported and
     never reimplemented: it owns idempotency, quarantine, the capture row and the move to
-    `_done/`, and a second copy of any of that would be a second thing to keep correct."""
+    `_done/`, and a second copy of any of that would be a second thing to keep correct.
+
+    `schema` and `ops` are passed through rather than left to the importer's defaults. They had
+    to be: this wrapper already accepted `--ops` and used it to ask `<ops>.runs` whether the
+    importer had logged, while the importer always logged to a hardcoded `ops.runs`. Under any
+    non-default pair the wrapper found no importer row and wrote a second heartbeat for the
+    same import — `ops.runs` counting one import twice, which point 2 of this module's
+    docstring says is the thing it exists to avoid.
+
+    `files` names an explicit subset, used when some files in the drop folder are still being
+    written (`settle`). Leaving the importer to scan the folder would import them anyway.
+    """
     cmd = [sys.executable, str(Path(repo_root) / "tools" / "import_drop.py")]
     if drop is not None:
         cmd += ["--drop", str(drop)]
@@ -211,6 +295,12 @@ def import_command(repo_root=ROOT, drop=None, commit=True, since=None, until=Non
         cmd += ["--since", since]
     if until:
         cmd += ["--until", until]
+    if schema:
+        cmd += ["--schema", schema]
+    if ops:
+        cmd += ["--ops", ops]
+    for f in files or ():
+        cmd += ["--file", str(f)]
     if commit:
         cmd.append("--commit")
     return cmd
@@ -316,7 +406,8 @@ def log_line(log_path, record, importer_stdout=None):
 
 
 def run(drop=None, repo_root=ROOT, commit=True, since=None, until=None, ops="ops",
-        connect=db.connect, runner=subprocess.run, log_path=None, env=None):
+        connect=db.connect, runner=subprocess.run, log_path=None, env=None, schema=None,
+        settler=settle):
     """One scheduled firing. Returns a record dict; raises nothing for ordinary failures.
 
     Caller supplies `connect` and `runner` so the whole path — success, failure, empty folder,
@@ -324,6 +415,9 @@ def run(drop=None, repo_root=ROOT, commit=True, since=None, until=None, ops="ops
     importer subprocess.
     """
     env = os.environ if env is None else env
+    if not IDENTIFIER.match(ops):
+        # Interpolated into SQL below; a schema name cannot be a bind parameter.
+        raise ValueError(f"not a plain schema identifier: {ops!r}")
     drop = Path(drop) if drop is not None else DEFAULT_DROP
     started = dt.datetime.now(dt.timezone.utc)
     record = {"job": JOB_NAME, "code_version": CODE_VERSION,
@@ -345,7 +439,7 @@ def run(drop=None, repo_root=ROOT, commit=True, since=None, until=None, ops="ops
     try:
         with exclusive_lock(state_dir(drop) / LOCK_NAME):
             return _locked_run(record, drop, repo_root, commit, since, until, ops,
-                               connect, runner, log_path, env)
+                               connect, runner, log_path, env, schema, settler)
     except Locked:
         # Not an error and not a success: nothing was attempted. No ops.runs row is written,
         # because the run that holds the lock is the one that will write it — a row here would
@@ -359,7 +453,7 @@ def run(drop=None, repo_root=ROOT, commit=True, since=None, until=None, ops="ops
 
 
 def _locked_run(record, drop, repo_root, commit, since, until, ops, connect, runner,
-                log_path, env):
+                log_path, env, schema=None, settler=settle):
     def finish(outcome, exit_code, **extra):
         # The importer's stdout is taken out of `extra` BEFORE it reaches the record: it is
         # per-file JSON carrying file names, it belongs in the log's indented block and in no
@@ -384,6 +478,12 @@ def _locked_run(record, drop, repo_root, commit, since, until, ops, connect, run
     record["credential_source"] = credential_source
     record["files_seen"] = len(files)
 
+    # 1b. Which of those files have finished arriving. A file still being written is left
+    #     where it is and reported; see `settle` for why waiting is the safe direction.
+    ready, arriving = settler(files) if files else ([], [])
+    record["files_ready"] = len(ready)
+    record["files_still_arriving"] = len(arriving)
+
     # 2. Reach the database before spending twenty minutes parsing an export. An unreachable
     #    database is reported as itself and never as an empty day; with no database there is
     #    nowhere to write a heartbeat, so the non-zero exit and the local log are the signal.
@@ -399,14 +499,28 @@ def _locked_run(record, drop, repo_root, commit, since, until, ops, connect, run
         return finish("db_unreachable", EXIT_FAILED, atoms_written=0, heartbeat=None,
                       error=f"{type(exc).__name__}")
 
-    # 3. An empty drop folder. The importer returns before it connects, so it writes no row;
-    #    this is one of the gaps this wrapper exists to fill. The job succeeded and capture
-    #    did not happen, and both halves of that are recorded.
-    if not files:
-        detail = {"files_seen": 0, "atoms_written": 0, "reason": "drop folder empty",
+    # 3. Nothing importable. Two different sentences, and they must not be one row.
+    #
+    #    An EMPTY drop folder is a successful run over no input: the job worked and capture did
+    #    not happen. The importer returns before it connects so it writes no row, which is one
+    #    of the gaps this wrapper exists to fill.
+    #
+    #    A drop folder holding only files that are STILL ARRIVING is a fault, not an empty day.
+    #    It is reported with `status='error'` and a non-zero exit, because a file that never
+    #    settles — a stalled iCloud materialisation, an interrupted AirDrop — would otherwise
+    #    be indistinguishable from no file at all for as long as it stayed stuck, and that is
+    #    the 43-day failure in miniature.
+    if not ready:
+        empty = not files
+        outcome = "no_new_files" if empty else "files_still_arriving"
+        detail = {"files_seen": len(files), "files_ready": 0,
+                  "files_still_arriving": len(arriving), "atoms_written": 0,
+                  "reason": "drop folder empty" if empty
+                            else "every pending file was still being written",
                   "credential_source": credential_source}
         try:
-            run_id = write_heartbeat(conn.cursor(), "no_new_files", detail, 0, "ok", ops)
+            run_id = write_heartbeat(conn.cursor(), outcome, detail, 0,
+                                     "ok" if empty else "error", ops)
             conn.commit()
         except Exception as exc:
             _rollback(conn)
@@ -414,18 +528,36 @@ def _locked_run(record, drop, repo_root, commit, since, until, ops, connect, run
             return finish("heartbeat_failed", EXIT_FAILED, atoms_written=0, heartbeat=None,
                           error=f"{type(exc).__name__}")
         _close(conn)
-        return finish("no_new_files", EXIT_OK, atoms_written=0, heartbeat=str(run_id),
-                      note="the job ran; no export was waiting. Whether a source has gone "
-                           "quiet is check_freshness.py's question, not this one.")
+        if empty:
+            return finish("no_new_files", EXIT_OK, atoms_written=0, heartbeat=str(run_id),
+                          note="the job ran; no export was waiting. Whether a source has gone "
+                               "quiet is check_freshness.py's question, not this one.")
+        return finish("files_still_arriving", EXIT_PARTIAL, atoms_written=0,
+                      heartbeat=str(run_id),
+                      note="pending file(s) were still being written and were not imported; "
+                           "they stay in the drop folder and the next run retries them.")
     _close(conn)
 
-    # 4. The import itself, in its own process, with its own exit code.
-    proc = runner(import_command(repo_root, drop, commit, since, until),
+    # 4. The import itself, in its own process, with its own exit code. The ready files are
+    #    named explicitly whenever the folder also holds files that are still arriving —
+    #    otherwise the importer scans the folder and imports them anyway, and the settle gate
+    #    would be a check whose result nothing acted on.
+    proc = runner(import_command(repo_root, drop, commit, since, until, schema, ops,
+                                 files=ready if arriving else None),
                   capture_output=True, text=True,
                   cwd=str(repo_root), env=_child_env(env, repo_root))
     atoms, per_file = parse_importer_output(proc.stdout)
     outcome, exit_code = classify(proc.returncode, atoms, commit, len(per_file))
+    # A file the importer does not recognise is not a failure — it is left where it is, the
+    # run exits 0, and the next run looks at it again. What it must not be is SILENT. The
+    # importer prints `unrecognised_file_type` in its per-file JSON, which goes only to the
+    # private log, so a misnamed export — `statement (1).csv`, a `.numbers` file, a Health
+    # export saved as `health.xml` — would sit in the drop folder being ignored every night
+    # while every summary line above it said the job succeeded. That is the shape of the
+    # failure this whole path exists to catch, in miniature, so the count is surfaced.
+    unrecognised = sum(1 for r in per_file if r.get("status") == "unrecognised_file_type")
     record.update({"atoms_written": atoms, "importer_exit": proc.returncode,
+                   "unrecognised_files": unrecognised,
                    "files": [r.get("status") for r in per_file]})
 
     # 5. Fill the heartbeat gap, having first asked whether there is one. The importer's row
@@ -437,7 +569,9 @@ def _locked_run(record, drop, repo_root, commit, since, until, ops, connect, run
         cur = conn.cursor()
         importer_run = importer_logged_since(cur, marker, ops)
         if importer_run is None:
-            detail = {"files_seen": len(files), "atoms_written": atoms,
+            detail = {"files_seen": len(files), "files_ready": len(ready),
+                      "files_still_arriving": len(arriving),
+                      "unrecognised_files": unrecognised, "atoms_written": atoms,
                       "importer_exit": proc.returncode, "committed": bool(commit),
                       "file_statuses": [r.get("status") for r in per_file],
                       "reason": "the importer's transaction wrote no run row",
@@ -463,8 +597,14 @@ def _locked_run(record, drop, repo_root, commit, since, until, ops, connect, run
 
 
 def _child_env(env, repo_root):
+    """The importer's environment: repo root FIRST on PYTHONPATH, whatever was already there
+    kept behind it. Overwriting PYTHONPATH outright was wrong in both directions — it discarded
+    an entry the agent's own environment had set, and it made the child's import path depend on
+    which parent started it. The repo still wins, which is the only part that mattered."""
     child = dict(env)
-    child["PYTHONPATH"] = str(repo_root)
+    root = str(repo_root)
+    rest = [p for p in (env.get("PYTHONPATH") or "").split(os.pathsep) if p and p != root]
+    child["PYTHONPATH"] = os.pathsep.join([root, *rest])
     return child
 
 
@@ -521,6 +661,10 @@ def render(record):
              f"files_seen={record.get('files_seen')}",
              f"atoms_written={record.get('atoms_written', 0)}",
              f"new_data={'yes' if record.get('new_data') else 'no'}"]
+    if record.get("files_still_arriving"):
+        parts.append(f"still_arriving={record['files_still_arriving']}")
+    if record.get("unrecognised_files"):
+        parts.append(f"unrecognised={record['unrecognised_files']}")
     if record.get("heartbeat"):
         parts.append(f"ops.runs={record['heartbeat']}")
     if record.get("import_drop_run_id"):
@@ -544,6 +688,17 @@ def main(argv=None):
     ap.add_argument("--since", help="earliest subject day, YYYY-MM-DD, passed through")
     ap.add_argument("--until", help="latest subject day, YYYY-MM-DD, passed through")
     ap.add_argument("--ops", default="ops", help="ops schema name (default: ops)")
+    ap.add_argument("--schema", default=None, choices=("core", "core_dryrun"),
+                    help="core schema passed to the importer (default: the importer's own)")
+    # Operationally real, not test scaffolding: a drop folder on a network volume or an
+    # iCloud-materialised directory settles more slowly than a local copy, and the numbers
+    # that suit an SSD are not the numbers that suit either of those.
+    ap.add_argument("--settle-interval", type=float, default=None, metavar="SECONDS",
+                    help=f"seconds between the two observations that decide a file has "
+                         f"finished arriving (default {SETTLE_INTERVAL_SECONDS})")
+    ap.add_argument("--settle-timeout", type=float, default=None, metavar="SECONDS",
+                    help=f"give up waiting for a file to stop growing after this long and "
+                         f"report it instead of importing it (default {SETTLE_TIMEOUT_SECONDS})")
     a = ap.parse_args(argv)
 
     if a.emit_launchd:
@@ -558,8 +713,9 @@ def main(argv=None):
         except PrerequisiteMissing as exc:
             print(f"{JOB_NAME}: PREREQUISITE MISSING ({exc.outcome}): {exc}", file=sys.stderr)
             return EXIT_FAILED
+        ready, arriving = settle(files) if files else ([], [])
         print(f"{JOB_NAME}: preflight ok  drop={drop}  pending_files={len(files)}  "
-              f"credential={source}")
+              f"ready={len(ready)}  still_arriving={len(arriving)}  credential={source}")
         print("  a pending file count is not freshness; check_freshness.py answers that.")
         return EXIT_OK
 
@@ -568,8 +724,10 @@ def main(argv=None):
         return EXIT_FAILED
 
     drop = Path(a.drop) if a.drop else DEFAULT_DROP
+    settler = (lambda files: settle(files, a.settle_interval, a.settle_timeout)) \
+        if (a.settle_interval is not None or a.settle_timeout is not None) else settle
     record = run(drop=drop, commit=not a.dry_run, since=a.since, until=a.until, ops=a.ops,
-                 log_path=state_dir(drop) / LOG_NAME)
+                 schema=a.schema, log_path=state_dir(drop) / LOG_NAME, settler=settler)
     stream = sys.stdout if record["exit_code"] in (EXIT_OK, EXIT_LOCKED) else sys.stderr
     print(render(record), file=stream)
     return record["exit_code"]

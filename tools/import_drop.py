@@ -328,9 +328,24 @@ def main(argv=None):
     ap.add_argument("--since", help="earliest subject day to import, YYYY-MM-DD")
     ap.add_argument("--until", help="latest subject day to import, YYYY-MM-DD")
     ap.add_argument("--schema", default="core", choices=("core", "core_dryrun"))
+    # The ops schema was hardcoded in the `ops.runs` INSERT below while `--schema` was a
+    # parameter, so the two halves of one import could land in different schema pairs. It is
+    # not a live production bug — production uses both defaults — but `ops/capture_schedule.py`
+    # already took an `--ops` argument, used it to ask `<ops>.runs` whether the importer had
+    # logged, and had no way to tell the importer where to log. Under any non-default pair the
+    # wrapper therefore found no importer row and wrote a second heartbeat describing the same
+    # import, which is the one thing its own docstring says it must never do. `choices` rather
+    # than a free string: this name is interpolated into SQL and cannot be a bind parameter.
+    ap.add_argument("--ops", default="ops", choices=("ops", "ops_dryrun"),
+                    help="ops schema for the runs row (default: ops)")
     ap.add_argument("--commit", action="store_true",
                     help="write. Without it the transaction is rolled back and nothing changes.")
-    ap.add_argument("--file", help="import exactly this file instead of scanning the folder")
+    # Repeatable. A scheduled run imports the files that have finished arriving and leaves the
+    # ones still being written where they are (`ops/capture_schedule.py::settle`); naming that
+    # subset needs more than one path, and one subprocess per file would produce one ops.runs
+    # row per file for what is a single scheduled import.
+    ap.add_argument("--file", action="append", default=None, metavar="PATH",
+                    help="import exactly these files instead of scanning the folder (repeatable)")
     a = ap.parse_args(argv)
 
     since = dt.date.fromisoformat(a.since) if a.since else None
@@ -338,7 +353,13 @@ def main(argv=None):
     drop = Path(a.drop)
 
     if a.file:
-        files = [Path(a.file)]
+        files = [Path(f) for f in a.file]
+        missing = [f for f in files if not f.is_file()]
+        if missing:
+            # Named explicitly and absent is a caller error, not an empty day. Names are not
+            # printed (RULE-29): a drop-folder file name can identify an account.
+            print(f"import_drop: {len(missing)} named file(s) do not exist", file=sys.stderr)
+            return 2
     else:
         if not drop.is_dir():
             print(f"drop folder does not exist: {drop}", file=sys.stderr)
@@ -390,7 +411,7 @@ def main(argv=None):
 
         total = sum(r.get("atoms_written", 0) for r in results)
         cur.execute(
-            f"""insert into ops.runs (job_name, finished_at, status, rows_written, detail)
+            f"""insert into {a.ops}.runs (job_name, finished_at, status, rows_written, detail)
                 values ('import_drop', now(), %s, %s, %s)""",
             ("ok" if not failures else "error", total,
              json.dumps({"files": len(files), "atoms": total, "failed": failures,
@@ -419,16 +440,20 @@ def main(argv=None):
         # from the default drop folder, and `drop / basename` resolves a bare name — together
         # they meant `--file /elsewhere/export.xml` moved a DIFFERENT file that happened to
         # share the name out of the default folder, and left the imported one in place.
-        done_dir = (files[0].parent if a.file else drop) / "_done"
-        moved = 0
+        # Each file goes to a `_done/` beside ITSELF: with `--file` now repeatable the paths
+        # need not share a parent, and deriving one destination from the first of them would
+        # reintroduce the same bug in a new shape.
+        moved, destinations = 0, set()
         for r, src in zip(results, files):
             if r.get("status") in ("imported", "skipped_duplicate_file", "no_records_in_window"):
                 if src.exists():
+                    done_dir = (src.parent if a.file else drop) / "_done"
                     done_dir.mkdir(parents=True, exist_ok=True)
                     shutil.move(str(src), str(done_dir / src.name))
+                    destinations.add(done_dir)
                     moved += 1
         if moved:
-            print(f"{moved} processed file(s) moved to {done_dir}")
+            print(f"{moved} processed file(s) moved to {len(destinations)} _done folder(s)")
 
     return 1 if failures else 0
 
