@@ -65,6 +65,8 @@ def main() -> int:
     quantity.add_argument("--servings", type=float, default=None)
     ap.add_argument("--no-off", action="store_true",
                     help="do not register the Open Food Facts leg at all")
+    ap.add_argument("--no-usda", action="store_true",
+                    help="do not register either USDA FoodData Central leg at all")
     ap.add_argument("--commit", action="store_true",
                     help="keep the REQ-NUT-003/004 rows; without it the run rolls back")
     args = ap.parse_args()
@@ -72,10 +74,19 @@ def main() -> int:
     conn = db.connect()
     cur = conn.cursor()
     try:
-        sources = nutrition.build_sources(cur, off=not args.no_off)
+        sources = nutrition.build_sources(cur, off=not args.no_off, usda=not args.no_usda)
+        usable = nutrition_cascade.resolvable_sources(sources)
         print("legs      " + ", ".join(
-            f"{name}{'' if name in nutrition_cascade.resolvable_sources(sources) else ' (unavailable)'}"
+            f"{name}{'' if name in usable else ' (unavailable)'}"
             for name in nutrition_cascade.SOURCE_PRECEDENCE if name in sources))
+        # A leg that cannot answer says WHY, once, before any item is attempted. Without this
+        # an operator reads "unavailable" and cannot tell a missing api.data.gov key from a
+        # run that is pointed at a disposable server (RULE-01) — and only one of those is
+        # something they can fix.
+        for name in nutrition_cascade.SOURCE_PRECEDENCE:
+            leg = sources.get(name)
+            if leg is not None and name not in usable and getattr(leg, "detail", None):
+                print(f"          {name}: {leg.detail}")
         try:
             result = nutrition.resolve_item(cur, args.item_text, grams=args.grams,
                                             servings=args.servings, brand=args.brand,

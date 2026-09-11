@@ -31,11 +31,13 @@ and raised `Unresolved` on a miss. The declared order was documentation. It is n
 — and the two USDA legs raise `NotConfigured` rather than returning invented rows, so a missing
 key is a recorded outcome and never a plausible number (RULE-06).
 """
+import datetime as dt
 import json
 import os
 
 from tools.engines import nutrition_cascade
 from tools.engines import nutrition_off
+from tools.engines import nutrition_usda
 
 CODE_VERSION = "nutrition-v2"
 
@@ -48,11 +50,21 @@ SOURCE_PRECEDENCE = nutrition_cascade.SOURCE_PRECEDENCE
 
 NUTRIENT_KEYS = ("kcal", "protein_g", "carbs_g", "fat_g", "fiber_g", "sugar_g", "sodium_mg")
 
-# REQ-NUT-005 / REQ-NUT-013 / REQ-NUT-014. The USDA FoodData Central legs are the only part of
-# B12 §D.2/D.3 still outstanding, and they are outstanding for a reason that is not a coding
-# one: Joe has no api.data.gov key. Saying so, once, in the place both legs report it from.
-USDA_UNCONFIGURED = ("no api.data.gov key: the USDA FoodData Central client is unwritten and "
-                     "its egress target is unrecorded under RULE-29 (ADR-0106 'What remains')")
+# REQ-NUT-005 / REQ-NUT-013 / REQ-NUT-014. The USDA FoodData Central client is now WRITTEN
+# (`nutrition_usda`) and its egress target has been recorded since migration 0050 put
+# `api.nal.usda.gov` in `config.egress_allowlist` — so ADR-0106's second blocker was already
+# resolved when it was written (ADR-0139). What remains is a credential, which is a RUNTIME
+# fact rather than a constant: `build_sources` asks `nutrition_usda` at the moment it builds
+# the legs, and there is deliberately no module-level "USDA is unconfigured" string here any
+# more. One did exist, and by the end of this change nothing read it — a constant nobody reads
+# is the smallest version of the problem this project keeps finding at module scale.
+#
+# RULE-01 / ADR-0082, as for Open Food Facts below: a resolver pointed at a disposable server
+# must not spend one of REQ-NUT-009's 900 real slots or drop a live third-party payload into a
+# fixture. A test that wants the leg INJECTS a transport, which is visible in the call.
+USDA_TRANSPORT_REFUSED = ("no transport was supplied and PERSONAL_OS_TEST_SOCKET names a "
+                          "disposable server; a real USDA FoodData Central request is not "
+                          "issued from a rolled-back fixture (RULE-01, ADR-0082)")
 
 
 class Unresolved(Exception):
@@ -252,6 +264,80 @@ class UnconfiguredLeg:
         raise nutrition_cascade.NotConfigured(self.source, self.detail)
 
 
+class UsdaLeg:
+    """Steps 3 and 4 of REQ-NUT-001: USDA FoodData Central, behind `lib.egress`.
+
+    One class serves both datasets because the difference between them is a `dataType` filter
+    and a TTL, not a protocol. `source` is `usda_branded` or `usda_foundation` and is the name
+    the cascade registers it under, so `nutrition_cascade`'s REQ-NUT-014 brand-owner check and
+    REQ-NUT-016 branded-source rule key on the right thing without a special case here.
+
+    **Both legs share one `Quota`.** api.data.gov meters the KEY, and one key serves both
+    datasets, so REQ-NUT-009's 900-per-hour ceiling and REQ-NUT-012's 429 cooldown are counted
+    once across the pair. Giving each leg its own would permit 1,800 requests an hour and would
+    let a 429 on Branded be followed immediately by a Foundation request against the same
+    throttled key — which is how a key gets banned, and the failure mode of a banned key is
+    every future item unresolved.
+
+    The translation from FoodData Central's outcomes to the cascade's two mirrors `OffLeg`:
+
+      * `UsdaNotFound` / `UsdaAmbiguous` / `UsdaMalformed` -> `None`. USDA WAS asked and has no
+        usable record for this food. That is evidence about the food, it reaches Joe's review
+        list as `no_source_match`, and the specific reason is kept in `notes`.
+      * `UsdaRateLimited` -> `RateLimited`, which puts the source in REQ-NUT-012's hour-long
+        penalty box; `UsdaTransient` -> `SourceUnavailable`. Neither is a fact about the food,
+        and recording an outage as "no such food" would turn a 503 into a permanent gap.
+      * `ApiKeyMissing` -> `NotConfigured`. In practice `build_sources` has already substituted
+        an `UnconfiguredLeg` when there is no key, so this is the path for a key that
+        disappears mid-run; it is handled rather than left to become a crash in a nightly job.
+      * `egress.PayloadRefused` is NOT caught, exactly as in `OffLeg`.
+    """
+
+    def __init__(self, source, cur, *, quota=None, env=None, schema="core", ops="ops",
+                 config="config", transport=None, timeout=20, fetched_at=None, notes=None):
+        if source not in nutrition_usda.SOURCES:
+            raise ValueError(f"not a USDA cascade source: {source!r}")
+        self.source, self.cur, self.env = source, cur, env
+        self.transport, self.timeout = transport, timeout
+        self.schema, self.ops, self.config = schema, ops, config
+        self.quota = nutrition_usda.Quota() if quota is None else quota
+        self.fetched_at = fetched_at
+        self.notes = [] if notes is None else notes
+        self.calls = 0
+
+    def __call__(self, item_text, brand):
+        self.calls += 1
+        try:
+            row = nutrition_usda.lookup_by_name(
+                self.cur, item_text, self.source, brand=brand, quota=self.quota, env=self.env,
+                schema=self.schema, ops=self.ops, config=self.config, timeout=self.timeout,
+                fetched_at=self.fetched_at, _transport=self.transport)
+        except nutrition_usda.ApiKeyMissing as e:
+            raise nutrition_cascade.NotConfigured(self.source, str(e)) from e
+        except nutrition_usda.UsdaRateLimited as e:
+            kind = "REQ-NUT-012 provider 429" if e.provider else "REQ-NUT-009 hourly quota"
+            raise nutrition_cascade.RateLimited(
+                self.source, f"{kind}, retry in {round(e.retry_after)}s") from e
+        except nutrition_usda.UsdaTransient as e:
+            raise nutrition_cascade.SourceUnavailable(
+                self.source, e.reason, json.dumps(e.detail, default=str)) from e
+        except nutrition_usda.UsdaUnusable as e:
+            self.notes.append(e.tried_entry())
+            return None
+        self.notes.append({"source": self.source, "hit": True, "source_id": row["source_id"]})
+        out = {"cache_row": row, "resolved_source": self.source, "from_cache": False,
+               "estimate_method": self.source,
+               "cached": {"canonical_name": row["canonical_name"], "source": row["source"],
+                          "nutrients_per_100g": row["nutrients_per_100g"],
+                          "serving_g": row["serving_g"], "brand": row["brand"]}}
+        if self.source == nutrition_usda.BRANDED:
+            # REQ-NUT-014. `nutrition_cascade.resolve` REQUIRES this key on a `usda_branded`
+            # match and raises without it; `nutrition_usda.parse_food` has already refused a
+            # branded record with no brand owner, so this cannot be None by the time it is read.
+            out["brand_owner"] = row["brand"]
+        return out
+
+
 class OffLeg:
     """Step 5 of REQ-NUT-001: Open Food Facts text search, behind `lib.egress`.
 
@@ -333,20 +419,56 @@ LIVE_TRANSPORT_REFUSED = ("no transport was supplied and PERSONAL_OS_TEST_SOCKET
                           "from a rolled-back fixture (RULE-01, ADR-0082)")
 
 
+def usda_available(env=None):
+    """Is there an api.data.gov key? Returns the reason it is unusable, or None.
+
+    Separated from `build_sources` so the reason a USDA leg is absent can be asked for — by
+    `tools/resolve_nutrition.py`, and by a test — without constructing the whole cascade.
+    """
+    try:
+        nutrition_usda.api_key(env)
+    except nutrition_usda.ApiKeyMissing as e:
+        return str(e)
+    return None
+
+
 def build_sources(cur, *, schema="core", ops="ops", config="config", off=True,
                   off_transport=None, off_limits=None, off_env=None, off_timeout=20,
-                  fetched_at=None, env=None):
+                  usda=True, usda_transport=None, usda_quota=None, usda_env=None,
+                  usda_timeout=20, fetched_at=None, env=None):
     """The four legs, in the order `nutrition_cascade` will walk them.
 
-    `off=False` is not a convenience switch: it is how a caller says Open Food Facts cannot be
-    reached at all, which the cascade must be able to tell apart from "Open Food Facts did not
-    know this food" (REQ-NUT-024).
+    `off=False` and `usda=False` are not convenience switches: they are how a caller says a
+    source cannot be reached at all, which the cascade must be able to tell apart from "that
+    source did not know this food" (REQ-NUT-024).
+
+    A leg is real only when it could actually answer. Three things can put a USDA leg back to
+    `UnconfiguredLeg`, and they are different facts that must not collapse into one message:
+    the caller disabled it, there is no api.data.gov key, or the run is pointed at a disposable
+    server with no injected transport (RULE-01).
+
+    `usda_env` carries the CREDENTIAL and `env` the RUN CONTEXT, exactly as `off_env` and `env`
+    already divide for Open Food Facts. They are not interchangeable and neither defaults to
+    the other: a caller passing `env={}` is saying "no test socket is set", not "this system
+    has no api.data.gov key", and letting one stand in for the other would silently disable a
+    configured leg. Both fall back to `os.environ` on their own when None.
     """
-    sources = {
-        "joe": CacheLeg(cur, schema),
-        "usda_branded": UnconfiguredLeg("usda_branded", USDA_UNCONFIGURED),
-        "usda_foundation": UnconfiguredLeg("usda_foundation", USDA_UNCONFIGURED),
-    }
+    sources = {"joe": CacheLeg(cur, schema)}
+
+    # REQ-NUT-009/012 are metered per KEY, so ONE quota object is shared by both USDA legs.
+    usda_quota = nutrition_usda.Quota() if usda_quota is None else usda_quota
+    usda_reason = None
+    if not usda:
+        usda_reason = "the caller declared USDA FoodData Central unreachable for this run"
+    elif (missing := usda_available(usda_env)):
+        usda_reason = missing
+    elif usda_transport is None and not live_transport_permitted(env):
+        usda_reason = USDA_TRANSPORT_REFUSED
+    for name in nutrition_usda.SOURCES:
+        sources[name] = (UnconfiguredLeg(name, usda_reason) if usda_reason else
+                         UsdaLeg(name, cur, quota=usda_quota, env=usda_env, schema=schema,
+                                 ops=ops, config=config, transport=usda_transport,
+                                 timeout=usda_timeout, fetched_at=fetched_at))
     if off and off_transport is None and not live_transport_permitted(env):
         sources["off_product"] = UnconfiguredLeg("off_product", LIVE_TRANSPORT_REFUSED)
     elif off:
@@ -629,3 +751,117 @@ def record_unresolved(cur, unresolved, *, raw_capture_id, subject_day, schema="c
             values (%s, %s, %s, %s::jsonb) returning item_id""",
         (raw_capture_id, unresolved.item_text, subject_day, tried))
     return cur.fetchone()[0]
+
+# ---------------------------------------------------------------- the review list closes (§D.3)
+
+class CorrectionRefused(Exception):
+    """Joe's answer could not be accepted as given. Never silently adjusted (RULE-01)."""
+
+
+def accept_correction(cur, item_id, nutrients_per_100g, *, supplied_by,
+                      canonical_name=None, serving_g=None, brand=None, schema="core"):
+    """REQ-NUT-017. Joe answers a review-list item, and the answer becomes a `joe` cache row.
+
+    Until this existed, `unresolved_items` was WRITE-ONLY. `record_unresolved` filled it every
+    night and nothing could ever empty it: there was no path from Joe's answer back into
+    `foods_cache`, so the same sandwich was re-asked, re-refused and re-listed indefinitely.
+    RULE-10 says a human correction permanently outranks a guess, and `lookup_cached` already
+    orders by `SOURCE_PRECEDENCE` with `joe` first — but nothing wrote the row that ordering
+    exists to prefer.
+
+    Three writes, which REQ-NUT-017 names together because any one alone leaves the loop open:
+
+      1. a `foods_cache` row with `source = 'joe'` — the answer itself;
+      2. its alias, via `remember_alias`, so the phrase AS UTTERED resolves next time rather
+         than only the canonical name Joe happened to type (REQ-NUT-004);
+      3. `resolved_at` / `resolved_by = 'joe'` on the item, so it leaves the review list.
+
+    **THIS IS THE ONE PLACE A NUTRIENT VALUE ENTERS FROM OUTSIDE A SOURCE, AND IT IS A HUMAN
+    PATH ONLY.** RULE-09 keeps models from computing or supplying figures, and the requirement
+    that a human may do so is not a loophole in it. `supplied_by` is mandatory, must be `joe`,
+    and is stored on the row: a call site that cannot name a person cannot use this function,
+    and a value whose origin is unrecorded is exactly the `inferred`-as-`measured` confusion
+    INV-5 exists to prevent. `resolve_item` never calls this; `tools/resolve_nutrition.py`
+    never calls it; no model-facing path reaches it.
+
+    Idempotent. Answering an item that is already resolved returns None and writes nothing,
+    because a review list that re-opens on a second submission is a review list that grows.
+    """
+    if supplied_by != "joe":
+        # The column's CHECK already restricts `resolved_by`; refusing here means the refusal
+        # names the rule rather than surfacing as a constraint violation three writes later.
+        raise CorrectionRefused(
+            f"REQ-NUT-017 / RULE-09: a nutrient value may be supplied by Joe and by nobody "
+            f"else; supplied_by={supplied_by!r}")
+
+    cur.execute(f"""select item_text, resolved_at from {schema}.unresolved_items
+                     where item_id = %s""", (item_id,))
+    found = cur.fetchone()
+    if found is None:
+        raise CorrectionRefused(f"no unresolved item {item_id!r} to answer")
+    item_text, resolved_at = found
+    if resolved_at is not None:
+        return None                       # already answered; answering twice changes nothing
+
+    cleaned = _screen_supplied_nutrients(nutrients_per_100g)
+    name = str(canonical_name or item_text).strip()
+    if not name:
+        raise CorrectionRefused("a correction needs a name to key `foods_cache` on")
+    if serving_g is not None and float(serving_g) <= 0:
+        raise CorrectionRefused(f"serving_g must be positive, got {serving_g!r}")
+
+    row = {"canonical_name": name, "source": "joe",
+           # `foods_cache` is UNIQUE on (canonical_name, source, source_id). Keying Joe's row
+           # on the NAME rather than on `item_id` means one `joe` row per food, so answering
+           # the same food on two different nights updates nothing and duplicates nothing —
+           # rather than two rows whose ordering `lookup_cached` would have to break a tie on.
+           "source_id": name.lower(),
+           "brand": brand, "nutrients_per_100g": cleaned, "serving_g": serving_g,
+           "fetched_at": dt.datetime.now(dt.timezone.utc),
+           "raw": {"supplied_by": supplied_by, "requirement": "REQ-NUT-017",
+                   "answered_item_id": str(item_id), "item_text_as_uttered": item_text,
+                   "code_version": CODE_VERSION}}
+    food_id = nutrition_off.insert_cache_row(cur, row, schema=schema)
+    alias_id = remember_alias(cur, item_text, row, schema=schema)
+
+    cur.execute(f"""update {schema}.unresolved_items
+                       set resolved_at = now(), resolved_by = 'joe'
+                     where item_id = %s and resolved_at is null""", (item_id,))
+    return {"food_id": food_id, "alias_id": alias_id, "canonical_name": name,
+            "nutrients_per_100g": cleaned, "item_text": item_text}
+
+
+def _screen_supplied_nutrients(nutrients):
+    """A supplied nutrient map, or `CorrectionRefused`. Nothing is coerced or clamped.
+
+    Joe is authoritative about what he ate; he is not exempt from arithmetic. A typed `3000`
+    where `300` was meant is the ordinary failure here, and it would enter the cache as a
+    `joe` row — the one source nothing else outranks — and stay wrong until he noticed. So the
+    same physical ceilings every source payload is screened against apply, and a value past
+    them is REFUSED rather than dropped: a source record with one unreadable field is still
+    worth keeping, but a person's answer with a rejected field is a question to re-ask.
+    """
+    if not isinstance(nutrients, dict) or not nutrients:
+        raise CorrectionRefused("a correction must supply at least one nutrient")
+    unknown = sorted(set(nutrients) - set(NUTRIENT_KEYS))
+    if unknown:
+        raise CorrectionRefused(
+            f"not nutrients this system stores: {unknown}; expected some of "
+            f"{list(NUTRIENT_KEYS)}")
+    cleaned = {}
+    for key, value in nutrients.items():
+        try:
+            number = float(value)
+        except (TypeError, ValueError):
+            raise CorrectionRefused(f"{key}={value!r} is not a number") from None
+        if number != number or number in (float("inf"), float("-inf")):
+            raise CorrectionRefused(f"{key}={value!r} is not a finite number")
+        if number < 0:
+            raise CorrectionRefused(f"{key}={number} is negative")
+        ceiling = nutrition_off.CEILING_PER_100G.get(key)
+        if ceiling is not None and number > ceiling:
+            raise CorrectionRefused(
+                f"{key}={number} per 100 g exceeds the physical ceiling {ceiling}; 100 g of "
+                f"anything cannot contain that. Check the units and the per-100 g basis.")
+        cleaned[key] = number
+    return cleaned

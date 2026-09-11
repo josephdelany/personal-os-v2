@@ -115,6 +115,12 @@ _CEILING_PER_100G = {
 }
 _MACRO_SUM_CEILING = 105.0   # protein + carbs + fat + fibre, with rounding headroom
 
+# These two are physical facts about 100 g of matter, not Open Food Facts quirks, so
+# `nutrition_usda` screens on the same numbers rather than a second copy that could drift apart
+# from this one. Public aliases rather than a move, so nothing below this line has to change.
+CEILING_PER_100G = _CEILING_PER_100G
+MACRO_SUM_CEILING = _MACRO_SUM_CEILING
+
 _MASS_UNITS_TO_G = {"g": 1.0, "gram": 1.0, "grams": 1.0, "mg": 0.001, "kg": 1000.0,
                     "oz": 28.349523125, "lb": 453.59237}
 _VOLUME_UNITS_TO_ML = {"ml": 1.0, "cl": 10.0, "dl": 100.0, "l": 1000.0, "litre": 1000.0}

@@ -59,6 +59,11 @@ TESTS = ("tests/test_ask_ranges.py", "tests/test_ask.py", "tests/test_ask_operat
          "tests/test_nutrition_off.py",
          "tests/test_nutrition_integration.py",
          "tests/test_nutrition_persistence.py",
+         # 30 of its 59 tests CREATE SCHEMA and build 0050 in disposable schemas, so this is
+         # the only job that may run them. Unregistered they skipped in every environment and
+         # counted as nothing -- the "counted but never executed" failure again, this time
+         # caught by the worker who wrote them rather than by an audit.
+         "tests/test_nutrition_usda.py",
          "tests/test_ontology_constraints.py",
          # INTENT_COVERAGE R2: the recorded training history. The importer discarded every
          # `<Workout>` element, so these had nowhere to run before 0070.
