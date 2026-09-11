@@ -70,21 +70,32 @@ def pg_bin():
     raise RuntimeError("PostgreSQL 17 binaries are required; install them before running this command.")
 
 
-def pytest(socket, tests):
+def pytest(socket, tests, junitxml=None):
     env = os.environ.copy()
     env.pop("SUPABASE_DB_URL", None)
     env["PERSONAL_OS_TEST_SOCKET"] = str(socket)
-    return subprocess.run([sys.executable, "-m", "pytest", *tests, "-q", "--tb=short"],
-                          cwd=ROOT, env=env).returncode
+    # This job installs its own dependency set, so a library missing HERE is a hole in the
+    # evidence exactly as it is in the `pytest` job -- not a tolerable local condition. Skips
+    # about absent DATA are untouched; no package installs a row. Caller may override.
+    env.setdefault("PERSONAL_OS_REQUIRE_DEPS", "1")
+    cmd = [sys.executable, "-m", "pytest", *tests, "-q", "--tb=short"]
+    if junitxml:
+        # Without this the disposable suite produced NO machine-readable result, so the
+        # two-report merge tools/evidence_report.py is built around could only ever be assembled
+        # by hand on a developer machine. Half the evidence had no artifact.
+        cmd.append(f"--junitxml={junitxml}")
+    return subprocess.run(cmd, cwd=ROOT, env=env).returncode
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--socket", type=Path, help="reuse an already-running disposable test socket")
     parser.add_argument("--tests", nargs="+", choices=TESTS, default=TESTS)
+    parser.add_argument("--junitxml", default=None,
+                        help="write a pytest JUnit report here (feeds tools/evidence_report.py)")
     args = parser.parse_args()
     if args.socket:
-        return pytest(args.socket, args.tests)
+        return pytest(args.socket, args.tests, args.junitxml)
     binaries = pg_bin()
     root = Path(tempfile.mkdtemp(prefix="personal-os-sql-", dir="/tmp"))
     data, sockets = root / "data", root / "socket"
@@ -102,7 +113,7 @@ def main():
         subprocess.run([*control, "-l", str(root / "server.log"), "-o",
                         f"-k {sockets} -p 55432 -c listen_addresses='' -c timezone=UTC",
                         "start"], check=True)
-        return pytest(sockets / ".s.PGSQL.55432", args.tests)
+        return pytest(sockets / ".s.PGSQL.55432", args.tests, args.junitxml)
     finally:
         stopped = subprocess.run([*control, "-m", "fast", "stop"])
         if stopped.returncode:

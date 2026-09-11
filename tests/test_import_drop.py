@@ -16,6 +16,8 @@ from pathlib import Path
 
 import pytest
 
+from tests.conftest import dependency_skip
+
 from tests._import_fixture import build_spine
 from tests._sql_fixture import sql_connection  # noqa: F401  (pytest fixture)
 from tools import import_drop
@@ -870,7 +872,13 @@ def test_REQ_FIN_013_REQ_FIN_010_ofx_is_parsed_by_ofxtools_with_two_timestamps(t
     violation that only running it would show: the first version wrote `DTPOSTED` (settlement)
     into `occurred_at`, which is the field the behavioural layer reads.
     """
-    pytest.importorskip("ofxtools", reason="REQ-FIN-013 requires ofxtools; see ADR-0059 §5")
+    # importorskip bypasses tests/conftest.py, so this skipped SILENTLY even under
+    # PERSONAL_OS_REQUIRE_DEPS=1 -- the same shape of hole the evidence audit found in the
+    # NumPyro tests, where a dependency CI never installed still counted a requirement proven.
+    try:
+        import ofxtools  # noqa: F401
+    except ImportError as e:
+        dependency_skip("ofxtools", f"REQ-FIN-013 requires it; see ADR-0059 §5 ({e})")
 
     qfx = tmp_path / "statement.qfx"
     qfx.write_text(

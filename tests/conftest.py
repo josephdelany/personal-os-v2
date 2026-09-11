@@ -12,6 +12,8 @@ a package cannot fix it. The two cases are distinguished by an explicit marker r
 guessing at prose, so a new skip has to declare which kind it is.
 """
 import os
+import sys
+import time
 
 import pytest
 
@@ -50,3 +52,28 @@ def pytest_terminal_summary(terminalreporter):
     for r in skipped:
         reason = str(r.longrepr[2]) if isinstance(r.longrepr, tuple) else str(r.longrepr)
         terminalreporter.write_line(f"  {r.nodeid}\n      {reason.strip()}")
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _record_run_environment(record_testsuite_property):
+    """Stamp the RUN's environment into the JUnit report itself.
+
+    tools/evidence_manifest.py otherwise had to describe the run by inspecting its own process,
+    which is a different process with a different environment: it reported `require_deps=False`
+    and `tz=EST` for a suite that had actually run with PERSONAL_OS_REQUIRE_DEPS=1 against a
+    server pinned to UTC. Recording it here puts the fact in the artifact that outlives the run,
+    which is the only place it stays true.
+
+    Never the database URL or host — the mode name and a boolean only.
+    """
+    socket = os.environ.get("PERSONAL_OS_TEST_SOCKET")
+    live = bool(os.environ.get("SUPABASE_DB_URL"))
+    record_testsuite_property(
+        "personal_os_database_mode",
+        "disposable" if socket else ("live" if live else "none"))
+    record_testsuite_property("personal_os_require_deps",
+                              str(os.environ.get("PERSONAL_OS_REQUIRE_DEPS") == "1"))
+    record_testsuite_property("personal_os_production_checks",
+                              str(os.environ.get("PERSONAL_OS_PRODUCTION_CHECKS") == "1"))
+    record_testsuite_property("personal_os_tz", time.tzname[0])
+    record_testsuite_property("personal_os_python", sys.version.split()[0])
