@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-11T22:22:51+00:00",
+  "generated_at": "2026-09-11T22:24:14+00:00",
   "manifest_process": {
     "dependency_versions": {
       "dateparser": "1.4.3",
@@ -83,15 +83,21 @@
       {
         "path": "ocs/EVIDENCE_REPORT.md",
         "status": "M"
-      },
-      {
-        "path": "ops/evidence/",
-        "status": "??"
       }
     ],
-    "describe": "ef2dd76-dirty",
+    "describe": "c94713b-dirty",
     "dirty": true,
-    "head": "ef2dd76015a5df494590dfd072e0bbec4186a7a4",
-    "short": "ef2dd76"
+    "generated_evidence_uncommitted": [
+      {
+        "path": "ops/evidence/deterministic.json",
+        "status": "M"
+      },
+      {
+        "path": "ops/evidence/local-sql.json",
+        "status": "M"
+      }
+    ],
+    "head": "c94713b5d9cac2b3f60d8709bb051f583825f789",
+    "short": "c94713b"
   }
 }
