@@ -112,9 +112,18 @@ def walk(result_or_tried):
 
 
 def egress_rows(cur):
-    """Every outbound call RULE-29 logged, as tuples — the driver returns lists."""
-    cur.execute(f"SELECT destination, purpose FROM {OPS}.egress_log ORDER BY egress_id")
-    return [tuple(row) for row in cur.fetchall()]
+    """Every outbound call RULE-29 logged, as tuples — the driver returns lists.
+
+    SORTED, deliberately not in issue order. `egress_log.egress_id` is a `gen_random_uuid()`
+    primary key and `occurred_at` defaults to `now()`, which in PostgreSQL is transaction start
+    and so identical for every row written inside one rolled-back fixture: neither column
+    orders these rows. `ORDER BY egress_id` was therefore a random shuffle that happened to be
+    invisible while every test here logged at most one call, and would have begun failing
+    intermittently the moment one logged two. The order of the walk is a real fact and `walk()`
+    asserts it from the record the cascade keeps itself.
+    """
+    cur.execute(f"SELECT destination, purpose FROM {OPS}.egress_log")
+    return sorted(tuple(row) for row in cur.fetchall())
 
 
 # ================================================================ the cache leg comes first
