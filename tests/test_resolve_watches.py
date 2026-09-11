@@ -15,14 +15,10 @@ import re
 
 import pytest
 
-from lib import db
-from tests._location_fixture import apply_chain, as_owner, CORE, ANALYSIS_TWIN
+from tests._location_fixture import (apply_chain, as_owner, connect, requires_disposable, CORE, ANALYSIS_TWIN)
 from tools.engines import resolve, scan
 
-pytestmark = pytest.mark.skipif(
-    not os.environ.get("SUPABASE_DB_URL"),
-    reason="SUPABASE_DB_URL not set — these apply the migration chain to disposable twins",
-)
+pytestmark = requires_disposable
 
 TODAY = dt.date(2026, 9, 2)
 RULE = "median delta same sign with q<0.10 on >=30 post-registration days"
@@ -114,12 +110,12 @@ def _seed(cur):
 
 @pytest.fixture(scope="module")
 def conn():
-    c = db.connect()
+    c = connect()
     cur = c.cursor()
     apply_chain(cur)
-    cur.execute(f"""CREATE TABLE {ANALYSIS_TWIN}.panel (
-        day DATE NOT NULL, metric TEXT NOT NULL, value NUMERIC NOT NULL,
-        src TEXT NOT NULL, code_version TEXT NOT NULL, PRIMARY KEY (day, metric))""")
+    # The migration chain now creates this table in the twin. It used to be hand-rolled here
+    # because the old rewrite left `analysis.panel` pointing at the REAL analysis schema, so
+    # the twin never had one. Using the migration's own definition is the point of a twin.
     as_owner(cur)
     _seed(cur)
     try:
@@ -281,7 +277,10 @@ def test_ADR_0048_same_sign_q_below_0_10_promotes_and_writes_ledger_and_predicti
     hist = [h for h in env["history"] if h["hypothesis_id"] == "watch:t.conf"]
     assert len(hist) == 1 and hist[0]["tier"] == "PROMOTED"
     assert hist[0]["exposure"] == "t.x_conf" and hist[0]["outcome"] == "t.y_conf" and hist[0]["direction"] == "positive"
-    assert hist[0]["trace"]["table"] == "core.hypothesis_resolutions" and hist[0]["reason"] == row["reason"]
+    # The trace must name the table actually written. That is the twin here, exactly as it is
+    # `core` in production; hardcoding the production name asserted the fixture, not the
+    # requirement, and could never have held under a twin.
+    assert hist[0]["trace"]["table"] == f"{CORE}.hypothesis_resolutions" and hist[0]["reason"] == row["reason"]
     assert "watch:t.conf" in {p["hypothesis_id"] for p in env["predictions_pending"]}
     # the noise watch was looked at and NOT resolved: one look row, still open, still on the page
     (nz,) = _ledger(cur, "watch:t.noise")

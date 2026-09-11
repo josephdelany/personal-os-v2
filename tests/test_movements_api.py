@@ -14,13 +14,9 @@ import re
 
 import pytest
 
-from lib import db
 from tests import _location_fixture as lf
 
-pytestmark = pytest.mark.skipif(
-    not os.environ.get("SUPABASE_DB_URL"),
-    reason="SUPABASE_DB_URL not set — these need the live PG 17 engine",
-)
+pytestmark = lf.requires_disposable
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 LOC = lf.LOC_SCHEMA
@@ -47,7 +43,7 @@ def _keys(obj):
 @pytest.fixture(scope="module")
 def world():
     """Twins + a home, a gym, a synthetic day of fixes, derived visits. Returns (cursor, ids)."""
-    conn = db.connect()
+    conn = lf.connect()
     cur = conn.cursor()
     try:
         lf.apply_chain(cur)
@@ -89,7 +85,14 @@ def _all_outputs(world):
 
 
 def test_ADR_0036_get_movements_and_get_place_refuse_without_owner_jwt():
-    conn = db.connect(); k = conn.cursor()
+    # A second connection, deliberately WITHOUT as_owner(), so the JWT claim is absent. It needs
+    # its own copy of the chain: the twins live in the `world` connection's open transaction and
+    # are invisible here. Previously this connection had no schema at all under a disposable
+    # server, and under the live job it was calling the DEPLOYED public RPCs instead of the
+    # function bodies this module is about — so it silently tested a different thing in each
+    # environment. That the deployed functions also refuse is a production gate, not this test.
+    conn = lf.connect(); k = conn.cursor()
+    lf.apply_chain(k)
     try:
         for stmt in ("select public.get_movements(NULL)", "select public.get_place(gen_random_uuid())", "select public.get_places()"):
             k.execute("SAVEPOINT sp")

@@ -11,14 +11,10 @@ import os
 
 import pytest
 
-from lib import db
-from tests._location_fixture import apply_chain, as_owner, CORE, ANALYSIS_TWIN
+from tests._location_fixture import (apply_chain, as_owner, connect, requires_disposable, CORE, ANALYSIS_TWIN)
 from tools.engines import recommend
 
-pytestmark = pytest.mark.skipif(
-    not os.environ.get("SUPABASE_DB_URL"),
-    reason="SUPABASE_DB_URL not set — these apply the migration chain to disposable twins",
-)
+pytestmark = requires_disposable
 
 TODAY = dt.date(2026, 9, 2)
 D0 = TODAY - dt.timedelta(days=200)
@@ -51,14 +47,13 @@ def _register(cur, hyp, status, exposure="sleep_asleep_min", outcome="hrv_sdnn",
 @pytest.fixture(scope="module")
 def conn():
     global FOR_DAY
-    c = db.connect()
+    c = connect()
     cur = c.cursor()
     FOR_DAY = recommend.subject_day(cur)      # the day get_today renders, on the 04:00 ET boundary
     apply_chain(cur)
-    cur.execute(f"""CREATE TABLE {ANALYSIS_TWIN}.baselines (
-        day DATE NOT NULL, metric TEXT NOT NULL, value NUMERIC, z_fast NUMERIC, z_slow NUMERIC,
-        band_lo NUMERIC, band_hi NUMERIC, run_len INTEGER, code_version TEXT NOT NULL,
-        computed_at TIMESTAMPTZ NOT NULL DEFAULT now(), PRIMARY KEY (day, metric))""")
+    # The migration chain now creates this table in the twin. It used to be hand-rolled here
+    # because the old rewrite left `analysis.panel` pointing at the REAL analysis schema, so
+    # the twin never had one. Using the migration's own definition is the point of a twin.
     as_owner(cur)
     try:
         yield c

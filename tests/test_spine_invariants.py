@@ -13,13 +13,16 @@ Run: python3 -m pytest tests/test_spine_invariants.py -v
 import os
 import pytest
 
-from lib import db
+# _location_fixture owns the whole-chain twin builder; it is no longer specific to
+# location, and renaming it is left to the main session to avoid a wide rename here.
+from tests._location_fixture import apply_chain
+from tests._sql_fixture import connect, requires_disposable
 from tools import run_migration, check_invariants
 
-pytestmark = pytest.mark.skipif(
-    not os.environ.get("SUPABASE_DB_URL"),
-    reason="SUPABASE_DB_URL not set — spine tests need the live PG 17.6 engine",
-)
+# Applies the migration chain to a throwaway schema pair. That is disposable-server
+# work: gated on SUPABASE_DB_URL it ran the DDL against production behind a rollback,
+# and it is in OQ-78's list of modules that timed out with 57014 doing so.
+pytestmark = requires_disposable
 
 CORE = "core_pytest"
 OPS = "ops_pytest"
@@ -28,10 +31,17 @@ OPS = "ops_pytest"
 @pytest.fixture()
 def spine_cursor():
     """Apply the migration to a throwaway schema pair in a transaction; roll back."""
-    conn = db.connect()
+    conn = connect()
     cur = conn.cursor()
     try:
-        run_migration.apply(cur, CORE, OPS)
+        # The full twin chain: Supabase roles, the pre-chain public.* tables, the
+        # `extensions` schema, and every migration with its qualified core/ops/analysis
+        # references rewritten. run_migration.apply substitutes only the __CORE__/__OPS__
+        # placeholders, so 30 files kept naming `core.atoms` and friends OUTRIGHT and
+        # those resolved to the REAL schemas -- production, under the live job. Same
+        # defect the location family had. apply_chain builds the same twin pair
+        # (core_pytest/ops_pytest) this module already names.
+        apply_chain(cur)
         yield cur
     finally:
         conn.rollback()   # nothing persists; no schema, no row left behind

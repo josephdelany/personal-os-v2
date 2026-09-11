@@ -13,13 +13,9 @@ import re
 
 import pytest
 
-from lib import db
 from tests import _location_fixture as lf
 
-pytestmark = pytest.mark.skipif(
-    not os.environ.get("SUPABASE_DB_URL"),
-    reason="SUPABASE_DB_URL not set — these need the live PG 17 engine",
-)
+pytestmark = lf.requires_disposable
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 LOC = lf.LOC_SCHEMA
@@ -31,7 +27,7 @@ def _json(v):
 
 @pytest.fixture(scope="module")
 def cur():
-    conn = db.connect()
+    conn = lf.connect()
     c = conn.cursor()
     try:
         lf.apply_chain(c)

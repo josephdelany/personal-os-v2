@@ -30,6 +30,21 @@ TESTS = ("tests/test_ask_ranges.py", "tests/test_ask.py", "tests/test_ask_operat
          # Added when RULE-13's parameter preservation stopped being a source-text grep and
          # became a test that runs the rebuild against a real config.derivation_catalogue.
          "tests/test_strength.py",
+         # OQ-78: the location/confirmation family builds the twins by applying the whole
+         # migration chain. It was gated on SUPABASE_DB_URL, so CI's `pytest` job ran that
+         # chain against production and timed out (57014). It belongs here.
+         "tests/test_confirmation_gate.py",
+         "tests/test_movements_api.py",
+         "tests/test_resolve_watches.py",
+         "tests/test_derive_visits.py",
+         "tests/test_restricted_location.py",
+         "tests/test_recommendations.py",
+         # Spine: applies the chain to a throwaway schema pair. Also OQ-78 casualties.
+         "tests/test_spine_invariants.py",
+         "tests/test_spine_insert_paths.py",
+         # REQ-NFR-008 was guarded for the disposable server but listed in no job, so it
+         # could not run anywhere: a requirement unprovable by construction.
+         "tests/test_capture_schedule.py",
          "tests/test_chains_sql.py",
          "tests/test_trials_sql.py",
          # The reconstruction path end to end: schema, engine and read API were each
@@ -64,21 +79,32 @@ def pg_bin():
     raise RuntimeError("PostgreSQL 17 binaries are required; install them before running this command.")
 
 
-def pytest(socket, tests):
+def pytest(socket, tests, junitxml=None):
     env = os.environ.copy()
     env.pop("SUPABASE_DB_URL", None)
     env["PERSONAL_OS_TEST_SOCKET"] = str(socket)
-    return subprocess.run([sys.executable, "-m", "pytest", *tests, "-q", "--tb=short"],
-                          cwd=ROOT, env=env).returncode
+    # This job installs its own dependency set, so a library missing HERE is a hole in the
+    # evidence exactly as it is in the `pytest` job -- not a tolerable local condition. Skips
+    # about absent DATA are untouched; no package installs a row. Caller may override.
+    env.setdefault("PERSONAL_OS_REQUIRE_DEPS", "1")
+    cmd = [sys.executable, "-m", "pytest", *tests, "-q", "--tb=short"]
+    if junitxml:
+        # Without this the disposable suite produced NO machine-readable result, so the
+        # two-report merge tools/evidence_report.py is built around could only ever be assembled
+        # by hand on a developer machine. Half the evidence had no artifact.
+        cmd.append(f"--junitxml={junitxml}")
+    return subprocess.run(cmd, cwd=ROOT, env=env).returncode
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--socket", type=Path, help="reuse an already-running disposable test socket")
     parser.add_argument("--tests", nargs="+", choices=TESTS, default=TESTS)
+    parser.add_argument("--junitxml", default=None,
+                        help="write a pytest JUnit report here (feeds tools/evidence_report.py)")
     args = parser.parse_args()
     if args.socket:
-        return pytest(args.socket, args.tests)
+        return pytest(args.socket, args.tests, args.junitxml)
     binaries = pg_bin()
     root = Path(tempfile.mkdtemp(prefix="personal-os-sql-", dir="/tmp"))
     data, sockets = root / "data", root / "socket"
@@ -88,9 +114,15 @@ def main():
                    stdout=subprocess.DEVNULL)
     control = [str(binaries / "pg_ctl"), "-D", str(data)]
     try:
+        # timezone=UTC because Supabase runs UTC and this server otherwise inherits the
+        # developer's zone. Without it, tests that count days across a timestamptz->date cast
+        # give different answers in EDT than in CI: `test_resolve_watches` reported 46 paired
+        # days locally and 45 in UTC. A suite whose result depends on where the laptop is
+        # cannot be evidence for anything, and CI runners are UTC, so it hid there.
         subprocess.run([*control, "-l", str(root / "server.log"), "-o",
-                        f"-k {sockets} -p 55432 -c listen_addresses=''", "start"], check=True)
-        return pytest(sockets / ".s.PGSQL.55432", args.tests)
+                        f"-k {sockets} -p 55432 -c listen_addresses='' -c timezone=UTC",
+                        "start"], check=True)
+        return pytest(sockets / ".s.PGSQL.55432", args.tests, args.junitxml)
     finally:
         stopped = subprocess.run([*control, "-m", "fast", "stop"])
         if stopped.returncode:

@@ -46,6 +46,27 @@ jobs:
           # unaffected — no package installs a row.
           PERSONAL_OS_REQUIRE_DEPS: '1'
         run: python3 tools/update_features.py --strict
+      # The result file existed only inside the runner and died with it, so the evidence tools
+      # -- which refuse to run without one -- had nothing from CI to read and the "635 of 685"
+      # figure could only ever be reproduced by hand on a developer machine. `if: always()`
+      # because a failing suite is the run whose evidence matters most.
+      - name: record the run
+        if: always()
+        env:
+          PYTHONPATH: ${{ github.workspace }}
+        run: |
+          python3 tools/evidence_manifest.py --report /tmp/features_junit.xml --suite live \
+            --out ops/evidence/live.json
+      - name: upload the live-suite evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: evidence-live
+          path: |
+            /tmp/features_junit.xml
+            ops/evidence/live.json
+          if-no-files-found: warn
+          retention-days: 90
       - name: commit the ledger if it moved
         if: always()
         run: |
@@ -108,4 +129,24 @@ jobs:
         # disabled; these tests must never be able to reach production.
         env:
           PYTHONPATH: ${{ github.workspace }}
-        run: python3 tools/test_local_sql.py
+          # A library missing in THIS job is a hole in the evidence too. tools/test_local_sql.py
+          # defaults this on; it is stated here so the workflow says what it relies on.
+          PERSONAL_OS_REQUIRE_DEPS: '1'
+        run: python3 tools/test_local_sql.py --junitxml=/tmp/local_sql_junit.xml
+      - name: record the run
+        if: always()
+        env:
+          PYTHONPATH: ${{ github.workspace }}
+        run: |
+          python3 tools/evidence_manifest.py --report /tmp/local_sql_junit.xml --suite local-sql \
+            --out ops/evidence/local-sql.json
+      - name: upload the disposable-suite evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: evidence-local-sql
+          path: |
+            /tmp/local_sql_junit.xml
+            ops/evidence/local-sql.json
+          if-no-files-found: warn
+          retention-days: 90
