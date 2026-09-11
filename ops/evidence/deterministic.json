@@ -1,0 +1,2258 @@
+{
+  "generated_at": "2026-09-11T22:22:48+00:00",
+  "manifest_process": {
+    "dependency_versions": {
+      "dateparser": "1.4.3",
+      "jax": null,
+      "networkx": "3.6.1",
+      "numpy": "2.4.3",
+      "numpyro": null,
+      "ofxtools": "0.9.5",
+      "pg8000": "1.31.5",
+      "pytest": "9.0.3",
+      "scipy": "1.17.1",
+      "statsmodels": "0.14.6",
+      "yaml": "6.0.3"
+    },
+    "disposable_socket_present": false,
+    "machine": "x86_64",
+    "mode": "none",
+    "platform": "darwin",
+    "production_checks_enabled": false,
+    "python": "3.14.3",
+    "require_deps": false,
+    "supabase_url_present": false,
+    "timezone": {
+      "local": "EST",
+      "tz_env": null
+    }
+  },
+  "runs": [
+    {
+      "counts": {
+        "errors": 0,
+        "failures": 0,
+        "passed": 964,
+        "skipped": 541,
+        "tests": 1505
+      },
+      "duration_seconds": 182.38,
+      "errors": [],
+      "failures": [],
+      "report": "deterministic.xml",
+      "report_path": "/private/tmp/claude-502/-Users-default-PERSONAL-OS-V2/8ad216c2-e485-4fc5-8616-d2b67d37fe76/scratchpad/deterministic.xml",
+      "run_environment": {
+        "database_mode": "none",
+        "production_checks": "False",
+        "python": "3.14.3",
+        "require_deps": "False",
+        "tz": "EST"
+      },
+      "skips": {
+        "dependency": [
+          {
+            "reason": "MISSING DEPENDENCY: numpyro (needs py3.9-3.13 for a macOS x86_64 jaxlib wheel; proven under the venv recorded in ADR-0103)",
+            "test": "tests.test_bayes_model::test_REQ_INF_520_numpyro_is_the_probabilistic_programming_language_and_it_RUNS"
+          },
+          {
+            "reason": "MISSING DEPENDENCY: numpyro",
+            "test": "tests.test_bayes_model::test_REQ_INF_520_the_two_implementations_agree_on_a_planted_coefficient"
+          }
+        ],
+        "dependency_count": 2,
+        "environment_or_data": [
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask::test_REQ_ASK_003_untracked_metric_returns_refusal_and_nearest"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask::test_REQ_ASK_003_panel_only_metric_is_not_treated_as_registered"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask::test_REQ_ASK_006_computation_row_exists_before_answer"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask::test_REQ_ASK_023_absent_metric_returns_absent_form_verbatim"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask::test_REQ_ASK_022_low_coverage_answers_at_insufficient"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask::test_REQ_ASK_022_coverage_is_not_rounded_up_across_the_gate"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask::test_REQ_ASK_002_invalid_range_returns_capability_refusal"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask::test_REQ_ASK_028_medical_referral_is_read_from_stored_string"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask::test_REQ_ASK_027_counts_use_condition_threshold_and_natural_frequency[how many days my steps over 50 last 10 days-5]"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask::test_REQ_ASK_027_counts_use_condition_threshold_and_natural_frequency[how many days my steps under 50 last 10 days-4]"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask::test_REQ_ASK_027_counts_use_condition_threshold_and_natural_frequency[how many days my steps above -2 last 10 days-10]"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask::test_REQ_ASK_027_counts_use_condition_threshold_and_natural_frequency[how many days my steps below 50.5 last 10 days-5]"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask::test_REQ_ASK_027_counts_use_condition_threshold_and_natural_frequency[how many days my steps over 1,000 last 10 days-0]"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask::test_REQ_ASK_023_absent_comparison_band_refuses_instead_of_zero_of_zero"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask::test_REQ_ASK_021_022_011_band_counts_use_paired_days_and_trace_both_inputs[above-1]"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask::test_REQ_ASK_021_022_011_band_counts_use_paired_days_and_trace_both_inputs[below-1]"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask::test_REQ_ASK_004_unparsed_comparator_is_not_executed_as_another_condition[fifty]"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask::test_REQ_ASK_004_unparsed_comparator_is_not_executed_as_another_condition[50.5.7]"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask::test_REQ_ASK_004_unparsed_comparator_is_not_executed_as_another_condition[1,00]"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask::test_REQ_ASK_004_unparsed_comparator_is_not_executed_as_another_condition[NaN]"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask::test_REQ_ASK_004_unparsed_comparator_is_not_executed_as_another_condition[1e2]"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask::test_REQ_NAR_015_registered_rounding_controls_answer"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask::test_REQ_ASK_009_every_rendered_numeral_resolves_to_persisted_result"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask::test_REQ_ASK_010_corrupt_template_numeral_is_refused_and_logged"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask::test_REQ_ASK_011_computation_click_through_returns_plan_result_and_keys"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask::test_REQ_ASK_025_trend_compares_requested_calendar_halves"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask::test_REQ_ASK_023_trend_refuses_if_one_half_has_no_observations"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask::test_REQ_ASK_025_rhythm_uses_weekday_medians"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask::test_REQ_ASK_011_last_value_and_trace_respect_explicit_date_range"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask::test_ADR_0036_ask_refuses_without_owner_jwt"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_operations::test_REQ_ASK_005_compare_splits_the_outcome_by_a_SECOND_metric"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_operations::test_REQ_ASK_005_after_days_shifts_the_outcome_by_one_day"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_operations::test_REQ_ASK_005_days_with_an_unknown_condition_are_in_neither_group"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_operations::test_REQ_ASK_022_compare_refuses_when_one_side_of_the_comparison_is_empty"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_operations::test_REQ_ASK_004_compare_without_a_second_metric_is_refused"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_operations::test_REQ_ASK_003_compare_with_an_untracked_condition_metric_refuses_with_nearest"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_operations::test_REQ_ASK_032_contrast_reads_the_stored_computation_and_never_recomputes_it"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_operations::test_REQ_ASK_032_no_stored_contrast_is_a_documented_gap_not_a_null_delta"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_operations::test_REQ_ASK_030_contrast_respects_the_as_of_date"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_operations::test_REQ_ASK_020_a_registered_finding_raises_the_tier_above_exploratory"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_operations::test_REQ_ASK_023_spend_with_no_transactions_refuses_and_says_what_would_fix_it"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_operations::test_REQ_ASK_004_spend_without_a_subject_is_refused"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_operations::test_REQ_ASK_027_spend_separates_outflow_from_inflow_and_never_nets_them"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_operations::test_REQ_ASK_009_spend_states_the_match_method_in_the_answer_itself"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_operations::test_REQ_ASK_021_spend_reports_a_weekly_rate_over_the_requested_window"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_operations::test_RULE_12_spend_refuses_to_sum_across_currencies"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_operations::test_REQ_NAR_020_answer_vocabulary_stays_within_the_tier"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_operations::test_REQ_NAR_020_every_seeded_template_is_inside_its_own_tier_vocabulary"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_operations::test_ADR_0053_grammar_maps_twenty_canonical_questions_to_expected_ops[how is my sleep-describe]"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_operations::test_ADR_0053_grammar_maps_twenty_canonical_questions_to_expected_ops[what is my steps-describe]"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_operations::test_ADR_0053_grammar_maps_twenty_canonical_questions_to_expected_ops[show me my weight-describe]"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_operations::test_ADR_0053_grammar_maps_twenty_canonical_questions_to_expected_ops[my hrv last 30 days-describe]"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_operations::test_ADR_0053_grammar_maps_twenty_canonical_questions_to_expected_ops[is my sleep improving-trend]"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_operations::test_ADR_0053_grammar_maps_twenty_canonical_questions_to_expected_ops[has my weight changed this year-trend]"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_operations::test_ADR_0053_grammar_maps_twenty_canonical_questions_to_expected_ops[is my steps going up-trend]"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_operations::test_ADR_0053_grammar_maps_twenty_canonical_questions_to_expected_ops[my hrv over time-trend]"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_operations::test_ADR_0053_grammar_maps_twenty_canonical_questions_to_expected_ops[which weekday is my steps highest-rhythm]"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_operations::test_ADR_0053_grammar_maps_twenty_canonical_questions_to_expected_ops[what day of the week is my sleep worst-rhythm]"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_operations::test_ADR_0053_grammar_maps_twenty_canonical_questions_to_expected_ops[when did i last log my weight-last]"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_operations::test_ADR_0053_grammar_maps_twenty_canonical_questions_to_expected_ops[last time i recorded my hrv-last]"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_operations::test_ADR_0053_grammar_maps_twenty_canonical_questions_to_expected_ops[how many days my steps above 10000-count_days]"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_operations::test_ADR_0053_grammar_maps_twenty_canonical_questions_to_expected_ops[how many days was my sleep below the usual range-count_days]"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_operations::test_ADR_0053_grammar_maps_twenty_canonical_questions_to_expected_ops[my sleep on days when i drink-compare]"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_operations::test_ADR_0053_grammar_maps_twenty_canonical_questions_to_expected_ops[my hrv on the days my steps are above 10000-compare]"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_operations::test_ADR_0053_grammar_maps_twenty_canonical_questions_to_expected_ops[does alcohol affect my hrv-effect]"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_operations::test_ADR_0053_grammar_maps_twenty_canonical_questions_to_expected_ops[do my steps drive my sleep-effect]"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_operations::test_ADR_0053_grammar_maps_twenty_canonical_questions_to_expected_ops[how much did i spend at mcdonalds this year-spend]"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_operations::test_ADR_0053_grammar_maps_twenty_canonical_questions_to_expected_ops[how much have i spent on coffee-spend]"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_operations::test_REQ_ASK_004_an_operation_outside_the_registry_can_never_run"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_operations::test_REQ_ASK_032_a_reverse_direction_finding_does_not_answer_the_question"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_operations::test_REQ_ASK_030_a_promotion_after_the_as_of_date_cannot_change_a_historical_answer"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_operations::test_REQ_ASK_030_a_hypothesis_registered_after_the_as_of_date_is_invisible"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_operations::test_REQ_ASK_032_contrast_never_labels_a_stored_result_with_the_question_range"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_operations::test_REQ_ASK_032_contrast_in_only_the_reverse_direction_is_disclosed_not_served"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_operations::test_RULE_16_a_coverage_floored_answer_never_uses_higher_tier_language"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_operations::test_RULE_16_tier_rank_orders_the_ladder"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_operations::test_REQ_ASK_005_trend_reports_the_28_day_rolling_median_at_range_end"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_operations::test_RULE_06_a_thin_rolling_window_states_the_shortfall_rather_than_a_median"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_operations::test_REQ_NAR_012_every_numeral_in_the_rolling_clause_traces_to_a_stored_value"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_operations::test_REQ_ASK_005_the_executor_writes_only_its_own_ledger"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_operations::test_REQ_ASK_005_answering_a_question_changes_no_observation"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_operations::test_REQ_ASK_009_search_returns_the_records_not_only_a_count"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_operations::test_REQ_ASK_023_a_search_matching_nothing_refuses_rather_than_reporting_zero"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_operations::test_REQ_ASK_004_entity_is_reachable_and_answers_from_get_entity"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_operations::test_REQ_ASK_004_an_unknown_entity_falls_through_to_search"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_operations::test_REQ_ASK_005_search_and_entity_persist_a_computation_before_narrating"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_operations::test_REQ_ASK_030_reexecuting_the_same_question_at_the_same_as_of_is_identical"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_operations::test_REQ_ASK_030_a_later_observation_changes_a_later_as_of_only"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_operations::test_RULE_29_the_ask_executor_makes_no_outbound_call"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_operations::test_REQ_ASK_005_the_band_form_of_compare_answers_instead_of_crashing"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_operations::test_RULE_05_a_two_metric_answer_states_the_outcome_unit_not_the_drivers"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_operations::test_RULE_16_an_insufficient_answer_uses_no_tier_language_at_all"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_operations::test_REQ_ASK_027_a_multi_clause_condition_is_refused_not_rewritten"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_operations::test_REQ_ASK_004_compare_refuses_a_condition_it_cannot_read"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_operations::test_REQ_ASK_005_compare_refuses_to_split_a_metric_by_itself"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_operations::test_RULE_12_spend_refuses_when_a_matching_charge_has_no_currency"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_operations::test_RULE_12_spend_treats_the_subject_as_data_not_a_pattern"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_operations::test_REQ_ASK_022_count_days_remediation_names_the_actual_missing_input"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_operations::test_REQ_ASK_030_the_as_of_filter_does_not_depend_on_the_session_timezone"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_operations::test_REQ_ASK_021_a_two_metric_answer_reports_both_metrics_coverage"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_operations::test_REQ_ASK_021_compare_reports_each_metric_own_coverage_not_the_intersection"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_operations::test_REQ_ASK_030_search_counts_only_hits_inside_the_range_it_names"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_operations::test_REQ_ASK_011_every_operation_persists_a_traceable_observation_set"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_operations::test_REQ_ASK_032_the_stored_contrast_result_does_not_carry_the_question_range"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_operations::test_REQ_NAR_012_a_prose_result_field_cannot_certify_its_own_numerals"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_operations::test_RULE_29_the_executor_and_everything_it_calls_make_no_outbound_call"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_operations::test_REQ_ASK_020_the_registered_tier_ceiling_is_enforced"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_operations::test_REQ_ASK_027_a_negated_condition_is_refused_not_inverted"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_operations::test_RULE_12_the_like_escape_is_correct_under_standard_conforming_strings"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_operations::test_RULE_16_the_insufficient_form_renders_with_no_empty_slot"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_operations::test_REQ_ASK_003_the_second_metric_has_the_same_similarity_floor_as_the_first"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_operations::test_RULE_04_spend_excludes_a_charge_recorded_after_the_as_of"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_operations::test_REQ_ASK_030_search_discloses_that_it_is_only_subject_day_bounded"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_operations::test_REQ_ASK_022_the_insufficient_answer_names_the_metric_that_is_short"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_operations::test_REQ_ASK_031_a_next_day_question_is_refused_not_answered_at_lag_zero"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_operations::test_REQ_ASK_031_a_time_of_day_question_is_refused_not_answered_whole_day"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_operations::test_REQ_ASK_031_a_metric_named_after_a_grammar_verb_is_not_a_causal_question"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_operations::test_REQ_ASK_031_a_tracked_metric_whose_name_contains_morning_still_answers"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_operations::test_REQ_ASK_030_a_fresh_import_is_visible_at_the_default_as_of"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_operations::test_REQ_ASK_030_a_replay_pinned_before_the_import_does_not_see_it"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_operations::test_REQ_FIN_070_spend_counts_every_descriptor_the_merchant_settled_under"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_operations::test_REQ_ASK_021_the_caveat_states_the_measurement_that_was_actually_performed"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_operations::test_RULE_04_a_link_recorded_after_the_knowledge_time_is_not_used"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_operations::test_ADR_0096_an_answer_spanning_two_capture_sources_says_so"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_operations::test_ADR_0096_a_single_source_answer_claims_no_discontinuity"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_operations::test_ADR_0096_the_sources_carry_their_own_span_so_a_truncated_window_is_visible"
+          },
+          {
+            "reason": "builds a spine from real migrations; disposable local server only (run via tools/test_local_sql.py)",
+            "test": "tests.test_ask_planner::test_REQ_ASK_004_an_operation_outside_the_registry_is_refused_with_the_nearest"
+          },
+          {
+            "reason": "builds a spine from real migrations; disposable local server only (run via tools/test_local_sql.py)",
+            "test": "tests.test_ask_planner::test_REQ_ASK_003_a_metric_outside_the_registry_is_refused_with_the_nearest"
+          },
+          {
+            "reason": "builds a spine from real migrations; disposable local server only (run via tools/test_local_sql.py)",
+            "test": "tests.test_ask_planner::test_REQ_ASK_012_a_field_the_model_invented_is_refused_not_dropped"
+          },
+          {
+            "reason": "builds a spine from real migrations; disposable local server only (run via tools/test_local_sql.py)",
+            "test": "tests.test_ask_planner::test_RULE_13_the_model_cannot_supply_a_window_the_question_did_not_state"
+          },
+          {
+            "reason": "builds a spine from real migrations; disposable local server only (run via tools/test_local_sql.py)",
+            "test": "tests.test_ask_planner::test_RULE_13_a_stated_range_is_recovered_even_if_the_model_omits_it"
+          },
+          {
+            "reason": "builds a spine from real migrations; disposable local server only (run via tools/test_local_sql.py)",
+            "test": "tests.test_ask_planner::test_RULE_11_the_plan_carries_no_numeral_of_the_models_own"
+          },
+          {
+            "reason": "builds a spine from real migrations; disposable local server only (run via tools/test_local_sql.py)",
+            "test": "tests.test_ask_planner::test_REQ_ASK_008_the_iteration_cap_is_five_and_the_limit_is_a_refusal"
+          },
+          {
+            "reason": "builds a spine from real migrations; disposable local server only (run via tools/test_local_sql.py)",
+            "test": "tests.test_ask_planner::test_REQ_ASK_008_a_later_attempt_can_succeed_within_the_cap"
+          },
+          {
+            "reason": "builds a spine from real migrations; disposable local server only (run via tools/test_local_sql.py)",
+            "test": "tests.test_ask_planner::test_RULE_15_an_exhausted_budget_propagates_so_the_caller_degrades"
+          },
+          {
+            "reason": "builds a spine from real migrations; disposable local server only (run via tools/test_local_sql.py)",
+            "test": "tests.test_ask_planner::test_RULE_29_the_prompt_carries_only_the_question_and_the_registry"
+          },
+          {
+            "reason": "builds a spine from real migrations; disposable local server only (run via tools/test_local_sql.py)",
+            "test": "tests.test_ask_planner::test_REQ_ASK_004_every_rendered_plan_is_a_question_the_executor_already_parses"
+          },
+          {
+            "reason": "builds a spine from real migrations; disposable local server only (run via tools/test_local_sql.py)",
+            "test": "tests.test_ask_planner::test_RULE_15_the_deterministic_path_answers_first_and_no_model_is_called"
+          },
+          {
+            "reason": "builds a spine from real migrations; disposable local server only (run via tools/test_local_sql.py)",
+            "test": "tests.test_ask_planner::test_RULE_15_a_planner_failure_leaves_the_deterministic_refusal_intact"
+          },
+          {
+            "reason": "builds a spine from real migrations; disposable local server only (run via tools/test_local_sql.py)",
+            "test": "tests.test_ask_planner::test_REQ_ASK_003_the_planner_is_not_asked_to_rephrase_a_true_refusal"
+          },
+          {
+            "reason": "builds a spine from real migrations; disposable local server only (run via tools/test_local_sql.py)",
+            "test": "tests.test_ask_planner::test_RULE_15_a_thin_coverage_refusal_is_not_handed_to_the_planner"
+          },
+          {
+            "reason": "builds a spine from real migrations; disposable local server only (run via tools/test_local_sql.py)",
+            "test": "tests.test_ask_planner::test_REQ_ASK_007_a_planned_answer_records_that_it_was_planned"
+          },
+          {
+            "reason": "builds a spine from real migrations; disposable local server only (run via tools/test_local_sql.py)",
+            "test": "tests.test_ask_planner::test_RULE_13_an_unvalidated_field_cannot_smuggle_a_whole_question"
+          },
+          {
+            "reason": "builds a spine from real migrations; disposable local server only (run via tools/test_local_sql.py)",
+            "test": "tests.test_ask_planner::test_REQ_ASK_004_the_planner_cannot_select_an_operation_it_cannot_render"
+          },
+          {
+            "reason": "builds a spine from real migrations; disposable local server only (run via tools/test_local_sql.py)",
+            "test": "tests.test_ask_planner::test_RULE_13_the_range_must_be_the_same_phrase_not_a_substring"
+          },
+          {
+            "reason": "builds a spine from real migrations; disposable local server only (run via tools/test_local_sql.py)",
+            "test": "tests.test_ask_planner::test_RULE_13_a_range_word_inside_a_metric_name_is_not_a_stated_range"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_ranges::test_REQ_ASK_002_005_calendar_ranges[how is my sleep-2026-09-08-2026-06-11-2026-09-08]"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_ranges::test_REQ_ASK_002_005_calendar_ranges[steps today-2026-09-08-2026-09-08-2026-09-08]"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_ranges::test_REQ_ASK_002_005_calendar_ranges[steps yesterday-2026-09-08-2026-09-07-2026-09-07]"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_ranges::test_REQ_ASK_002_005_calendar_ranges[steps this week-2026-09-08-2026-09-07-2026-09-08]"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_ranges::test_REQ_ASK_002_005_calendar_ranges[steps this week-2026-09-07-2026-09-07-2026-09-07]"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_ranges::test_REQ_ASK_002_005_calendar_ranges[steps last week-2026-09-08-2026-08-31-2026-09-06]"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_ranges::test_REQ_ASK_002_005_calendar_ranges[steps last week-2026-01-01-2025-12-22-2025-12-28]"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_ranges::test_REQ_ASK_002_005_calendar_ranges[steps this month-2026-09-08-2026-09-01-2026-09-08]"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_ranges::test_REQ_ASK_002_005_calendar_ranges[steps last month-2024-03-12-2024-02-01-2024-02-29]"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_ranges::test_REQ_ASK_002_005_calendar_ranges[steps last month-2025-03-12-2025-02-01-2025-02-28]"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_ranges::test_REQ_ASK_002_005_calendar_ranges[steps last month-2026-01-01-2025-12-01-2025-12-31]"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_ranges::test_REQ_ASK_002_005_calendar_ranges[steps this year-2026-09-08-2026-01-01-2026-09-08]"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_ranges::test_REQ_ASK_002_005_calendar_ranges[steps last 1 day-2026-09-08-2026-09-08-2026-09-08]"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_ranges::test_REQ_ASK_002_005_calendar_ranges[steps last 7 days-2026-09-08-2026-09-02-2026-09-08]"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_ranges::test_REQ_ASK_002_005_calendar_ranges[steps last 90 days-2026-09-08-2026-06-11-2026-09-08]"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_ranges::test_REQ_ASK_002_005_calendar_ranges[steps in 2024-2026-09-08-2024-01-01-2024-12-31]"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_ranges::test_REQ_ASK_002_005_calendar_ranges[steps in 2026-2026-09-08-2026-01-01-2026-09-08]"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_ranges::test_REQ_ASK_002_005_calendar_ranges[steps since June-2026-09-08-2026-06-01-2026-09-08]"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_ranges::test_REQ_ASK_002_005_calendar_ranges[steps since December-2026-09-08-2025-12-01-2026-09-08]"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_ranges::test_REQ_ASK_002_005_calendar_ranges[steps since June 2024-2026-09-08-2024-06-01-2026-09-08]"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_ranges::test_REQ_ASK_021_last_n_days_has_exact_coverage_denominator[1]"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_ranges::test_REQ_ASK_021_last_n_days_has_exact_coverage_denominator[2]"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_ranges::test_REQ_ASK_021_last_n_days_has_exact_coverage_denominator[7]"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_ranges::test_REQ_ASK_021_last_n_days_has_exact_coverage_denominator[28]"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_ranges::test_REQ_ASK_021_last_n_days_has_exact_coverage_denominator[30]"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_ranges::test_REQ_ASK_021_last_n_days_has_exact_coverage_denominator[90]"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_ranges::test_REQ_ASK_021_last_n_days_has_exact_coverage_denominator[365]"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_ranges::test_REQ_ASK_021_last_n_days_has_exact_coverage_denominator[366]"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_ranges::test_REQ_ASK_021_last_n_days_has_exact_coverage_denominator[1000]"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_ranges::test_REQ_ASK_002_invalid_calendar_range_is_rejected[steps last 0 days]"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_ranges::test_REQ_ASK_002_invalid_calendar_range_is_rejected[steps last -2 days]"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_ranges::test_REQ_ASK_002_invalid_calendar_range_is_rejected[steps last 1.5 days]"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_ranges::test_REQ_ASK_002_invalid_calendar_range_is_rejected[steps last 99999999999999 days]"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_ranges::test_REQ_ASK_002_invalid_calendar_range_is_rejected[steps since tomorrow]"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_ranges::test_REQ_ASK_002_invalid_calendar_range_is_rejected[steps since June 2027]"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_ranges::test_REQ_ASK_002_invalid_calendar_range_is_rejected[steps in 2027]"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_ranges::test_REQ_ASK_002_invalid_calendar_range_is_rejected[steps in 0000]"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_ranges::test_REQ_ASK_002_invalid_calendar_range_is_rejected[steps last 2147483647 days]"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_ranges::test_REQ_ASK_002_invalid_calendar_range_is_rejected[steps since June 20270]"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_ranges::test_REQ_ASK_002_invalid_calendar_range_is_rejected[steps since June 20]"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ask_ranges::test_REQ_ASK_002_invalid_calendar_range_is_rejected[steps in 20270]"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_atom_panel::test_RULE_12_the_two_devices_are_never_summed"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_atom_panel::test_RULE_12_the_iphone_is_used_when_the_watch_has_no_record_that_day"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_atom_panel::test_REQ_ASK_021_the_provenance_names_the_device_and_that_a_second_was_dropped"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_atom_panel::test_RULE_13_a_measurement_takes_the_median_and_a_total_takes_the_sum"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_atom_panel::test_REQ_INF_108_sleep_is_core_deep_rem_and_unspecified_excluding_awake"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_atom_panel::test_RULE_08_overlapping_sleep_segments_are_counted_once"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_atom_panel::test_RULE_12_a_bad_segment_on_the_LOSING_device_does_not_delete_the_night"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_atom_panel::test_RULE_06_a_night_dropped_for_a_bad_segment_is_recorded_not_merely_absent"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_atom_panel::test_RULE_06_a_zero_duration_segment_is_reported_with_its_own_reason"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_atom_panel::test_RULE_12_both_the_whole_and_its_parts_are_answerable"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_atom_panel::test_RULE_12_a_question_about_the_whole_resolves_to_the_whole"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_atom_panel::test_INV_4_a_replay_uses_only_what_was_known_at_the_time"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_atom_panel::test_REQ_INF_108_the_two_cutoffs_are_separate_clocks"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_atom_panel::test_RULE_04_a_subject_day_after_the_as_of_is_excluded"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_atom_panel::test_RULE_10_a_correction_supersedes_and_the_replay_still_shows_the_old_value"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_atom_panel::test_RULE_12_a_legacy_row_never_backfills_a_metric_the_atom_lane_owns"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_atom_panel::test_RULE_06_partial_coverage_is_disclosed_and_never_imputed"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_atom_panel::test_RULE_18_a_rename_is_not_reported_as_an_absence_of_data"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_atom_panel::test_RULE_06_an_unbuilt_measure_is_distinguished_from_a_renamed_one"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_atom_panel::test_RULE_07_a_registered_metric_with_no_observation_is_its_own_state"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_atom_panel::test_RULE_07_a_domain_with_no_hero_metric_says_so_rather_than_looking_empty"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_atom_panel::test_RULE_07_no_band_is_not_reported_as_inside_one"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_atom_panel::test_RULE_12_the_function_never_maps_a_hero_metric_onto_a_similar_name"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_atom_panel::test_RULE_12_a_composed_metric_is_served_by_exactly_one_lane"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_atom_panel::test_RULE_06_an_unbounded_sleep_interval_does_not_become_a_night_with_no_duration"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_atom_panel::test_RULE_12_the_composed_metric_obeys_device_precedence_too"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_atom_panel::test_OQ_71_the_baseline_band_is_not_knowledge_bounded_and_says_so"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_atom_panel::test_REQ_NFR_005_a_stale_latest_value_is_marked_stale"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_atom_panel::test_RULE_06_an_empty_interval_is_unusable_like_an_open_one"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_atom_panel::test_RULE_06_one_unusable_segment_excludes_the_night_rather_than_shortening_it"
+          },
+          {
+            "reason": "builds an ops schema from real migration DDL; disposable local server only (run via tools/test_local_sql.py)",
+            "test": "tests.test_capture_schedule::test_REQ_NFR_008_ADR_0091_the_heartbeat_row_is_accepted_by_the_real_runs_table"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_chains_sql::test_REQ_TIER_046_a_chain_tier_stronger_than_its_weakest_edge_is_refused"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_chains_sql::test_REQ_INF_561_a_path_that_revisits_a_node_is_refused"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_chains_sql::test_REQ_TIER_046_edge_arrays_must_match_the_path_length"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_chains_sql::test_REQ_INF_563_a_single_edge_is_not_a_chain"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_chains_sql::test_REQ_INF_565_a_metric_defaults_to_context_and_never_silently_to_lever"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_chains_sql::test_REQ_INF_565_role_admits_only_lever_or_context"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_chains_sql::test_REQ_TIER_046_the_sql_ladder_and_the_python_ladder_agree"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_chains_sql::test_REQ_INF_560_the_engine_s_output_is_accepted_by_the_table"
+          },
+          {
+            "reason": "builds schemas from migration DDL; disposable local server only (tools/test_local_sql.py)",
+            "test": "tests.test_confirmation_gate::test_ADR_0051_dag_is_acyclic"
+          },
+          {
+            "reason": "builds schemas from migration DDL; disposable local server only (tools/test_local_sql.py)",
+            "test": "tests.test_confirmation_gate::test_REQ_TIER_013_adjustment_set_is_minimal_backdoor_for_seed_edges"
+          },
+          {
+            "reason": "builds schemas from migration DDL; disposable local server only (tools/test_local_sql.py)",
+            "test": "tests.test_confirmation_gate::test_REQ_TIER_013_hac_maxlags_follows_rule"
+          },
+          {
+            "reason": "builds schemas from migration DDL; disposable local server only (tools/test_local_sql.py)",
+            "test": "tests.test_confirmation_gate::test_REQ_TIER_013_e_value_at_point_and_limit_for_known_beta"
+          },
+          {
+            "reason": "builds schemas from migration DDL; disposable local server only (tools/test_local_sql.py)",
+            "test": "tests.test_confirmation_gate::test_REQ_TIER_014_negative_control_outcome_failure_refutes_and_writes_notice"
+          },
+          {
+            "reason": "builds schemas from migration DDL; disposable local server only (tools/test_local_sql.py)",
+            "test": "tests.test_confirmation_gate::test_REQ_TIER_014_future_exposure_control_failure_refutes"
+          },
+          {
+            "reason": "builds schemas from migration DDL; disposable local server only (tools/test_local_sql.py)",
+            "test": "tests.test_confirmation_gate::test_REQ_TIER_014_refutation_test_failure_refutes"
+          },
+          {
+            "reason": "builds schemas from migration DDL; disposable local server only (tools/test_local_sql.py)",
+            "test": "tests.test_confirmation_gate::test_REQ_TIER_014_placebo_refuter_does_not_flag_a_real_effect"
+          },
+          {
+            "reason": "builds schemas from migration DDL; disposable local server only (tools/test_local_sql.py)",
+            "test": "tests.test_confirmation_gate::test_REQ_TIER_040_confirm_requires_promoted_first"
+          },
+          {
+            "reason": "builds schemas from migration DDL; disposable local server only (tools/test_local_sql.py)",
+            "test": "tests.test_confirmation_gate::test_REQ_TIER_041_042_monthly_recheck_failure_demotes_with_ledger_row"
+          },
+          {
+            "reason": "builds schemas from migration DDL; disposable local server only (tools/test_local_sql.py)",
+            "test": "tests.test_confirmation_gate::test_REQ_TIER_042_run_id_records_the_job_that_performed_it"
+          },
+          {
+            "reason": "builds schemas from migration DDL; disposable local server only (tools/test_local_sql.py)",
+            "test": "tests.test_confirmation_gate::test_RULE_20_forward_prediction_is_scored_at_look_2"
+          },
+          {
+            "reason": "builds schemas from migration DDL; disposable local server only (tools/test_local_sql.py)",
+            "test": "tests.test_confirmation_gate::test_REQ_TIER_012_spec_curve_has_108_specs_and_null_share"
+          },
+          {
+            "reason": "builds schemas from migration DDL; disposable local server only (tools/test_local_sql.py)",
+            "test": "tests.test_confirmation_gate::test_REQ_TIER_028_counter_frame_stored_on_promotion"
+          },
+          {
+            "reason": "builds schemas from migration DDL; disposable local server only (tools/test_local_sql.py)",
+            "test": "tests.test_confirmation_gate::test_ADR_0050_confirmation_on_pure_noise_synthetic_is_below_5_percent"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_derivation_refusal::test_REQ_REC_004_a_catalogued_measure_returns_its_whole_derivation"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_derivation_refusal::test_REQ_REC_003_a_registered_measure_with_no_derivation_is_refused_by_name"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_derivation_refusal::test_REQ_REC_003_an_unknown_measure_is_refused_as_unknown"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_derivation_refusal::test_R7_a_refusal_never_hands_back_a_substitute_measure"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_derivation_refusal::test_R7_the_refusal_is_owner_only_like_every_other_read_path"
+          },
+          {
+            "reason": "builds schemas from migration DDL; disposable local server only (tools/test_local_sql.py)",
+            "test": "tests.test_derive_visits::test_REQ_LOC_009_stay_far_from_every_place_yields_visit_with_null_place_id"
+          },
+          {
+            "reason": "builds schemas from migration DDL; disposable local server only (tools/test_local_sql.py)",
+            "test": "tests.test_derive_visits::test_REQ_LOC_015_gap_longer_than_max_gap_splits_into_two_visits_and_imputes_nothing"
+          },
+          {
+            "reason": "builds schemas from migration DDL; disposable local server only (tools/test_local_sql.py)",
+            "test": "tests.test_derive_visits::test_ADR_0045_stay_shorter_than_min_dwell_is_not_a_visit"
+          },
+          {
+            "reason": "builds schemas from migration DDL; disposable local server only (tools/test_local_sql.py)",
+            "test": "tests.test_derive_visits::test_REQ_LOC_006_registered_place_within_radius_resolves_and_human_assignment_survives_rebuild"
+          },
+          {
+            "reason": "builds schemas from migration DDL; disposable local server only (tools/test_local_sql.py)",
+            "test": "tests.test_derive_visits::test_REQ_LOC_012_visits_public_view_exposes_no_coordinate_column"
+          },
+          {
+            "reason": "production check: set PERSONAL_OS_PRODUCTION_CHECKS=1 with SUPABASE_DB_URL. Read-only (information_schema only), and never run by the disposable suite.",
+            "test": "tests.test_derive_visits::test_REQ_LOC_012_live_visits_public_matches_the_twin_shape"
+          },
+          {
+            "reason": "builds schemas from migration DDL; disposable local server only (tools/test_local_sql.py)",
+            "test": "tests.test_derive_visits::test_REQ_LOC_005_lint_fails_on_a_restricted_reference_outside_migrations"
+          },
+          {
+            "reason": "builds a spine from real migrations; disposable local server only (run via tools/test_local_sql.py)",
+            "test": "tests.test_egress::test_REQ_CAP_036_audio_cost_is_the_specified_formula"
+          },
+          {
+            "reason": "builds a spine from real migrations; disposable local server only (run via tools/test_local_sql.py)",
+            "test": "tests.test_egress::test_REQ_CAP_037_a_call_that_would_cross_the_soft_ceiling_is_refused"
+          },
+          {
+            "reason": "builds a spine from real migrations; disposable local server only (run via tools/test_local_sql.py)",
+            "test": "tests.test_egress::test_REQ_CAP_039_the_reserved_margin_is_only_for_a_deferred_retry"
+          },
+          {
+            "reason": "builds a spine from real migrations; disposable local server only (run via tools/test_local_sql.py)",
+            "test": "tests.test_egress::test_REQ_CAP_037_the_budget_is_the_UTC_day_and_is_shared_across_consumers"
+          },
+          {
+            "reason": "builds a spine from real migrations; disposable local server only (run via tools/test_local_sql.py)",
+            "test": "tests.test_egress::test_RULE_29_a_log_row_exists_before_the_request_and_survives_a_failure"
+          },
+          {
+            "reason": "builds a spine from real migrations; disposable local server only (run via tools/test_local_sql.py)",
+            "test": "tests.test_egress::test_REQ_CAP_041_a_failed_call_is_not_retried"
+          },
+          {
+            "reason": "builds a spine from real migrations; disposable local server only (run via tools/test_local_sql.py)",
+            "test": "tests.test_egress::test_RULE_29_a_payload_carrying_a_coordinate_is_refused_before_any_call"
+          },
+          {
+            "reason": "builds a spine from real migrations; disposable local server only (run via tools/test_local_sql.py)",
+            "test": "tests.test_egress::test_REQ_CAP_038_over_budget_refuses_and_issues_no_request"
+          },
+          {
+            "reason": "builds a spine from real migrations; disposable local server only (run via tools/test_local_sql.py)",
+            "test": "tests.test_egress::test_REQ_CAP_035_a_successful_call_records_its_cost_and_links_its_egress_row"
+          },
+          {
+            "reason": "builds a spine from real migrations; disposable local server only (run via tools/test_local_sql.py)",
+            "test": "tests.test_egress::test_REQ_CAP_042_no_paid_usage_path_exists"
+          },
+          {
+            "reason": "builds a spine from real migrations; disposable local server only (run via tools/test_local_sql.py)",
+            "test": "tests.test_egress::test_RULE_29_every_outbound_request_in_the_repository_is_in_this_module"
+          },
+          {
+            "reason": "builds a spine from real migrations; disposable local server only (run via tools/test_local_sql.py)",
+            "test": "tests.test_egress::test_RULE_29_screening_catches_the_shapes_a_prompt_actually_carries"
+          },
+          {
+            "reason": "builds a spine from real migrations; disposable local server only (run via tools/test_local_sql.py)",
+            "test": "tests.test_egress::test_RULE_29_the_documented_bypasses_are_all_refused"
+          },
+          {
+            "reason": "builds a spine from real migrations; disposable local server only (run via tools/test_local_sql.py)",
+            "test": "tests.test_egress::test_RULE_29_screening_does_not_refuse_the_payloads_the_system_actually_sends"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_extract_workouts::test_REQ_WKT_005_one_set_becomes_three_atoms_sharing_a_set_key"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_extract_workouts::test_REQ_WKT_007_rpe_is_a_coarsened_self_report_and_load_is_measured"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_extract_workouts::test_REQ_WKT_004_a_zero_load_is_not_written_as_a_load_of_zero"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_extract_workouts::test_RULE_06_a_non_numeric_entry_is_a_gap_never_a_guess"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_extract_workouts::test_REQ_WKT_003_an_out_of_range_value_is_skipped_not_clamped"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_extract_workouts::test_RULE_09_the_capture_path_computes_no_derived_training_measure"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_extract_workouts::test_REQ_WKT_005_extraction_is_idempotent"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_extract_workouts::test_RULE_10_a_relogged_set_supersedes_rather_than_sits_beside"
+          },
+          {
+            "reason": "builds a spine from real migrations; disposable local server only (run via tools/test_local_sql.py)",
+            "test": "tests.test_freshness::test_REQ_NFR_005_the_staleness_limit_comes_from_the_registry_not_from_code"
+          },
+          {
+            "reason": "builds a spine from real migrations; disposable local server only (run via tools/test_local_sql.py)",
+            "test": "tests.test_freshness::test_REQ_NFR_006_never_seen_is_distinguished_from_stale"
+          },
+          {
+            "reason": "builds a spine from real migrations; disposable local server only (run via tools/test_local_sql.py)",
+            "test": "tests.test_freshness::test_REQ_NFR_007_a_quiet_source_fails_the_run_and_reports_its_elapsed_days"
+          },
+          {
+            "reason": "builds a spine from real migrations; disposable local server only (run via tools/test_local_sql.py)",
+            "test": "tests.test_freshness::test_REQ_NFR_008_one_runs_row_per_execution_carries_the_counts"
+          },
+          {
+            "reason": "builds a spine from real migrations; disposable local server only (run via tools/test_local_sql.py)",
+            "test": "tests.test_freshness::test_REQ_NFR_010_a_metric_with_no_limit_is_reported_as_unmonitored"
+          },
+          {
+            "reason": "builds a spine from real migrations; disposable local server only (run via tools/test_local_sql.py)",
+            "test": "tests.test_freshness::test_REQ_NFR_011_the_report_never_carries_an_observed_value"
+          },
+          {
+            "reason": "builds a spine from real migrations; disposable local server only (run via tools/test_local_sql.py)",
+            "test": "tests.test_freshness::test_REQ_NFR_012_a_successful_job_over_an_empty_input_is_not_freshness"
+          },
+          {
+            "reason": "builds a spine from real migrations; disposable local server only (run via tools/test_local_sql.py)",
+            "test": "tests.test_freshness::test_REQ_NFR_012_the_later_of_atoms_and_panel_wins"
+          },
+          {
+            "reason": "builds a spine from real migrations; disposable local server only (run via tools/test_local_sql.py)",
+            "test": "tests.test_freshness::test_REQ_NFR_009_an_unreachable_database_reports_nothing_as_fresh"
+          },
+          {
+            "reason": "builds a spine from real migrations; disposable local server only (run via tools/test_local_sql.py)",
+            "test": "tests.test_freshness::test_REQ_NFR_012_the_clock_is_the_subject_day_not_the_servers_calendar_date"
+          },
+          {
+            "reason": "builds a spine from real migrations; disposable local server only (run via tools/test_local_sql.py)",
+            "test": "tests.test_freshness::test_REQ_NFR_006_a_missing_panel_is_a_schema_fact_not_an_outage"
+          },
+          {
+            "reason": "builds a spine from real migrations; disposable local server only (run via tools/test_local_sql.py)",
+            "test": "tests.test_freshness::test_REQ_NFR_013_a_naming_mismatch_is_reported_and_fails_the_run"
+          },
+          {
+            "reason": "builds a spine from real migrations; disposable local server only (run via tools/test_local_sql.py)",
+            "test": "tests.test_freshness::test_REQ_NFR_014_a_similar_key_is_never_treated_as_an_alias"
+          },
+          {
+            "reason": "builds a spine from real migrations; disposable local server only (run via tools/test_local_sql.py)",
+            "test": "tests.test_freshness::test_REQ_NFR_013_similar_key_detection_is_conservative"
+          },
+          {
+            "reason": "SUPABASE_DB_URL not set \u2014 these read the live database",
+            "test": "tests.test_get_domain::test_ADR_0036_get_domain_refuses_without_owner_jwt"
+          },
+          {
+            "reason": "SUPABASE_DB_URL not set \u2014 these read the live database",
+            "test": "tests.test_get_domain::test_REQ_ASK_003_get_domain_unknown_key_returns_refusal_string_verbatim"
+          },
+          {
+            "reason": "SUPABASE_DB_URL not set \u2014 these read the live database",
+            "test": "tests.test_get_domain::test_REQ_INF_505_get_domain_never_captured_has_no_hero_why_history"
+          },
+          {
+            "reason": "SUPABASE_DB_URL not set \u2014 these read the live database",
+            "test": "tests.test_get_domain::test_REQ_INF_109_get_domain_no_day_after_as_of"
+          },
+          {
+            "reason": "SUPABASE_DB_URL not set \u2014 these read the live database",
+            "test": "tests.test_get_domain::test_REQ_NAR_014_get_domain_every_value_carries_unit"
+          },
+          {
+            "reason": "SUPABASE_DB_URL not set \u2014 these read the live database",
+            "test": "tests.test_get_domain::test_REQ_ASK_011_get_domain_every_module_carries_trace"
+          },
+          {
+            "reason": "SUPABASE_DB_URL not set \u2014 these read the live database",
+            "test": "tests.test_get_domain::test_REQ_TIER_053_get_domain_claims_only_from_hypothesis_register"
+          },
+          {
+            "reason": "SUPABASE_DB_URL not set \u2014 these read the live database",
+            "test": "tests.test_get_domain::test_REQ_TIER_050_get_domain_claims_are_text_and_labels_only"
+          },
+          {
+            "reason": "SUPABASE_DB_URL not set \u2014 these read the live database",
+            "test": "tests.test_get_domain::test_ADR_0041_get_domain_sentence_matches_closed_templates"
+          },
+          {
+            "reason": "SUPABASE_DB_URL not set \u2014 these read the live database",
+            "test": "tests.test_get_domain::test_ADR_0041_get_domain_window_all_returns_more_points_than_90d"
+          },
+          {
+            "reason": "SUPABASE_DB_URL not set \u2014 these read the live database",
+            "test": "tests.test_get_domain::test_REQ_LOC_005_migration_0035_has_no_coordinate_literal"
+          },
+          {
+            "reason": "SUPABASE_DB_URL not set \u2014 these read the live config/panel",
+            "test": "tests.test_get_domains::test_ADR_0036_get_domains_refuses_without_owner_jwt"
+          },
+          {
+            "reason": "SUPABASE_DB_URL not set \u2014 these read the live config/panel",
+            "test": "tests.test_get_domains::test_REQ_INF_505_get_domains_never_emits_hero_for_never_captured"
+          },
+          {
+            "reason": "SUPABASE_DB_URL not set \u2014 these read the live config/panel",
+            "test": "tests.test_get_domains::test_REQ_INF_109_get_domains_hero_day_never_after_as_of"
+          },
+          {
+            "reason": "SUPABASE_DB_URL not set \u2014 these read the live config/panel",
+            "test": "tests.test_get_domains::test_REQ_NAR_014_get_domains_every_hero_carries_unit_and_trace"
+          },
+          {
+            "reason": "SUPABASE_DB_URL not set \u2014 these read the live config/panel",
+            "test": "tests.test_get_domains::test_ADR_0040_every_seeded_metric_exists_in_panel_or_is_declared_absent"
+          },
+          {
+            "reason": "SUPABASE_DB_URL not set \u2014 these read the live config/panel",
+            "test": "tests.test_get_domains::test_REQ_LOC_005_migration_0034_has_no_coordinate_literal"
+          },
+          {
+            "reason": "SUPABASE_DB_URL not set \u2014 these read the live config/panel",
+            "test": "tests.test_get_domains::test_ADR_0040_coverage_status_is_closed_vocabulary"
+          },
+          {
+            "reason": "SUPABASE_DB_URL not set \u2014 these read the live database",
+            "test": "tests.test_get_entity::test_ADR_0036_get_entity_refuses_without_owner_jwt"
+          },
+          {
+            "reason": "SUPABASE_DB_URL not set \u2014 these read the live database",
+            "test": "tests.test_get_entity::test_REQ_ASK_003_get_entity_unknown_type_returns_refusal_string_verbatim"
+          },
+          {
+            "reason": "SUPABASE_DB_URL not set \u2014 these read the live database",
+            "test": "tests.test_get_entity::test_ADR_0043_get_entity_place_returns_refusal_until_B5"
+          },
+          {
+            "reason": "SUPABASE_DB_URL not set \u2014 these read the live database",
+            "test": "tests.test_get_entity::test_REQ_INF_505_get_entity_unknown_key_returns_n_zero_and_note_only"
+          },
+          {
+            "reason": "SUPABASE_DB_URL not set \u2014 these read the live database",
+            "test": "tests.test_get_entity::test_ADR_0043_get_entity_merchant_by_month_sums_to_n"
+          },
+          {
+            "reason": "SUPABASE_DB_URL not set \u2014 these read the live database",
+            "test": "tests.test_get_entity::test_ADR_0043_get_entity_channel_recent_is_newest_first_and_max_20"
+          },
+          {
+            "reason": "SUPABASE_DB_URL not set \u2014 these read the live database",
+            "test": "tests.test_get_entity::test_REQ_ASK_011_get_entity_every_recent_row_has_src_and_row_id_and_top_has_trace"
+          },
+          {
+            "reason": "SUPABASE_DB_URL not set \u2014 these read the live database",
+            "test": "tests.test_get_entity::test_REQ_INF_109_get_entity_last_seen_not_after_as_of"
+          },
+          {
+            "reason": "SUPABASE_DB_URL not set \u2014 these read the live database",
+            "test": "tests.test_get_entity::test_REQ_LOC_005_migration_0037_has_no_coordinate_literal"
+          },
+          {
+            "reason": "SUPABASE_DB_URL not set \u2014 these read the live database",
+            "test": "tests.test_get_findings::test_ADR_0036_get_findings_refuses_without_owner_jwt"
+          },
+          {
+            "reason": "SUPABASE_DB_URL not set \u2014 these read the live database",
+            "test": "tests.test_get_findings::test_REQ_TIER_035_get_findings_contains_no_candidate_row"
+          },
+          {
+            "reason": "SUPABASE_DB_URL not set \u2014 these read the live database",
+            "test": "tests.test_get_findings::test_REQ_TIER_005_every_item_carries_tier_and_trace"
+          },
+          {
+            "reason": "SUPABASE_DB_URL not set \u2014 these read the live database",
+            "test": "tests.test_get_findings::test_ADR_0047_counts_match_list_lengths_where_lists_present"
+          },
+          {
+            "reason": "SUPABASE_DB_URL not set \u2014 these read the live database",
+            "test": "tests.test_get_findings::test_ADR_0047_watching_days_elapsed_is_nonnegative"
+          },
+          {
+            "reason": "builds a spine from eight migrations; disposable local server only (run via tools/test_local_sql.py)",
+            "test": "tests.test_import_drop::test_REQ_CAP_006_REQ_FIN_011_REQ_FIN_012_ADR_0057_same_file_twice_writes_one_capture_and_no_duplicate_atoms"
+          },
+          {
+            "reason": "builds a spine from eight migrations; disposable local server only (run via tools/test_local_sql.py)",
+            "test": "tests.test_import_drop::test_INV_1_every_imported_atom_references_the_file_capture"
+          },
+          {
+            "reason": "builds a spine from eight migrations; disposable local server only (run via tools/test_local_sql.py)",
+            "test": "tests.test_import_drop::test_ADR_0057_a_window_bounds_the_import_and_the_capture_records_it"
+          },
+          {
+            "reason": "builds a spine from eight migrations; disposable local server only (run via tools/test_local_sql.py)",
+            "test": "tests.test_import_drop::test_RULE_02_the_importer_never_updates_or_deletes"
+          },
+          {
+            "reason": "builds a spine from eight migrations; disposable local server only (run via tools/test_local_sql.py)",
+            "test": "tests.test_import_drop::test_INV_1_takeout_event_atoms_are_written_with_no_metric_and_no_value"
+          },
+          {
+            "reason": "builds a spine from eight migrations; disposable local server only (run via tools/test_local_sql.py)",
+            "test": "tests.test_import_drop::test_ADR_0057_a_widened_window_can_reimport_the_same_export"
+          },
+          {
+            "reason": "builds a spine from eight migrations; disposable local server only (run via tools/test_local_sql.py)",
+            "test": "tests.test_import_drop::test_ADR_0057_one_failing_file_does_not_abort_the_run"
+          },
+          {
+            "reason": "builds a spine from eight migrations; disposable local server only (run via tools/test_local_sql.py)",
+            "test": "tests.test_import_drop::test_RULE_01_registry_bounds_are_loaded_and_applied_to_every_importer"
+          },
+          {
+            "reason": "builds a spine from eight migrations; disposable local server only (run via tools/test_local_sql.py)",
+            "test": "tests.test_import_drop::test_ADR_0057_the_dedupe_key_does_not_depend_on_the_session_timezone"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_inferred_events::test_REQ_REC_010_a_probability_without_its_calibration_is_refused"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_inferred_events::test_REQ_REC_007_an_empty_alternative_set_must_be_stated_not_left_blank"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_inferred_events::test_REQ_REC_009_an_unknown_event_cannot_carry_a_confidence"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_inferred_events::test_RULE_04_an_event_cannot_be_concluded_before_it_happened"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_inferred_events::test_REQ_REC_006_a_method_outside_the_registry_cannot_run"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_inferred_events::test_REQ_REC_011_the_engine_may_not_supersede_a_human_correction"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_inferred_events::test_REQ_REC_011_an_earlier_interpretation_survives_its_correction"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_inferred_events::test_RULE_02_an_inferred_event_is_append_only"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_inferred_events::test_REQ_REC_008_two_copies_of_one_receipt_are_one_piece_of_evidence"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_inferred_events::test_REQ_REC_007_contradicting_evidence_is_retained_not_discarded"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_inferred_events::test_REQ_REC_005_an_inferred_event_has_no_measured_value_column"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_inferred_events::test_REQ_REC_014_the_owner_check_is_the_same_one_the_rest_of_the_system_uses"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_inferred_events::test_REQ_REC_010_the_interface_labels_an_uncalibrated_score_as_unquantified"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_inferred_events::test_REQ_REC_010_a_calibrated_probability_travels_with_its_calibration"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_inferred_events::test_REQ_REC_008_the_interface_reports_rows_and_origins_separately"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_inferred_events::test_REQ_REC_007_contradicting_evidence_arrives_without_being_asked_for"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_inferred_events::test_REQ_REC_011_a_superseded_event_says_so_and_names_its_replacement"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_inferred_events::test_REQ_REC_014_a_missing_event_is_a_stated_absence_not_an_error"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_inferred_events::test_REQ_REC_014_the_answer_is_deterministic_and_names_itself_so"
+          },
+          {
+            "reason": "builds schemas from migration DDL; disposable local server only (tools/test_local_sql.py)",
+            "test": "tests.test_keepalive::test_REQ_NFR_003_run_writes_exactly_one_ops_runs_row_with_real_duration"
+          },
+          {
+            "reason": "builds schemas from migration DDL; disposable local server only (tools/test_local_sql.py)",
+            "test": "tests.test_keepalive::test_REQ_NFR_004_reachable_failure_records_error_row"
+          },
+          {
+            "reason": "builds schemas from migration DDL; disposable local server only (tools/test_local_sql.py)",
+            "test": "tests.test_keepalive::test_REQ_NFR_004_status_check_rejects_unknown_status"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_merchants::test_REQ_ONT_005_the_taxonomy_is_enforced_once_by_its_original_constraint"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_merchants::test_RULE_10_an_automated_resolution_may_not_supersede_a_human_correction"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_merchants::test_INV_2_an_alias_is_appended_never_edited"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_merchants::test_REQ_FIN_073_a_provisional_resolution_carries_no_confidence"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_merchants::test_REQ_FIN_071_a_regex_pattern_must_declare_its_specificity"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_merchants::test_REQ_FIN_060_a_location_token_cannot_be_recorded_without_evidence"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_merchants::test_RULE_10_the_current_view_returns_only_the_head_of_the_chain"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_merchants::test_RULE_10_a_second_resolution_must_supersede_the_first"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_merchants::test_RULE_10_a_fork_off_an_already_superseded_row_is_refused"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_merchants::test_RULE_10_a_fuzzy_match_can_never_claim_certainty"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_merchants::test_REQ_FIN_051_a_non_merchant_is_stored_rather_than_killing_the_whole_run"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_merchants::test_REQ_FIN_051_the_classification_reads_the_raw_descriptor_not_the_normalised_one"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_merchants::test_RULE_10_the_resolver_skips_a_human_corrected_alias_instead_of_dying"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_merchants::test_RULE_10_a_human_answered_alias_is_not_raised_for_review_again"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_merchants::test_RULE_10_the_resolver_does_not_rewrite_an_unchanged_resolution"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_merchants::test_REQ_FIN_061_collapsed_raw_descriptors_are_recorded_not_dropped"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_merchants::test_REQ_FIN_074_a_confirmed_pattern_changes_the_next_run_s_resolution"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_merchants::test_RULE_10_a_human_alias_in_the_ledger_reaches_cascade_step_one"
+          },
+          {
+            "reason": "builds schemas from migration DDL; disposable local server only (tools/test_local_sql.py)",
+            "test": "tests.test_movements_api::test_ADR_0036_get_movements_and_get_place_refuse_without_owner_jwt"
+          },
+          {
+            "reason": "builds schemas from migration DDL; disposable local server only (tools/test_local_sql.py)",
+            "test": "tests.test_movements_api::test_REQ_LOC_002_no_movement_rpc_output_contains_a_coordinate_key_at_any_depth"
+          },
+          {
+            "reason": "builds schemas from migration DDL; disposable local server only (tools/test_local_sql.py)",
+            "test": "tests.test_movements_api::test_REQ_LOC_002_no_movement_rpc_output_contains_a_number_with_4_plus_decimals"
+          },
+          {
+            "reason": "builds schemas from migration DDL; disposable local server only (tools/test_local_sql.py)",
+            "test": "tests.test_movements_api::test_REQ_LOC_015_get_movements_day_with_no_fixes_has_coverage_none_and_no_visits_and_no_last_known"
+          },
+          {
+            "reason": "builds schemas from migration DDL; disposable local server only (tools/test_local_sql.py)",
+            "test": "tests.test_movements_api::test_REQ_LOC_016_unknown_visit_is_labelled_unknown_place_not_nearest"
+          },
+          {
+            "reason": "builds schemas from migration DDL; disposable local server only (tools/test_local_sql.py)",
+            "test": "tests.test_movements_api::test_REQ_LOC_017_get_movements_carries_tier_descriptive_and_provisional_true"
+          },
+          {
+            "reason": "builds schemas from migration DDL; disposable local server only (tools/test_local_sql.py)",
+            "test": "tests.test_movements_api::test_REQ_LOC_018_get_movements_renders_with_no_language_layer"
+          },
+          {
+            "reason": "builds schemas from migration DDL; disposable local server only (tools/test_local_sql.py)",
+            "test": "tests.test_movements_api::test_REQ_LOC_005_migrations_0038_0039_0040_and_edge_function_have_no_coordinate_literal"
+          },
+          {
+            "reason": "builds schemas from migration DDL; disposable local server only (tools/test_local_sql.py)",
+            "test": "tests.test_movements_api::test_ADR_0046_edge_function_never_logs_body"
+          },
+          {
+            "reason": "builds a spine from real migrations; disposable local server only (run via tools/test_local_sql.py)",
+            "test": "tests.test_nutrition::test_REQ_NUT_034_035_036_037_038_the_width_comes_from_the_registered_method"
+          },
+          {
+            "reason": "builds a spine from real migrations; disposable local server only (run via tools/test_local_sql.py)",
+            "test": "tests.test_nutrition::test_REQ_NUT_039_the_photo_interval_is_asymmetric_in_the_documented_direction"
+          },
+          {
+            "reason": "builds a spine from real migrations; disposable local server only (run via tools/test_local_sql.py)",
+            "test": "tests.test_nutrition::test_REQ_NUT_040_an_unresolved_item_has_no_value_at_all"
+          },
+          {
+            "reason": "builds a spine from real migrations; disposable local server only (run via tools/test_local_sql.py)",
+            "test": "tests.test_nutrition::test_REQ_NUT_042_a_mixed_meal_takes_the_widest_method"
+          },
+          {
+            "reason": "builds a spine from real migrations; disposable local server only (run via tools/test_local_sql.py)",
+            "test": "tests.test_nutrition::test_REQ_NUT_012_resolution_reads_the_cache_and_scales_by_grams"
+          },
+          {
+            "reason": "builds a spine from real migrations; disposable local server only (run via tools/test_local_sql.py)",
+            "test": "tests.test_nutrition::test_RULE_10_joes_own_portion_outranks_every_source"
+          },
+          {
+            "reason": "builds a spine from real migrations; disposable local server only (run via tools/test_local_sql.py)",
+            "test": "tests.test_nutrition::test_REQ_NUT_040_a_food_with_no_portion_and_no_weight_is_unresolved"
+          },
+          {
+            "reason": "builds a spine from real migrations; disposable local server only (run via tools/test_local_sql.py)",
+            "test": "tests.test_nutrition::test_REQ_NUT_012_a_serving_count_uses_the_cached_serving_size"
+          },
+          {
+            "reason": "builds a spine from real migrations; disposable local server only (run via tools/test_local_sql.py)",
+            "test": "tests.test_nutrition::test_REQ_NUT_033_an_absent_nutrient_stays_absent"
+          },
+          {
+            "reason": "builds a spine from real migrations; disposable local server only (run via tools/test_local_sql.py)",
+            "test": "tests.test_nutrition::test_REQ_NUT_066_ethanol_is_computed_deterministically_from_volume_and_abv"
+          },
+          {
+            "reason": "builds a spine from real migrations; disposable local server only (run via tools/test_local_sql.py)",
+            "test": "tests.test_nutrition::test_REQ_NUT_066_a_defaulted_abv_is_provenance_defaulted_not_extracted"
+          },
+          {
+            "reason": "builds a spine from real migrations; disposable local server only (run via tools/test_local_sql.py)",
+            "test": "tests.test_nutrition::test_REQ_NUT_067_an_assumed_input_can_never_produce_a_degenerate_interval"
+          },
+          {
+            "reason": "builds a spine from real migrations; disposable local server only (run via tools/test_local_sql.py)",
+            "test": "tests.test_nutrition::test_REQ_NUT_068_the_standard_drink_constant_is_configured_not_inlined"
+          },
+          {
+            "reason": "builds a spine from real migrations; disposable local server only (run via tools/test_local_sql.py)",
+            "test": "tests.test_nutrition::test_RULE_29_a_source_host_outside_the_allowlist_is_refused"
+          },
+          {
+            "reason": "builds a spine from real migrations; disposable local server only (run via tools/test_local_sql.py)",
+            "test": "tests.test_nutrition::test_RULE_29_an_allowlisted_call_is_logged_without_its_request_body"
+          },
+          {
+            "reason": "builds a spine from real migrations; disposable local server only (run via tools/test_local_sql.py)",
+            "test": "tests.test_nutrition::test_RULE_29_a_query_parameter_carrying_a_coordinate_is_refused"
+          },
+          {
+            "reason": "builds migration 0050 in disposable schemas; local server only (run via tools/test_local_sql.py)",
+            "test": "tests.test_nutrition_integration::test_REQ_NUT_002_REQ_NUT_012_a_cached_food_never_reaches_a_network_leg"
+          },
+          {
+            "reason": "builds migration 0050 in disposable schemas; local server only (run via tools/test_local_sql.py)",
+            "test": "tests.test_nutrition_integration::test_REQ_NUT_001_REQ_NUT_036_a_cache_miss_falls_through_the_declared_order"
+          },
+          {
+            "reason": "builds migration 0050 in disposable schemas; local server only (run via tools/test_local_sql.py)",
+            "test": "tests.test_nutrition_integration::test_REQ_NUT_015_REQ_NUT_016_a_branded_item_with_no_branded_source_keeps_its_token"
+          },
+          {
+            "reason": "builds migration 0050 in disposable schemas; local server only (run via tools/test_local_sql.py)",
+            "test": "tests.test_nutrition_integration::test_REQ_NUT_014_a_cached_branded_row_with_no_brand_owner_is_a_defect_not_a_resolution"
+          },
+          {
+            "reason": "builds migration 0050 in disposable schemas; local server only (run via tools/test_local_sql.py)",
+            "test": "tests.test_nutrition_integration::test_REQ_NUT_024_could_not_find_it_and_could_not_look_are_different_outcomes"
+          },
+          {
+            "reason": "builds migration 0050 in disposable schemas; local server only (run via tools/test_local_sql.py)",
+            "test": "tests.test_nutrition_integration::test_REQ_NUT_012_REQ_NUT_024_a_rate_limit_is_not_evidence_about_the_food"
+          },
+          {
+            "reason": "builds migration 0050 in disposable schemas; local server only (run via tools/test_local_sql.py)",
+            "test": "tests.test_nutrition_integration::test_REQ_NUT_003_REQ_NUT_014_REQ_NUT_034_an_off_resolution_lands_with_its_method_and_width"
+          },
+          {
+            "reason": "builds migration 0050 in disposable schemas; local server only (run via tools/test_local_sql.py)",
+            "test": "tests.test_nutrition_integration::test_REQ_NUT_004_REQ_NUT_002_a_resolved_phrase_resolves_from_the_cache_next_time"
+          },
+          {
+            "reason": "builds migration 0050 in disposable schemas; local server only (run via tools/test_local_sql.py)",
+            "test": "tests.test_nutrition_integration::test_RULE_29_a_payload_refusal_is_never_reclassified_as_a_food_outcome"
+          },
+          {
+            "reason": "builds migration 0050 in disposable schemas; local server only (run via tools/test_local_sql.py)",
+            "test": "tests.test_nutrition_integration::test_ADR_0135_the_cascade_modules_have_a_caller_on_the_execution_path"
+          },
+          {
+            "reason": "builds migration 0050 in disposable schemas; local server only",
+            "test": "tests.test_nutrition_off::test_REQ_NUT_010_the_open_food_facts_host_is_in_the_real_allowlist"
+          },
+          {
+            "reason": "builds migration 0050 in disposable schemas; local server only",
+            "test": "tests.test_nutrition_off::test_RULE_29_a_host_outside_the_allowlist_is_refused_before_any_request"
+          },
+          {
+            "reason": "builds migration 0050 in disposable schemas; local server only",
+            "test": "tests.test_nutrition_off::test_RULE_29_a_privacy_refusal_is_never_reclassified_as_a_network_failure"
+          },
+          {
+            "reason": "builds migration 0050 in disposable schemas; local server only",
+            "test": "tests.test_nutrition_off::test_REQ_NUT_003_the_parsed_row_satisfies_the_real_foods_cache_constraints"
+          },
+          {
+            "reason": "builds migration 0050 in disposable schemas; local server only",
+            "test": "tests.test_nutrition_off::test_REQ_NUT_036_the_source_name_matches_the_registered_width_and_precedence"
+          },
+          {
+            "reason": "builds migration 0050 in disposable schemas; local server only (run via tools/test_local_sql.py)",
+            "test": "tests.test_nutrition_persistence::test_REQ_NUT_014_a_cached_branded_row_without_a_brand_owner_is_refused"
+          },
+          {
+            "reason": "builds migration 0050 in disposable schemas; local server only (run via tools/test_local_sql.py)",
+            "test": "tests.test_nutrition_persistence::test_REQ_NUT_014_a_cached_branded_row_with_its_brand_owner_still_resolves"
+          },
+          {
+            "reason": "builds migration 0050 in disposable schemas; local server only (run via tools/test_local_sql.py)",
+            "test": "tests.test_nutrition_persistence::test_REQ_NUT_034_INV_1_a_resolved_interval_becomes_a_retrievable_atom"
+          },
+          {
+            "reason": "builds migration 0050 in disposable schemas; local server only (run via tools/test_local_sql.py)",
+            "test": "tests.test_nutrition_persistence::test_REQ_NUT_040_an_absent_nutrient_stays_absent_rather_than_becoming_zero"
+          },
+          {
+            "reason": "builds migration 0050 in disposable schemas; local server only (run via tools/test_local_sql.py)",
+            "test": "tests.test_nutrition_persistence::test_ADR_0135_re_running_resolution_does_not_double_the_days_calories"
+          },
+          {
+            "reason": "builds migration 0050 in disposable schemas; local server only (run via tools/test_local_sql.py)",
+            "test": "tests.test_nutrition_persistence::test_ADR_0135_two_separate_captures_of_the_same_food_both_count"
+          },
+          {
+            "reason": "builds migration 0050 in disposable schemas; local server only (run via tools/test_local_sql.py)",
+            "test": "tests.test_nutrition_persistence::test_RULE_10_joes_correction_still_outranks_the_source_on_the_second_pass"
+          },
+          {
+            "reason": "builds migration 0050 in disposable schemas; local server only (run via tools/test_local_sql.py)",
+            "test": "tests.test_nutrition_persistence::test_REQ_NUT_024_an_unresolved_item_becomes_a_row_and_not_a_number"
+          },
+          {
+            "reason": "builds migration 0050 in disposable schemas; local server only (run via tools/test_local_sql.py)",
+            "test": "tests.test_nutrition_persistence::test_REQ_NUT_027_a_nightly_re_run_does_not_grow_the_review_list"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ontology_constraints::test_REQ_ONT_008_presence_is_exactly_three_valued"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ontology_constraints::test_REQ_ONT_009_provenance_is_the_closed_three"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ontology_constraints::test_REQ_ONT_010_state_class_is_the_closed_three"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ontology_constraints::test_REQ_ONT_003_a_metric_key_must_reference_the_registry"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ontology_constraints::test_REQ_ONT_011_an_unknown_presence_cannot_carry_a_value"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ontology_constraints::test_REQ_ONT_012_a_stored_value_must_carry_its_lane"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ontology_constraints::test_REQ_ONT_013_every_atom_traces_to_a_raw_capture"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ontology_constraints::test_REQ_ONT_014_a_subject_day_carries_the_rule_version_that_produced_it"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ontology_constraints::test_REQ_ONT_006_an_entity_type_outside_the_closed_set_is_rejected"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_ontology_constraints::test_REQ_ONT_001_a_kind_outside_the_closed_taxonomy_is_rejected"
+          },
+          {
+            "reason": "builds a spine from real migrations; disposable local server only (run via tools/test_local_sql.py)",
+            "test": "tests.test_panel_attention::test_ADR_0058_panel_prefers_atoms_over_signals_for_attention_metrics"
+          },
+          {
+            "reason": "builds a spine from real migrations; disposable local server only (run via tools/test_local_sql.py)",
+            "test": "tests.test_panel_attention::test_ADR_0058_session_level_screen_metrics_are_not_re_derived_from_atoms"
+          },
+          {
+            "reason": "builds schemas from migration DDL; disposable local server only (tools/test_local_sql.py)",
+            "test": "tests.test_recommendations::test_REQ_ACT_001_pattern_recommendation_requires_promoted_or_confirmed"
+          },
+          {
+            "reason": "builds schemas from migration DDL; disposable local server only (tools/test_local_sql.py)",
+            "test": "tests.test_recommendations::test_REQ_ACT_002_003_uncontrollable_or_tiny_effects_are_not_recommended"
+          },
+          {
+            "reason": "builds schemas from migration DDL; disposable local server only (tools/test_local_sql.py)",
+            "test": "tests.test_recommendations::test_REQ_TIER_048_below_confirmed_carries_tier_interval_n_coverage_would_change"
+          },
+          {
+            "reason": "builds schemas from migration DDL; disposable local server only (tools/test_local_sql.py)",
+            "test": "tests.test_recommendations::test_REQ_TIER_049_no_recommendation_without_tier_and_interval"
+          },
+          {
+            "reason": "builds schemas from migration DDL; disposable local server only (tools/test_local_sql.py)",
+            "test": "tests.test_recommendations::test_REQ_TIER_047_REQ_ACT_005_006_promoted_uses_hedged_verb_only"
+          },
+          {
+            "reason": "builds schemas from migration DDL; disposable local server only (tools/test_local_sql.py)",
+            "test": "tests.test_recommendations::test_RULE_20_every_pattern_recommendation_has_a_prediction_row"
+          },
+          {
+            "reason": "builds schemas from migration DDL; disposable local server only (tools/test_local_sql.py)",
+            "test": "tests.test_recommendations::test_ADR_0052_two_false_predictions_demote_with_notice"
+          },
+          {
+            "reason": "builds schemas from migration DDL; disposable local server only (tools/test_local_sql.py)",
+            "test": "tests.test_recommendations::test_REQ_ACT_011_demoted_when_the_backing_hypothesis_falls"
+          },
+          {
+            "reason": "builds schemas from migration DDL; disposable local server only (tools/test_local_sql.py)",
+            "test": "tests.test_recommendations::test_ADR_0052_standing_order_fires_on_guardian_condition_and_is_descriptive"
+          },
+          {
+            "reason": "builds schemas from migration DDL; disposable local server only (tools/test_local_sql.py)",
+            "test": "tests.test_recommendations::test_REQ_ACT_012_medical_vocabulary_is_replaced_by_referral_string"
+          },
+          {
+            "reason": "builds schemas from migration DDL; disposable local server only (tools/test_local_sql.py)",
+            "test": "tests.test_recommendations::test_REQ_ACT_009_exactly_one_daily_instruction_ranked_by_tier"
+          },
+          {
+            "reason": "builds schemas from migration DDL; disposable local server only (tools/test_local_sql.py)",
+            "test": "tests.test_recommendations::test_ADR_0052_bayesian_bootstrap_interval_covers_the_effect_and_is_deterministic"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_reconstruction_e2e::test_REQ_REC_004_the_method_is_read_from_the_registry_and_an_unregistered_one_cannot_run"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_reconstruction_e2e::test_REQ_REC_006_a_method_may_not_output_what_it_did_not_declare"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_reconstruction_e2e::test_REQ_REC_009_a_day_with_no_capture_at_all_is_unknown_not_a_non_wear_episode"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_reconstruction_e2e::test_REQ_REC_008_one_export_read_twice_is_one_origin_not_two"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_reconstruction_e2e::test_REQ_REC_010_a_stored_reconstruction_carries_no_probability"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_reconstruction_e2e::test_REQ_REC_005_012_the_full_chain_stores_the_event_and_every_citation"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_reconstruction_e2e::test_REQ_REC_011_a_human_correction_outranks_the_engine_and_the_engine_cannot_take_it_back"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_reconstruction_e2e::test_RULE_02_an_inferred_event_is_never_updated_or_deleted"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_reconstruction_e2e::test_INV_4_a_replay_sees_the_interpretation_that_was_current_THEN"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_reconstruction_e2e::test_REQ_REC_013_INV_5_a_reconstruction_is_never_presented_as_a_measurement"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_reconstruction_e2e::test_REQ_REC_013_INV_5_a_search_hit_announces_itself_as_inferred_never_as_a_record"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_reconstruction_e2e::test_INV_4_a_search_pinned_before_the_correction_still_answers_what_was_believed_then"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_reconstruction_e2e::test_REQ_REC_016_the_seven_acceptance_cases_are_EXECUTED_not_asserted"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_reconstruction_e2e::test_REQ_REC_016_two_inferences_agreeing_do_not_promote_each_other"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_reconstruction_e2e::test_REQ_REC_016_the_database_refuses_an_EXPLORATORY_row_that_rests_on_an_inference"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_reconstruction_e2e::test_INV_5_an_inferred_citation_must_declare_the_tier_it_was_concluded_at"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_reconstruction_e2e::test_REQ_REC_015_what_would_settle_it_is_stored_and_surfaced"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_reconstruction_e2e::test_REQ_REC_015_a_row_with_alternatives_must_address_what_would_settle_them"
+          },
+          {
+            "reason": "builds schemas from migration DDL; disposable local server only (tools/test_local_sql.py)",
+            "test": "tests.test_resolve_watches::test_RULE_11_resolver_imports_contrast_from_scan_not_a_copy"
+          },
+          {
+            "reason": "builds schemas from migration DDL; disposable local server only (tools/test_local_sql.py)",
+            "test": "tests.test_resolve_watches::test_ADR_0048_watch_under_30_post_days_is_left_alone"
+          },
+          {
+            "reason": "builds schemas from migration DDL; disposable local server only (tools/test_local_sql.py)",
+            "test": "tests.test_resolve_watches::test_REQ_INF_107_resolver_ignores_days_before_confirmation_data_from"
+          },
+          {
+            "reason": "builds schemas from migration DDL; disposable local server only (tools/test_local_sql.py)",
+            "test": "tests.test_resolve_watches::test_REQ_INF_103_resolver_changes_only_status"
+          },
+          {
+            "reason": "builds schemas from migration DDL; disposable local server only (tools/test_local_sql.py)",
+            "test": "tests.test_resolve_watches::test_ADR_0048_same_sign_q_below_0_10_promotes_and_writes_ledger_and_prediction"
+          },
+          {
+            "reason": "builds schemas from migration DDL; disposable local server only (tools/test_local_sql.py)",
+            "test": "tests.test_resolve_watches::test_ADR_0048_opposite_sign_q_below_0_10_refutes"
+          },
+          {
+            "reason": "builds schemas from migration DDL; disposable local server only (tools/test_local_sql.py)",
+            "test": "tests.test_resolve_watches::test_ADR_0048_no_decision_after_120_days_expires_to_insufficient_with_reason"
+          },
+          {
+            "reason": "builds schemas from migration DDL; disposable local server only (tools/test_local_sql.py)",
+            "test": "tests.test_resolve_watches::test_REQ_TIER_043_every_status_change_has_a_ledger_row"
+          },
+          {
+            "reason": "builds schemas from migration DDL; disposable local server only (tools/test_local_sql.py)",
+            "test": "tests.test_resolve_watches::test_ADR_0048_watch_whose_metrics_never_reach_the_panel_expires_by_the_calendar"
+          },
+          {
+            "reason": "builds schemas from migration DDL; disposable local server only (tools/test_local_sql.py)",
+            "test": "tests.test_resolve_watches::test_OQ_44d_a_look_is_never_repeated_two_looks_only"
+          },
+          {
+            "reason": "builds schemas from migration DDL; disposable local server only (tools/test_local_sql.py)",
+            "test": "tests.test_resolve_watches::test_OQ_44d_second_look_at_120_paired_days_decides_or_expires"
+          },
+          {
+            "reason": "builds schemas from migration DDL; disposable local server only (tools/test_local_sql.py)",
+            "test": "tests.test_resolve_watches::test_REQ_TIER_017_low_n_eff_is_stored_and_gated_to_insufficient"
+          },
+          {
+            "reason": "builds schemas from migration DDL; disposable local server only (tools/test_local_sql.py)",
+            "test": "tests.test_resolve_watches::test_ADR_0049_v1_rows_keep_v1_semantics"
+          },
+          {
+            "reason": "builds schemas from migration DDL; disposable local server only (tools/test_local_sql.py)",
+            "test": "tests.test_resolve_watches::test_ADR_0049_v2_look1_requires_p_lt_0_05_and_n_eff_20"
+          },
+          {
+            "reason": "builds schemas from migration DDL; disposable local server only (tools/test_local_sql.py)",
+            "test": "tests.test_resolve_watches::test_ADR_0049_v2_look2_demotes_sign_unstable"
+          },
+          {
+            "reason": "builds schemas from migration DDL; disposable local server only (tools/test_local_sql.py)",
+            "test": "tests.test_resolve_watches::test_REQ_TIER_017_low_coverage_is_insufficient_with_reason"
+          },
+          {
+            "reason": "builds schemas from migration DDL; disposable local server only (tools/test_local_sql.py)",
+            "test": "tests.test_resolve_watches::test_RULE_12_three_surfaces_report_identical_watching_sets"
+          },
+          {
+            "reason": "builds schemas from migration DDL; disposable local server only (tools/test_local_sql.py)",
+            "test": "tests.test_resolve_watches::test_REQ_TIER_018_every_insufficient_ledger_row_has_vocabulary_reason"
+          },
+          {
+            "reason": "builds schemas from migration DDL; disposable local server only (tools/test_local_sql.py)",
+            "test": "tests.test_restricted_location::test_REQ_LOC_001_restricted_schema_has_no_grants_for_anon_authenticated_service_role"
+          },
+          {
+            "reason": "builds schemas from migration DDL; disposable local server only (tools/test_local_sql.py)",
+            "test": "tests.test_restricted_location::test_REQ_LOC_004_ingest_location_raw_capture_payload_has_no_coordinate_and_is_trusted"
+          },
+          {
+            "reason": "builds schemas from migration DDL; disposable local server only (tools/test_local_sql.py)",
+            "test": "tests.test_restricted_location::test_INV_1_every_fix_references_a_raw_capture"
+          },
+          {
+            "reason": "builds schemas from migration DDL; disposable local server only (tools/test_local_sql.py)",
+            "test": "tests.test_restricted_location::test_INV_2_location_fixes_rejects_update_and_delete"
+          },
+          {
+            "reason": "builds schemas from migration DDL; disposable local server only (tools/test_local_sql.py)",
+            "test": "tests.test_restricted_location::test_REQ_LOC_008_register_place_home_flag_persists_and_is_owner_only"
+          },
+          {
+            "reason": "builds schemas from migration DDL; disposable local server only (tools/test_local_sql.py)",
+            "test": "tests.test_restricted_location::test_ADR_0044_ingest_location_batch_parses_overland_geojson_and_returns_result_ok"
+          },
+          {
+            "reason": "builds schemas from migration DDL; disposable local server only (tools/test_local_sql.py)",
+            "test": "tests.test_restricted_location::test_REQ_LOC_005_migration_0038_has_no_coordinate_literal"
+          },
+          {
+            "reason": "SUPABASE_DB_URL not set \u2014 these read the live database",
+            "test": "tests.test_search_record::test_ADR_0036_search_record_refuses_without_owner_jwt"
+          },
+          {
+            "reason": "SUPABASE_DB_URL not set \u2014 these read the live database",
+            "test": "tests.test_search_record::test_ADR_0042_search_record_short_query_returns_empty_with_note"
+          },
+          {
+            "reason": "SUPABASE_DB_URL not set \u2014 these read the live database",
+            "test": "tests.test_search_record::test_REQ_INF_505_search_record_no_match_returns_empty_lists_not_absent"
+          },
+          {
+            "reason": "SUPABASE_DB_URL not set \u2014 these read the live database",
+            "test": "tests.test_search_record::test_ADR_0042_search_record_hits_are_newest_first_and_capped"
+          },
+          {
+            "reason": "SUPABASE_DB_URL not set \u2014 these read the live database",
+            "test": "tests.test_search_record::test_ADR_0042_search_record_by_month_sums_to_n"
+          },
+          {
+            "reason": "SUPABASE_DB_URL not set \u2014 these read the live database",
+            "test": "tests.test_search_record::test_REQ_ASK_011_search_record_every_hit_has_src_and_row_id"
+          },
+          {
+            "reason": "SUPABASE_DB_URL not set \u2014 these read the live database",
+            "test": "tests.test_search_record::test_ADR_0042_search_record_never_touches_restricted_schema"
+          },
+          {
+            "reason": "SUPABASE_DB_URL not set \u2014 these read the live database",
+            "test": "tests.test_search_record::test_REQ_LOC_005_migration_0036_has_no_coordinate_literal"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_source_inventory::test_REQ_REC_003_a_source_cannot_be_used_without_a_parser_that_reads_it"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_source_inventory::test_REQ_REC_003_used_must_name_the_metric_it_becomes"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_source_inventory::test_REQ_REC_002_an_unverified_asset_may_not_report_a_record_count"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_source_inventory::test_REQ_REC_003_a_disposition_carries_a_substantive_reason_and_a_named_owner"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_source_inventory::test_REQ_REC_008_a_duplicate_must_name_what_it_duplicates"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_source_inventory::test_RULE_04_a_scan_cannot_report_records_dated_after_the_scan"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_source_inventory::test_REQ_REC_004_a_derived_measure_states_its_time_specification"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_source_inventory::test_REQ_REC_004_a_measure_with_no_named_inputs_is_not_a_derivation"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_source_inventory::test_REQ_REC_001_parser_support_is_read_from_the_importer_not_asserted"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_source_inventory::test_REQ_REC_002_an_unlocated_asset_is_never_given_a_disposition_of_available"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_source_inventory::test_REQ_REC_003_an_unparsed_type_with_no_ruling_is_owned_by_joe_not_a_build_unit"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_source_inventory::test_REQ_REC_004_a_measure_declared_interval_whose_atoms_have_none_is_a_violation"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_source_inventory::test_REQ_REC_004_a_measure_stored_the_way_it_is_declared_is_not_a_violation"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_source_inventory::test_REQ_REC_004_an_instant_measure_stored_without_an_instant_is_also_a_violation"
+          },
+          {
+            "reason": "builds schemas from migration DDL; disposable local server only (tools/test_local_sql.py)",
+            "test": "tests.test_spine_insert_paths::test_RULE_07_observed_absent_row_inserts"
+          },
+          {
+            "reason": "builds schemas from migration DDL; disposable local server only (tools/test_local_sql.py)",
+            "test": "tests.test_spine_insert_paths::test_RULE_08_interval_only_nutrition_estimate_inserts"
+          },
+          {
+            "reason": "builds schemas from migration DDL; disposable local server only (tools/test_local_sql.py)",
+            "test": "tests.test_spine_insert_paths::test_RULE_05_atoms_value_requires_lane"
+          },
+          {
+            "reason": "builds schemas from migration DDL; disposable local server only (tools/test_local_sql.py)",
+            "test": "tests.test_spine_insert_paths::test_RULE_07_unknown_presence_rejects_value"
+          },
+          {
+            "reason": "builds schemas from migration DDL; disposable local server only (tools/test_local_sql.py)",
+            "test": "tests.test_spine_insert_paths::test_ADR_0002_measured_value_must_be_point"
+          },
+          {
+            "reason": "builds schemas from migration DDL; disposable local server only (tools/test_local_sql.py)",
+            "test": "tests.test_spine_insert_paths::test_RULE_08_atoms_value_must_be_ordered"
+          },
+          {
+            "reason": "builds schemas from migration DDL; disposable local server only (tools/test_local_sql.py)",
+            "test": "tests.test_spine_insert_paths::test_ADR_0002_force_recorded_at_overrides_client_value"
+          },
+          {
+            "reason": "builds schemas from migration DDL; disposable local server only (tools/test_local_sql.py)",
+            "test": "tests.test_spine_insert_paths::test_ADR_0021_predictions_shape_is_binary_xor_continuous"
+          },
+          {
+            "reason": "builds schemas from migration DDL; disposable local server only (tools/test_local_sql.py)",
+            "test": "tests.test_spine_insert_paths::test_REQ_INF_103_prereg_columns_frozen_status_mutable"
+          },
+          {
+            "reason": "builds schemas from migration DDL; disposable local server only (tools/test_local_sql.py)",
+            "test": "tests.test_spine_insert_paths::test_REQ_ONT_001_kind_taxonomy_enforced"
+          },
+          {
+            "reason": "builds schemas from migration DDL; disposable local server only (tools/test_local_sql.py)",
+            "test": "tests.test_spine_insert_paths::test_REQ_ONT_002_entity_type_taxonomy_enforced"
+          },
+          {
+            "reason": "builds schemas from migration DDL; disposable local server only (tools/test_local_sql.py)",
+            "test": "tests.test_spine_invariants::test_RULE_02_append_only_grants_and_triggers"
+          },
+          {
+            "reason": "builds schemas from migration DDL; disposable local server only (tools/test_local_sql.py)",
+            "test": "tests.test_spine_invariants::test_RULE_02_atoms_reject_update_as_owner"
+          },
+          {
+            "reason": "builds schemas from migration DDL; disposable local server only (tools/test_local_sql.py)",
+            "test": "tests.test_spine_invariants::test_RULE_02_raw_captures_reject_delete_as_owner"
+          },
+          {
+            "reason": "builds schemas from migration DDL; disposable local server only (tools/test_local_sql.py)",
+            "test": "tests.test_spine_invariants::test_REQ_INF_103_hypothesis_register_freezes_prereg_columns"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_status_sql::test_REQ_NFR_004_sql_missing_jobs_are_not_lost_by_join"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_status_sql::test_REQ_NFR_004_sql_new_failure_wins_over_old_success"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_status_sql::test_REQ_NFR_004_sql_future_run_is_not_a_successful_finish"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_status_sql::test_REQ_NFR_003_sql_success_after_transaction_start_is_healthy"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_strength::test_RULE_13_the_catalogue_rebuild_preserves_the_seeded_parameters"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_trials_sql::test_REQ_INF_216_a_context_exposure_cannot_be_randomised"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_trials_sql::test_REQ_INF_206_a_trial_under_six_weeks_of_blocks_is_refused"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_trials_sql::test_REQ_INF_208_an_underpowered_trial_cannot_be_stored"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_trials_sql::test_REQ_INF_203_a_block_no_longer_than_the_washout_is_refused"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_trials_sql::test_REQ_INF_205_an_unblinded_trial_must_state_the_impossibility"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_trials_sql::test_REQ_INF_213_the_outcome_freezes_once_the_first_block_is_assigned"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_trials_sql::test_REQ_INF_213_a_non_prereg_column_still_moves_after_randomisation_begins"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_trials_sql::test_REQ_INF_202_a_block_cannot_be_assigned_twice"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_trials_sql::test_REQ_INF_209_a_deviation_must_belong_to_a_real_assigned_block"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_trials_sql::test_REQ_INF_209_one_deviation_row_per_day"
+          },
+          {
+            "reason": "no database available: set PERSONAL_OS_TEST_SOCKET (disposable server, via tools/test_local_sql.py) or SUPABASE_DB_URL",
+            "test": "tests.test_trials_sql::test_REQ_INF_201_the_engine_s_accepted_plan_satisfies_the_table"
+          }
+        ],
+        "environment_or_data_count": 539
+      }
+    }
+  ],
+  "schema": "personal-os/evidence-manifest/1",
+  "stages": {
+    "behavioural_scope": "see tools/evidence_report.py \u2014 a passing name is not a demonstrated requirement",
+    "deployed": "NOT established here; requires a migration applied to production",
+    "observed": "NOT established here; requires verification against real production data",
+    "runtime_integration": "see tools/evidence_report.py reachability \u2014 an import edge is a static fact about source text",
+    "tested": "established by this manifest, for the revision and mode recorded above"
+  },
+  "suite": "deterministic",
+  "totals": {
+    "errors": 0,
+    "failures": 0,
+    "passed": 964,
+    "skipped": 541,
+    "tests": 1505
+  },
+  "working_tree": {
+    "branch": "work/release-evidence",
+    "changed_files": [
+      {
+        "path": "ocs/EVIDENCE_REPORT.md",
+        "status": "M"
+      },
+      {
+        "path": "ops/evidence/",
+        "status": "??"
+      }
+    ],
+    "describe": "ef2dd76-dirty",
+    "dirty": true,
+    "head": "ef2dd76015a5df494590dfd072e0bbec4186a7a4",
+    "short": "ef2dd76"
+  }
+}
