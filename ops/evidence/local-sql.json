@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-11T22:24:14+00:00",
+  "generated_at": "2026-09-11T22:25:55+00:00",
   "manifest_process": {
     "dependency_versions": {
       "dateparser": "1.4.3",
@@ -79,25 +79,16 @@
   },
   "working_tree": {
     "branch": "work/release-evidence",
-    "changed_files": [
-      {
-        "path": "ocs/EVIDENCE_REPORT.md",
-        "status": "M"
-      }
-    ],
-    "describe": "c94713b-dirty",
-    "dirty": true,
+    "changed_files": [],
+    "describe": "f2e2115-dirty",
+    "dirty": false,
     "generated_evidence_uncommitted": [
       {
         "path": "ops/evidence/deterministic.json",
         "status": "M"
-      },
-      {
-        "path": "ops/evidence/local-sql.json",
-        "status": "M"
       }
     ],
-    "head": "c94713b5d9cac2b3f60d8709bb051f583825f789",
-    "short": "c94713b"
+    "head": "f2e2115c25c8a5b5a1c29e775b4b208f88e82057",
+    "short": "f2e2115"
   }
 }
