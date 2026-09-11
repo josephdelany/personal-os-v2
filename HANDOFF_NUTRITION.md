@@ -341,3 +341,42 @@ arithmetic will be one day out under it.
 The general lesson, which is the same one in both corrections: a number read off a tree or a
 runner that differs from the authoritative one is not evidence about the branch. Both times the
 fault was in how I measured, and both times only re-measuring found it.
+
+---
+
+## 10. FINAL COMBINED REVISION — `38d42ea`, main's integration branch
+
+§9 recorded this worker's own probe. **The authoritative combined revision is main's**, and it
+is the one that counts. Recorded here so the number has a home on this branch too.
+
+**`38d42ea` — "Checkpoint the integration boundary: 673/685, and the alarm that never rang"**
+(2026-09-11 19:00:10 -0400). Verified locally: it contains `work/nutrition-finish` through
+`98f6fc7`, and `tests/test_nutrition_usda.py` is registered in its `TESTS` tuple.
+
+| check | result on `38d42ea` (main's measurement) |
+|---|---|
+| deterministic suite | **1029 passed, 605 skipped, 0 failures** |
+| disposable-SQL suite | **772 passed, 1 skipped** |
+| this worker's USDA file | **59 passed, 0 skipped** |
+| layout | **43 / 43** |
+| migration chain from empty | clean, **72 migrations** |
+| requirements | **673 / 685** |
+
+**Corroboration, not duplication.** This worker's probe `c4628db` was built separately — from
+`5a3f612` rather than by main's merge order — and measured **59 passed / 0 skipped** for the
+same file. Two independently constructed trees agreeing on that figure is what settles §2.
+Every larger figure above is main's, measured on main's branch; this worker did not reproduce
+the 1029 or the 772 and does not claim them.
+
+### Two commits of this worker's are NOT in `38d42ea`
+
+| commit | consequence |
+|---|---|
+| `5eb9f3b` — pin the acceptance server to UTC | **`tools/nutrition_acceptance.py` at `38d42ea` still starts its server unpinned.** Its own seven cases pass either way (they use explicit `+00` timestamps), but the tool is one flag away from the failure mode §9(b) describes. |
+| `7cc9f50` — handoff §9 | documentation only |
+
+`tools/reconstruction_acceptance.py:278` is unpinned at `38d42ea` as well. That one is main's.
+Any test doing server-side date arithmetic under either tool is a day out.
+
+Unchanged and worth repeating: **0055–0073 are unapplied and no request has ever been issued to
+api.data.gov.** Implemented and tested; not deployed, not observed.
