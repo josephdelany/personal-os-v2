@@ -23,6 +23,7 @@ import pg8000.dbapi
 import pytest
 
 from tests._import_fixture import SUPABASE_ROLES
+from tests._sql_fixture import connect, disposable_socket, requires_disposable  # noqa: F401
 from tools import run_migration
 
 CORE, OPS = "core_pytest", "ops_pytest"
@@ -49,47 +50,6 @@ _LOC_WORD = re.compile(r"\brestricted\b")            # the schema name, wherever
 _QUALIFIED = re.compile(r"\b(core|ops|analysis)\.")
 _TWIN_OF = {"core": CORE, "ops": OPS, "analysis": ANALYSIS_TWIN}
 
-
-
-def disposable_socket():
-    """The disposable PostgreSQL 17 socket, or None. Validated the same way as _sql_fixture."""
-    socket = os.environ.get("PERSONAL_OS_TEST_SOCKET")
-    if not socket:
-        return None
-    path = Path(socket)
-    if not path.is_absolute() or not path.name.startswith(".s.PGSQL."):
-        raise ValueError("PERSONAL_OS_TEST_SOCKET must be an absolute PostgreSQL Unix socket path")
-    return path
-
-
-# Every module in this family builds the twins, which means applying the WHOLE forward-only
-# chain. That is a disposable-server operation and nothing else, so the gate names the socket
-# rather than SUPABASE_DB_URL. It used to name the live URL: CI's `pytest` job supplies one, so
-# these modules executed the entire chain against PRODUCTION behind a rollback — hundreds of DDL
-# round trips through the pooler. That is the origin of OQ-78's 38 `57014 canceling statement
-# due to statement timeout` setup errors. A timeout is not a defect in the test and re-running
-# it is not evidence; the fix is to stop asking production to do this at all.
-requires_disposable = pytest.mark.skipif(
-    not os.environ.get("PERSONAL_OS_TEST_SOCKET"),
-    reason="builds schemas from migration DDL; disposable local server only "
-           "(tools/test_local_sql.py)",
-)
-
-
-def connect():
-    """Connect to the disposable server. Never to production — see `requires_disposable`."""
-    path = disposable_socket()
-    if path is None:
-        pytest.skip("no disposable server: set PERSONAL_OS_TEST_SOCKET via tools/test_local_sql.py")
-    conn = pg8000.dbapi.connect(
-        user=getpass.getuser(), database="postgres", unix_sock=str(path), timeout=10,
-    )
-    cur = conn.cursor()
-    cur.execute("SHOW server_version_num")
-    if int(cur.fetchone()[0]) // 10000 != 17:
-        conn.close()
-        raise RuntimeError("Local SQL verification requires PostgreSQL major version 17")
-    return conn
 
 
 def apply_chain(cur):

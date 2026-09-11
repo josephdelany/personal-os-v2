@@ -39,6 +39,12 @@ TESTS = ("tests/test_ask_ranges.py", "tests/test_ask.py", "tests/test_ask_operat
          "tests/test_derive_visits.py",
          "tests/test_restricted_location.py",
          "tests/test_recommendations.py",
+         # Spine: applies the chain to a throwaway schema pair. Also OQ-78 casualties.
+         "tests/test_spine_invariants.py",
+         "tests/test_spine_insert_paths.py",
+         # REQ-NFR-008 was guarded for the disposable server but listed in no job, so it
+         # could not run anywhere: a requirement unprovable by construction.
+         "tests/test_capture_schedule.py",
          "tests/test_chains_sql.py",
          "tests/test_trials_sql.py",
          # The reconstruction path end to end: schema, engine and read API were each
