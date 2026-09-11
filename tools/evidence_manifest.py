@@ -84,7 +84,11 @@ def working_tree(root=ROOT):
     """
     porcelain = _git("status", "--porcelain", root=root) or ""
     entries = [line for line in porcelain.splitlines() if line.strip()]
-    changed = [{"status": e[:2].strip(), "path": e[3:]} for e in entries]
+    # `_git` strips its output, which removes the leading space from the FIRST porcelain line
+    # only, so a fixed e[3:] slice silently ate a character off exactly one path per run --
+    # "docs/EVIDENCE_REPORT.md" arrived as "ocs/EVIDENCE_REPORT.md" and then matched no prefix.
+    # Two-character status, then the path, tolerating either form.
+    changed = [{"status": e[:2].strip(), "path": e[2:].lstrip()} for e in entries]
     # Writing this manifest dirties the tree for the next one, and the evidence report dirties
     # it for both. That is not the question anybody is asking: "was the SOURCE under test
     # modified?" must not be answered "yes, because the report about it was written". Generated
