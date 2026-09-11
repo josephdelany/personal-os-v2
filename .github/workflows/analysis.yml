@@ -69,6 +69,25 @@ jobs:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
           PYTHONPATH: ${{ github.workspace }}
         run: python3 tools/reconstruct_run.py --all-methods --commit
+
+      # REQ-REC-015's second half (ADR-0141). Reconstruction computes what would settle an
+      # ambiguous conclusion; this is what turns that into a question due to be asked. It runs
+      # AFTER the step above and not before, because it reads the reconstructions that step
+      # writes -- reversed, it would plan prompts against yesterday's conclusions every night.
+      #
+      # It SCHEDULES, it does not deliver. `delivered_at` stays NULL: REQ-CAP-092 names Web
+      # Push and Web Push is not built, so a row here means "this question is due to be asked"
+      # and never "Joe was asked". Those are two facts and the table has two columns so they
+      # cannot be merged.
+      #
+      # A clean no-op in production today for the same reason as the step above: 0069 is
+      # unapplied, so `discriminating_evidence` does not exist and there is nothing open to ask
+      # about. Wired now so that applying the migrations is all that is left.
+      - name: clarification prompts — schedule, never deliver (no-op while 0069 is unapplied)
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          PYTHONPATH: ${{ github.workspace }}
+        run: python3 ops/clarification_prompts.py --commit
   scan:
     runs-on: ubuntu-latest
     timeout-minutes: 45
