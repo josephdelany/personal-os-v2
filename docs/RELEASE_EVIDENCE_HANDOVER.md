@@ -173,3 +173,32 @@ Joe intends each to do, which is not in the code.
 | `dc6bfbb` | evidence at a clean source tree |
 
 Nothing was pushed. No other worktree was touched. No agent was spawned.
+
+## Coordination: one expected conflict, and it is trivial
+
+At the time of writing, `/Users/default/PERSONAL_OS_V2` (`session-21-recovery-and-ask`, HEAD
+`7993c5a`, 7 uncommitted entries) has **also edited `tools/test_local_sql.py`**. Both sessions
+appended to the tail of the same `TESTS` tuple, so merging will conflict textually there and
+nowhere else.
+
+**The resolution is the union of both lists**, not a choice between them:
+
+- this branch adds ten: `test_confirmation_gate`, `test_movements_api`, `test_resolve_watches`,
+  `test_derive_visits`, `test_restricted_location`, `test_recommendations`,
+  `test_spine_invariants`, `test_spine_insert_paths`, `test_capture_schedule`, `test_keepalive`
+- main adds two: `test_workout_session_r2` (already on main, not on this branch) and
+  `test_service_usage_r4`
+
+This branch's base, `48745d9`, is an ancestor of `7993c5a`, so a rebase is otherwise clean.
+
+**A second, more interesting overlap.** Main's new `tools/service_usage.py` is described in its
+own comment as "the first caller `recurrence.py` and `usage_status.py` have ever had". Those are
+two of the 37 engines this report lists as reachable only from `tests/` — so that count becomes
+35 once main lands, and `recurrence` (30 requirements) is among the heavier entries in the
+triage table above. The table was measured at `dc6bfbb` and does not include main's uncommitted
+work.
+
+If `tools/service_usage.py` ends up started by a workflow rather than by hand, it belongs in
+`REQUIRED_SCHEDULED_ENGINES` in `tests/test_release_acceptance.py`, so that its wiring is
+defended the way the other nine are. That is a judgement about intent, so it is left to the main
+session rather than guessed here.
