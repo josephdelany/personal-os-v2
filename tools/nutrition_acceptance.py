@@ -85,7 +85,14 @@ class Disposable:
                        check=True, stdout=subprocess.DEVNULL)
         self.control = [str(binaries / "pg_ctl"), "-D", str(data)]
         subprocess.run([*self.control, "-l", str(self.root / "server.log"), "-o",
-                        f"-k {sockets} -p 55434 -c listen_addresses=''", "start"],
+                        # `-c timezone=UTC` matches tools/test_local_sql.py and is NOT
+                        # cosmetic. A server left on the machine's local zone shifts every
+                        # server-side `timestamptz::date` by the UTC offset, which moves day
+                        # counts by one. Three tests in test_resolve_watches.py fail exactly
+                        # that way under a server without it — found by running this project's
+                        # own harness against a server that omitted the flag.
+                        f"-k {sockets} -p 55434 -c listen_addresses='' -c timezone=UTC",
+                        "start"],
                        check=True, stdout=subprocess.DEVNULL)
         self.socket = sockets / ".s.PGSQL.55434"
         return self
