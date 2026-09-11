@@ -148,7 +148,13 @@ def main():
                    check=True, stdout=subprocess.DEVNULL)
     control = [str(binaries / "pg_ctl"), "-D", str(data)]
     subprocess.run([*control, "-l", str(root / "server.log"), "-o",
-                    f"-k {sockets} -p 55433 -c listen_addresses=''", "start"], check=True)
+                    # `-c timezone=UTC`, as production runs UTC. This one applies the chain
+                    # rather than counting days, so it is the least likely of the five to be
+                    # bitten — but a migration carrying a DEFAULT or a generated column that
+                    # casts timestamptz to date would be validated against the wrong zone, and
+                    # pinning costs nothing.
+                    f"-k {sockets} -p 55433 -c listen_addresses='' -c timezone=UTC",
+                    "start"], check=True)
     try:
         conn = pg8000.dbapi.connect(user=getpass.getuser(), database="postgres",
                                     unix_sock=str(sockets / ".s.PGSQL.55433"), timeout=20)

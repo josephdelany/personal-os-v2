@@ -275,7 +275,16 @@ def main() -> int:
     control = [str(binaries / "pg_ctl"), "-D", str(data)]
     try:
         subprocess.run([*control, "-l", str(root / "server.log"), "-o",
-                        f"-k {sockets} -p 55432 -c listen_addresses=''", "start"], check=True,
+                        # `-c timezone=UTC`, matching tools/test_local_sql.py. NOT cosmetic:
+                        # a server left on the machine's zone shifts every server-side
+                        # timestamptz::date by the UTC offset, so a day count comes out one
+                        # different from production, which runs UTC. Measured on this machine:
+                        # '2026-09-11 02:00:00+00'::timestamptz::date is 2026-09-10 without the
+                        # flag and 2026-09-11 with it. It fails OPEN -- this tool's own cases
+                        # use explicit +00 timestamps and would not notice -- which is exactly
+                        # why it is pinned rather than relied upon.
+                        f"-k {sockets} -p 55432 -c listen_addresses='' -c timezone=UTC",
+                        "start"], check=True,
                        stdout=subprocess.DEVNULL)
         conn = pg8000.dbapi.connect(user=getpass.getuser(), database="postgres",
                                     unix_sock=str(sockets / ".s.PGSQL.55432"))

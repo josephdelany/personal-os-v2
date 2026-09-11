@@ -222,6 +222,40 @@ def test_OQ_78_every_schema_building_test_module_is_gated_to_the_disposable_serv
     )
 
 
+def test_every_disposable_server_is_pinned_to_UTC():
+    """A harness that starts its own PostgreSQL must pin `timezone=UTC`, as production runs UTC.
+
+    **This one FAILS OPEN, which is why it needs a lint rather than a convention.** A server left
+    on the machine's zone shifts every server-side `timestamptz::date` by the UTC offset, so a
+    day count comes out one different from production. Measured on the machine this was found on:
+    `'2026-09-11 02:00:00+00'::timestamptz::date` is **2026-09-10** without the flag and
+    2026-09-11 with it.
+
+    `tools/test_local_sql.py` has always passed it, and its comment records
+    `test_resolve_watches` reporting 46 paired days locally and 45 in UTC. Three acceptance
+    harnesses were then written that did not: `nutrition_acceptance`, `capture_acceptance`, and
+    `reconstruction_acceptance` — the last being the integration owner's own file. None of their
+    own cases exposed it, because they use explicit `+00` timestamps. That is the failure mode:
+    the harness is wrong and every test inside it passes, until one does date arithmetic.
+
+    Found by the nutrition worker, who hit it in a scratch runner, saw three
+    `test_resolve_watches` failures, and isolated it by pointing this project's harness at the
+    unpinned server rather than reporting the branch as broken.
+    """
+    offenders = []
+    for path in sorted((ROOT / "tools").glob("*.py")) + sorted((ROOT / "ops").glob("*.py")):
+        source = path.read_text(errors="ignore")
+        if "listen_addresses" not in source:
+            continue                       # does not start a server
+        if "timezone=UTC" not in source:
+            offenders.append(path.name)
+    assert not offenders, (
+        "these start a disposable PostgreSQL without `-c timezone=UTC`, so every server-side "
+        "timestamptz::date is offset from production and day counts come out one different — "
+        "silently, since a harness's own cases usually use explicit +00 timestamps:\n  "
+        + "\n  ".join(offenders))
+
+
 def test_OQ_78_the_schema_builders_refuse_without_a_disposable_server():
     """The guard is structural, not just declarative — the helpers themselves refuse.
 

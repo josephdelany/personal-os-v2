@@ -155,7 +155,16 @@ class Disposable:
                         "--no-locale"], check=True, stdout=subprocess.DEVNULL)
         subprocess.run([str(self.binaries / "pg_ctl"), "-D", str(self.data), "-l",
                         str(self.root / "server.log"), "-o",
-                        f"-k {self.sockets} -p 55433 -c listen_addresses=''", "start"],
+                        # `-c timezone=UTC`, matching tools/test_local_sql.py. NOT cosmetic:
+                        # a server left on the machine's zone shifts every server-side
+                        # timestamptz::date by the UTC offset, so a day count comes out one
+                        # different from production, which runs UTC. Measured on this machine:
+                        # '2026-09-11 02:00:00+00'::timestamptz::date is 2026-09-10 without the
+                        # flag and 2026-09-11 with it. It fails OPEN -- this tool's own cases
+                        # use explicit +00 timestamps and would not notice -- which is exactly
+                        # why it is pinned rather than relied upon.
+                        f"-k {self.sockets} -p 55433 -c listen_addresses='' "
+                        f"-c timezone=UTC", "start"],
                        check=True, stdout=subprocess.DEVNULL)
         self.socket = self.sockets / ".s.PGSQL.55433"
         self.started = True
