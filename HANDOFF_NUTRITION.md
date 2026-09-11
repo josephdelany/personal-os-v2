@@ -22,6 +22,9 @@ migration created, no file outside this worker's ownership modified.
 ### Evidence at `c523393`
 
 - **222 passed, 11 skipped** — every nutrition-touching test file, disposable PostgreSQL 17.
+  All 11 skips are `tests/test_spine_insert_paths.py`, which needs the live database rather
+  than the disposable socket. **No nutrition test skipped in that run**, which is the claim
+  that matters: a skip is not a pass.
 - **149 passed** deterministic (no database).
 - `tools/validate_layout.py` — **43 / 43**, 1 pre-existing WARN (`.claude/settings.local.json`).
 - `tools/nutrition_acceptance.py` — **7 of 7**.
