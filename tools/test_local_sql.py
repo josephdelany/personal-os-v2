@@ -30,6 +30,15 @@ TESTS = ("tests/test_ask_ranges.py", "tests/test_ask.py", "tests/test_ask_operat
          # Added when RULE-13's parameter preservation stopped being a source-text grep and
          # became a test that runs the rebuild against a real config.derivation_catalogue.
          "tests/test_strength.py",
+         # OQ-78: the location/confirmation family builds the twins by applying the whole
+         # migration chain. It was gated on SUPABASE_DB_URL, so CI's `pytest` job ran that
+         # chain against production and timed out (57014). It belongs here.
+         "tests/test_confirmation_gate.py",
+         "tests/test_movements_api.py",
+         "tests/test_resolve_watches.py",
+         "tests/test_derive_visits.py",
+         "tests/test_restricted_location.py",
+         "tests/test_recommendations.py",
          "tests/test_chains_sql.py",
          "tests/test_trials_sql.py",
          # The reconstruction path end to end: schema, engine and read API were each
@@ -85,8 +94,14 @@ def main():
                    stdout=subprocess.DEVNULL)
     control = [str(binaries / "pg_ctl"), "-D", str(data)]
     try:
+        # timezone=UTC because Supabase runs UTC and this server otherwise inherits the
+        # developer's zone. Without it, tests that count days across a timestamptz->date cast
+        # give different answers in EDT than in CI: `test_resolve_watches` reported 46 paired
+        # days locally and 45 in UTC. A suite whose result depends on where the laptop is
+        # cannot be evidence for anything, and CI runners are UTC, so it hid there.
         subprocess.run([*control, "-l", str(root / "server.log"), "-o",
-                        f"-k {sockets} -p 55432 -c listen_addresses=''", "start"], check=True)
+                        f"-k {sockets} -p 55432 -c listen_addresses='' -c timezone=UTC",
+                        "start"], check=True)
         return pytest(sockets / ".s.PGSQL.55432", args.tests)
     finally:
         stopped = subprocess.run([*control, "-m", "fast", "stop"])

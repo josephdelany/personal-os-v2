@@ -14,13 +14,9 @@ import sys
 
 import pytest
 
-from lib import db
 from tests import _location_fixture as lf
 
-pytestmark = pytest.mark.skipif(
-    not os.environ.get("SUPABASE_DB_URL"),
-    reason="SUPABASE_DB_URL not set — these need the live PG 17 engine",
-)
+pytestmark = lf.requires_disposable
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 LOC = lf.LOC_SCHEMA
@@ -34,7 +30,7 @@ def _json(v):
 @pytest.fixture()
 def cur():
     """Function-scoped: every test starts from empty twins."""
-    conn = db.connect()
+    conn = lf.connect()
     c = conn.cursor()
     try:
         lf.apply_chain(c)
@@ -122,10 +118,42 @@ def test_REQ_LOC_012_visits_public_view_exposes_no_coordinate_column(cur):
                 (lf.ANALYSIS_TWIN,))
     cols = {r[0] for r in cur.fetchall()}
     assert cols and not cols & {"lat", "lon", "c_lat", "c_lon", "latitude", "longitude"}
-    # and the live view has the same shape
-    cur.execute("select column_name from information_schema.columns where table_schema='analysis' and table_name='visits_public'")
-    live = {r[0] for r in cur.fetchall()}
-    assert live == cols
+
+
+@pytest.mark.skipif(
+    os.environ.get("PERSONAL_OS_PRODUCTION_CHECKS") != "1"
+    or not os.environ.get("SUPABASE_DB_URL"),
+    reason="production check: set PERSONAL_OS_PRODUCTION_CHECKS=1 with SUPABASE_DB_URL. "
+           "Read-only (information_schema only), and never run by the disposable suite.",
+)
+def test_REQ_LOC_012_live_visits_public_matches_the_twin_shape():
+    """The DEPLOYED view has the same shape as the twin the rest of this module verifies.
+
+    Split out of the twin test above, which asserted it against `analysis.visits_public` while
+    connected to whatever database happened to be configured. Under the disposable server that
+    schema does not exist, so it compared against the empty set; under the live job it was an
+    unannounced production read inside a test whose docstring says "disposable twins". It is a
+    real check and it is kept — as an explicit, opt-in, read-only one. It reads column NAMES
+    from information_schema and no row (ADR-0088's rationale: a column name is not an
+    observation).
+    """
+    from lib import db
+    conn = db.connect()
+    try:
+        cur = conn.cursor()
+        cur.execute("select column_name from information_schema.columns "
+                    "where table_schema='analysis' and table_name='visits_public'")
+        live = {r[0] for r in cur.fetchall()}
+        cur.execute("select column_name from information_schema.columns "
+                    "where table_schema=%s and table_name='visits_public'", (lf.ANALYSIS_TWIN,))
+        twin = {r[0] for r in cur.fetchall()}
+        assert live, "analysis.visits_public is not deployed"
+        assert not live & {"lat", "lon", "c_lat", "c_lon", "latitude", "longitude"}
+        if twin:
+            assert live == twin
+    finally:
+        conn.rollback()
+        conn.close()
 
 
 def test_REQ_LOC_005_lint_fails_on_a_restricted_reference_outside_migrations():

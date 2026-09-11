@@ -15,14 +15,10 @@ import networkx as nx
 import numpy as np
 import pytest
 
-from lib import db
-from tests._location_fixture import apply_chain, as_owner, CORE, ANALYSIS_TWIN
+from tests._location_fixture import (apply_chain, as_owner, connect, requires_disposable, CORE, ANALYSIS_TWIN)
 from tools.engines import confirm, speccurve
 
-pytestmark = pytest.mark.skipif(
-    not os.environ.get("SUPABASE_DB_URL"),
-    reason="SUPABASE_DB_URL not set — these apply the migration chain to disposable twins",
-)
+pytestmark = requires_disposable
 
 TODAY = dt.date(2026, 9, 2)
 D0 = TODAY - dt.timedelta(days=181)          # promotion day: 180 days of post-promotion data
@@ -102,12 +98,12 @@ def _register(cur, hyp, status="PROMOTED", exposure=EXPOSURE, outcome=OUTCOME, d
 
 @pytest.fixture(scope="module")
 def conn():
-    c = db.connect()
+    c = connect()
     cur = c.cursor()
     apply_chain(cur)
-    cur.execute(f"""CREATE TABLE {ANALYSIS_TWIN}.panel (
-        day DATE NOT NULL, metric TEXT NOT NULL, value NUMERIC NOT NULL,
-        src TEXT NOT NULL, code_version TEXT NOT NULL, PRIMARY KEY (day, metric))""")
+    # The migration chain now creates this table in the twin. It used to be hand-rolled here
+    # because the old rewrite left `analysis.panel` pointing at the REAL analysis schema, so
+    # the twin never had one. Using the migration's own definition is the point of a twin.
     as_owner(cur)
     try:
         yield c
