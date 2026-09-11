@@ -67,6 +67,15 @@ def _git(*args, root=ROOT):
         return None
 
 
+# Artifacts this tool and tools/evidence_report.py write. Changes to these say nothing about
+# whether the tested source is reconstructible from the commit.
+GENERATED_EVIDENCE = ("ops/evidence/", "docs/EVIDENCE_REPORT.md")
+
+
+def _is_generated(path):
+    return any(path.startswith(prefix) for prefix in GENERATED_EVIDENCE)
+
+
 def working_tree(root=ROOT):
     """The revision, and exactly how the tree departs from it.
 
@@ -76,13 +85,22 @@ def working_tree(root=ROOT):
     porcelain = _git("status", "--porcelain", root=root) or ""
     entries = [line for line in porcelain.splitlines() if line.strip()]
     changed = [{"status": e[:2].strip(), "path": e[3:]} for e in entries]
+    # Writing this manifest dirties the tree for the next one, and the evidence report dirties
+    # it for both. That is not the question anybody is asking: "was the SOURCE under test
+    # modified?" must not be answered "yes, because the report about it was written". Generated
+    # evidence is therefore counted separately rather than folded into `dirty`.
+    generated = [c for c in changed if _is_generated(c["path"])]
+    source = [c for c in changed if not _is_generated(c["path"])]
     head = _git("rev-parse", "HEAD", root=root)
     return {
         "head": head,
         "short": (head or "")[:7] or None,
         "branch": _git("rev-parse", "--abbrev-ref", "HEAD", root=root),
-        "dirty": bool(entries),
-        "changed_files": changed,
+        # `dirty` means the SOURCE departs from the commit -- the thing that makes a run
+        # unreproducible. Uncommitted generated evidence does not.
+        "dirty": bool(source),
+        "changed_files": source,
+        "generated_evidence_uncommitted": generated,
         "describe": _git("describe", "--always", "--dirty", root=root),
     }
 
@@ -236,7 +254,7 @@ def main(argv=None):
     print(f"{out}: {t['passed']} passed, {t['failures']} failed, {t['errors']} errors, "
           f"{t['skipped']} skipped")
     print(f"  revision {tree['short']} ({tree['branch']})"
-          f"{' DIRTY — ' + str(len(tree['changed_files'])) + ' files' if tree['dirty'] else ''}")
+          f"{' DIRTY — ' + str(len(tree['changed_files'])) + ' source files' if tree['dirty'] else ' (source clean)'}")
     for run in manifest["runs"]:
         env = run["run_environment"]
         if env:
