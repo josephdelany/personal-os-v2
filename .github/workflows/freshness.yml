@@ -10,6 +10,34 @@
 #
 # It runs BEFORE the nightly analysis refresh, so it reports on the day that has actually
 # landed rather than on a panel rebuilt seconds earlier.
+#
+# NOT RUNNING AS OF 2026-09-11 — measured, not suspected (ADR-0141).
+#
+#   ops.runs carries exactly ONE check_freshness row, ever: 2026-09-09 22:40 UTC, which was a
+#   manual local run. None on the 10th, none on the 11th, while `analysis` and `keepalive`
+#   wrote rows on both days.
+#
+#   The cause is not this file's contents. `gh api repos/:owner/:repo/actions/workflows` lists
+#   six workflows and `freshness` is not among them, and
+#   `gh api "repos/:owner/:repo/contents/.github/workflows?ref=v2-day1"` returns
+#   analysis / extract / gates / keepalive / pages — five files. This one has never reached the
+#   repository's DEFAULT branch, which is `v2-day1`, not `main`, and GitHub delivers `schedule`
+#   events only from the default branch. The last push to the remote was 2026-09-03.
+#
+#   So the single mechanism built to stop a repeat of the 43-day silent capture failure has
+#   never fired on a schedule. It was implemented and tested; it was never deployed, and
+#   nothing in the repository could tell the difference — which is the same class of error as
+#   the one it exists to catch, one level up.
+#
+#   The fix is a deployment act and is Joe's / the integration owner's: either move the
+#   default branch to the branch that carries this file, or push this file to `v2-day1`.
+#   Verification is in docs/CAPTURE_ACTIVATION.md and is two commands, neither of which is
+#   "the workflow file exists".
+#
+# REGISTRATION NOTE. Even once the file is on the default branch, GitHub does not index a
+# workflow whose only triggers are `schedule` and `workflow_dispatch` when it merely rides
+# along in a bulk push — keepalive.yml's own header records this happening to it. A push that
+# MODIFIES the file forces a re-scan. These comment lines are that modification.
 name: freshness
 on:
   schedule:

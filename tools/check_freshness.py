@@ -33,6 +33,37 @@ job's completion time, because a job that succeeds over an empty input proves no
   not connect `resting_hr` to `rhr`. See OQ-51.
 * `fresh` — reported inside its limit.
 
+**Two blind spots this also closes (ADR-0141). Both are cases where every count above is
+literally true and the honest answer is still "capture is broken".**
+
+* `source_quiet` — a metric is FRESH, and one of the CAPTURE SOURCES that used to supply it
+  has stopped. This is not hypothetical: the bank CSV export died on 2026-05-13 and
+  `chase_email` took over, so `transaction_amount_usd` is fresh on roughly a third of the
+  transactions and a seventh of the value. Metric-scoped freshness cannot see it, because
+  freshness asks "did anything arrive" and this asks "did the same thing keep arriving".
+  Reported and counted; it does NOT fail the run — which of two sources to believe is a
+  measurement ruling (RULE-12), and a check that is permanently red is a check nobody reads.
+  `tools/check_source_continuity.py` is where a rate change across such a handover is
+  quantified; this is the detector that says where to look.
+
+  **The source here is the ingress channel** (`core.raw_captures.source`, a closed enum), not
+  the device. The Watch-versus-iPhone split that made `steps` double-count is NOT visible to
+  this check: for a file import both devices arrive under `file_import`, and the instrument
+  survives only inside `core.atoms.evidence_span` as free text taken from the export's
+  `sourceName`. That field is deliberately not parsed here. It is a user-renamable string
+  ("Joe's iPhone") in a column that also carries merchant descriptors and page titles, and
+  REQ-NFR-011 says an operational alert never becomes an egress path. Device-level attribution
+  is a real gap and it belongs somewhere that can name instruments from stored configuration.
+* the **local import schedule's own silence**. `ops/capture_schedule.py` runs on Joe's Mac
+  under launchd, and this check runs on a GitHub runner, so a laptop that has been shut for a
+  week is invisible here — every metric it would have refreshed simply ages, and the reason is
+  not in the report. The job's expected cadence is read from the schedule declaration in
+  `ops/capture_schedule.py` rather than written here, for the same reason staleness limits are
+  read from the registry. It follows the `stale`/`never_seen` rule exactly: a schedule that has
+  NEVER reported is `not_installed` and does not fail (it is not installed yet — see the
+  activation steps in that module), while one that reported and then stopped is `job_stale`
+  and does.
+
 **It never prints a value** (REQ-NFR-011). Only the metric key, the last observed day and the
 elapsed day count. An operational alert must not become an egress path (RULE-29).
 """
@@ -43,6 +74,7 @@ import re
 import sys
 
 from lib import db
+from ops import capture_schedule
 from tools.importers.common import current_subject_day, redact
 
 CODE_VERSION = "check-freshness-v1"
@@ -141,7 +173,104 @@ def last_observed(cur, keys, schema="core", analysis="analysis"):
     return seen
 
 
-def check(cur, schema="core", analysis="analysis"):
+def contributing_sources(cur, keys, schema="core"):
+    """(metric_key, ingress channel) -> the last subject_day that channel supplied.
+
+    The channel is `core.raw_captures.source`, which is an enum: every value it can take is
+    named in migration 0004 and none of them is personal data. That is the reason this reads
+    the capture row rather than the atom's `evidence_span`, which carries the device name and
+    much else besides (see the module docstring).
+
+    ADR-0141. The join is `atoms -> raw_captures`, which is INV-1 read in the direction it was
+    built for: every derived row traces to the capture it came from, so "which channel is still
+    reporting" is answerable from stored rows rather than from a naming convention.
+
+    The set of channels a metric depends on is DERIVED FROM EVIDENCE — a channel that has ever
+    written an atom under this key — and is never a list maintained by hand. A hand-maintained
+    list of expected sources is the same object as the prose inventory that `0053` replaced,
+    and it goes stale in the same way: it would never have contained a source nobody
+    remembered, and it would have gone on asserting one long after it died.
+
+    Names and days only; no value leaves this function (REQ-NFR-011).
+    """
+    if not keys:
+        return {}
+    cur.execute(
+        f"""select a.metric_key, rc.source::text, max(a.subject_day)
+              from {schema}.atoms_current a
+              join {schema}.raw_captures rc on rc.capture_id = a.raw_capture_id
+             where a.metric_key = any(%s) and a.subject_day is not null
+             group by 1, 2""", (list(keys),))
+    out = {}
+    for key, src, day in cur.fetchall():
+        if day is not None:
+            out.setdefault(key, {})[src] = day
+    return out
+
+
+def _relation_exists(cur, qualified):
+    cur.execute("select to_regclass(%s) is not null", (qualified,))
+    return bool(cur.fetchone()[0])
+
+
+def declared_import_cadence_days(plist=None):
+    """The maximum days between two firings of the local import, read from its own schedule.
+
+    Not a number written here. `ops/capture_schedule.py` is the file that declares when the
+    import runs, so it is the file this is read from; a constant here would be a second
+    statement of the cadence, free to disagree with the first.
+    """
+    spec = (plist or capture_schedule.launchd_plist()).get("StartCalendarInterval") or {}
+    if "Weekday" in spec:
+        return 7
+    if "Day" in spec:
+        return 31
+    if "Hour" in spec:
+        return 1                      # a daily calendar interval
+    return 1
+
+
+def import_schedule_liveness(cur, today, ops="ops", cadence_days=None):
+    """Has the LOCAL import schedule reported inside its own cadence? (ADR-0141)
+
+    Three states, mirroring the metric rule exactly:
+
+    * `not_installed` — no row under either job name, ever. The launchd agent has not been
+      bootstrapped (ADR-0094 keeps activation a separate, human act). This does NOT fail: a
+      schedule that was never installed is unbuilt scope, not a feed that stopped, and failing
+      on it would leave this workflow red from the day it shipped until the day Joe installs
+      the agent, which is how a red check becomes an ignored one.
+    * `stale` — it reported and has now gone quiet past its cadence plus one day of margin.
+      That is the laptop shut for a week, the agent unloaded, the plist wrong. It FAILS, and it
+      is the only thing in this report that can explain why a dozen metrics aged at once.
+    * `fresh` — it reported inside the window.
+
+    Both job names count. `import_drop` writes the row when its transaction commits and
+    `capture_schedule` writes one when it does not, so the pair is "the schedule fired",
+    whatever the outcome was — including the outcomes that mean nothing arrived. A firing is
+    not evidence of capture and is not read as any; that is what every other line of this file
+    is for.
+    """
+    if not _relation_exists(cur, f"{ops}.runs"):
+        return {"state": "unknown", "reason": f"{ops}.runs does not exist"}
+    cadence = declared_import_cadence_days() if cadence_days is None else cadence_days
+    limit = cadence + 1               # one cadence, plus a day of margin for a late laptop
+    cur.execute(
+        f"""select max(finished_at) from {ops}.runs
+             where job_name in (%s, %s)""",
+        (capture_schedule.JOB_NAME, capture_schedule.IMPORTER_JOB_NAME))
+    last = cur.fetchone()[0]
+    if last is None:
+        return {"state": "not_installed", "limit_days": limit,
+                "note": "the local import schedule has never written a runs row. It is not "
+                        "installed; see ops/capture_schedule.py --emit-launchd."}
+    last_day = current_subject_day(last)
+    elapsed = (today - last_day).days
+    return {"state": "stale" if elapsed > limit else "fresh",
+            "last_day": last_day.isoformat(), "elapsed_days": elapsed, "limit_days": limit}
+
+
+def check(cur, schema="core", analysis="analysis", ops="ops"):
     """Returns (report, ok). Caller owns the transaction.
 
     The schema names are parameters, not literals, so a test can run this against throwaway
@@ -150,7 +279,7 @@ def check(cur, schema="core", analysis="analysis"):
     production names. Both are validated as plain identifiers before interpolation, because an
     identifier cannot be a bind parameter.
     """
-    for name in (schema, analysis):
+    for name in (schema, analysis, ops):
         if not re.match(r"^[a-z_][a-z0-9_]*$", name):
             raise ValueError(f"not a plain schema identifier: {name!r}")
     # The clock is the SUBJECT day, not the database server's calendar date.
@@ -196,17 +325,38 @@ def check(cur, schema="core", analysis="analysis"):
                "limit_days": limit, "source": src}
         (stale if elapsed > limit else fresh).append(row)
 
+    # ADR-0141. A fresh metric can be fresh on one instrument while another has died under it.
+    # Only fresh metrics are examined: a stale metric already fails and already names its last
+    # day, and enumerating the sources of something that is failing anyway is noise.
+    by_source = contributing_sources(cur, {r["metric"] for r in fresh}, schema)
+    source_quiet = []
+    for row in fresh:
+        limit = row["limit_days"]
+        for src, day in sorted(by_source.get(row["metric"], {}).items()):
+            elapsed = (today - day).days
+            if elapsed > limit:
+                source_quiet.append({"metric": row["metric"], "capture_source": src,
+                                     "last_day": day.isoformat(), "elapsed_days": elapsed,
+                                     "limit_days": limit,
+                                     "metric_last_day": row["last_day"]})
+    source_quiet.sort(key=lambda r: -r["elapsed_days"])
+
+    schedule = import_schedule_liveness(cur, today, ops)
+
     report = {
         "as_of": today.isoformat(),
         "code_version": CODE_VERSION,
         "counts": {"fresh": len(fresh), "stale": len(stale),
                    "misconfigured": len(misconfigured),
-                   "never_seen": len(never), "unmonitored": len(unmonitored)},
+                   "never_seen": len(never), "unmonitored": len(unmonitored),
+                   "source_quiet": len(source_quiet)},
         "stale": sorted(stale, key=lambda r: -r["elapsed_days"]),
         "fresh": fresh,
         "misconfigured": misconfigured,
         "never_seen": never,
         "unmonitored": unmonitored,
+        "source_quiet": source_quiet,
+        "import_schedule": schedule,
     }
     # REQ-NFR-007: a metric that has gone quiet fails the run.
     # REQ-NFR-013: so does one that is not being monitored because of a naming mismatch — the
@@ -214,7 +364,11 @@ def check(cur, schema="core", analysis="analysis"):
     # REQ-NFR-006/010: never_seen and unmonitored are reported, counted, and do NOT fail —
     # they are unbuilt scope rather than a feed that stopped, and a check that is always red
     # is a check nobody reads.
-    return report, (len(stale) == 0 and len(misconfigured) == 0)
+    # ADR-0141: `source_quiet` does not fail either, for a different reason — which of two
+    # instruments to believe is Joe's ruling (RULE-12, OQ-55), not this tool's. A local import
+    # schedule that reported and then STOPPED does fail; one that was never installed does not.
+    return report, (len(stale) == 0 and len(misconfigured) == 0
+                    and schedule.get("state") != "stale")
 
 
 def log_run(cur, report, ok, ops="ops"):
@@ -225,14 +379,31 @@ def log_run(cur, report, ok, ops="ops"):
                 (JOB_NAME, "ok" if ok else "error", report["counts"]["fresh"],
                  json.dumps({"counts": report["counts"], "code_version": CODE_VERSION,
                              "stale_metrics": [r["metric"] for r in report["stale"]],
-                             "misconfigured_metrics": [r["metric"] for r in report["misconfigured"]]})))
+                             "misconfigured_metrics": [r["metric"] for r in report["misconfigured"]],
+                             # ADR-0141. Metric key and capture-source name only: both are
+                             # schema vocabulary, neither is an observation (REQ-NFR-011).
+                             "quiet_sources": sorted({r["capture_source"]
+                                                      for r in report["source_quiet"]}),
+                             "import_schedule": report["import_schedule"].get("state")})))
 
 
 def render(report):
     c = report["counts"]
     out = [f"freshness as of {report['as_of']}  "
            f"fresh={c['fresh']} stale={c['stale']} misconfigured={c['misconfigured']} "
-           f"never_seen={c['never_seen']} unmonitored={c['unmonitored']}"]
+           f"never_seen={c['never_seen']} unmonitored={c['unmonitored']} "
+           f"source_quiet={c.get('source_quiet', 0)}"]
+    sched = report.get("import_schedule") or {}
+    if sched.get("state") == "stale":
+        out.append("")
+        out.append(f"LOCAL IMPORT SCHEDULE STALE — last reported {sched['last_day']}, "
+                   f"{sched['elapsed_days']}d ago (limit {sched['limit_days']}d). The drop "
+                   f"folder is on the Mac and nothing on a runner can import it. Every "
+                   f"metric it feeds is ageing for this reason.")
+    elif sched.get("state") == "not_installed":
+        out.append("")
+        out.append("LOCAL IMPORT SCHEDULE NOT INSTALLED — no run has ever reported. This does "
+                   "not fail the check; it means file import is a manual act today.")
     if report["stale"]:
         out.append("")
         out.append("STALE — reported before, quiet now:")
@@ -257,6 +428,20 @@ def render(report):
         out.append("     finds resemblances a string comparison can find; it will not connect")
         out.append("     'resting_hr' to 'rhr'. A metric here may be unbuilt scope OR may be")
         out.append("     unmonitored under another name — see OQ-51.")
+    if report.get("source_quiet"):
+        out.append("")
+        out.append("SOURCE QUIET — the metric is FRESH and one of the ingress channels that "
+                   "used to supply it has stopped:")
+        for r in report["source_quiet"]:
+            out.append(f"  {r['metric']:24} via {r['capture_source']:16} last {r['last_day']}  "
+                       f"{r['elapsed_days']}d elapsed, while the metric itself has "
+                       f"{r['metric_last_day']}")
+        out.append("  -> this does NOT fail the run. Which source to believe is a measurement")
+        out.append("     ruling, not a monitoring decision. What it tells you is that a trend")
+        out.append("     crossing this boundary is comparing two capture paths;")
+        out.append("     tools/check_source_continuity.py quantifies the rate change.")
+        out.append("     Device-level loss (Watch vs iPhone) is NOT covered — see the module")
+        out.append("     docstring for why evidence_span is not parsed here.")
     if report["unmonitored"]:
         out.append("")
         out.append(f"UNMONITORED — registered with no staleness limit: "
@@ -270,6 +455,8 @@ def main(argv=None):
     ap.add_argument("--json", action="store_true", help="machine-readable report on stdout")
     ap.add_argument("--core", default="core")
     ap.add_argument("--analysis", default="analysis")
+    ap.add_argument("--ops", default="ops",
+                    help="ops schema for the runs row and the schedule-liveness read")
     ap.add_argument("--no-log", action="store_true", help="skip the ops.runs row")
     a = ap.parse_args(argv)
 
@@ -283,9 +470,9 @@ def main(argv=None):
 
     try:
         cur = conn.cursor()
-        report, ok = check(cur, a.core, a.analysis)
+        report, ok = check(cur, a.core, a.analysis, a.ops)
         if not a.no_log:
-            log_run(cur, report, ok)
+            log_run(cur, report, ok, a.ops)
             conn.commit()
         else:
             conn.rollback()

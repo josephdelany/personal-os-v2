@@ -71,7 +71,12 @@ TESTS = ("tests/test_ask_ranges.py", "tests/test_ask.py", "tests/test_ask_operat
          # INTENT_COVERAGE R4: an outage is not proof of nonuse. Enters through
          # tools/service_usage.py, which is the first caller recurrence.py and
          # usage_status.py have ever had.
-         "tests/test_service_usage_r4.py")
+         "tests/test_service_usage_r4.py",
+         # REQ-REC-015's second half (ADR-0141). Its pure decision tests run anywhere; the
+         # queries that feed them -- which reconstruction is still open, what has already been
+         # asked -- only run against a real schema, and a test that runs in no job is the
+         # "counted but never executed" failure the evidence audit found in the ledger.
+         "tests/test_clarification_prompts.py")
 
 
 def pg_bin():

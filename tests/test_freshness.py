@@ -135,7 +135,7 @@ def test_REQ_NFR_006_never_seen_is_distinguished_from_stale(sql_connection):
     assert [r["metric"] for r in report["never_seen"]] == ["never_reported"]
     assert [r["metric"] for r in report["fresh"]] == ["still_arriving"]
     assert report["counts"] == {"fresh": 1, "stale": 1, "misconfigured": 0,
-                                "never_seen": 1, "unmonitored": 0}
+                                "never_seen": 1, "unmonitored": 0, "source_quiet": 0}
     sql_connection.rollback()
 
 
@@ -185,7 +185,7 @@ def test_REQ_NFR_008_one_runs_row_per_execution_carries_the_counts(sql_connectio
     assert written == 1                # fresh count
     d = detail if isinstance(detail, dict) else json.loads(detail)
     assert d["counts"] == {"fresh": 1, "stale": 1, "misconfigured": 0,
-                           "never_seen": 0, "unmonitored": 0}
+                           "never_seen": 0, "unmonitored": 0, "source_quiet": 0}
     assert d["stale_metrics"] == ["quiet"]
     sql_connection.rollback()
 
@@ -404,3 +404,191 @@ def test_REQ_NFR_013_similar_key_detection_is_conservative():
     assert similar_key("flights_climbed", series) is None
     # And the honest limit: a genuine mismatch a string comparison cannot see stays unseen.
     assert similar_key("resting_hr", series) is None
+
+
+# ------------------------------------------------- ADR-0141: a dead source behind a live metric
+
+def atom_from_source(cur, key, day, source, value=1):
+    """An atom whose capture row names a specific ingress channel."""
+    cap = uuid.uuid4()
+    cur.execute(f"""insert into {CORE}.raw_captures
+                     (capture_id, captured_at, source, trust_level, payload, processing_status)
+                   values (%s, now(), %s, 'trusted', '{{}}'::jsonb, 'enriched')""", (cap, source))
+    cur.execute(f"""insert into {CORE}.atoms
+                     (raw_capture_id, kind, metric_key, occurred_at, time_precision, subject_day,
+                      subject_day_rule_version, presence, value_low, value_point, value_high,
+                      estimate_method, unit, state_class, trust_level, provenance, code_version)
+                   values (%s,'activity_sample',%s,%s,'exact',%s,'v1-2026-08-23','observed',
+                           %s,%s,%s,'measured','count','total','trusted','extracted','test')""",
+                (cap, key, dt.datetime.combine(day, dt.time(12), tzinfo=dt.timezone.utc), day,
+                 value, value, value))
+
+
+def test_ADR_0140_REQ_NFR_012_a_fresh_metric_can_hide_a_dead_capture_source(sql_connection):
+    """The metric is fresh, and the channel that used to supply half of it stopped weeks ago.
+
+    This is the bank handover, in miniature and with the names changed. `bank_csv` captured 35
+    to 46 charges a month through 2026-05-13 and stopped; `chase_email` took over with roughly
+    a third of the transactions and a seventh of the value. `transaction_amount_usd` is FRESH
+    throughout, and that statement is true and useless: freshness asks whether anything
+    arrived, and the question here is whether the same thing kept arriving.
+
+    Every count above it stays correct — this adds a fact, it does not reclassify the metric.
+    """
+    cur = sql_connection.cursor()
+    world(cur)
+    now = today(cur)
+    register(cur, "spend", 7)
+    atom_from_source(cur, "spend", now - dt.timedelta(days=40), "email_receipt")
+    atom_from_source(cur, "spend", now - dt.timedelta(days=1), "shortcut_text")
+
+    report, ok = check_freshness.check(cur, CORE, ANALYSIS)
+
+    assert [r["metric"] for r in report["fresh"]] == ["spend"]
+    assert report["stale"] == []
+    quiet = report["source_quiet"]
+    assert len(quiet) == 1, f"expected exactly one quiet channel, got {quiet}"
+    assert quiet[0]["metric"] == "spend"
+    assert quiet[0]["capture_source"] == "email_receipt"
+    assert quiet[0]["elapsed_days"] >= 40
+    assert quiet[0]["metric_last_day"] == (now - dt.timedelta(days=1)).isoformat()
+    assert report["counts"]["source_quiet"] == 1
+    # It reports; it does not fail. Which of two sources to believe is a measurement ruling
+    # (RULE-12), and a check that is permanently red is a check nobody reads.
+    assert ok is True
+    sql_connection.rollback()
+
+
+def test_ADR_0140_a_channel_still_reporting_is_not_called_quiet(sql_connection):
+    cur = sql_connection.cursor()
+    world(cur)
+    now = today(cur)
+    register(cur, "spend", 7)
+    atom_from_source(cur, "spend", now - dt.timedelta(days=2), "email_receipt")
+    atom_from_source(cur, "spend", now - dt.timedelta(days=1), "shortcut_text")
+    report, ok = check_freshness.check(cur, CORE, ANALYSIS)
+    assert report["source_quiet"] == []
+    assert ok is True
+    sql_connection.rollback()
+
+
+def test_ADR_0140_a_stale_metric_does_not_have_its_channels_enumerated(sql_connection):
+    """A metric that is already failing does not also list every channel under it.
+
+    The `stale` row already names the last day and fails the run. Adding one `source_quiet`
+    line per channel underneath would be noise on exactly the report that must stay readable.
+    """
+    cur = sql_connection.cursor()
+    world(cur)
+    now = today(cur)
+    register(cur, "spend", 3)
+    atom_from_source(cur, "spend", now - dt.timedelta(days=40), "email_receipt")
+    atom_from_source(cur, "spend", now - dt.timedelta(days=30), "shortcut_text")
+    report, ok = check_freshness.check(cur, CORE, ANALYSIS)
+    assert [r["metric"] for r in report["stale"]] == ["spend"]
+    assert report["source_quiet"] == []
+    assert not ok
+    sql_connection.rollback()
+
+
+def test_ADR_0140_REQ_NFR_011_the_quiet_channel_report_carries_no_observed_value(sql_connection):
+    """Metric key, channel name and day counts. Never a number Joe produced.
+
+    The channel is `core.raw_captures.source`, an enum whose every possible value is named in
+    migration 0004, so no free text from a capture can reach this report at all.
+    """
+    cur = sql_connection.cursor()
+    world(cur)
+    now = today(cur)
+    register(cur, "spend", 7)
+    atom_from_source(cur, "spend", now - dt.timedelta(days=40), "email_receipt", value=987654)
+    atom_from_source(cur, "spend", now - dt.timedelta(days=1), "shortcut_text", value=123456)
+
+    report, _ = check_freshness.check(cur, CORE, ANALYSIS)
+    text = check_freshness.render(report) + json.dumps(report)
+    assert "987654" not in text and "123456" not in text
+    assert set(report["source_quiet"][0]) == {
+        "metric", "capture_source", "last_day", "elapsed_days", "limit_days", "metric_last_day"}
+    sql_connection.rollback()
+
+
+# ------------------------------------------------- ADR-0141: the local schedule's own silence
+
+def import_run(cur, job, finished):
+    cur.execute(f"""insert into {OPS}.runs (job_name, started_at, finished_at, status,
+                                            rows_written, detail)
+                    values (%s, %s, %s, 'ok', 0, '{{}}'::jsonb)""", (job, finished, finished))
+
+
+def test_ADR_0140_the_import_cadence_is_read_from_the_schedule_declaration():
+    """Not a number written into the checker. `ops/capture_schedule.py` declares when the
+    import runs, so that file is where the cadence is read from; a constant here would be a
+    second statement of it, free to disagree with the first."""
+    assert check_freshness.declared_import_cadence_days() == 1
+    assert check_freshness.declared_import_cadence_days(
+        {"StartCalendarInterval": {"Weekday": 1, "Hour": 2}}) == 7
+    assert check_freshness.declared_import_cadence_days(
+        {"StartCalendarInterval": {"Day": 1, "Hour": 2}}) == 31
+
+
+def test_ADR_0140_a_local_import_schedule_that_never_ran_does_not_fail(sql_connection):
+    """Never installed is unbuilt scope, exactly like `never_seen`.
+
+    ADR-0094 keeps activation a separate human act, so between shipping this check and Joe
+    bootstrapping the agent there is a window in which no row can exist. Failing on it would
+    leave the freshness workflow red for that whole window, which is how a red check becomes
+    an ignored one.
+    """
+    cur = sql_connection.cursor()
+    world(cur)
+    report, ok = check_freshness.check(cur, CORE, ANALYSIS, OPS)
+    assert report["import_schedule"]["state"] == "not_installed"
+    assert ok is True
+    assert "NOT INSTALLED" in check_freshness.render(report)
+    sql_connection.rollback()
+
+
+def test_ADR_0140_REQ_NFR_012_a_local_import_schedule_that_went_silent_fails(sql_connection):
+    """The drop folder is on the Mac. A GitHub runner cannot see the laptop being shut.
+
+    Without this, a week of a closed laptop looks like a dozen metrics ageing for a dozen
+    unrelated reasons, and the one sentence that explains all of them is absent from the only
+    report that runs every day.
+    """
+    cur = sql_connection.cursor()
+    world(cur)
+    now = today(cur)
+    import_run(cur, "capture_schedule",
+               dt.datetime.combine(now - dt.timedelta(days=9), dt.time(6),
+                                   tzinfo=dt.timezone.utc))
+    report, ok = check_freshness.check(cur, CORE, ANALYSIS, OPS)
+    assert report["import_schedule"]["state"] == "stale"
+    assert report["import_schedule"]["elapsed_days"] >= 9
+    assert ok is False, "a silent local import schedule must fail the run"
+    assert "LOCAL IMPORT SCHEDULE STALE" in check_freshness.render(report)
+    sql_connection.rollback()
+
+
+def test_ADR_0140_the_importers_own_row_also_proves_the_schedule_fired(sql_connection):
+    """`import_drop` writes the row when its transaction commits and `capture_schedule` writes
+    one when it does not. Either is evidence the schedule fired — and neither is evidence that
+    anything arrived, which every other line of this report is for."""
+    cur = sql_connection.cursor()
+    world(cur)
+    now = today(cur)
+    import_run(cur, "import_drop",
+               dt.datetime.combine(now, dt.time(6), tzinfo=dt.timezone.utc))
+    report, ok = check_freshness.check(cur, CORE, ANALYSIS, OPS)
+    assert report["import_schedule"]["state"] == "fresh"
+    assert ok is True
+    sql_connection.rollback()
+
+
+def test_ADR_0140_a_missing_ops_schema_is_reported_as_unknown_not_as_healthy(sql_connection):
+    """No runs table means the question cannot be answered, and `unknown` says so."""
+    cur = sql_connection.cursor()
+    world(cur)
+    report, ok = check_freshness.check(cur, CORE, ANALYSIS, "ops_absent_pytest")
+    assert report["import_schedule"]["state"] == "unknown"
+    assert ok is True
+    sql_connection.rollback()
