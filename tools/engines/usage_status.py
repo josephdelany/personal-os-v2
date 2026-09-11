@@ -93,25 +93,74 @@ def initial_status(subject):
                        provenance="inferred", confidence=0.0)
 
 
-def from_evidence(subject, rows, *, as_of, unused_after_days=60):
-    """REQ-FIN-111/113. A tier, with the concrete evidence that produced it.
+def from_evidence(subject, rows, *, as_of, unused_after_days=60, source_last_seen=None):
+    """REQ-FIN-111/113, REQ-REC-009. A tier, with the concrete evidence that produced it.
 
     An empty evidence list returns 'unknown', never 'unused'. A gym membership with no
     `place_visit` rows is not an unused gym membership; it is one about which nothing is
     recorded, and those two license entirely different sentences.
+
+    **`source_last_seen` IS WHAT SEPARATES A QUIET GYM FROM A DEAD SENSOR** (INTENT_COVERAGE R4).
+    It is the last subject day on which the evidence SOURCE produced anything at all -- not about
+    this subject, about anything -- which is what `tools/check_freshness.py` already measures per
+    metric.
+
+    'unused' is a claim that Joe did not go somewhere, and it is supportable only if something
+    was watching and saw nothing. Stale evidence has two entirely different causes:
+
+        the source kept capturing and recorded no visit   -> 'unused' is supported
+        the source stopped capturing                      -> 'unknown'; nothing was watching
+
+    Before this they were read identically. That is not hypothetical here: the Watch stopped in
+    five stages ending 2026-08-21 and the bank CSV export died 2026-05-13, so the largest
+    silences in this system are its own instruments failing. Reading those as 'unused' would
+    accuse Joe of not going to the gym on the strength of a broken logger.
+
+    **`source_last_seen=None` MEANS THE CALLER HAS NOT ESTABLISHED CONTINUITY, AND YIELDS
+    'unknown'.** The permissive default was the whole bug: a caller who never considered the
+    question silently got the accusatory answer. An 'unused' now has to be asked for by a caller
+    able to say what was watching, which is the only kind of caller entitled to one.
     """
     if not rows:
         return initial_status(subject)
     latest = max(rows, key=lambda r: r["day"])
     days = (as_of - latest["day"]).days
-    tier = "used" if days < unused_after_days else "unused"
-    # REQ-FIN-113's own example, in its own shape.
-    evidence = f"last {subject} {latest['kind']} {days} days ago ({latest['day'].isoformat()})"
     # Confidence falls with the age of the evidence: a visit yesterday says more about today than
     # one eleven weeks ago, and reporting both at the same confidence would flatten that.
     confidence = round(max(0.05, min(0.95, 1.0 - days / 365.0)), 2)
-    return UsageStatus(subject=subject, tier=tier, evidence=evidence,
-                       provenance="inferred", confidence=confidence)
+    # REQ-FIN-113's own example, in its own shape.
+    evidence = f"last {subject} {latest['kind']} {days} days ago ({latest['day'].isoformat()})"
+
+    if days < unused_after_days:
+        return UsageStatus(subject=subject, tier="used", evidence=evidence,
+                           provenance="inferred", confidence=confidence)
+
+    # The evidence is stale. Whether that means anything at all depends on whether anything was
+    # still watching, so the tier is not decided until that is known.
+    if source_last_seen is None:
+        return UsageStatus(
+            subject=subject, tier=DEFAULT_TIER,
+            evidence=(f"{evidence}; no continuity was established for the source, so the "
+                      f"silence since then cannot be read as absence of use"),
+            provenance="inferred", confidence=0.0)
+    if source_last_seen <= latest["day"]:
+        # The source produced nothing after the last recorded use, so there has been no
+        # observation window at all. REQ-REC-009: absence of a record is absence of capture.
+        silent = (as_of - source_last_seen).days
+        return UsageStatus(
+            subject=subject, tier=DEFAULT_TIER,
+            evidence=(f"{evidence}, and the source itself last recorded anything {silent} days "
+                      f"ago ({source_last_seen.isoformat()}) -- the gap is the source's, not a "
+                      f"record of absence"),
+            provenance="inferred", confidence=0.0)
+
+    # Something was watching after the last recorded use, and registered none.
+    watched = (source_last_seen - latest["day"]).days
+    return UsageStatus(
+        subject=subject, tier="unused",
+        evidence=(f"{evidence}; the source kept recording for {watched} days afterwards "
+                  f"(to {source_last_seen.isoformat()}) and registered no further use"),
+        provenance="inferred", confidence=confidence)
 
 
 def override(existing, tier, *, note, subject=None):

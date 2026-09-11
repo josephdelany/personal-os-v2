@@ -4,7 +4,7 @@ import datetime as dt
 import pytest
 
 from tools.engines.usage_status import (DEFAULT_TIER, FORBIDDEN_WORDS, ForbiddenJudgement, TIERS,
-                                        UsageStatus, as_interval, automated_update, from_evidence,
+                                        UsageStatus, as_interval, automated_update, from_evidence, guard_words,
                                         guard_words, initial_status, override)
 
 AS_OF = dt.date(2026, 9, 10)
@@ -34,12 +34,67 @@ def test_REQ_FIN_111_no_evidence_is_unknown_not_unused():
 
 def test_REQ_FIN_113_a_status_names_the_evidence_that_produced_it():
     """"Unused" alone is an accusation. "Last gym place_visit 71 days ago" is a fact Joe can
-    confirm, correct or explain."""
+    confirm, correct or explain.
+
+    `source_last_seen` is now required to reach 'unused' at all (R4): the source kept recording
+    for ten weeks after that last visit and registered none, which is what makes the silence a
+    fact about Joe rather than about the logger. The assertion is unchanged; what changed is
+    that the test has to say what was watching.
+    """
     rows = [{"day": AS_OF - dt.timedelta(days=71), "kind": "place_visit"}]
-    s = from_evidence("gym", rows, as_of=AS_OF)
+    s = from_evidence("gym", rows, as_of=AS_OF, source_last_seen=AS_OF - dt.timedelta(days=1))
     assert s.tier == "unused"
     assert "last gym place_visit 71 days ago" in s.evidence
-    assert s.evidence.endswith("(2026-07-01)")
+    assert "(2026-07-01)" in s.evidence
+
+
+# --- INTENT_COVERAGE R4: an outage is not proof of nonuse -------------------------------
+
+def test_REQ_REC_009_a_dead_source_is_unknown_not_unused():
+    """THE R4 CASE. The gym visits stopped because the logger stopped, not because Joe did.
+
+    Same evidence as the test above -- one visit, 71 days ago -- and the opposite answer,
+    because the thing that would have recorded a visit went silent on the same day. The Watch
+    stopped in five stages ending 2026-08-21 and the bank CSV export died 2026-05-13, so this
+    is the ordinary case in this system rather than an edge one.
+    """
+    last_visit = AS_OF - dt.timedelta(days=71)
+    s = from_evidence("gym", [{"day": last_visit, "kind": "place_visit"}],
+                      as_of=AS_OF, source_last_seen=last_visit)
+    assert s.tier == "unknown", "nothing was watching, so nothing was observed"
+    assert s.tier != "unused"
+    assert "the gap is the source's" in s.evidence
+    # REQ-FIN-114: an inferred status carries confidence below 1.0, and this one knows nothing.
+    assert s.confidence == 0.0 and s.provenance == "inferred"
+
+
+def test_REQ_REC_009_an_unestablished_source_cannot_produce_an_accusation():
+    """The permissive default was the bug. A caller who never considered continuity used to get
+    'unused' silently; it now gets 'unknown' and is told why."""
+    s = from_evidence("gym", [{"day": AS_OF - dt.timedelta(days=71), "kind": "place_visit"}],
+                      as_of=AS_OF)
+    assert s.tier == "unknown"
+    assert "no continuity was established" in s.evidence
+
+
+def test_REQ_FIN_111_a_watching_source_that_saw_nothing_does_support_unused():
+    """The other half, so the fix is not just 'always unknown'. An outage-aware engine that can
+    never conclude 'unused' has replaced one wrong answer with another."""
+    last_visit = AS_OF - dt.timedelta(days=90)
+    s = from_evidence("gym", [{"day": last_visit, "kind": "place_visit"}],
+                      as_of=AS_OF, source_last_seen=AS_OF - dt.timedelta(days=2))
+    assert s.tier == "unused"
+    assert "kept recording for 88 days afterwards" in s.evidence
+
+
+def test_REQ_FIN_112_the_outage_wording_carries_no_forbidden_judgement():
+    """Every branch's evidence string passes the REQ-FIN-112 guard, including the new ones."""
+    last_visit = AS_OF - dt.timedelta(days=71)
+    for kwargs in ({}, {"source_last_seen": last_visit},
+                   {"source_last_seen": AS_OF - dt.timedelta(days=2)}):
+        s = from_evidence("gym", [{"day": last_visit, "kind": "place_visit"}],
+                          as_of=AS_OF, **kwargs)
+        assert guard_words(s.evidence) is True
 
 
 def test_REQ_FIN_113_a_bare_label_is_refused():

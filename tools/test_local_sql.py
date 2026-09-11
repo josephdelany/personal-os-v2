@@ -67,7 +67,11 @@ TESTS = ("tests/test_ask_ranges.py", "tests/test_ask.py", "tests/test_ask_operat
          "tests/test_ontology_constraints.py",
          # INTENT_COVERAGE R2: the recorded training history. The importer discarded every
          # `<Workout>` element, so these had nowhere to run before 0070.
-         "tests/test_workout_session_r2.py")
+         "tests/test_workout_session_r2.py",
+         # INTENT_COVERAGE R4: an outage is not proof of nonuse. Enters through
+         # tools/service_usage.py, which is the first caller recurrence.py and
+         # usage_status.py have ever had.
+         "tests/test_service_usage_r4.py")
 
 
 def pg_bin():
