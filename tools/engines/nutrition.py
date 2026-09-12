@@ -598,6 +598,11 @@ def resolve_item(cur, item_text, *, grams=None, servings=None, brand=None, sourc
 
     # How many grams? A stated weight beats a serving count beats a portion-table entry, and
     # each step down widens the interval because each is a weaker claim about quantity.
+    #
+    # Recorded BEFORE `grams` is reassigned below: REQ-NUT-032 distinguishes a weight Joe
+    # stated from one this system derived, and after the next few lines the variable cannot
+    # tell them apart.
+    grams_stated = grams is not None
     method = source
     if grams is None:
         if servings is not None and cached["serving_g"]:
@@ -631,6 +636,10 @@ def resolve_item(cur, item_text, *, grams=None, servings=None, brand=None, sourc
             # CLAIMED. A weighed portion of an Open Food Facts product is `weighed` by width
             # and `off_product` by provenance, and collapsing the two would lose one of them.
             "estimate_method": outcome.get("estimate_method"),
+            # REQ-NUT-032's value, which is a THIRD fact and not either of the two above: the
+            # width applied, the source's claim, and the method the requirement enumerates.
+            "stored_method": stored_estimate_method(
+                source_claim=outcome.get("estimate_method"), grams_stated=grams_stated),
             "leg": outcome["source"], "from_cache": bool(outcome.get("from_cache")),
             "nutrition_status": outcome.get("nutrition_status", "resolved"),
             "brand": cached.get("brand"), "food_id": food_id, "alias_id": alias_id,
@@ -697,6 +706,47 @@ def resolve_drink(cur, *, volume_ml, abv_percent, abv_from_label,
 SUBJECT_DAY_RULE_VERSION = "v1-2026-08-23"          # matches tools/importers/common.py
 UNRESOLVED_METHOD = "unresolved"                    # REQ-NUT-040's estimate_method
 
+# REQ-NUT-032. The stored `estimate_method` of a row carrying a nutrient interval is EXACTLY
+# one of these five. Not a convention — the requirement enumerates them.
+#
+# THIS IS NOT WHAT WAS BEING STORED, and the gap is why `nutrition_display` could not be wired.
+# `persist_resolution` wrote `resolved["estimate_method"]`, which is the SOURCE's claim —
+# `usda_foundation`, `off_product` — so a Foundation-resolved row carried a value outside this
+# set. `nutrition_display.TIGHT_METHODS` and `METHOD_WEIGHT` speak this vocabulary, so they
+# matched nothing that had actually been stored: REQ-NUT-045's visual weight fell through to
+# "light" for everything and REQ-NUT-046's restrict mode returned an empty set for every day.
+# A display layer whose vocabulary does not intersect the stored data cannot be connected, and
+# that — not the absence of a caller — was the real reason it had none.
+REQ_NUT_032_METHODS = frozenset(
+    {"weighed", "labelled", "portion_table", "photo_estimate", UNRESOLVED_METHOD})
+
+
+def stored_estimate_method(*, source_claim, grams_stated):
+    """The REQ-NUT-032 value for a resolution. Provenance is NOT this column.
+
+    Three branches, and the first two are the requirement read literally:
+
+      1. a manufacturer's label (REQ-NUT-014) is `labelled`;
+      2. a quantity Joe stated in mass units is `weighed` — REQ-NUT-035 keys its width on
+         exactly that;
+      3. everything else got its quantity from a stated portion — Joe's `portions` row, or the
+         source's own declared serving mass under REQ-NUT-019 — and is `portion_table`.
+
+    **Branch 3 is a judgement and is flagged as one.** REQ-NUT-032 offers five values and a
+    serving count taken against a source's declared serving size is not cleanly any of them;
+    `portion_table` is the closest, because what was used WAS a table of portions, merely not
+    Joe's. The alternative readings each lose more: `weighed` would claim a measurement nobody
+    made, and `photo_estimate` names a mechanism that was not involved. Recorded in ADR-0140
+    and raised with main rather than settled here.
+
+    The source is not lost by this. It stays on the `foods_cache` row the resolution came from
+    and in the resolution's own `source`/`estimate_method` fields; what changes is only which
+    of the two facts occupies a column the requirement reserves for the method.
+    """
+    if source_claim == "labelled":
+        return "labelled"
+    return "weighed" if grams_stated else "portion_table"
+
 
 def _registry_units(cur, keys, schema="core"):
     """metric_key -> (unit, state_class), from the registry rather than from a literal here.
@@ -742,6 +792,18 @@ def persist_resolution(cur, resolved, *, raw_capture_id, occurred_at, subject_da
     INV-1 holds by construction — every atom points at the capture the item was uttered in.
     """
     units = _registry_units(cur, resolved["nutrients"], schema)
+    # REQ-NUT-032, ENFORCED rather than assumed. Until this line the column held the source's
+    # claim (`usda_foundation`, `off_product`) for every non-branded resolution — outside the
+    # five values the requirement enumerates, and outside the vocabulary `nutrition_display`
+    # reads, which is why nothing could be wired to it. Raising here rather than writing an
+    # unexpected value keeps the next such drift from being discovered a second time by a
+    # display layer that quietly matches nothing.
+    method = resolved.get("stored_method") or stored_estimate_method(
+        source_claim=resolved.get("estimate_method"), grams_stated=False)
+    if method not in REQ_NUT_032_METHODS:
+        raise ValueError(
+            f"REQ-NUT-032: estimate_method must be one of {sorted(REQ_NUT_032_METHODS)}; "
+            f"refusing to store {method!r}")
     written = []
     for key, (low, point, high) in sorted(resolved["nutrients"].items()):
         if key not in units:
@@ -759,7 +821,7 @@ def persist_resolution(cur, resolved, *, raw_capture_id, occurred_at, subject_da
                 values (%s, 'consume', %s, %s, 'hour', %s, %s, 'observed',
                         %s, %s, %s, %s, %s, %s, %s, 'inferred', %s, %s)""",
             (raw_capture_id, key, occurred_at, subject_day, SUBJECT_DAY_RULE_VERSION,
-             low, point, high, resolved["estimate_method"], unit, state_class,
+             low, point, high, method, unit, state_class,
              trust_level, evidence_span, code_version))
         written.append(key)
     return written
