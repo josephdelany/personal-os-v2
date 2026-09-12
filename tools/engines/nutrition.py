@@ -154,15 +154,29 @@ def cached_row_answers_brand(source, row_brand, brand):
 def lookup_cached(cur, name, schema="core", brand=None):
     """The cache, in precedence order. Returns (row, method) or (None, None).
 
+    Two ways in, and REQ-NUT-001 names both: step (1) is a `food_aliases` exact match on the
+    phrase as spoken, and a direct `canonical_name` match is the case where what Joe said IS
+    the food's name. Either way REQ-NUT-002 holds — nutrients come from `foods_cache` and no
+    network request is issued.
+
+    **They are unioned and then ranked, not tried in sequence, and that ordering is RULE-10.**
+    An alias points at exactly one `food_id`. If the alias were consulted FIRST and returned
+    its row, an alias learned from Open Food Facts would outrank a correction Joe made later
+    for the same food — the resolver would answer with the crowd figure and never look at
+    Joe's. Collecting both sets and sorting the union by `SOURCE_PRECEDENCE` keeps `joe` ahead
+    of every source however the row was reached, which is the whole point of the ordering.
+
     Candidates are filtered in precedence order rather than taking the top row and testing it,
     so a rejected generic row does not hide a usable branded one beneath it.
     """
     cur.execute(
-        f"""select canonical_name, source, nutrients_per_100g, serving_g, brand
-              from {schema}.foods_cache
-             where lower(canonical_name) = lower(%s)
-             order by array_position(%s::text[], source)""",
-        (name, list(SOURCE_PRECEDENCE)))
+        f"""select c.canonical_name, c.source, c.nutrients_per_100g, c.serving_g, c.brand
+              from {schema}.foods_cache c
+             where lower(c.canonical_name) = lower(%s)
+                or c.food_id in (select a.food_id from {schema}.food_aliases a
+                                  where lower(a.alias) = lower(%s))
+             order by array_position(%s::text[], c.source)""",
+        (name, name, list(SOURCE_PRECEDENCE)))
     for canonical, source, nutrients, serving_g, row_brand in cur.fetchall():
         if brand and not cached_row_answers_brand(source, row_brand, brand):
             continue
@@ -480,32 +494,58 @@ def build_sources(cur, *, schema="core", ops="ops", config="config", off=True,
 
 # ---------------------------------------------------------------- what a resolution writes
 
-def remember_alias(cur, phrase, row, schema="core"):
+def cached_food_id(cur, row, schema="core"):
+    """The `food_id` of an existing `foods_cache` row, or None.
+
+    `nutrition_off.insert_cache_row` returns None when `ON CONFLICT DO NOTHING` fired, which is
+    the ordinary case for a food already in the cache. The alias still needs something to point
+    at, so the id is read back on that path rather than the alias being skipped — otherwise a
+    phrase would only ever be learned the very first time a food was seen.
+    """
+    cur.execute(f"""select food_id from {schema}.foods_cache
+                     where canonical_name = %s and source = %s
+                       and source_id is not distinct from %s""",
+                (row["canonical_name"], row["source"], row.get("source_id")))
+    found = cur.fetchone()
+    return found[0] if found else None
+
+
+def remember_alias(cur, phrase, row, *, food_id=None, schema="core"):
     """REQ-NUT-004. The phrase AS UTTERED resolves from the cache next time.
 
-    REQ-NUT-001 step 1 and REQ-NUT-004 name a `food_aliases` table. **Migration 0050 does not
-    create one** and this worker does not own migrations, so the alias is written as a second
-    `foods_cache` key on the SAME `(source, source_id)` as the record it aliases. That is not a
-    second reading of the food: `raw` on the alias row carries `alias_of` and the phrase, the
-    source payload stays on the canonical row it was derived from (INV-1), and the pair is
-    liftable into a real `food_aliases` table by one mechanical migration over
-    `raw ? 'alias_of'`. The cost of the bridge is that a re-fetch under REQ-NUT-008 must update
-    both rows; that is the argument for the table, and it is recorded in ADR-0137.
+    Writes `core.food_aliases` (migration 0071). Until that table existed the alias was written
+    as a SECOND `foods_cache` row carrying `raw->>'alias_of'` — a bridge that worked and was
+    tested, and whose cost was that REQ-NUT-008's 365-day re-fetch would have had to update two
+    rows or let them disagree. One fact stored twice, one copy refreshed. The bridge is gone.
 
-    Nothing is written when the phrase already reads back through `lookup_cached` — which
-    matches on `lower(canonical_name)`, so that, and not a normaliser, is the test used here.
+    **Both columns are written and they are not the same string.** `alias` is folded for
+    matching; `verbatim` is what Joe actually said, which is what REQ-NUT-004 means by "as
+    uttered" and what a folded key destroys. A correction is only recognisable as a correction
+    of something if the something survives.
+
+    An alias IS written when the phrase already equals the canonical name. The old bridge
+    skipped that case because a second `foods_cache` row would have been pure duplication;
+    a `food_aliases` row is not, REQ-NUT-004 does not exempt it, and step (1) of REQ-NUT-001
+    should not depend on which of two spellings a food happened to be resolved under.
     """
-    canonical = row["canonical_name"]
-    if str(phrase).strip().lower() == str(canonical).strip().lower():
+    if food_id is None:
+        food_id = cached_food_id(cur, row, schema)
+    if food_id is None:
+        # Nothing to point at. Silent rather than raising: the caller has already stored the
+        # nutrients, and an alias is a convenience for the next lookup, not part of the answer.
         return None
-    alias = dict(row)
-    alias["canonical_name"] = str(phrase).strip()
-    alias["raw"] = {"alias_of": canonical, "phrase_as_uttered": phrase,
-                    "requirement": "REQ-NUT-004", "code_version": CODE_VERSION}
-    # The insert is `nutrition_off`'s because the `foods_cache` append is written once, there,
-    # with its ON CONFLICT DO NOTHING and its INV-1 note. It is not an Open-Food-Facts-specific
-    # statement and this module does not restate it.
-    return nutrition_off.insert_cache_row(cur, alias, schema=schema)
+    verbatim = str(phrase)
+    alias = verbatim.strip().lower()
+    if not alias:
+        return None
+    cur.execute(
+        f"""insert into {schema}.food_aliases (alias, verbatim, food_id, source)
+            values (%s, %s, %s, %s)
+            on conflict (alias, food_id) do nothing
+            returning alias_id""",
+        (alias, verbatim, food_id, row["source"]))
+    found = cur.fetchone()
+    return found[0] if found else None
 
 
 def resolve_item(cur, item_text, *, grams=None, servings=None, brand=None, sources=None,
@@ -553,7 +593,8 @@ def resolve_item(cur, item_text, *, grams=None, servings=None, brand=None, sourc
     if not outcome.get("from_cache") and outcome.get("cache_row") is not None:
         food_id = nutrition_off.insert_cache_row(cur, outcome["cache_row"], schema=schema)
         if learn_alias:
-            alias_id = remember_alias(cur, item_text, outcome["cache_row"], schema=schema)
+            alias_id = remember_alias(cur, item_text, outcome["cache_row"],
+                                      food_id=food_id, schema=schema)
 
     # How many grams? A stated weight beats a serving count beats a portion-table entry, and
     # each step down widens the interval because each is a weaker claim about quantity.
@@ -822,7 +863,7 @@ def accept_correction(cur, item_id, nutrients_per_100g, *, supplied_by,
                    "answered_item_id": str(item_id), "item_text_as_uttered": item_text,
                    "code_version": CODE_VERSION}}
     food_id = nutrition_off.insert_cache_row(cur, row, schema=schema)
-    alias_id = remember_alias(cur, item_text, row, schema=schema)
+    alias_id = remember_alias(cur, item_text, row, food_id=food_id, schema=schema)
 
     cur.execute(f"""update {schema}.unresolved_items
                        set resolved_at = now(), resolved_by = 'joe'

@@ -122,10 +122,23 @@ def world(cur):
             cur.execute(stmt)
     cur.execute(f"CREATE TABLE {CONFIG}.strings (key TEXT PRIMARY KEY, value TEXT NOT NULL, "
                 f"note TEXT)")
-    body = (ROOT / "migrations" / "0050_nutrition.sql").read_text() \
-        .replace("__CORE__", CORE).replace("__OPS__", OPS).replace("config.", f"{CONFIG}.")
-    for stmt in split_statements(body):
-        cur.execute(stmt)
+    # 0071 REVOKEs on `anon`/`authenticated`, which Supabase supplies and a bare PostgreSQL 17
+    # cluster does not. Created idempotently exactly as `tests/_import_fixture.build_spine`
+    # does; without them the chain dies on `role "anon" does not exist` and every test in the
+    # file fails for a reason that has nothing to do with what it is testing.
+    for role in ("anon", "authenticated", "service_role"):
+        cur.execute(f"""DO $$ BEGIN
+            IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '{role}') THEN
+                CREATE ROLE {role} NOLOGIN;
+            END IF;
+        END $$""")
+    # The nutrition migrations IN ORDER. 0071 adds `food_aliases`, which REQ-NUT-001 step (1)
+    # reads and REQ-NUT-004 writes.
+    for migration in ("0050_nutrition.sql", "0071_food_and_portion_aliases.sql"):
+        body = (ROOT / "migrations" / migration).read_text() \
+            .replace("__CORE__", CORE).replace("__OPS__", OPS).replace("config.", f"{CONFIG}.")
+        for stmt in split_statements(body):
+            cur.execute(stmt)
     return cur
 
 

@@ -53,10 +53,29 @@ def world(cur):
     cur.execute(f"CREATE TABLE {CONFIG}.strings (key TEXT PRIMARY KEY, value TEXT NOT NULL, "
                 f"note TEXT)")
     root = Path(__file__).resolve().parents[1]
-    body = (root / "migrations" / "0050_nutrition.sql").read_text() \
-        .replace("__CORE__", CORE).replace("__OPS__", OPS).replace("config.", f"{CONFIG}.")
-    for stmt in split_statements(body):
-        cur.execute(stmt)
+    # 0071 REVOKEs on `anon`/`authenticated`, which Supabase supplies and a bare PostgreSQL 17
+    # cluster does not. Created idempotently exactly as `tests/_import_fixture.build_spine`
+    # does; without them the chain dies on `role "anon" does not exist` and every test in the
+    # file fails for a reason that has nothing to do with what it is testing.
+    for role in ("anon", "authenticated", "service_role"):
+        cur.execute(f"""DO $$ BEGIN
+            IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '{role}') THEN
+                CREATE ROLE {role} NOLOGIN;
+            END IF;
+        END $$""")
+    # The nutrition migrations IN ORDER. 0071 adds `food_aliases`, which REQ-NUT-001 step (1)
+    # reads and REQ-NUT-004 writes; a fixture that stopped at 0050 would exercise a resolver
+    # against a schema the resolver no longer targets.
+    for migration in ("0050_nutrition.sql", "0071_food_and_portion_aliases.sql",
+                      # 0074 removes the bridge rows and forbids new ones. Applied here so the
+                      # integration tests run against the schema the resolver will actually
+                      # meet, rather than against the one-migration-behind version in which a
+                      # bridge row is still insertable.
+                      "0074_the_alias_bridge_is_gone.sql"):
+        body = (root / "migrations" / migration).read_text() \
+            .replace("__CORE__", CORE).replace("__OPS__", OPS).replace("config.", f"{CONFIG}.")
+        for stmt in split_statements(body):
+            cur.execute(stmt)
     return cur
 
 
@@ -385,13 +404,24 @@ def test_REQ_NUT_004_REQ_NUT_002_a_resolved_phrase_resolves_from_the_cache_next_
                                    schema=CORE, config=CONFIG, ops=OPS)
     assert first["from_cache"] is False and first["alias_id"] is not None
 
-    cur.execute(f"SELECT canonical_name, source, source_id, raw->>'alias_of' "
-                f"FROM {CORE}.foods_cache ORDER BY canonical_name")
+    # ONE cache row, and the alias is a row in its own table (migration 0071). Until 0071 the
+    # alias was a SECOND `foods_cache` row carrying `raw->>'alias_of'`, which meant REQ-NUT-008's
+    # 365-day re-fetch would have had to update two rows or let them disagree about one food.
+    cur.execute(f"SELECT canonical_name, source_id, raw ? 'alias_of' FROM {CORE}.foods_cache")
     rows = cur.fetchall()
-    assert [r[0] for r in rows] == ["Synthetic  Nut-Spread!", "Synthetic Nut Spread"]
-    assert {r[2] for r in rows} == {"3017624010701"}, "both keys name one source record (INV-1)"
-    assert rows[0][3] == "Synthetic Nut Spread", "the alias says what it is an alias of"
-    assert rows[1][3] is None, "the canonical row keeps the source payload, not an alias marker"
+    assert [r[0] for r in rows] == ["Synthetic Nut Spread"], "one food, one cache row"
+    assert rows[0][1] == "3017624010701"
+    assert rows[0][2] is False, "no bridge row survives; the payload row is not an alias marker"
+
+    cur.execute(f"""SELECT a.alias, a.verbatim, a.source, c.canonical_name
+                      FROM {CORE}.food_aliases a
+                      JOIN {CORE}.foods_cache c ON c.food_id = a.food_id""")
+    aliases = [tuple(r) for r in cur.fetchall()]
+    assert (phrase.strip().lower(), phrase, "off_product", "Synthetic Nut Spread") in aliases
+    # REQ-NUT-004 says "as uttered". The folded key and the utterance are different strings and
+    # both are kept: a correction is only recognisable as a correction if the utterance survives.
+    stored_alias, stored_verbatim = next((a, v) for a, v, _, _ in aliases if v == phrase)
+    assert stored_verbatim == "Synthetic  Nut-Spread!" and stored_alias != stored_verbatim
 
     second_sources = sources_for(cur, transport=forbidden_transport)
     second = nutrition.resolve_item(cur, phrase, servings=1, sources=second_sources,
@@ -447,3 +477,40 @@ def test_ADR_0135_the_cascade_modules_have_a_caller_on_the_execution_path(sql_co
     assert nutrition.SOURCE_PRECEDENCE is nutrition_cascade.SOURCE_PRECEDENCE, \
         "one definition of the order, not two"
     sql_connection.rollback()
+
+
+def test_REQ_NUT_004_a_bridge_row_can_no_longer_be_written(sql_connection):
+    """Migration 0074. The delete alone would not have closed this.
+
+    An alias used to be a SECOND `foods_cache` row carrying `raw->>'alias_of'`. Removing those
+    rows without forbidding them lets the very next resolution recreate one, so the tree would
+    read as clean and drift straight back. The constraint is in the schema rather than in the
+    resolver because the resolver is not the only possible writer.
+
+    REQ-NUT-008 is the reason it mattered: a 365-day re-fetch of a Branded or OFF entry would
+    have had to update both rows or let one silently disagree about one food.
+    """
+    cur = world(sql_connection.cursor())
+    with pytest.raises(Exception) as exc:
+        cur.execute(f"""INSERT INTO {CORE}.foods_cache
+            (canonical_name, source, source_id, nutrients_per_100g, raw)
+            VALUES ('nut spread','off_product','x','{{}}'::jsonb,
+                    '{{"alias_of": "Synthetic Nut Spread"}}'::jsonb)""")
+    assert "foods_cache_is_not_an_alias_bridge" in str(exc.value)
+
+
+def test_REQ_NUT_004_an_ordinary_raw_payload_is_still_accepted(sql_connection):
+    """The constraint forbids the alias MARKER, not the `raw` column.
+
+    A cache row keeps its provider payload — that is where `source_id`, serving text and the
+    rest of the evidence lives. A CHECK that rejected every `raw` would have made the tests
+    above pass while destroying the provenance REQ-NUT-005 requires.
+    """
+    cur = world(sql_connection.cursor())
+    cur.execute(f"""INSERT INTO {CORE}.foods_cache
+        (canonical_name, source, source_id, nutrients_per_100g, raw)
+        VALUES ('plain food','off_product','y','{{}}'::jsonb,
+                '{{"product_name": "plain food", "code": "y"}}'::jsonb)""")
+    cur.execute(f"SELECT raw->>'product_name' FROM {CORE}.foods_cache "
+                f"WHERE canonical_name = 'plain food'")
+    assert cur.fetchone()[0] == "plain food"
