@@ -53,10 +53,24 @@ def world(cur):
     cur.execute(f"CREATE TABLE {CONFIG}.strings (key TEXT PRIMARY KEY, value TEXT NOT NULL, "
                 f"note TEXT)")
     root = Path(__file__).resolve().parents[1]
-    body = (root / "migrations" / "0050_nutrition.sql").read_text() \
-        .replace("__CORE__", CORE).replace("__OPS__", OPS).replace("config.", f"{CONFIG}.")
-    for stmt in split_statements(body):
-        cur.execute(stmt)
+    # 0071 REVOKEs on `anon`/`authenticated`, which Supabase supplies and a bare PostgreSQL 17
+    # cluster does not. Created idempotently exactly as `tests/_import_fixture.build_spine`
+    # does; without them the chain dies on `role "anon" does not exist` and every test in the
+    # file fails for a reason that has nothing to do with what it is testing.
+    for role in ("anon", "authenticated", "service_role"):
+        cur.execute(f"""DO $$ BEGIN
+            IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '{role}') THEN
+                CREATE ROLE {role} NOLOGIN;
+            END IF;
+        END $$""")
+    # The nutrition migrations IN ORDER. 0071 adds `food_aliases`, which REQ-NUT-001 step (1)
+    # reads and REQ-NUT-004 writes; a fixture that stopped at 0050 would exercise a resolver
+    # against a schema the resolver no longer targets.
+    for migration in ("0050_nutrition.sql", "0071_food_and_portion_aliases.sql"):
+        body = (root / "migrations" / migration).read_text() \
+            .replace("__CORE__", CORE).replace("__OPS__", OPS).replace("config.", f"{CONFIG}.")
+        for stmt in split_statements(body):
+            cur.execute(stmt)
     return cur
 
 
@@ -385,13 +399,24 @@ def test_REQ_NUT_004_REQ_NUT_002_a_resolved_phrase_resolves_from_the_cache_next_
                                    schema=CORE, config=CONFIG, ops=OPS)
     assert first["from_cache"] is False and first["alias_id"] is not None
 
-    cur.execute(f"SELECT canonical_name, source, source_id, raw->>'alias_of' "
-                f"FROM {CORE}.foods_cache ORDER BY canonical_name")
+    # ONE cache row, and the alias is a row in its own table (migration 0071). Until 0071 the
+    # alias was a SECOND `foods_cache` row carrying `raw->>'alias_of'`, which meant REQ-NUT-008's
+    # 365-day re-fetch would have had to update two rows or let them disagree about one food.
+    cur.execute(f"SELECT canonical_name, source_id, raw ? 'alias_of' FROM {CORE}.foods_cache")
     rows = cur.fetchall()
-    assert [r[0] for r in rows] == ["Synthetic  Nut-Spread!", "Synthetic Nut Spread"]
-    assert {r[2] for r in rows} == {"3017624010701"}, "both keys name one source record (INV-1)"
-    assert rows[0][3] == "Synthetic Nut Spread", "the alias says what it is an alias of"
-    assert rows[1][3] is None, "the canonical row keeps the source payload, not an alias marker"
+    assert [r[0] for r in rows] == ["Synthetic Nut Spread"], "one food, one cache row"
+    assert rows[0][1] == "3017624010701"
+    assert rows[0][2] is False, "no bridge row survives; the payload row is not an alias marker"
+
+    cur.execute(f"""SELECT a.alias, a.verbatim, a.source, c.canonical_name
+                      FROM {CORE}.food_aliases a
+                      JOIN {CORE}.foods_cache c ON c.food_id = a.food_id""")
+    aliases = [tuple(r) for r in cur.fetchall()]
+    assert (phrase.strip().lower(), phrase, "off_product", "Synthetic Nut Spread") in aliases
+    # REQ-NUT-004 says "as uttered". The folded key and the utterance are different strings and
+    # both are kept: a correction is only recognisable as a correction if the utterance survives.
+    stored_alias, stored_verbatim = next((a, v) for a, v, _, _ in aliases if v == phrase)
+    assert stored_verbatim == "Synthetic  Nut-Spread!" and stored_alias != stored_verbatim
 
     second_sources = sources_for(cur, transport=forbidden_transport)
     second = nutrition.resolve_item(cur, phrase, servings=1, sources=second_sources,

@@ -35,6 +35,14 @@ def world(cur):
     # config.strings is created by 0047 in production; the two rows 0050 seeds are what matter.
     cur.execute(f"""CREATE TABLE {CONFIG}.strings (
         key TEXT PRIMARY KEY, value TEXT NOT NULL, note TEXT)""")
+    # 0071 REVOKEs on `anon`/`authenticated`, which Supabase supplies and a bare PostgreSQL 17
+    # cluster does not. Created idempotently as `tests/_import_fixture.build_spine` does.
+    for role in ("anon", "authenticated", "service_role"):
+        cur.execute(f"""DO $$ BEGIN
+            IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '{role}') THEN
+                CREATE ROLE {role} NOLOGIN;
+            END IF;
+        END $$""")
     body = _real_migration(CORE, OPS).replace("config.", f"{CONFIG}.")
     from tools.run_migration import split_statements
     for stmt in split_statements(body):
@@ -45,8 +53,11 @@ def world(cur):
 def _real_migration(core, ops):
     from pathlib import Path
     root = Path(__file__).resolve().parents[1]
-    return (root / "migrations" / "0050_nutrition.sql").read_text() \
-        .replace("__CORE__", core).replace("__OPS__", ops)
+    # Both nutrition migrations, concatenated in order: 0071 adds `food_aliases`, which
+    # REQ-NUT-001 step (1) reads and REQ-NUT-004 writes.
+    return "\n".join(
+        (root / "migrations" / m).read_text().replace("__CORE__", core).replace("__OPS__", ops)
+        for m in ("0050_nutrition.sql", "0071_food_and_portion_aliases.sql"))
 
 
 def cache_food(cur, name, source, nutrients, serving_g=None, brand=None):

@@ -563,10 +563,21 @@ def world(cur):
             cur.execute(stmt)
     cur.execute(f"CREATE TABLE {CONFIG}.strings (key TEXT PRIMARY KEY, value TEXT NOT NULL, note TEXT)")
     root = Path(__file__).resolve().parents[1]
-    body = (root / "migrations" / "0050_nutrition.sql").read_text() \
-        .replace("__CORE__", CORE).replace("__OPS__", OPS).replace("config.", f"{CONFIG}.")
-    for stmt in split_statements(body):
-        cur.execute(stmt)
+    # 0071 REVOKEs on `anon`/`authenticated`, which Supabase supplies and a bare PostgreSQL 17
+    # cluster does not. Created idempotently as `tests/_import_fixture.build_spine` does.
+    for role in ("anon", "authenticated", "service_role"):
+        cur.execute(f"""DO $$ BEGIN
+            IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '{role}') THEN
+                CREATE ROLE {role} NOLOGIN;
+            END IF;
+        END $$""")
+    # Both nutrition migrations IN ORDER: 0071 adds `food_aliases`, which `lookup_cached` now
+    # reads as REQ-NUT-001 step (1), so a fixture stopping at 0050 no longer matches the code.
+    for migration in ("0050_nutrition.sql", "0071_food_and_portion_aliases.sql"):
+        body = (root / "migrations" / migration).read_text() \
+            .replace("__CORE__", CORE).replace("__OPS__", OPS).replace("config.", f"{CONFIG}.")
+        for stmt in split_statements(body):
+            cur.execute(stmt)
     return cur
 
 

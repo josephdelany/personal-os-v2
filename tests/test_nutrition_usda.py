@@ -484,10 +484,24 @@ def world(cur):
     cur.execute(f"CREATE TABLE {CONFIG}.strings (key TEXT PRIMARY KEY, value TEXT NOT NULL, "
                 f"note TEXT)")
     root = Path(__file__).resolve().parents[1]
-    body = (root / "migrations" / "0050_nutrition.sql").read_text() \
-        .replace("__CORE__", CORE).replace("__OPS__", OPS).replace("config.", f"{CONFIG}.")
-    for stmt in split_statements(body):
-        cur.execute(stmt)
+    # 0071 REVOKEs on `anon`/`authenticated`, which Supabase supplies and a bare PostgreSQL 17
+    # cluster does not. Created idempotently exactly as `tests/_import_fixture.build_spine`
+    # does; without them the chain dies on `role "anon" does not exist` and every test in the
+    # file fails for a reason that has nothing to do with what it is testing.
+    for role in ("anon", "authenticated", "service_role"):
+        cur.execute(f"""DO $$ BEGIN
+            IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '{role}') THEN
+                CREATE ROLE {role} NOLOGIN;
+            END IF;
+        END $$""")
+    # The nutrition migrations IN ORDER. 0071 adds `food_aliases`, which REQ-NUT-001 step (1)
+    # reads and REQ-NUT-004 writes; a fixture that stopped at 0050 would exercise a resolver
+    # against a schema the resolver no longer targets.
+    for migration in ("0050_nutrition.sql", "0071_food_and_portion_aliases.sql"):
+        body = (root / "migrations" / migration).read_text() \
+            .replace("__CORE__", CORE).replace("__OPS__", OPS).replace("config.", f"{CONFIG}.")
+        for stmt in split_statements(body):
+            cur.execute(stmt)
     return cur
 
 
@@ -1069,9 +1083,14 @@ def test_REQ_NUT_017_joes_answer_writes_the_cache_row_the_alias_and_clears_the_i
     assert out["food_id"] is not None
     rows = cached_rows(cur, "the thing from the deli")
     assert [(r[1], r[2]) for r in rows] == [("joe", "the thing from the deli")]
-    # 2. the alias — here the phrase and the canonical name are the same string, so
-    #    `remember_alias` correctly writes nothing rather than a duplicate row.
-    assert out["alias_id"] is None
+    # 2. the alias. It IS written even though the phrase equals the canonical name. The old
+    #    bridge skipped that case because a second `foods_cache` row would have been pure
+    #    duplication; a `food_aliases` row is not, REQ-NUT-004 does not exempt it, and step (1)
+    #    of REQ-NUT-001 should not depend on which spelling a food was resolved under.
+    assert out["alias_id"] is not None
+    cur.execute(f"select alias, verbatim, source from {CORE}.food_aliases")
+    assert [tuple(r) for r in cur.fetchall()] == [
+        ("the thing from the deli", "the thing from the deli", "joe")]
     # 3. the item leaves the review list, attributed
     cur.execute(f"select resolved_at is not null, resolved_by from {CORE}.unresolved_items "
                 f"where item_id = %s", (item_id,))
@@ -1215,6 +1234,126 @@ def test_RULE_01_an_impossible_correction_is_refused_not_clamped(sql_connection)
     # And the item is still open, so the question can be asked again.
     cur.execute(f"select resolved_at from {CORE}.unresolved_items where item_id = %s", (item_id,))
     assert cur.fetchone()[0] is None
+
+
+# ------------------------------------------------- REQ-NUT-001 step (1): food_aliases (0071)
+
+@needs_sql
+def test_REQ_NUT_001_REQ_NUT_002_an_alias_hit_serves_from_cache_with_no_network_request(
+        sql_connection):
+    """Step (1) of the resolution order is a `food_aliases` exact match, and REQ-NUT-002 says a
+    hit there reads nutrients from `foods_cache` and issues NO network request.
+
+    Proved with a transport that FAILS if called, so "no request" is demonstrated rather than
+    inferred from a count.
+    """
+    cur = world(sql_connection.cursor())
+    first = nutrition.resolve_item(cur, "Synthetic Rolled Oats", grams=100,
+                                   sources=sources_for(cur, transport=search_transport(
+                                       [foundation_food()])),
+                                   schema=CORE, config=CONFIG, ops=OPS)
+    assert first["alias_id"] is not None
+    calls_before = len(egress_rows(cur))
+
+    # A DIFFERENT utterance of the same food, taught by hand — the shape REQ-NUT-004 creates.
+    cur.execute(f"""insert into {CORE}.food_aliases (alias, verbatim, food_id, source)
+                    select 'me oats', 'me oats', food_id, source from {CORE}.foods_cache
+                     where canonical_name = 'Synthetic Rolled Oats'""")
+
+    out = nutrition.resolve_item(cur, "me oats", grams=100,
+                                 sources=sources_for(cur, transport=forbidden_transport),
+                                 schema=CORE, config=CONFIG, ops=OPS)
+
+    assert out["from_cache"] is True
+    assert out["canonical_name"] == "Synthetic Rolled Oats", "the alias resolved to the food"
+    assert out["source"] == FOUNDATION, "the row's own provenance, not 'joe' (RULE-10/INV-5)"
+    assert out["nutrients"]["kcal"] == first["nutrients"]["kcal"]
+    assert len(egress_rows(cur)) == calls_before, "REQ-NUT-002: no network request on an alias hit"
+
+
+@needs_sql
+def test_RULE_10_a_correction_outranks_a_food_reached_through_an_alias(sql_connection):
+    """The ordering risk the union in `lookup_cached` exists to prevent.
+
+    An alias points at exactly ONE food_id. If step (1) were consulted first and returned its
+    row, an alias learned from a source would outrank a correction Joe made later for the same
+    food — the resolver would answer with the source figure and never look at Joe's. Both sets
+    are collected and the union is ranked by SOURCE_PRECEDENCE instead, so `joe` stays ahead
+    however the row was reached.
+
+    Written as a test because the sequential version passes every other test in this file.
+    """
+    cur = world(sql_connection.cursor())
+    nutrition.resolve_item(cur, "Synthetic Rolled Oats", grams=100,
+                           sources=sources_for(cur, transport=search_transport(
+                               [foundation_food()])),
+                           schema=CORE, config=CONFIG, ops=OPS)
+    # The alias points at the FOUNDATION row...
+    cur.execute(f"""insert into {CORE}.food_aliases (alias, verbatim, food_id, source)
+                    select 'porridge', 'porridge', food_id, source from {CORE}.foods_cache
+                     where canonical_name = 'Synthetic Rolled Oats'""")
+    # ...and Joe then corrects that same phrase.
+    cache_food(cur, "porridge", "joe", {"kcal": 42.0}, serving_g=100.0)
+
+    out = nutrition.resolve_item(cur, "porridge", grams=100,
+                                 sources=sources_for(cur, transport=forbidden_transport),
+                                 schema=CORE, config=CONFIG, ops=OPS)
+
+    assert out["source"] == "joe", "the alias must not outrank a human correction"
+    assert out["nutrients"]["kcal"][1] == 42.0, "Joe's number, not the source's 380"
+
+
+@needs_sql
+def test_REQ_NUT_004_the_alias_is_learned_once_however_often_the_phrase_recurs(sql_connection):
+    """`UNIQUE (alias, food_id)` with ON CONFLICT DO NOTHING. A nightly re-run of the same
+    capture must not grow the table by one row per night for the same sandwich."""
+    cur = world(sql_connection.cursor())
+    for _ in range(3):
+        nutrition.resolve_item(cur, "Synthetic Rolled Oats", grams=100,
+                               sources=sources_for(cur, transport=search_transport(
+                                   [foundation_food()])),
+                               schema=CORE, config=CONFIG, ops=OPS)
+    cur.execute(f"select count(*) from {CORE}.food_aliases")
+    assert cur.fetchone()[0] == 1
+    cur.execute(f"select count(*) from {CORE}.foods_cache")
+    assert cur.fetchone()[0] == 1, "and no second cache row either"
+
+
+@needs_sql
+def test_REQ_NUT_004_an_alias_is_still_learned_for_a_food_already_in_the_cache(sql_connection):
+    """`insert_cache_row` returns None when ON CONFLICT fired, which is the ordinary case for a
+    food already cached. If the alias were skipped on that path a phrase would only ever be
+    learned the very first time a food was seen — so `cached_food_id` reads the id back."""
+    cur = world(sql_connection.cursor())
+    cache_food(cur, "Synthetic Rolled Oats", FOUNDATION, {"kcal": 380.0}, serving_g=50.0,
+               source_id="999500")
+    cur.execute(f"select count(*) from {CORE}.food_aliases")
+    assert cur.fetchone()[0] == 0
+
+    row = {"canonical_name": "Synthetic Rolled Oats", "source": FOUNDATION,
+           "source_id": "999500"}
+    alias_id = nutrition.remember_alias(cur, "  Me Oats  ", row, schema=CORE)
+
+    assert alias_id is not None
+    cur.execute(f"select alias, verbatim from {CORE}.food_aliases")
+    assert [tuple(r) for r in cur.fetchall()] == [("me oats", "  Me Oats  ")], \
+        "folded for matching, verbatim as uttered — REQ-NUT-004 means the second one"
+
+
+@needs_sql
+def test_an_alias_pointing_at_a_deleted_food_does_not_survive_it(sql_connection):
+    """`ON DELETE CASCADE` in 0071. An alias resolving to nothing would be a phrase that reads
+    as known and returns no nutrients — worse than an unknown phrase, which at least asks."""
+    cur = world(sql_connection.cursor())
+    nutrition.resolve_item(cur, "Synthetic Rolled Oats", grams=100,
+                           sources=sources_for(cur, transport=search_transport(
+                               [foundation_food()])),
+                           schema=CORE, config=CONFIG, ops=OPS)
+    cur.execute(f"select count(*) from {CORE}.food_aliases")
+    assert cur.fetchone()[0] == 1
+    cur.execute(f"delete from {CORE}.foods_cache where canonical_name = 'Synthetic Rolled Oats'")
+    cur.execute(f"select count(*) from {CORE}.food_aliases")
+    assert cur.fetchone()[0] == 0
 
 
 # ---------------------------------------------------------------- RULE-01 / ADR-0082
