@@ -1,5 +1,32 @@
 # Checkpoint — 2026-09-11 (integration boundary, `2e9f547`)
 
+## LATER: the alias bridge is closed (0074)
+
+The nutrition worker delivered the `food_aliases` read/write path at `6897583`. The resolver
+writes no bridge row, verified across the tree rather than taken on trust: the only surviving
+mentions of `raw->>'alias_of'` are 0071's own backfill reading it, a docstring recording the
+history, and a test asserting it is gone.
+
+**0074 completes the three-step sequence** 0071 opened — create and backfill, move the read
+path, then delete and forbid. **The CHECK is the part that closes it**; a delete alone lets the
+next resolution recreate a bridge row, so the tree would read as clean and drift straight back.
+
+Their ordering argument deserves recording because it is the kind of defect that survives a
+green suite: an alias points at exactly one `food_id`, so consulting REQ-NUT-001 step (1)
+*first* would let an alias learned from Open Food Facts outrank a correction Joe made later for
+the same food — answering with the crowd figure, never looking at Joe's, silently.
+`lookup_cached` unions both candidate sets and ranks by `SOURCE_PRECEDENCE` instead. **Every
+other test in that file passes under the sequential version.**
+
+Also adopted: **0071 is the first nutrition migration to REVOKE on `anon`/`authenticated`**, and
+a bare PostgreSQL 17 cluster has neither. Six fixtures died on `role "anon" does not exist` for
+reasons unrelated to what they tested. Any fixture applying 0071+ needs the three idempotent
+`CREATE ROLE` lines — nothing in the migration text predicts it, since 0050 referenced no role.
+
+At `1f0a9cc`: deterministic **1030 passed / 612 skipped / 0 failures**; disposable SQL **779
+passed, 1 skipped**; **673 of 685**; layout 43/43; chain clean from empty, **73 migrations / 592
+statements**; nutrition acceptance 7 of 7. **Deployment frontier is now 0055–0074.**
+
 ## LATE ADDITION: five disposable servers were running on the wrong clock
 
 Reported by the nutrition worker, verified here, and it was **five files, not the two they

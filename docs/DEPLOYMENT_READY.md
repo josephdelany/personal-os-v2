@@ -5,7 +5,7 @@ authorization it needs and how to verify it afterwards. The order matters and is
 steps 2 and 3 taken in the wrong order turn the nightly red.
 
 **Existing authorization reconciled first.** The last recorded grant covered the six migrations
-0056–0061 and was never exercised; the frontier has since moved to **0055–0073**, and 0070–0073
+0056–0061 and was never exercised; the frontier has since moved to **0055–0074**, and 0070–0074
 were written after that grant. So the grant does not cover the current action and is not treated
 as if it did. Nothing below is executed on the strength of a previous session's approval.
 
@@ -28,10 +28,10 @@ rolled-back DDL transaction is not a SELECT, so it is not covered by the standin
 read-only work. Joe's call whether to run it before step 1 or to rely on the from-empty chain
 check, which passes at 72 migrations / 589 statements and needs no production at all.
 
-## Step 1 — apply migrations 0055–0073
+## Step 1 — apply migrations 0055–0074
 
 ```bash
-for m in migrations/00{55..73}_*.sql; do
+for m in migrations/00{55..74}_*.sql; do
   PYTHONPATH=. python3 tools/run_migration.py "$m" --commit
 done
 PYTHONPATH=. python3 tools/backfill_transactions.py --core core --commit   # 1,052 legacy rows
