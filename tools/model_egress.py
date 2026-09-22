@@ -22,7 +22,9 @@ def main():
         print(json.dumps({'request_id': request['request_id'], 'result': result}))
         return 0
     except Exception as exc:
-        print(json.dumps({'status': 'error', 'error_type': type(exc).__name__}), file=sys.stderr)
+        known = (egress.BudgetExceeded, egress.DispatchRefused, egress.DispatchUncertain, egress.PayloadRefused)
+        code = type(exc).__name__ if isinstance(exc, known) else 'DispatcherUnavailable'
+        print(json.dumps({'status': 'error', 'error_type': code}), file=sys.stderr)
         return 1
     finally:
         if conn is not None:

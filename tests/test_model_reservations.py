@@ -55,7 +55,7 @@ def test_RULE_29_model_role_has_logging_capability_without_private_reads(cur):
     cur.execute('SET LOCAL ROLE model_egress')
     result = reserve(cur)
     assert result['allowed']
-    cur.execute('SELECT public.settle_model_call(%s,%s,%s)', (result['request_id'], 'ok', 5))
+    cur.execute('SELECT public.settle_model_call(%s,%s,%s,%s)', (result['request_id'], 'ok', 5, 'b'*64))
     for query in ('SELECT * FROM core_pytest.raw_captures',
                   'SELECT * FROM core_pytest.atoms',
                   'SELECT * FROM core_pytest.neuron_ledger',

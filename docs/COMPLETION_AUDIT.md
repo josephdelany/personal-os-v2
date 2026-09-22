@@ -2,6 +2,27 @@
 
 ## Current quality review — 2026-09-22
 
+### Latest unit: separated Ask foundation and insertion-time repair
+
+Local evidence at `cd02e43` plus the recorded dirty source manifest; not deployed.
+
+| Review lens | Result and limits |
+|---|---|
+| Contract fidelity | PARTIAL: durable fixed-cutoff jobs, five-attempt cap, validated plans and stored fallback verified; full Ask contract and executor split remain open |
+| Complete user paths | PARTIAL: private CLI identity and real SQL computation/readback exercised; live process orchestration and default-date owner remain open |
+| Failure behavior | PASS for tested malformed responses, substitution, replay, privacy/budget failure and parameter drift; actual concurrent/commit-survival proof remains open |
+| Data integrity | PASS for tested immutable jobs/results and later-insert exclusion; current reads include later insert; commit visibility, historical measured search and generic RULE04 remain open |
+| Access/privacy | PASS for tested service/model identities and immutable response receipt binding; production effective grants remain unverified |
+| Runtime/deployment | NOT VERIFIED: CLI stages exist; no live separated runtime or provider call |
+| Operations/recovery | PARTIAL: persisted readback and bounded retries exist; deployed scheduling and capture enrichment remain required |
+| Evidence/reproducibility | PASS for local scope:1076 no-DB passed/704 skipped;871 SQL passed/1 skipped;78 migrations/689 statements;43 layout checks;54 focused SQL and15 dispatcher checks |
+
+Independent review repaired response substitution, metadata permissions, failure-code
+handling, pending parameter drift and current-read clock compatibility. SQL fixtures
+rolled back and disposable server stopped. Feature ledger remains14/15; skips are not
+passes. No production credentials, data or model requests were used. Earlier pending
+integration notes are historical; remaining runtime and release gaps stay open.
+
 ### Latest unit: durable ingress and processing-history approval
 
 Migration0075 plus the Cloudflare Worker are implemented and tested locally, not

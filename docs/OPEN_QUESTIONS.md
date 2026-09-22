@@ -2141,11 +2141,12 @@ Implementation and deployment are not implied by the ruling.
 
 ## OQ-84 — transcription result storage conflicts with immutable raw captures
 
-Open, Joe decision. REQ-CAP-034 requires storing returned transcript text and segment
+Resolved: Joe approved append-only transcription results on 2026-09-22 (ADR-0148).
+The former REQ-CAP-034 required storing returned transcript text and segment
 timings on the raw_captures row. RULE-02 forbids that update. Joe's OQ-83 approval
 explicitly amended REQ-CAP-025..027; it did not amend result-storage REQ-CAP-034.
 
-Proposed replacement for REQ-CAP-034:
+Approved replacement for REQ-CAP-034:
 
 > The transcription service SHALL append the returned transcript text and segment
 > timing data to a capture enrichment result linked to the immutable raw capture

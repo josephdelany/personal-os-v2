@@ -9,15 +9,65 @@ Joe's `/goal` is active. Do not start backend execution from the monitor.
 {
   "version": 1,
   "status": "running",
-  "updated_at": "2026-09-22T18:30:54.218374+00:00",
-  "last_progress_at": "2026-09-22T18:30:54.218374+00:00",
-  "unit": "M3-durable-model-reservations",
-  "next_action": "Commit verified model reservation/dispatch foundation, then wire private preparation/result consumer and isolated dispatcher into actual Ask/capture runtime. OQ84 transcription storage amendment awaits Joe; work independent orchestration and source-API redirect/capability repairs meanwhile. Preserve full M0\u2013M6 goal."
+  "updated_at": "2026-09-22T19:54:41.989064+00:00",
+  "last_progress_at": "2026-09-22T19:54:41.989064+00:00",
+  "unit": "M3-separated-ask-and-recorded-time",
+  "next_action": "Integrate verified local0078/0079 at cd02e43:1076 no-DB tests,871 SQL tests,78 migrations and43 layout checks passed. Refresh evidence archive and integration docs, scoped commit, then capture enrichment/result consumer under approved OQ84/ADR0148. Actual separated orchestration, default-date ownership, commit visibility and historical measured-search replay remain open."
 }
 ```
 <!-- backend-control:end -->
 
-## Current active unit — durable shared model reservations
+## Current active unit — separated Ask stages and insertion-time integrity
+
+- Prior unit committed at `cd02e43`. Root now owns drafts0078/0079, ADR0147/0149,
+  `lib/model_contract.py`, dispatcher/db consumers, `tools/ask_jobs.py`,
+  `tools/engines/ask_jobs.py`, `tests/test_ask_jobs.py`, affected reservation/dispatch/
+  ingress tests, SQL harness and maintained docs. All changes are uncommitted.
+- Joe **approved OQ84** this turn. REQ-CAP-034 and ADR0148 now require append-only
+  transcript/timing results linked to capture/attempt and selected through effective
+  history. No further approval is needed for that storage contract. Media retention
+  and deployment permissions remain separate. Finish this bounded Ask piece, then
+  return to actionable capture enrichment.
+- Draft0078 persists immutable question, as-of and server known-at cutoff, registry
+  options, fallback, complete per-attempt dispatch parameters and outcome receipts.
+  Private prepare/readback/consume/fail stages refuse provider credentials. Actual
+  service_role calls now exercise metadata grants/policies and owner-checked Ask.
+  CLI trusts only direct matching postgres/service_role session/current identity
+  before setting the existing owner's SQL context; model identity is rejected.
+- Shared canonical JSON bytes bind prepared payload to budget reservation. Independent
+  review found response substitution was possible: four-argument settlement now
+  appends an immutable response digest; consumer checks both digests plus saved model,
+  kind, cost and null capture binding. Old three-argument settlement is revoked from
+  model role. Review also repaired missing service metadata access, privacy refusal
+  fallback and pending request parameters drifting with model/cost configuration.
+- Bounded invalid-plan retries stop at5 with refusal+nearest and no evidence tier.
+  Saved fallback handles budget/provider/privacy failure. Changed duplicate inputs
+  refuse; repeated outcomes return stored transition. Readback resumes latest state.
+  Actual IPC/hosting/orchestration is still missing; no live model call was made.
+- **Integrity defect reproduced:** a later atom changed delayed-answer max100 to9100
+  despite the question's fixed known_at. Full-chain diagnosis found0012's forced
+  recorded_at=now() stamps transaction start, not insertion. Draft0079 forces server
+  clock_timestamp for future raw/atom inserts; no existing data changes. Receipt
+  test now brackets insertion by server clocks; late-atom exclusion remains strict.
+- **Integration evidence:** 54 focused SQL tests passed (17.58s), 15 dispatcher
+  tests passed (0.13s), 1076 no-database tests passed (704 skipped), and 871 full SQL
+  tests passed (1 skipped). All 78 migrations / 689 statements applied from empty;
+  all 43 layout checks passed. Disposable server shutdown confirmed. Reports are
+  `/tmp/ask-jobs-full.log`, `/tmp/ask-jobs-full-sql.xml`,
+  `/tmp/ask-jobs-chain.log`, and `/tmp/ask-jobs-layout.log`. Refresh the evidence
+  archive/source manifest before commit; its earlier targeted snapshot is stale.
+- **Current-cutoff repair verified:** migration0079 preserves installed function
+  bodies and ACLs while changing the exact current-read wrapper/default whitelist
+  to statement_timestamp(). Current APIs see the late insertion (9100), while the
+  saved Ask question excludes it (100). Independent review found no new blocker.
+  Commit visibility remains a separate unproven snapshot issue/OQ82; historical
+  measured-search replay still ignores its known-at cutoff. Generic RULE04 is open.
+- **Next:** refresh evidence/integration notes and commit the reviewed local unit,
+  then implement approved capture results and enrichment consumption. Explicit
+  as-of remains required by the private CLI pending one shared default-date owner.
+  Full REQ-ASK-005 read/write separation and live separated orchestration remain open.
+
+## Committed prerequisite — durable shared model reservations
 
 - Prior turn made progress: processing foundation committed at `22a9d2d`; clean
   worktree verified before starting this prerequisite. Prior integration evidence
@@ -52,10 +102,8 @@ Joe's `/goal` is active. Do not start backend execution from the monitor.
   orchestration and Ask/capture consumers; live effective ACL, production role
   provisioning, real provider request/observed schedule and post-commit durability/
   concurrent proof (OQ82). Connection probes prove ordering, not actual commits.
-- OQ84 now contains exact proposed replacement of REQ-CAP-034 with immutable
-  transcript/timing results linked to capture/attempt. Joe was asked asynchronously;
-  no answer is assumed. Transcription persistence waits for that decision, while
-  independent orchestration and shared service work continues. No production action.
+- OQ84 was subsequently approved by Joe; see ADR0148 and current unit above.
+  No production action was authorized by that storage decision.
 
 ## Completed local foundation — append-only capture processing history
 

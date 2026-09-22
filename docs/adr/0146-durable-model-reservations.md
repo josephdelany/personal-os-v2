@@ -50,9 +50,9 @@ remain rollback-only; they cannot prove durable commits or competing transaction
 (OQ-82). Actual enrichment results must be persisted atomically with effective
 processing status by a separate consumer.
 
-REQ-CAP-034 still says to put returned transcript/timings on a raw row. Joe's
-approval explicitly covered REQ-CAP-025..027; do not silently extend it to changing
-that contract. Prepare an append-only result proposal before wiring transcription.
+Joe subsequently approved OQ84/ADR0148: REQ-CAP-034 now stores transcript/timings
+as append-only capture/attempt results. Result implementation may proceed; this
+does not authorize deployment or media deletion.
 
 ## Review constraints
 

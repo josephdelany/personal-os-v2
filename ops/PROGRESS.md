@@ -7669,3 +7669,41 @@ Source hashes/logs/JUnit saved under ignored .local/evidence/model-egress/.
 WHAT I DID NOT DO: deploy, provision credentials, call provider, prove actual commit
 survival/concurrency, or connect private prep/result consumers to Ask/capture. OQ84
 exact transcript-storage amendment is awaiting Joe; independent work continues.
+
+
+## 2026-09-22 — approved transcription contract and separated Ask draft
+
+Joe approved OQ84; amendedREQ-CAP-034 and recordedADR0148, preserving raw evidence.
+Uncommitted0078/ADR0147 adds private prepare/readback/consume/fail, complete immutable
+attempt parameters, fixed question/date/knowledge cutoff and bounded retries. Actual
+service-role and CLI identity tests exercise intended permissions. Review repaired
+receipt-read grants, response substitution (dispatcher settlement now records immutable
+response digest), privacy failure fallback and configuration drift of prepared calls.
+
+A full-chain delayed-response test exposed now()-based raw/atom stamping: a later
+insert entered an earlier cutoff (max9100 vs100). Draft0079/ADR0149 switches future
+forced stamps to server insertion time, never updating existing rows. Existing
+insertion assertion now checks server clock bounds; replay assertion is unchanged.
+Initial fixture failures diagnosed against actual ontology and seeded aggregation;
+fixture uses activity_sample and explicit registered method, not weakened assertions.
+
+Latest targeted **54 SQL passed (18.11s)**, **15 dispatcher passed (0.13s)**, disposable
+rollback and server shutdown. Sources/reports saved .local/evidence/ask-jobs/ at
+cd02e43+dirty files. Reviewer accepts stamp repair but flags now()-based current
+Ask/domain/search/panel cutoff defaults for repair/check before integration.
+WHAT I DID NOT DO: full integration/commit, actual model call, deployment, process
+orchestration, commit-visibility/concurrency proof, or capture result implementation.
+Next: current-cutoff compatibility, review/full checks/commit, then approved capture
+results. Full M0–M6 goal remains active; frontend not started.
+
+## 2026-09-22 — separated Ask integration verified locally
+
+Repaired current-read clocks in0079 while preserving explicit knowledge cutoffs.
+Current APIs include the late insert (9100); saved question still returns100.
+Independent review found no new blocker. Full sanctioned no-DB suite1076 passed/704
+skipped (152.71s), full SQL871 passed/1 skipped (226.41s),78 migrations/689 statements,
+43 layout checks. Focused54 SQL (17.58s) and15 dispatcher (0.13s). Ledger14/15;
+generic RULE04 pending. Evidence refreshed under ignored .local/evidence/ask-jobs/.
+WHAT I DID NOT DO: deploy, call a provider, prove commit visibility/concurrency,
+complete runtime orchestration/default-date ownership/REQ-ASK-005, or implement
+capture transcript results. OQ84 is approved; capture results are next after commit.

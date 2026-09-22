@@ -36,9 +36,12 @@ def receive(cur, raw):
     return cur.fetchone()[0]
 
 def test_REQ_CAP_006_011_018_receipt_and_stored_client_identity(cur):
+    cur.execute('SELECT clock_timestamp()')
+    before = cur.fetchone()[0]
     assert receive(cur, json.dumps(GOOD)) == {'status': 'created', 'capture_id': CID}
     cur.execute('SELECT capture_id, captured_at, source, trust_level, payload, '
-                'processing_status, recorded_at = now() FROM core_pytest.raw_captures')
+                'processing_status, recorded_at BETWEEN %s AND clock_timestamp() FROM core_pytest.raw_captures',
+                (before,))
     cid, occurred, source, trust, payload, state, stamped = cur.fetchone()
     assert str(cid) == CID and occurred.hour == 12
     assert (source, trust, payload, state, stamped) == (

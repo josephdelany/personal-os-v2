@@ -86,7 +86,7 @@ def test_RULE_29_provider_failure_settles_once_without_retry_or_private_error():
         invoke(conn, transport=fail)
     assert conn.commits == 2
     assert len([x for x in conn.events if x[0] == 'send']) == 1
-    assert conn.events[-2][2] == (RID, 'error', None)
+    assert conn.events[-2][2] == (RID, 'error', None, None)
 
 def test_RULE_29_uncertain_settlement_returns_no_provider_result():
     conn = Connection(fail_commit=2)
@@ -173,7 +173,7 @@ def test_RULE_29_dispatcher_CLI_failure_emits_only_error_class(monkeypatch, caps
     assert cli.main() == 1
     output = capsys.readouterr()
     assert output.out == ''
-    assert json.loads(output.err) == {'status': 'error', 'error_type': 'RuntimeError'}
+    assert json.loads(output.err) == {'status': 'error', 'error_type': 'DispatcherUnavailable'}
 
 
 def test_RULE_29_model_connection_rejects_private_credentials_before_connect(monkeypatch):

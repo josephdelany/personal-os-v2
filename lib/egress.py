@@ -32,6 +32,7 @@ import os
 import re
 import time
 import uuid
+from lib.model_contract import request_bytes
 import urllib.error
 import urllib.request
 
@@ -73,7 +74,7 @@ def dispatch(conn, *, request_id, model_id, call_kind, payload, estimated_neuron
     """
     screen_payload(payload)
     request_id = str(uuid.UUID(str(request_id)))
-    body = json.dumps(payload, allow_nan=False).encode()
+    body = request_bytes(payload)
     if os.environ.get('SUPABASE_DB_URL') or os.environ.get('SUPABASE_SERVICE_ROLE_KEY'):
         raise DispatchRefused('private credentials present')
     cur = conn.cursor()
@@ -120,14 +121,16 @@ def dispatch(conn, *, request_id, model_id, call_kind, payload, estimated_neuron
     try:
         raw = (_transport or _post)(model_id, body)
         result = json.loads(raw.decode())
+        response_digest = hashlib.sha256(request_bytes(result)).hexdigest()
         outcome = 'ok'
     except Exception:
         result = None
         raw = None
         outcome = 'error'
+        response_digest = None
     try:
-        cur.execute('SELECT public.settle_model_call(%s,%s,%s)',
-                    (request_id, outcome, len(raw) if raw is not None else None))
+        cur.execute('SELECT public.settle_model_call(%s,%s,%s,%s)',
+                    (request_id, outcome, len(raw) if raw is not None else None, response_digest))
         conn.commit()
     except Exception:
         try:

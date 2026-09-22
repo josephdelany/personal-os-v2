@@ -115,3 +115,8 @@ rule for branded items (REQ-NUT-050/051).
 | ADR-0145 | Accepted locally; deployment held | 2026-09-22 | [Persisted capture reviews](adr/0145-capture-review-maintenance.md): append-only stalled reviews and owner dismissal; maintenance CLI/heartbeat; actual enrichment execution remains open |
 
 | ADR-0146 | Local implementation in progress | 2026-09-22 | [Durable model reservations](adr/0146-durable-model-reservations.md): serialized shared budget, restricted logging capability; commit-before-send runtime still open |
+
+| ADR-0148 | Accepted by Joe | 2026-09-22 | [Immutable transcription results](adr/0148-immutable-transcription-results.md): REQ-CAP-034 stores transcript/timings linked to capture and attempt; current result follows effective history |
+
+| ADR-0147 | Local implementation in progress | 2026-09-22 | [Separated Ask planning jobs](adr/0147-separated-ask-planning-jobs.md): persisted private stages, bounded retries, correlated responses and fixed cutoffs |
+| ADR-0149 | Local integrity repair; integration pending | 2026-09-22 | [Insertion recorded time](adr/0149-recorded-time-at-insertion.md): server insertion time instead of transaction-start backdating; current wrapper checks remain open |

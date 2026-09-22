@@ -249,8 +249,12 @@ request.
 **REQ-CAP-033** (Ubiquitous) The transcription service SHALL send `condition_on_previous_text:
 false` on every request.
 
-**REQ-CAP-034** (Ubiquitous) The transcription service SHALL store the returned transcript text and
-the returned segment timing data on the `raw_captures` row.
+**REQ-CAP-034** (Ubiquitous) The transcription service SHALL append the returned transcript text
+and segment timing data to a capture enrichment result linked to the immutable raw capture and
+processing attempt. It SHALL NOT update `raw_captures`. The current result SHALL be selected
+through the effective processing history, preserving earlier results.
+
+*Storage amendment approved by Joe on 2026-09-22 (OQ-84, ADR-0148).*
 
 ### B.2 The daily neuron budget
 

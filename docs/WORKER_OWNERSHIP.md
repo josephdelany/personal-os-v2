@@ -1,5 +1,14 @@
 # Worker ownership — session 21
 
+## 2026-09-22 separated Ask planning consumer
+
+Root reserves migration0078 and ADR0147, `tools/engines/ask_jobs.py`,
+`tools/ask_jobs.py`, `tests/test_ask_jobs.py`, SQL harness and maintained docs.
+Requirements REQ-ASK-004/006/008/012/031: persisted prepare/consume stages, fixed
+question/date/registry, bounded retries, correlated model receipts, deterministic
+execution and idempotent readback. Provider credentials never enter these stages.
+Shared model foundation committed at `cd02e43`.
+
 ## 2026-09-22 shared egress prerequisite
 
 Root owns migration **0077**, ADR **0146**, `tests/test_model_reservations.py`,
@@ -71,3 +80,8 @@ cannot reserve a number, and two have now collided:
 ## Handoffs
 
 Worker handoffs are integrated under `docs/handoffs/`.
+
+Root reserves ADR0148 for Joe-approved OQ84 transcription result storage amendment.
+
+Root reserves migration0079, ADR0149 and tests/test_capture_ingress_sql.py for the
+reproduced transaction-start timestamp defect in raw/atom insert stamping.
