@@ -28,7 +28,10 @@ it as a successful empty capture would file real speech as nothing.
 from __future__ import annotations
 
 import datetime as dt
+import copy
+import math
 from dataclasses import dataclass
+from lib.model_contract import audio_neurons, AUDIO_NEURONS_PER_MINUTE
 
 # REQ-CAP-030..033. The model and its parameters, fixed.
 TRANSCRIPTION_MODEL = "@cf/openai/whisper-large-v3-turbo"
@@ -36,7 +39,7 @@ FORBIDDEN_MODEL = "@cf/openai/whisper-tiny-en"
 TRANSCRIPTION_PARAMS = {"language": "en", "vad_filter": True,
                         "condition_on_previous_text": False}
 
-NEURONS_PER_AUDIO_MINUTE = 46.63     # REQ-CAP-036
+NEURONS_PER_AUDIO_MINUTE = AUDIO_NEURONS_PER_MINUTE
 SOFT_CEILING = 9_000                 # REQ-CAP-037/038
 HARD_CAP = 10_000                    # REQ-CAP-042
 EMPTY_TRANSCRIPT_MIN_SECONDS = 2     # REQ-CAP-045
@@ -78,25 +81,43 @@ def transcription_request(audio, *, model=TRANSCRIPTION_MODEL, params=None):
     return {"model": model, "audio": audio, **merged}
 
 
-def store_transcription(row, response):
-    """REQ-CAP-034. The text AND the segment timing, both.
+def validate_transcription(response):
+    """Validate returned evidence before an append-only result can be persisted.
 
-    The timings are what make a later correction possible: without them a re-read of the audio
-    has no way to locate the part that was wrong.
+    Preserve segment metadata; never coerce malformed timings or invent missing
+    text. This is validation only, not proof of provider receipt or DB persistence.
     """
-    return {**row, "transcript": response.get("text"),
-            "segments": tuple(response.get("segments") or ()),
+    if not isinstance(response, dict) or not isinstance(response.get("text"), str):
+        raise ValueError("invalid_transcript_text")
+    segments = response.get("segments")
+    if not isinstance(segments, list):
+        raise ValueError("invalid_transcript_segments")
+    for segment in segments:
+        if not isinstance(segment, dict):
+            raise ValueError("invalid_transcript_segment")
+        start, end = segment.get("start"), segment.get("end")
+        if any(isinstance(value, bool) or not isinstance(value, (int, float))
+               or not math.isfinite(value) for value in (start, end)):
+            raise ValueError("invalid_transcript_timing")
+        if start < 0 or end < start:
+            raise ValueError("invalid_transcript_timing")
+    return {"transcript": response["text"], "segments": copy.deepcopy(segments),
             "transcript_source": "workers_ai"}
 
 
-def estimated_neurons(duration_seconds):
-    """REQ-CAP-036. duration/60 x 46.63, and it is an ESTIMATE by name.
+def store_transcription(row, response):
+    """Legacy pure projection; never authorizes updating an immutable raw row.
 
-    Rounded to four places rather than to an integer, because the daily sum is compared against a
-    ceiling and rounding each call to a whole neuron would drift the total by more than the
-    margin the reservation depends on.
+    Durable REQ-CAP-034 storage belongs to the append-only result consumer under
+    ADR0148. This helper only validates/copies a response for existing pure callers.
     """
-    return round(float(duration_seconds) / 60.0 * NEURONS_PER_AUDIO_MINUTE, 4)
+    result = validate_transcription(response)
+    return {**row, **result, "segments": tuple(result["segments"])}
+
+
+def estimated_neurons(duration_seconds):
+    """REQ-CAP-036: use the shared audio-cost owner without per-call rounding."""
+    return audio_neurons(duration_seconds)
 
 
 def may_call(*, spent_today, pending_cost, is_deferred_retry=False):

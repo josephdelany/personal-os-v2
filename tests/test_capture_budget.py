@@ -197,3 +197,28 @@ def test_REQ_CAP_101_with_every_service_down_the_capture_still_completes():
     assert out["completed"] is True and out["queued"] is True
     assert out["services_contacted"] == ()
     assert len(q) == 1
+
+
+@pytest.mark.parametrize("response", [
+    None, {}, {"text": None, "segments": []}, {"text": 4, "segments": []},
+    {"text": "speech"}, {"text": "speech", "segments": None},
+    {"text": "speech", "segments": [None]},
+    *({"text": "speech", "segments": [{"start": start, "end": end}]}
+      for start, end in [(True, 1), (0, False), ("0", 1), (-1, 1), (2, 1),
+                         (float("nan"), 1), (0, float("inf"))]),
+])
+def test_REQ_CAP_034_malformed_transcription_cannot_be_stored(response):
+    with pytest.raises(ValueError):
+        store_transcription({"capture_id": 1}, response)
+
+
+def test_REQ_CAP_034_transcription_projection_preserves_raw_and_segment_evidence():
+    raw = {"capture_id": 1, "payload": {"media_path": "private/audio"}}
+    response = {"text": "heard words", "segments": [
+        {"start": 0, "end": 1.2, "text": "heard words", "tokens": [12]}]}
+    projected = store_transcription(raw, response)
+    assert "transcript" not in raw
+    assert projected["segments"][0] == response["segments"][0]
+    response["segments"][0]["tokens"].append(99)
+    assert projected["segments"][0]["tokens"] == [12]
+    assert store_transcription(raw, {"text": "", "segments": []})["transcript"] == ""

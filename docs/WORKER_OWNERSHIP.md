@@ -85,3 +85,11 @@ Root reserves ADR0148 for Joe-approved OQ84 transcription result storage amendme
 
 Root reserves migration0079, ADR0149 and tests/test_capture_ingress_sql.py for the
 reproduced transaction-start timestamp defect in raw/atom insert stamping.
+
+## 2026-09-22 — root capture transcription unit
+
+Root owns migration0080, ADR0150, tools/capture_transcription.py,
+tools/engines/capture_transcription.py, tests/test_capture_transcription.py,
+shared egress/model_contract and dispatch CLI/tests, capture_budget/tests, SQL harness
+and maintained docs. Read-only reviewer owns no files. Media acquisition/extraction
+and actual orchestration remain required; no production writes or deployment.

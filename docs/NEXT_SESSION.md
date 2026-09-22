@@ -9,20 +9,46 @@ Joe's `/goal` is active. Do not start backend execution from the monitor.
 {
   "version": 1,
   "status": "running",
-  "updated_at": "2026-09-22T19:54:41.989064+00:00",
-  "last_progress_at": "2026-09-22T19:54:41.989064+00:00",
-  "unit": "M3-separated-ask-and-recorded-time",
-  "next_action": "Integrate verified local0078/0079 at cd02e43:1076 no-DB tests,871 SQL tests,78 migrations and43 layout checks passed. Refresh evidence archive and integration docs, scoped commit, then capture enrichment/result consumer under approved OQ84/ADR0148. Actual separated orchestration, default-date ownership, commit visibility and historical measured-search replay remain open."
+  "updated_at": "2026-09-22T21:50:36.133069+00:00",
+  "last_progress_at": "2026-09-22T21:50:36.133069+00:00",
+  "unit": "M3-capture-enrichment-results",
+  "next_action": "Commit verified uncommitted0080/ADR0150 capture transcription foundation at d3639a3 after evidence archive. FullSQL887/1skip,noDB1093/719skip,79migrations/719statements,layout43. Then actual media acquisition/binding, extraction and separated orchestration; no production probe until secret refreshed. Goal remains fullM0-M6."
 }
 ```
 <!-- backend-control:end -->
 
-## Current active unit — separated Ask stages and insertion-time integrity
+## Current active unit — verified capture transcription foundation, ready to commit
+
+- Root owns migration0080/ADR0150, capture_transcription engine/CLI/tests, shared
+  egress/model_contract and dispatch CLI/tests, capture_budget/tests, processing
+  immutability test, SQL harness and maintained docs. No parallel file writer.
+- Atomic immutable result/history consumption verifies exact settled request/response
+  and capture/model/kind/cost. `transcribed` is intermediate; extraction still required.
+  Stale results remain history but never current. Usable text survives extraction failure.
+- Reviewed repairs: actual service voice read policy, immediate empty-transcript review,
+  bounded committed HTTP error receipts, single audio-cost owner and paginated queue.
+  Actual private CLI/service identity and model denial are tested. Pure validation does
+  not prove uploaded media belongs to the capture; Storage adapter remains required.
+- Final evidence:887 fullSQL passed/1 skip265.83s;1093 noDB passed/719 skip160.36s;
+  79 migrations/719 statements;43 layout checks.16 captureSQL10.10s;56 broader targeted
+  33.42s before added queue pagination case. NoDB collection predates that final SQL-only
+  case; fullSQL covers it. Feature ledger14/15, generic RULE04 pending. No active tests;
+  fullSQL/chain/noDB process handles returned exit0, disposable servers stopped.
+- Final read-only review found no further blocker in this local scope. Remaining:
+  media-source binding/acquisition, native dictated text/photo paths, extraction into
+  atoms, separate runtime orchestration and observed nightly execution. No live model,
+  production query/write/deploy, or commit/concurrency durability proof occurred.
+- Reports: `/tmp/capture-transcription-full.log`, matching full-sql XML/log,
+  chain/layout logs; archive `.local/evidence/capture-transcription/` with source hashes.
+  Commit these dependencies together, then continue capture delivery. B16 historical
+  raw-update/three-retry wording is superseded by current CAP requirements/ADRs.
+
+## Completed local unit — separated Ask stages and insertion-time integrity
 
 - Prior unit committed at `cd02e43`. Root now owns drafts0078/0079, ADR0147/0149,
   `lib/model_contract.py`, dispatcher/db consumers, `tools/ask_jobs.py`,
   `tools/engines/ask_jobs.py`, `tests/test_ask_jobs.py`, affected reservation/dispatch/
-  ingress tests, SQL harness and maintained docs. All changes are uncommitted.
+  ingress tests, SQL harness and maintained docs. These changes are now committed at `d3639a3`.
 - Joe **approved OQ84** this turn. REQ-CAP-034 and ADR0148 now require append-only
   transcript/timing results linked to capture/attempt and selected through effective
   history. No further approval is needed for that storage contract. Media retention

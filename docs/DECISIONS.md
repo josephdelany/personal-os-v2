@@ -120,3 +120,5 @@ rule for branded items (REQ-NUT-050/051).
 
 | ADR-0147 | Local implementation in progress | 2026-09-22 | [Separated Ask planning jobs](adr/0147-separated-ask-planning-jobs.md): persisted private stages, bounded retries, correlated responses and fixed cutoffs |
 | ADR-0149 | Local integrity repair; integration pending | 2026-09-22 | [Insertion recorded time](adr/0149-recorded-time-at-insertion.md): server insertion time instead of transaction-start backdating; current wrapper checks remain open |
+
+| ADR-0150 | Locally verified; deployment open | 2026-09-22 | [Private transcription consumption](adr/0150-capture-transcription-consumption.md): immutable attempts/results, intermediate transcribed state, immediate empty-transcript reviews, bound HTTP failure codes and one audio-cost owner |

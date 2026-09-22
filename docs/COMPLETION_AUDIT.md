@@ -2,6 +2,28 @@
 
 ## Current quality review — 2026-09-22
 
+### Latest unit: immutable transcription consumption
+
+At `d3639a3` plus recorded dirty sources, migration0080 and the private CLI are locally
+verified. ADR0150 records scope and review. This is not a voice-to-atom release.
+
+| Review lens | Result and limits |
+|---|---|
+| Contract fidelity | PASS for tested append-only text/timings, pending failures, immediate empty-text review and shared cost; media acquisition/extraction and full CAP scope remain PARTIAL |
+| Complete user paths | PARTIAL: actual private CLI/service identity consumes and reads persisted transcript; upload-to-model-to-atoms and scheduled supervisor remain open |
+| Failure behavior | PASS for tested invalid text/timings, empty output, replay/substitution, stale attempts, atomic rollback, budget and bound HTTP status; live concurrent recovery unverified |
+| Data integrity | PASS tested immutable raw/results and applied-history selection; transcribed does not mean enriched; generic RULE04 and commit visibility remain open |
+| Access/privacy | PASS tested service/model boundaries, narrow failure RPC, sanitized errors and credential guard; live ACL/media-source binding unverified |
+| Runtime/deployment | NOT VERIFIED: private CLI exists; no deployment, actual provider/media request or observed nightly execution |
+| Operations/recovery | PARTIAL: initial/retry queue, keyset pagination, preserved usable text and immediate reviews exist; durable supervisor and extraction remain required |
+| Evidence/reproducibility | PASS local scope:887 SQL/1 skip;1093 no-DB/719 skips;79 migrations/719 statements;43 layout checks; no-DB collection predates one added SQL-only pagination case, covered by full SQL |
+
+Independent review repaired immediate review omission, loss of HTTP failure codes,
+divergent audio-cost formulas and queue starvation. Real service-role tests exposed
+and repaired the missing voice-row read policy. All fixtures rolled back; disposable
+servers stopped. Evidence/source manifest is under ignored `.local/evidence/capture-transcription/`.
+Skips, narrow feature ledger14/15 and prepared code do not prove backend release.
+
 ### Latest unit: separated Ask foundation and insertion-time repair
 
 Local evidence at `cd02e43` plus the recorded dirty source manifest; not deployed.

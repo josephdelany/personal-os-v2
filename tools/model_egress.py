@@ -24,7 +24,11 @@ def main():
     except Exception as exc:
         known = (egress.BudgetExceeded, egress.DispatchRefused, egress.DispatchUncertain, egress.PayloadRefused)
         code = type(exc).__name__ if isinstance(exc, known) else 'DispatcherUnavailable'
-        print(json.dumps({'status': 'error', 'error_type': code}), file=sys.stderr)
+        error = {'status': 'error', 'error_type': code}
+        provider_status = getattr(exc,'provider_status',None)
+        if isinstance(exc,egress.DispatchUncertain) and type(provider_status) is int and 300 <= provider_status <= 599:
+            error['provider_status'] = provider_status
+        print(json.dumps(error), file=sys.stderr)
         return 1
     finally:
         if conn is not None:

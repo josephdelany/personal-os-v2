@@ -182,3 +182,23 @@ def test_RULE_29_model_connection_rejects_private_credentials_before_connect(mon
     monkeypatch.setattr(db, '_connect_url', lambda url: pytest.fail('must refuse before connection'))
     with pytest.raises(RuntimeError, match='private database credentials'):
         db.connect_model_egress()
+
+
+def test_REQ_CAP_025_http_failure_code_is_committed_without_error_body():
+    conn = Connection()
+    def fail(model,body):
+        raise egress.urllib.error.HTTPError('https://fixture.invalid/private',503,'private body',{},None)
+    with pytest.raises(egress.DispatchUncertain) as caught:
+        invoke(conn,transport=fail)
+    assert caught.value.provider_status==503
+    assert 'private' not in str(caught.value)
+    assert conn.events[-2][2]==(RID,503)
+    assert conn.events[-1]==('commit',2)
+
+
+def test_REQ_CAP_025_unconfirmed_failure_settlement_exposes_no_status_receipt():
+    def fail(model,body):
+        raise egress.urllib.error.HTTPError('https://fixture.invalid',429,'private',{},None)
+    with pytest.raises(egress.DispatchUncertain) as caught:
+        invoke(Connection(fail_commit=2),transport=fail)
+    assert getattr(caught.value,'provider_status',None) is None

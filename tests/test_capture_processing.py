@@ -227,7 +227,7 @@ def test_REQ_CAP_025_history_is_immutable_and_ingress_cannot_forge_processing(cu
     record(cur)
     for verb in ('UPDATE core_pytest.capture_processing_events SET last_error=NULL',
                  'DELETE FROM core_pytest.capture_processing_events',
-                 'TRUNCATE core_pytest.capture_processing_events, core_pytest.capture_processing_reviews'):
+                 'TRUNCATE core_pytest.capture_processing_events CASCADE'):
         cur.execute('SAVEPOINT mutation')
         with pytest.raises(Exception, match='append-only'):
             cur.execute(verb)

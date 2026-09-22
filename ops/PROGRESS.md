@@ -7707,3 +7707,24 @@ generic RULE04 pending. Evidence refreshed under ignored .local/evidence/ask-job
 WHAT I DID NOT DO: deploy, call a provider, prove commit visibility/concurrency,
 complete runtime orchestration/default-date ownership/REQ-ASK-005, or implement
 capture transcript results. OQ84 is approved; capture results are next after commit.
+
+## 2026-09-22 — immutable transcription foundation verified
+
+Migration0080 stores immutable attempts/results, intermediate transcribed history,
+current applied transcript and immediate empty-transcript reviews. Private CLI exposes
+prepare/consume/fail/readback and paginated initial/retry work. Caller commits before
+stdout. Correlated HTTP status is persisted by isolated dispatcher; response/error
+bodies never enter operational errors. Shared audio-cost owner removes rounding drift.
+
+Review repaired immediate review omission, HTTP code loss, cost duplication and queue
+starvation. Service-role fixture found a missing voice read policy; now passes. Existing
+TRUNCATE test now uses CASCADE so append-only assertion is reached despite new FKs.
+16 focused capture SQL passed10.10s;56 broader targeted passed33.42s before final queue
+case; full SQL887 passed/1 skipped265.83s. No-DB1093 passed/719 skipped160.36s, no failures
+or errors; collection predates one final SQL-only case, covered in full SQL. Chain79
+migrations/719 statements; layout43. Ledger14/15; generic RULE04 pending. All SQL fixtures
+rolled back and servers stopped. Evidence at d3639a3 plus dirty source manifest.
+WHAT I DID NOT DO: retrieve/upload media, call provider, deploy, run actual nightly
+orchestration, persist extraction atoms, prove live commit survival/concurrency, or
+close the backend release gate. Next: media binding/acquisition and separated capture
+orchestration/extraction using this storage path. Full M0–M6 goal remains active.

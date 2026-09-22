@@ -32,13 +32,12 @@ import os
 import re
 import time
 import uuid
-from lib.model_contract import request_bytes
+from lib.model_contract import request_bytes, audio_neurons, AUDIO_NEURONS_PER_MINUTE
 import urllib.error
 import urllib.request
 
 # Cloudflare Workers AI, the only model destination this system is permitted (RULE-29).
 WORKERS_AI_HOST = "api.cloudflare.com"
-AUDIO_NEURONS_PER_MINUTE = 46.63          # REQ-CAP-036
 SOFT_CEILING = 9000                        # REQ-CAP-037
 HARD_CAP = 10000                           # REQ-CAP-039 / REQ-CAP-042
 TIMEOUT_SECONDS = 60
@@ -118,12 +117,15 @@ def dispatch(conn, *, request_id, model_id, call_kind, payload, estimated_neuron
         raise DispatchRefused('reservation not confirmed') from None
     if _monotonic()-started >= lifetime:
         raise DispatchRefused('reservation expired before dispatch')
+    provider_status = None
     try:
         raw = (_transport or _post)(model_id, body)
         result = json.loads(raw.decode())
         response_digest = hashlib.sha256(request_bytes(result)).hexdigest()
         outcome = 'ok'
-    except Exception:
+    except Exception as exc:
+        if isinstance(exc, urllib.error.HTTPError) and type(exc.code) is int and 300 <= exc.code <= 599:
+            provider_status = exc.code
         result = None
         raw = None
         outcome = 'error'
@@ -131,6 +133,8 @@ def dispatch(conn, *, request_id, model_id, call_kind, payload, estimated_neuron
     try:
         cur.execute('SELECT public.settle_model_call(%s,%s,%s,%s)',
                     (request_id, outcome, len(raw) if raw is not None else None, response_digest))
+        if provider_status is not None:
+            cur.execute('SELECT public.record_model_http_failure(%s,%s)',(request_id,provider_status))
         conn.commit()
     except Exception:
         try:
@@ -139,7 +143,9 @@ def dispatch(conn, *, request_id, model_id, call_kind, payload, estimated_neuron
             pass
         raise DispatchUncertain('request outcome could not be recorded') from None
     if outcome == 'error':
-        raise DispatchUncertain('provider request failed; reservation retained')
+        failure = DispatchUncertain('provider request failed; reservation retained')
+        failure.provider_status = provider_status
+        raise failure
     return result
 
 
@@ -230,9 +236,6 @@ def _normalise(payload) -> str:
     return text.replace("\\", "")          # JSON-escaped quotes, so DMS survives the scan
 
 
-def audio_neurons(duration_seconds: float) -> float:
-    """REQ-CAP-036. The audio-minute cost, computed the one way the spec states."""
-    return (float(duration_seconds) / 60.0) * AUDIO_NEURONS_PER_MINUTE
 
 
 def screen_payload(payload) -> None:
