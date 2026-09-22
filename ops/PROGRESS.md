@@ -7631,3 +7631,41 @@ saved under ignored .local/evidence/capture-processing/ at b4752b6 + dirty sourc
 No production/deployment, actual enrichment, real concurrent or post-commit proof.
 Next shared prerequisite: durable pre-call budget/log reservation and restricted
 model-egress capability; do not wire a broad private reader to provider credentials.
+
+
+## 2026-09-22 — shared model reservation prerequisite (draft)
+
+Processing foundation committed at22a9d2d. Added draft0077, restricted model_egress
+role, reservation/settlement RPCs and 19 rollback-only SQL tests. Shared lock protects
+check+insert; finite positive costs, duplicate refusal and failed-call spend tested.
+Actual role calls prove private reads denied in the disposable chain. Review caught
+planning margin misuse and reservation UTC rollover; fixed plan eligibility and
+added server expiry receipt. Runtime deadline enforcement remains open. Targeted
+**19 passed (9.29s)**; logs/JUnit/source hashes in .local/evidence/model-reservations/.
+No fixture commit, no real concurrency, no live ACL/production/provider call, and
+no full integration for this draft. Old egress.call still logs in caller transaction.
+Next: narrow capability transport with commit confirmation before send and separate
+settlement, then actual capture result/initial/retry consumer. Full M0–M6 goal active.
+
+
+### Model dispatch foundation — integration checkpoint
+
+Added dedicated model identity connection, prepared-input CLI and actual dispatch
+owner. Reservation commit precedes provider send; monotonic expiry refuses stale
+permits; separate settlement commit precedes successful return. Both session and
+current user must be model_egress; broad credentials are refused. Role has LOGIN
+with PASSWORD NULL (no credential provisioned). Old private-cursor model calls now
+refuse actual dispatch; Ask deterministic fallback remains until isolated consumer
+wiring. Reviewer reproduced redirect Authorization forwarding; model transport now
+refuses all redirects, verified through actual HTTP302 handler path and installation.
+Source API GET redirects and its capability separation remain open.
+
+Evidence at22a9d2d + dirty sources: **857 SQL passed/1 skipped** (257.06s), **1073
+no-DB passed/690 skipped** with zero failures/errors (202.55s), then three added CLI
+checks in **15 dispatcher tests** (0.21s). Full no-DB count excludes the three later
+checks. Chain **76 migrations/659 statements**; layout **43/43**. Ledger unchanged
+14/15; F006 skip explained by disposable success. Generic RULE04 remains pending.
+Source hashes/logs/JUnit saved under ignored .local/evidence/model-egress/.
+WHAT I DID NOT DO: deploy, provision credentials, call provider, prove actual commit
+survival/concurrency, or connect private prep/result consumers to Ask/capture. OQ84
+exact transcript-storage amendment is awaiting Joe; independent work continues.

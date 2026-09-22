@@ -113,3 +113,5 @@ rule for branded items (REQ-NUT-050/051).
 | ADR-0144 | Accepted by Joe | 2026-09-22 | REQ-CAP-025..027 use append-only processing history and a current-status view; raw capture immutability, nightly retries and 72-hour review retained |
 
 | ADR-0145 | Accepted locally; deployment held | 2026-09-22 | [Persisted capture reviews](adr/0145-capture-review-maintenance.md): append-only stalled reviews and owner dismissal; maintenance CLI/heartbeat; actual enrichment execution remains open |
+
+| ADR-0146 | Local implementation in progress | 2026-09-22 | [Durable model reservations](adr/0146-durable-model-reservations.md): serialized shared budget, restricted logging capability; commit-before-send runtime still open |

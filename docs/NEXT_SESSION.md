@@ -9,22 +9,61 @@ Joe's `/goal` is active. Do not start backend execution from the monitor.
 {
   "version": 1,
   "status": "running",
-  "updated_at": "2026-09-22T18:03:49.705783+00:00",
-  "last_progress_at": "2026-09-22T18:03:49.705783+00:00",
-  "unit": "M3-capture-processing-history",
-  "next_action": "Commit verified processing-history/review foundation, then implement shared durable model-call reservation and capability separation needed by actual initial/retry enrichment runner. Preserve full M0\u2013M6 scope."
+  "updated_at": "2026-09-22T18:30:54.218374+00:00",
+  "last_progress_at": "2026-09-22T18:30:54.218374+00:00",
+  "unit": "M3-durable-model-reservations",
+  "next_action": "Commit verified model reservation/dispatch foundation, then wire private preparation/result consumer and isolated dispatcher into actual Ask/capture runtime. OQ84 transcription storage amendment awaits Joe; work independent orchestration and source-API redirect/capability repairs meanwhile. Preserve full M0\u2013M6 goal."
 }
 ```
 <!-- backend-control:end -->
 
-## Current active unit — append-only capture processing history
+## Current active unit — durable shared model reservations
 
-- **Current worktree:** ingress/approval committed at `b4752b6`. Root owns the
-  uncommitted migration0076, processing engine/CLI/tests, nightly maintenance
-  workflow, ADR0145, SQL harness and maintained docs. Targeted processing + ingress
+- Prior turn made progress: processing foundation committed at `22a9d2d`; clean
+  worktree verified before starting this prerequisite. Prior integration evidence
+  below applies to that commit, not the new draft.
+- Root owns uncommitted migration0077, ADR0146, `tests/test_model_reservations.py`,
+  SQL-harness registration and maintained docs. No parallel implementation worker.
+- Draft serializes shared budget reservations under one transaction lock, rejects
+  invalid/nonfinite costs, binds request UUID to digest and metadata, refuses any
+  duplicate dispatch, and preserves failed spend. Restricted model_egress role can
+  reserve/settle but cannot read private tables or owner review APIs in the fixture.
+- **Runtime added:** `lib.egress.dispatch` verifies direct model_egress session
+  identity, commits reservation before send, enforces monotonic permit expiry and
+  commits settlement separately. Uncertain reservation commit sends nothing;
+  duplicate permits refuse; uncertain settlement returns no successful result.
+  `tools/model_egress.py` accepts prepared stdin and outputs correlated results for
+  a private consumer. `lib.db.connect_model_egress` uses a dedicated environment
+  credential and rejects broad DB credentials. The role has LOGIN with PASSWORD
+  NULL; no credential was provisioned. Existing cursor-based call refuses real
+  dispatch; Ask retains deterministic fallback until separated orchestration exists.
+- **Review repaired:** UTC permit rollover, planning borrowing capture retry margin,
+  and default model HTTP redirects forwarding Authorization. Model redirects now
+  fail before following any new destination. Independent reviewer rechecked fixes.
+  Source-API GET redirect/capability handling remains an independent open issue.
+- **Integration:** 857 disposable SQL passed/1 skipped (257.06s); 1073 no-DB
+  passed/690 skipped, zero failures/errors (202.55s). Three supplementary CLI checks
+  were added afterward; all15 dispatcher/CLI tests pass (0.21s). The full no-DB
+  count excludes those three later checks. Chain76 migrations/659 statements;
+  layout43/43. Feature ledger unchanged14/15; F006 no-DB skip is covered by SQL.
+  Generic RULE04 pending; disposable spine invariants passed. Reports/source hashes
+  under ignored `.local/evidence/model-egress/`, at22a9d2d plus root changes.
+- **Still open:** scoped commit; actual separated private-reader/provider/result
+  orchestration and Ask/capture consumers; live effective ACL, production role
+  provisioning, real provider request/observed schedule and post-commit durability/
+  concurrent proof (OQ82). Connection probes prove ordering, not actual commits.
+- OQ84 now contains exact proposed replacement of REQ-CAP-034 with immutable
+  transcript/timing results linked to capture/attempt. Joe was asked asynchronously;
+  no answer is assumed. Transcription persistence waits for that decision, while
+  independent orchestration and shared service work continues. No production action.
+
+## Completed local foundation — append-only capture processing history
+
+- **Committed foundation:** `22a9d2d` includes migration0076, processing engine/CLI/
+  tests, nightly maintenance workflow, ADR0145, SQL harness and maintained docs. Targeted processing + ingress
   SQL tests passed **43/43** (10.87s), with rollback and server shutdown confirmed.
   Latest reports: `/tmp/capture-processing-targeted.log` and matching JUnit XML.
-- **Implemented in draft:** immutable outcome history, current-status view, stable
+- **Implemented locally:** immutable outcome history, current-status view, stable
   pending age across repeated failures and budget deferrals, predecessor matching,
   idempotent attempts, and retained stale outcomes that cannot become current.
   Existing raw terminal states survive projection. Deferred-only captures do not
@@ -45,7 +84,7 @@ Joe's `/goal` is active. Do not start backend execution from the monitor.
   skip is covered by disposable SQL. Generic RULE04 remains pending. Final read-only
   review found no further material defect; rollback/error sanitization and real
   permission-denial checks pass. Evidence under `.local/evidence/capture-processing/`.
-- **Still required:** scoped commit. Actual initial/retry consumer
+- **Still required:** actual initial/retry consumer
   remains open: preserve separate private-read/model-egress capabilities, durable
   shared budget/log reservations and atomic verified-result/status persistence.
   Stale receipts cannot count as success. Maintenance is not retry execution.

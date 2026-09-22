@@ -1,5 +1,15 @@
 # Worker ownership — session 21
 
+## 2026-09-22 shared egress prerequisite
+
+Root owns migration **0077**, ADR **0146**, `tests/test_model_reservations.py`,
+`lib/egress.py`, `lib/db.py`, `tools/model_egress.py`,
+`tests/test_model_dispatch.py`, shared budget/client tests and SQL harness. Outcome: serialized
+shared reservations and restricted logging RPCs (REQ-CAP-035..039, RULE-29), then
+commit-before-send wiring. Acceptance: exact ceiling, idempotent request identity,
+invalid costs rejected, no private reads for model role, preserved failed spend.
+Processing foundation committed at `22a9d2d`; no production deployment.
+
 ## 2026-09-22 goal resumption
 
 Joe explicitly authorized reconciling the pending merge and completing M0–M6.

@@ -215,3 +215,26 @@ the system is working**, because the thing it is for — collecting a life, cont
 been stopped since 2026-07-28 and 0 of 17 monitored metrics are fresh. The most valuable work
 available is not the next build order; it is restoring capture and importing the gap while it
 is still recoverable.
+
+
+## 2026-09-22 — shared model reservation/dispatch local review
+
+Scope: draft0077/ADR0146 at22a9d2d plus root-owned changes. This is a shared
+prerequisite, not completed capture enrichment or backend release.
+
+| Lens | Finding and evidence boundary |
+|---|---|
+| Contract fidelity | PARTIAL: serialized shared budget, exact caps, request identity and restricted RPCs tested; actual consumer wiring and provider price calibration remain open. |
+| Complete user paths | PARTIAL: prepared-request CLI through dispatch/commit ordering is exercised with a connection probe; private-reader/result-consumer orchestration and actual enrichment remain open. |
+| Failure behavior | PASS locally: reservation commit uncertainty prevents send; duplicates/expiry refuse; failed provider settles once; uncertain settlement returns no success; private error text suppressed. |
+| Data integrity | PASS locally: immutable raw/history retained; failed spend not refunded; stale/duplicate sends refused. No actual two-process or post-commit proof (OQ82). |
+| Access/privacy | PARTIAL: disposable role calls deny private reads; direct session identity required. Model redirect credential forwarding reproduced and fixed. Live ACL and process secret separation unverified; source-API redirect issue remains open. |
+| Runtime/deployment | NOT VERIFIED deployed: no provider call, role password, job deployment or new production credential. Legacy cursor model calls now refuse; Ask falls back deterministically until isolated consumer is wired. |
+| Operations/recovery | PARTIAL: reserved/outcome logs and refusal codes exist; workflow and recovery runbook for separated consumers remain open. |
+| Evidence | Source hashes and reports in ignored .local/evidence/model-egress/. No-DB 1073 passed/690 skipped, plus three later CLI tests in a15-case targeted run; full SQL857 passed/1 skipped, chain76/659, layout43/43. Generic RULE04 remains pending. |
+
+Independent reviewer found UTC permit rollover, planning's access to the retry
+margin and model redirect credential forwarding. SQL permits now expire at UTC
+midnight, client verifies expiry before send, planning stays at9000 and redirects
+fail before a new request. Reviewer rechecked the model transport fix; no further
+material issue found within this scope. No change authorizes release or frontend.

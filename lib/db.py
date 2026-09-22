@@ -6,7 +6,8 @@ Phase-0 archive and rejected: this is the permanent connection path for every ET
 from Phase 2 onward, and an unverified posture set "just for the archive" would have
 become the ETL default by inertia. See PROGRESS 2026-08-23.
 
-The credential comes only from the SUPABASE_DB_URL environment variable. It is never
+ETL uses SUPABASE_DB_URL; the isolated model process uses MODEL_EGRESS_DB_URL.
+The credential is never
 hardcoded here, never logged, never echoed. This module reads it and hands back a live
 connection; it does not print it.
 
@@ -48,6 +49,20 @@ def connect():
     url = os.environ.get("SUPABASE_DB_URL")
     if not url:
         raise RuntimeError("SUPABASE_DB_URL not set")
+    return _connect_url(url)
+
+
+def connect_model_egress():
+    """Dedicated credential only; provider processes must not inherit private DB access."""
+    if os.environ.get('SUPABASE_DB_URL') or os.environ.get('SUPABASE_SERVICE_ROLE_KEY'):
+        raise RuntimeError('private database credentials present in model process')
+    url = os.environ.get('MODEL_EGRESS_DB_URL')
+    if not url:
+        raise RuntimeError('MODEL_EGRESS_DB_URL not set')
+    return _connect_url(url)
+
+
+def _connect_url(url):
     p = urlparse(url)
     return pg8000.dbapi.connect(
         user=unquote(p.username or ""),

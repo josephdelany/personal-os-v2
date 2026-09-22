@@ -2137,3 +2137,25 @@ relax raw-capture immutability. This is a storage-contract amendment, not permis
 to change measurement definitions. Joe explicitly approved this recommendation;
 the requirements are amended and implementation is now authorized (ADR-0144).
 Implementation and deployment are not implied by the ruling.
+
+
+## OQ-84 — transcription result storage conflicts with immutable raw captures
+
+Open, Joe decision. REQ-CAP-034 requires storing returned transcript text and segment
+timings on the raw_captures row. RULE-02 forbids that update. Joe's OQ-83 approval
+explicitly amended REQ-CAP-025..027; it did not amend result-storage REQ-CAP-034.
+
+Proposed replacement for REQ-CAP-034:
+
+> The transcription service SHALL append the returned transcript text and segment
+> timing data to a capture enrichment result linked to the immutable raw capture
+> and processing attempt. It SHALL NOT update raw_captures. The current result SHALL
+> be selected through the effective processing history, preserving earlier results.
+
+Consequences: retries can retain their own transcripts/timings; stale attempts stay
+in history and cannot replace the current result. A separate result consumer must
+validate and persist results atomically with effective processing status. No model
+output becomes a measured nutrition value, and raw evidence remains unchanged.
+Failure mode: unresolved attempts remain pending rather than pretending enrichment
+succeeded. This authorizes no deployment or deletion of source media; media retention
+remains Joe's separate decision. Budget/transport work continues independently.

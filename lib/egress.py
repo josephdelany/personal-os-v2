@@ -1,6 +1,7 @@
 """The one place personal data leaves this system (RULE-29, REQ-CAP-035..042; ADR-0063).
 
-Every outbound model call goes through `call()`. Nothing else in the repository opens a
+Every real outbound model call goes through `dispatch()` (ADR-0146).
+`call()` retains only an injected transport seam for rollback-only legacy fixtures. Nothing else in the repository opens a
 socket to a model provider, and `tools/validate_layout.py` enforces that: a network-capable
 import outside this module and `lib/db.py` fails the build.
 
@@ -25,9 +26,12 @@ neurons/day the enforcement mechanism for $0-recurring. Degrading to the determi
 the caller's job (RULE-15 — nothing may require the model to be available).
 """
 import datetime as dt
+import hashlib
 import json
 import os
 import re
+import time
+import uuid
 import urllib.error
 import urllib.request
 
@@ -49,6 +53,91 @@ class BudgetExceeded(Exception):
 
 class PayloadRefused(Exception):
     """The payload carries something that must never leave this system (RULE-29)."""
+
+
+class DispatchRefused(Exception):
+    """No request sent: identity, durability or permit validity was not established."""
+
+
+class DispatchUncertain(Exception):
+    """A request may have left; never retry this identity as a fresh dispatch."""
+
+
+def dispatch(conn, *, request_id, model_id, call_kind, payload, estimated_neurons,
+             capture_id=None, _transport=None, _monotonic=time.monotonic):
+    """Own the dedicated reservation and settlement transactions (ADR-0146).
+
+    Receives an already prepared payload, never a private-row cursor. The database
+    session must authenticate directly as model_egress, so SET ROLE from a broad
+    reader is refused. A returned provider value requires committed settlement.
+    """
+    screen_payload(payload)
+    request_id = str(uuid.UUID(str(request_id)))
+    body = json.dumps(payload, allow_nan=False).encode()
+    if os.environ.get('SUPABASE_DB_URL') or os.environ.get('SUPABASE_SERVICE_ROLE_KEY'):
+        raise DispatchRefused('private credentials present')
+    cur = conn.cursor()
+    try:
+        cur.execute('SELECT session_user, current_user')
+        if tuple(cur.fetchone()) != ('model_egress', 'model_egress'):
+            raise DispatchRefused('dedicated model identity required')
+        started = _monotonic()
+        cur.execute('SELECT public.reserve_model_call(%s,%s,%s,%s,%s,%s,%s)',
+                    (request_id, model_id, call_kind, estimated_neurons, capture_id,
+                     len(body), hashlib.sha256(body).hexdigest()))
+        permit = cur.fetchone()[0]
+        if not permit.get('allowed'):
+            if permit.get('duplicate'):
+                raise DispatchRefused('request already reserved')
+            raise BudgetExceeded(permit['spent'], permit['ceiling'], permit['reason'])
+        if permit.get('request_id') != request_id:
+            raise DispatchRefused('reservation identity mismatch')
+        reserved = dt.datetime.fromisoformat(permit['reserved_at'])
+        expires = dt.datetime.fromisoformat(permit['valid_before'])
+        if reserved.utcoffset() is None or expires.utcoffset() is None:
+            raise DispatchRefused('reservation clock missing timezone')
+        # Measure from BEFORE the RPC, conservatively including lock/roundtrip time.
+        lifetime = (expires-reserved).total_seconds()
+        if not 0 < lifetime <= 86400:
+            raise DispatchRefused('invalid permit lifetime')
+        conn.commit()
+    except (DispatchRefused, BudgetExceeded):
+        try:
+            conn.rollback()
+        except Exception:
+            pass
+        raise
+    except Exception:
+        # A commit can succeed server-side while its acknowledgement is lost.
+        # Do not send, and do not report exception text containing credentials.
+        try:
+            conn.rollback()
+        except Exception:
+            pass
+        raise DispatchRefused('reservation not confirmed') from None
+    if _monotonic()-started >= lifetime:
+        raise DispatchRefused('reservation expired before dispatch')
+    try:
+        raw = (_transport or _post)(model_id, body)
+        result = json.loads(raw.decode())
+        outcome = 'ok'
+    except Exception:
+        result = None
+        raw = None
+        outcome = 'error'
+    try:
+        cur.execute('SELECT public.settle_model_call(%s,%s,%s)',
+                    (request_id, outcome, len(raw) if raw is not None else None))
+        conn.commit()
+    except Exception:
+        try:
+            conn.rollback()
+        except Exception:
+            pass
+        raise DispatchUncertain('request outcome could not be recorded') from None
+    if outcome == 'error':
+        raise DispatchUncertain('provider request failed; reservation retained')
+    return result
 
 
 # A coordinate pair, a latitude/longitude key, or the home marker.
@@ -239,12 +328,14 @@ def _settle(cur, ledger_id, egress_id, outcome, response_bytes=None, detail=None
 def call(cur, *, model_id, call_kind, payload, estimated_neurons,
          capture_id=None, deferred_retry=False, purpose=None,
          schema="core", ops="ops", _transport=None):
-    """Issue one Workers AI call, budgeted, screened and logged. Returns the parsed response.
+    """Legacy rollback-fixture adapter; real calls use isolated dispatch (ADR-0146).
 
     The caller owns the transaction. `_transport` exists so a test can prove the budget,
     screening and logging behaviour without reaching the network — the seam is explicit rather
     than a monkeypatch, so what is substituted is visible in the signature.
     """
+    if _transport is None:
+        raise DispatchRefused('model calls require the isolated committed dispatcher')
     screen_payload(payload)                                   # RULE-29, before anything else
     spent, ceiling = check_budget(cur, estimated_neurons, deferred_retry, schema)
 
@@ -255,7 +346,7 @@ def call(cur, *, model_id, call_kind, payload, estimated_neurons,
         deferred_retry=deferred_retry, request_bytes=len(body), schema=schema, ops=ops)
 
     try:
-        raw = (_transport or _post)(model_id, body)
+        raw = _transport(model_id, body)
     except Exception as e:
         # No retry. A retry doubles the spend against a budget whose whole purpose is to make
         # the ceiling reachable exactly once, and REQ-CAP-043 says a failed call must not lose
@@ -334,8 +425,13 @@ def _get(url, headers, timeout):
         return resp.read()
 
 
+class _RefuseModelRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        raise PayloadRefused('model destination redirect refused')
+
+
 def _post(model_id, body):
-    """The only outbound request in this repository."""
+    """The model transport; redirects cannot disclose its authorization header."""
     account = os.environ.get("CF_ACCOUNT_ID")
     token = os.environ.get("CF_API_TOKEN")
     if not account or not token:
@@ -343,5 +439,6 @@ def _post(model_id, body):
     url = f"https://{WORKERS_AI_HOST}/client/v4/accounts/{account}/ai/run/{model_id}"
     req = urllib.request.Request(url, data=body, method="POST", headers={
         "Authorization": f"Bearer {token}", "Content-Type": "application/json"})
-    with urllib.request.urlopen(req, timeout=TIMEOUT_SECONDS) as resp:
+    opener = urllib.request.build_opener(_RefuseModelRedirect())
+    with opener.open(req, timeout=TIMEOUT_SECONDS) as resp:
         return resp.read()
