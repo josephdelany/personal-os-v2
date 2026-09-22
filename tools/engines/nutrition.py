@@ -598,6 +598,11 @@ def resolve_item(cur, item_text, *, grams=None, servings=None, brand=None, sourc
 
     # How many grams? A stated weight beats a serving count beats a portion-table entry, and
     # each step down widens the interval because each is a weaker claim about quantity.
+    #
+    # Recorded BEFORE `grams` is reassigned below: REQ-NUT-032 distinguishes a weight Joe
+    # stated from one this system derived, and after the next few lines the variable cannot
+    # tell them apart.
+    grams_stated = grams is not None
     method = source
     if grams is None:
         if servings is not None and cached["serving_g"]:
@@ -631,6 +636,11 @@ def resolve_item(cur, item_text, *, grams=None, servings=None, brand=None, sourc
             # CLAIMED. A weighed portion of an Open Food Facts product is `weighed` by width
             # and `off_product` by provenance, and collapsing the two would lose one of them.
             "estimate_method": outcome.get("estimate_method"),
+            # REQ-NUT-032's value, which is a THIRD fact and not either of the two above: the
+            # width applied, the source's claim, and the method the requirement enumerates.
+            "stored_method": stored_estimate_method(
+                source_claim=outcome.get("estimate_method"), grams_stated=grams_stated,
+                resolved_source=source),
             "leg": outcome["source"], "from_cache": bool(outcome.get("from_cache")),
             "nutrition_status": outcome.get("nutrition_status", "resolved"),
             "brand": cached.get("brand"), "food_id": food_id, "alias_id": alias_id,
@@ -697,6 +707,77 @@ def resolve_drink(cur, *, volume_ml, abv_percent, abv_from_label,
 SUBJECT_DAY_RULE_VERSION = "v1-2026-08-23"          # matches tools/importers/common.py
 UNRESOLVED_METHOD = "unresolved"                    # REQ-NUT-040's estimate_method
 
+# REQ-NUT-032. The stored `estimate_method` of a row carrying a nutrient interval is EXACTLY
+# one of these five. Not a convention — the requirement enumerates them.
+#
+# THIS IS NOT WHAT WAS BEING STORED, and the gap is why `nutrition_display` could not be wired.
+# `persist_resolution` wrote `resolved["estimate_method"]`, which is the SOURCE's claim —
+# `usda_foundation`, `off_product` — so a Foundation-resolved row carried a value outside this
+# set. `nutrition_display.TIGHT_METHODS` and `METHOD_WEIGHT` speak this vocabulary, so they
+# matched nothing that had actually been stored: REQ-NUT-045's visual weight fell through to
+# "light" for everything and REQ-NUT-046's restrict mode returned an empty set for every day.
+# A display layer whose vocabulary does not intersect the stored data cannot be connected, and
+# that — not the absence of a caller — was the real reason it had none.
+REQ_NUT_032_METHODS = frozenset(
+    {"weighed", "labelled", "portion_table", "photo_estimate", UNRESOLVED_METHOD})
+
+
+def stored_estimate_method(*, source_claim, grams_stated, resolved_source=None):
+    """The REQ-NUT-032 value for a resolution. Provenance is NOT this column.
+
+    The source is not lost by this. It stays on the `foods_cache` row the resolution came from
+    and in the resolution's own `source`/`estimate_method` fields; what changes is only which of
+    the two facts occupies a column the requirement reserves for the method.
+
+    **1. A manufacturer's label is `labelled`, and this outranks a stated mass.** Not obvious,
+    and the integration owner initially ruled the other way before a USDA acceptance test
+    caught it. The column governs the INTERVAL WIDTH — REQ-NUT-035/036/037 are each "WHEN
+    `estimate_method` = X, SHALL set the width" — so it names whichever error source dominates
+    what is left. Weighing removes PORTION error; it does nothing about COMPOSITION error. So:
+
+        weighed GENERIC food   portion error ~0, composition uncertain      -> `weighed`
+        weighed BRANDED food   portion error ~0, composition = label        -> `labelled`
+
+    REQ-NUT-035's own rationale says "a weighed GENERIC food", and warns its width may prove
+    *wider* than a label's legal tolerance rather than tighter. Calling a weighed branded bar
+    `weighed` would apply the uncalibrated generic-composition assumption to a product whose
+    composition is legally bounded.
+
+    **2. A whole serving count against a USDA Branded per-serving gram weight is `labelled`.**
+    REQ-NUT-050 says so outright: multiply the Branded record's per-serving gram weight by the
+    count, store the serving definition, and set `estimate_method = 'labelled'` so REQ-NUT-036's
+    width governs. The label defines what a serving is, so "2 servings" of a labelled product is
+    a label claim, not an estimated portion.
+
+    This also removes an inconsistency that was already live: `resolve_from_cache` sets
+    `estimate_method = 'labelled'` for a cached `usda_branded` row, while the fresh Branded leg
+    sets it to `'usda_branded'`. The same food therefore stored `labelled` from cache and
+    `portion_table` on a fresh resolution — the width a reader sees depending on whether someone
+    had asked for that food before.
+
+    **3. Everything else that got its quantity from a portion is `portion_table`** — Joe's own
+    `portions` row, a Foundation or Open Food Facts declared serving.
+
+    **Open Food Facts is deliberately NOT extended to `labelled`, and that is a decision.**
+    REQ-NUT-050 names the USDA Branded data type and nothing else. OFF is a crowd-sourced
+    transcription of labels rather than the label, and `labelled` is one of
+    `nutrition_display.TIGHT_METHODS`: promoting it would put a figure nobody can re-check
+    against the product into the tight class, which is what ADR-0106 forbids and what
+    `resolve_from_cache`'s REQ-NUT-014 guard exists to stop. Widening the requirement to cover a
+    source it does not name would be this function inventing a rule (RULE-09).
+
+    **KNOWN GAP, recorded not silently handled.** REQ-NUT-052 requires the FRACTIONAL part of a
+    count — "2.5 servings" — to take `portion_table` and REQ-NUT-037's wider interval, because a
+    stated fraction of a serving is an estimated portion. `resolve_item` multiplies a single
+    `servings` float and does not split whole from fractional, so a fractional Branded count
+    currently takes the whole count's `labelled` width. Narrower than the requirement asks for,
+    which is the wrong direction, and it needs the split in `resolve_item` rather than a change
+    here.
+    """
+    if source_claim == "labelled" or resolved_source == "usda_branded":
+        return "labelled"                       # REQ-NUT-014 / REQ-NUT-050; see branches 1 & 2
+    return "weighed" if grams_stated else "portion_table"
+
 
 def _registry_units(cur, keys, schema="core"):
     """metric_key -> (unit, state_class), from the registry rather than from a literal here.
@@ -742,6 +823,18 @@ def persist_resolution(cur, resolved, *, raw_capture_id, occurred_at, subject_da
     INV-1 holds by construction — every atom points at the capture the item was uttered in.
     """
     units = _registry_units(cur, resolved["nutrients"], schema)
+    # REQ-NUT-032, ENFORCED rather than assumed. Until this line the column held the source's
+    # claim (`usda_foundation`, `off_product`) for every non-branded resolution — outside the
+    # five values the requirement enumerates, and outside the vocabulary `nutrition_display`
+    # reads, which is why nothing could be wired to it. Raising here rather than writing an
+    # unexpected value keeps the next such drift from being discovered a second time by a
+    # display layer that quietly matches nothing.
+    method = resolved.get("stored_method") or stored_estimate_method(
+        source_claim=resolved.get("estimate_method"), grams_stated=False)
+    if method not in REQ_NUT_032_METHODS:
+        raise ValueError(
+            f"REQ-NUT-032: estimate_method must be one of {sorted(REQ_NUT_032_METHODS)}; "
+            f"refusing to store {method!r}")
     written = []
     for key, (low, point, high) in sorted(resolved["nutrients"].items()):
         if key not in units:
@@ -759,7 +852,7 @@ def persist_resolution(cur, resolved, *, raw_capture_id, occurred_at, subject_da
                 values (%s, 'consume', %s, %s, 'hour', %s, %s, 'observed',
                         %s, %s, %s, %s, %s, %s, %s, 'inferred', %s, %s)""",
             (raw_capture_id, key, occurred_at, subject_day, SUBJECT_DAY_RULE_VERSION,
-             low, point, high, resolved["estimate_method"], unit, state_class,
+             low, point, high, method, unit, state_class,
              trust_level, evidence_span, code_version))
         written.append(key)
     return written

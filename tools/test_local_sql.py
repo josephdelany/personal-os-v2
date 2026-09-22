@@ -65,6 +65,11 @@ TESTS = ("tests/test_ask_ranges.py", "tests/test_ask.py", "tests/test_ask_operat
          # counted as nothing -- the "counted but never executed" failure again, this time
          # caught by the worker who wrote them rather than by an audit.
          "tests/test_nutrition_usda.py",
+         # B12 §E.3/§G.1. The read side: `nutrition_display` had no caller, and these enter
+         # through `tools/nutrition_day.py:main()` against stored atoms. Registered in the same
+         # commit that adds them — an unregistered socket-gated file skips everywhere and
+         # counts as nothing, which is how the previous one nearly shipped.
+         "tests/test_nutrition_day.py",
          "tests/test_ontology_constraints.py",
          # INTENT_COVERAGE R2: the recorded training history. The importer discarded every
          # `<Workout>` element, so these had nowhere to run before 0070.
