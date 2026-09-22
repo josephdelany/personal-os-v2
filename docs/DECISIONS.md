@@ -108,3 +108,6 @@ rule for branded items (REQ-NUT-050/051).
 | ADR-0137 | Accepted | 2026-09-10 | [The nutrition cascade becomes the execution path](adr/0137-nutrition-integration.md): `resolve_item` now walks the four-leg cascade instead of a single cache read; `nutrition_off` gains its first non-test caller. Three behaviour changes forced by making the cache a leg, including REQ-NUT-016 holding offline and REQ-NUT-014 enforced at the cache leg. `core.food_aliases` still does not exist and the bridge's cost is stated, not hidden. |
 
 | ADR-0142 | Accepted | 2026-09-22 | [Autonomous backend execution](adr/0142-autonomous-backend-execution.md): existing plan/checkpoint own the M0–M6 loop; local 15-minute monitor reports checkpoint age without launching agents, writing production or certifying release. |
+
+| ADR-0143 | Accepted locally; deployment held | 2026-09-22 | Authenticated capture Worker and atomic service-only receipt; exact rejection retention; legacy cutover remains open; lifecycle decision resolved by ADR-0144 |
+| ADR-0144 | Accepted by Joe | 2026-09-22 | REQ-CAP-025..027 use append-only processing history and a current-status view; raw capture immutability, nightly retries and 72-hour review retained |

@@ -156,16 +156,24 @@ display a persistent indicator stating the exact count of unsynced entries.
 ### A.6 Downstream service failure
 
 **REQ-CAP-025** (Unwanted behaviour) IF the transcription service or the extraction service returns
-any non-2xx status, THEN the ingest endpoint SHALL set `raw_captures.processing_status =
-'pending_enrichment'`, SHALL write the provider error code to `raw_captures.last_error`, and SHALL
-still return HTTP 202 to the capture Shortcut.
+any non-2xx status, THEN the enrichment path SHALL append a processing event linked to
+the immutable raw capture with status `pending_enrichment` and the provider error code,
+SHALL expose that status and error through a current-processing-status view, and the
+ingest endpoint SHALL still acknowledge the durably stored capture with HTTP 202.
+The system SHALL NOT update the raw capture to record processing progress.
 
-**REQ-CAP-026** (State-driven) WHILE a `raw_captures` row has `processing_status =
-'pending_enrichment'`, the resolution job SHALL re-attempt enrichment on each nightly run.
+**REQ-CAP-026** (State-driven) WHILE a capture's current-processing-status view has
+`processing_status = 'pending_enrichment'`, the resolution job SHALL re-attempt
+enrichment on each nightly run and SHALL append the outcome to processing history.
 
-**REQ-CAP-027** (Unwanted behaviour) IF a `raw_captures` row has been in `processing_status =
-'pending_enrichment'` for more than 72 hours, THEN the resolution job SHALL add it to the review
-list with reason `enrichment_stalled`.
+**REQ-CAP-027** (Unwanted behaviour) IF a capture's processing history shows that it
+has remained in `pending_enrichment` for more than 72 hours, THEN the resolution job
+SHALL add it to the review list with reason `enrichment_stalled`. Repeated failed
+attempts SHALL NOT reset that pending interval.
+
+*Storage-contract amendment approved by Joe on 2026-09-22 (OQ-83, ADR-0144):
+append-only processing history and a current-status view replace raw-capture
+updates; the acknowledgement, nightly retry and 72-hour review obligations remain.*
 
 **REQ-CAP-028** (Ubiquitous) The system SHALL implement transcription behind a single provider
 function whose implementation is selected by one environment variable, so that the provider can be

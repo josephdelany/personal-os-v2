@@ -7541,3 +7541,36 @@ egress or cost behavior changed. Tests do not establish hosting, deployment or
 observed traffic. WHAT I DID NOT DO: durable insert/conflict/retry integration or
 production deployment. Those are the next active unit; RULE-02/lifecycle-column
 conflict must be resolved explicitly, not by following B16's stale UPDATE recipe.
+
+
+## 2026-09-22 — durable capture receipts, restricted HTTP ingress, OQ-83 resolved
+
+REQ-CAP-006..009/011/016..018: migration0075 validates/persists raw captures or
+exact authenticated rejection bodies; atomic INSERT RETURNING distinguishes
+created/duplicate. Real Cloudflare Worker authenticates before body, requires an
+explicit commit receipt, and returns202/200/400/503 without leaking provider/DB
+error details. No model call can interrupt acknowledgement. Write-only scoped
+JWT replaces the rejected service-role design; effective private-table/PUBLIC-RPC
+checks caught and closed six ambient application grants while retaining owner APIs.
+Unexpected pre-existing ingress role fails closed. ADR-0143 records $0/capabilities
+and the concrete deployment gates. No additional service dependency or npm package.
+
+Independent reviewer plus local adversarial cases: two JSONB error cases failed
+before fix, platform-context argument mismatch fixed/tested, excessive credential
+removed, PUBLIC grants repaired, role collision refused. Eight quality lenses and
+remaining evidence limits are in COMPLETION_AUDIT. Full sanctioned writer:1061
+passed/649 skipped/0fail/errors (180.37s). Full disposable SQL:816 passed/1 skipped
+(176.80s), including spine invariants; generic RULE-04 remains pending. Chain:74
+migrations/609 statements. Layout43/43; diff checks clean. Targeted receiptSQL21;
+Node HTTP8 via pytest wrapper. Tested de97615 + dirty source hashes/artifacts in
+ignored .local/evidence/capture-ingress. Ledger unchanged14/15; no manual edits.
+
+Joe explicitly approved append-only processing history/current-status view.
+OQ-83 resolved, REQ-CAP-025..027 amended, ADR-0144 records approval and preserved
+nightly-retry/72-hour-review obligations. Next unit is actual persisted lifecycle.
+
+WHAT I DID NOT DO: production queries/writes or deployment; scoped-token issuance;
+real post-commit readback; phone cutover/replay; legacy anonymous RPC retirement;
+enrichment/retry implementation; real two-process proof (OQ-82). Live ACL/RLS of
+both scoped and anon credentials must be inspected before enabling the route.
+The old Python contract helper is not the Worker and remains no hosting evidence.

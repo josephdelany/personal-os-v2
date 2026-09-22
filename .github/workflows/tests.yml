@@ -21,6 +21,8 @@ jobs:
         with: {fetch-depth: 0}
       - uses: actions/setup-python@v5
         with: {python-version: '3.12'}
+      - uses: actions/setup-node@v4
+        with: {node-version: '24'} # ADR-0143: built-in Web API tests, no npm dependencies
       # B13 (ADR-0059) adds PyYAML and ofxtools. PyYAML reads the per-institution CSV mappings
       # REQ-FIN-014 requires; ofxtools parses OFX/QFX/QBO, which REQ-FIN-013 mandates by name
       # (its Direct-Connect fetch client is never used). Both MIT, pure Python, no service, no

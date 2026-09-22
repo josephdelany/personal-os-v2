@@ -2121,3 +2121,19 @@ included in a total.
 
 *What depends on it:* REQ-CAP drop-folder acceptance evidence, and whether
 `.github/workflows/capture-acceptance.yml` is a gate or merely a job that runs.
+
+
+## OQ-83 — capture enrichment lifecycle conflicts with immutable raw evidence
+
+Resolved by Joe, 2026-09-22: **approved append-only processing history and
+current-status view**. REQ-CAP-025..027
+name updates to raw_captures.processing_status/last_error, but RULE-02, migration
+0012 and ADR-0035 prohibit these updates. B16's update recipe is not executable.
+
+Recommendation: amend those three requirements to append processing events linked
+to capture_id and expose current status/error through a view. Preserve nightly
+retry, 72-hour stalled review, retained transcripts and provider-code trace. Do not
+relax raw-capture immutability. This is a storage-contract amendment, not permission
+to change measurement definitions. Joe explicitly approved this recommendation;
+the requirements are amended and implementation is now authorized (ADR-0144).
+Implementation and deployment are not implied by the ruling.

@@ -1,0 +1,7 @@
+name = "personal-os-capture-ingest"
+main = "index.mjs"
+compatibility_date = "2026-09-22"
+workers_dev = false
+# No route or secret committed. Deployment/cutover requires approval and Free plan.
+# Configure CAPTURE_TOKEN, SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_CAPTURE_JWT
+# as Worker secrets. No service-role key or project signing secret in this process.

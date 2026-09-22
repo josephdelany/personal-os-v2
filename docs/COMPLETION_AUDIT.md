@@ -2,6 +2,30 @@
 
 ## Current quality review — 2026-09-22
 
+### Latest unit: durable ingress and processing-history approval
+
+Migration0075 plus the Cloudflare Worker are implemented and tested locally, not
+hosted or observed. Joe resolved OQ-83; ADR-0144 amends REQ-CAP-025..027 without
+relaxing raw-record immutability. Processing history/retry wiring is the next unit.
+
+| Review lens | Current result and limits |
+|---|---|
+| Contract fidelity | PASS locally for client identity, durable-receipt mapping, exact rejection retention, atomic duplicates; full capture requirements remain partial |
+| Complete user paths | PARTIAL: actual Worker export and real SQL RPC exercised separately; no deployed HTTP-to-commit/readback or device replay |
+| Failure behavior | PASS for tested invalid auth/config/input, SQL conflicts, storage failure, missing/rollback/mismatched receipt; downstream recovery and real concurrency still unverified |
+| Data integrity | PASS for immutable original, captured/recorded times, first-write retention; generic RULE-04 remains pending |
+| Access/privacy/cost | PASS local scoped-role/table/RPC checks and credential refusal; PUBLIC grant and broad-credential findings repaired; live legacy ACL/RLS and Free-plan configuration not verified |
+| Runtime/deployment | NOT VERIFIED: deployable entrypoint exists; no route/secret/device deployment; default-branch workflow gap persists |
+| Operations/recovery | PARTIAL: exact deployment/cutover prerequisites documented; enrichment/retries and post-commit recovery remain |
+| Evidence/reproducibility | PASS for stated local scope: 1061/649 deterministic,816/1 SQL,74 migrations/609 statements,43/43 layout; ignored artifacts/source hashes identify de97615 plus dirty sources |
+
+Independent review reproduced two rejected-body losses and identified Worker
+context misuse, excessive service-role capability and inherited PUBLIC execution.
+All repaired, including refusing an unexpected pre-existing ingress role. The
+sanctioned ledger remains14/15, not a backend completeness score. Historical
+findings below describe earlier revisions; do not treat repaired auth as still open.
+
+
 ### Goal follow-up: merge and authentication repair
 
 The pending nutrition merge was preserved and concluded at `a8bcbf4`; autonomous

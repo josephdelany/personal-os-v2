@@ -2,39 +2,57 @@
 
 This is the single active instruction sheet. Follow EXECUTION_PLAN's autonomous
 loop and M0–M6; older checkpoints below are evidence, not competing task orders.
-Joe will start `/goal` separately. Do not start backend execution from the monitor.
+Joe's `/goal` is active. Do not start backend execution from the monitor.
 
 <!-- backend-control:start -->
 ```json
 {
   "version": 1,
   "status": "running",
-  "updated_at": "2026-09-22T14:03:15+00:00",
-  "last_progress_at": "2026-09-22T14:03:15+00:00",
-  "unit": "M3-capture-durable-ingress",
-  "next_action": "Review existing capture RPC/ADR-0034 and immutable-record contract; implement durable insert/conflict outcomes in the actual serving path, with regression cases for duplicates and post-storage enqueue failure. Resolve lifecycle status contract explicitly; do not weaken append-only enforcement."
+  "updated_at": "2026-09-22T16:56:19+00:00",
+  "last_progress_at": "2026-09-22T16:56:19+00:00",
+  "unit": "M3-capture-processing-history",
+  "next_action": "Commit verified receipt unit, then implement migration0076 append-only processing events/current-status projection under ADR-0144; wire persisted retry/stalled-review behavior and test through real consumer."
 }
 ```
 <!-- backend-control:end -->
 
-## Current active unit — durable capture ingress
+## Current active unit — append-only capture processing history
 
-- **Outcome/requirements:** connect durable storage acknowledgement and duplicate
-  outcomes to the actual ingress path (REQ-CAP-011/016/017/018; downstream
-  REQ-CAP-025..027 where the lifecycle contract is resolved). Read ADR-0034/0130
-  before choosing how to extend the existing PostgREST RPC.
-- **Acceptance:** 202 only after durable insertion; a database-suppressed duplicate
-  returns 200 and schedules no duplicate processing; missing persistence is never
-  success; downstream failure cannot undo capture or prevent acknowledgement;
-  state/trace can be read back. Real concurrency fixture remains subject to OQ-82.
-- **Owned files:** root owns `tools/engines/ingest_endpoint.py`,
-  `tests/test_ingest_endpoint.py` and maintained checkpoint/audit/progress docs.
-  Allocate new adapter/schema files after the contract review, before editing.
-- **Contract issue to settle explicitly:** REQ-CAP-025..027 refer to UPDATEable
-  raw-capture lifecycle columns, but RULE-02 and migration 0012 forbid all updates,
-  confirmed in ADR-0035. Do not follow B16's stale UPDATE recipe or relax triggers.
-  Immutable processing history/current projection is a candidate to assess and
-  record; no requirement rewrite is silently authorized here.
+- **Outcome/requirements:** implement Joe-approved REQ-CAP-025..027 storage amendment
+  (ADR-0144, OQ-83 resolved), retaining durable acknowledgement and RULE-02.
+- **Acceptance:** persisted provider failure/success history linked to raw capture;
+  current-status readback; no synthetic success for unprocessed captures; retries
+  select pending work on each nightly run; repeated failures cannot reset pending
+  age; >72-hour review reason enrichment_stalled; duplicate attempts are safe;
+  raw captures stay byte-for-byte unchanged. Existing terminal ingestion states
+  (e.g. file/location imports) must survive the projection.
+- **Owned files:** root reserves migration0076; processing engine/runner/tests to be
+  named before edits, plus SQL harness, active workflow and maintained docs. No
+  implementation worker is active. Read ADR-0063/0064/0116 and current egress/budget
+  contracts before integrating media calls; preserve capability separation.
+- **Receipt unit verified locally:** migration0075 and actual Cloudflare Worker
+  entrypoint implement authenticated raw-body retention, client UUIDv7 identity,
+  atomic insert/conflict receipts and HTTP 202/200/400/503 mapping. Scoped ingress
+  role avoids service-role read capability; effective PUBLIC grants were repaired.
+  Exact commit-preference header is mandatory, so rollback/unproven storage never
+  acknowledges. No enrichment call occurs inside the HTTP acknowledgement path.
+- **Evidence at de97615 + recorded dirty sources:** 21 targeted SQL tests; eight
+  Node HTTP cases executed by one pytest wrapper; full sanctioned writer **1061
+  passed / 649 skipped**, zero failures/errors (180.37s); full disposable SQL **816
+  passed / 1 skipped** (176.80s); chain **74 migrations / 609 statements**; layout
+  **43/43**. Ledger unchanged14/15. Skips are not passes; generic RULE-04 stays
+  pending, though disposable spine invariant tests passed. Exact reports, logs and
+  source hashes: ignored `.local/evidence/capture-ingress/`.
+- **Review repaired:** JSONB Unicode/numeric rejection escapes (two demonstrated
+  failures), Worker ExecutionContext/transport mixup, excessive server credential,
+  inherited PUBLIC application RPC execution, and pre-existing-role adoption.
+  Independent reviewer confirms remaining live ACL/cutover evidence gaps.
+- **NOT deployed/observed:** no production writes, Worker route, scoped JWT
+  provisioning, device replay, post-commit readback or real concurrency proof.
+  Legacy anonymous RPC remains until approved cutover; live anon/ingress private
+  reads must be audited including old public tables. See Worker README. OQ-82 stays
+  open. Do not treat prepared code as complete capture recovery or backend release.
 - **Prior unit complete locally:** REQ-CAP-008 rejects missing/empty/non-string
   credentials before body access. Seven new cases failed against old code; focused
   capture suite **75/75**; sanctioned full suite **1060 passed / 628 skipped**, zero
@@ -66,6 +84,9 @@ Joe will start `/goal` separately. Do not start backend execution from the monit
   secret (never chat). Continue independent code work; no repeated auth probes
   until credentials change. Deployment authorization and reserved definitions remain
   required; OQ-82 is not implicitly resolved.
+  **Joe's steering:** remind him later. Reminder trigger is the next production
+  verification/deployment boundary; do not repeat the credential request during
+  independent local work or imply that a clock-based notification was scheduled.
 - **Monitor:** installed 900-second launchd schedule, initial run observed, header
   now `running`; it does not launch agents or prove release. Goal remains active.
 

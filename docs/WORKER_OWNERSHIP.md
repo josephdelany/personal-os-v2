@@ -8,7 +8,13 @@ files at `a8bcbf4`. No child agent is active; the nutrition worktree has no trac
 uncommitted changes and its branch last changed September 11. Historical
 assignments below are not evidence of active work today.
 
-Root now owns the bounded REQ-CAP-008 repair in
+Root now owns durable capture ingress, allocating migration **0075** and ADR
+**0143**, `workers/capture-ingest/`, `tests/test_capture_ingress_sql.py`,
+`tests/test_capture_http.py`, `tests/capture_http.test.mjs`,
+`tools/test_local_sql.py`, `.github/workflows/tests.yml`, and maintained docs.
+No deployment is authorized by this allocation. Root also retains
+ADR **0144** for Joe's approved OQ-83 storage-contract amendment. Migration **0076**
+is reserved for processing history after the receipt unit closes. Root retains
 `tools/engines/ingest_endpoint.py` and `tests/test_ingest_endpoint.py`, and maintained
 checkpoint/audit/progress documents. Subsequent units must update ownership before
 overlapping an old assignment. No parallel implementation is active.
