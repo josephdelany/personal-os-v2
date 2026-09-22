@@ -9,6 +9,8 @@ Use each document for one purpose. Updated 2026-09-09.
 | Integrity rules | `docs/CONSTITUTION.md` | Entry; relevant rules during edits |
 | Architecture | `docs/BACKEND_ARCHITECTURE.md` | Component/contract changes |
 | Work order and acceptance | `docs/EXECUTION_PLAN.md` | Select/close a unit |
+| Autonomous loop, review cadence, goal prompt | `docs/EXECUTION_PLAN.md` | Starting/resuming a backend goal; scheduler setup/removal |
+| Local checkpoint monitor | `ops/backend_watchdog.py`; ignored `.local/backend_watchdog/status.json` | Check monitor health; never use it as release evidence |
 | Required behavior | `specs/*/requirements.md` | Relevant subsystem only |
 | Decisions | `docs/DECISIONS.md` index, `docs/adr/` records | Relevant decision before changing it |
 | Undecided facts | `docs/OPEN_QUESTIONS.md` | Relevant dependency only; resolved entries are history |

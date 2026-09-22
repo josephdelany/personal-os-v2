@@ -1,5 +1,18 @@
 # Worker ownership — session 21
 
+## 2026-09-22 goal resumption
+
+Joe explicitly authorized reconciling the pending merge and completing M0–M6.
+The root goal owner reviewed/preserved and integrated the four pending nutrition
+files at `a8bcbf4`. No child agent is active; the nutrition worktree has no tracked
+uncommitted changes and its branch last changed September 11. Historical
+assignments below are not evidence of active work today.
+
+Root now owns the bounded REQ-CAP-008 repair in
+`tools/engines/ingest_endpoint.py` and `tests/test_ingest_endpoint.py`, and maintained
+checkpoint/audit/progress documents. Subsequent units must update ownership before
+overlapping an old assignment. No parallel implementation is active.
+
 Who may edit what, so no two sessions edit one file. Confirmed against `48745d9` before any
 worker began. The integration owner (main) allocates every migration and ADR number.
 

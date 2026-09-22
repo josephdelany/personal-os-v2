@@ -1,3 +1,94 @@
+# Autonomous backend control — 2026-09-22
+
+This is the single active instruction sheet. Follow EXECUTION_PLAN's autonomous
+loop and M0–M6; older checkpoints below are evidence, not competing task orders.
+Joe will start `/goal` separately. Do not start backend execution from the monitor.
+
+<!-- backend-control:start -->
+```json
+{
+  "version": 1,
+  "status": "running",
+  "updated_at": "2026-09-22T13:57:24+00:00",
+  "last_progress_at": "2026-09-22T13:57:24+00:00",
+  "unit": "M3-capture-authentication",
+  "next_action": "Add falsifying REQ-CAP-008 cases for absent, empty, malformed and mismatched tokens; ensure body and callbacks are untouched, fix the handler, run focused capture checks. Then continue durable insertion/retry integration and serving path."
+}
+```
+<!-- backend-control:end -->
+
+## Current active unit — capture authentication
+
+- **Outcome/requirements:** reject every absent or invalid bearer credential before
+  reading the body or invoking storage/enrichment (REQ-CAP-008, ADR-0130).
+- **Acceptance:** absent/empty/malformed expected or supplied token; wrong token;
+  Unicode token comparison must not crash; valid token still reaches validation.
+  Use a body-access trap and callback traps, not just `body_read=False` assertions.
+- **Owned files:** `tools/engines/ingest_endpoint.py`, `tests/test_ingest_endpoint.py`;
+  main owns this bounded repair, plus checkpoint/progress integration documentation.
+- **Next action:** falsifying tests, minimal repair, focused capture checks. Durable
+  insertion/conflict outcomes and downstream retries remain the next capture unit;
+  no hosted endpoint or full capture-completion claim is made by this repair.
+- **M0 closed:** merge `a8bcbf4` integrates the four nutrition files, preserving their
+  reviewed working contents. Source hashes and original index/worktree patches are
+  in ignored `.local/recovery/goal-start/`. No active child agent exists; nutrition
+  worker branch last changed September 11 and has no tracked uncommitted changes.
+  User explicitly authorized reconciliation. The old merge is concluded.
+- **Integration evidence:** sanctioned writer `tools/update_features.py --strict`
+  with production URL/socket/checks unset: **1047 passed / 628 skipped**, 0 failures
+  or errors (143.22 s). Reuses today's **795 passed / 1 skipped** disposable suite
+  and **73 migrations / 592 statements** chain: the four backend source hashes
+  were unchanged; only the 17 separately passing watchdog tests were added.
+  Disposable spine tests include invariant queries; generic RULE-04 stays pending.
+- **Ledger:** sanctioned writer changed 9 failing entries to named-test passing;
+  **14/15** narrow features now say passing. This is not scenario completion: its
+  F-013 description says an end-to-end slice but its proof is an origin helper test.
+  F-006's reported no-database regression is explained by its disposable-only test,
+  which passed in the SQL suite. Do not hand-edit the ledger or use it as release proof.
+- **Remaining nutrition findings (M3):** REQ-NUT-052 fractional Branded servings are
+  not split; empty days currently render a zero interval and can imply a deficit;
+  daily-total midpoint replaces asymmetric stored points; stored method and applied
+  width must be reconciled. These were review findings, not repaired by the merge.
+- **External hold revalidated:** production connection rejects the configured
+  credential with **SQLSTATE 28P01** on September 22, including outside the sandbox.
+  No production queries/writes completed. Joe was asked to refresh the environment
+  secret (never chat). Continue independent code work; no repeated auth probes
+  until credentials change. Deployment authorization and reserved definitions remain
+  required; OQ-82 is not implicitly resolved.
+- **Monitor:** installed 900-second launchd schedule, initial run observed, header
+  now `running`; it does not launch agents or prove release. Goal remains active.
+
+# Quality review — 2026-09-22 (no backend implementation integrated)
+
+Joe requested multiple independent quality checklists because he is directing
+implementation without routine code review. The maintained review lenses are now
+in EXECUTION_PLAN, with findings and limits in COMPLETION_AUDIT's 2026-09-22 entry.
+Read that entry before relying on the older status below.
+
+Fresh evidence at `6fe21e6` plus pre-existing nutrition work: **1030 passed / 628
+skipped** without production credentials; **795 passed / 1 skipped** on disposable
+PostgreSQL; layout **43/43**; migration chain **73 migrations / 592 statements**.
+Merged evidence remains **673 of 685 named-test requirements**, not backend
+completion. Engine reachability is now **10 scheduled / 13 CLI / 33 tests-only**:
+the uncommitted `nutrition_day.py` connects `nutrition_display`.
+
+Fresh GitHub reads confirm `v2-day1` is still default, lacks freshness/tests YAML,
+and the latest tests run is still September 3. Scheduled analysis/extract/keepalive
+runs succeeded September 22; input freshness was not queried. No production DB
+read/write or deployment occurred.
+
+**Open capture findings for its implementation owner:** absent request/configured
+tokens compare equal and return 202 (REQ-CAP-008); the handler ignores database
+insert outcomes needed for racing duplicate suppression (REQ-CAP-016/017); enqueue
+exceptions escape after a successful insert callback. These were pure in-memory
+probes, not a hosted endpoint test. Require fail-closed configuration, durable
+acknowledgement, conflict-result handling and recovery in the actual serving path.
+
+Preserve the four pre-existing changed nutrition/test-harness files. This review
+changed documentation only and did not stage, repair or integrate their work.
+M1 remains first when actionable; external holds do not block independent backend
+work. No backend release is approved by this audit.
+
 # Checkpoint — 2026-09-11 (integration boundary, `2e9f547`)
 
 ## LATER: the alias bridge is closed (0074)

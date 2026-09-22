@@ -7413,3 +7413,104 @@ on observations that do not exist yet.
 **Requirements:** REQ-REC-003/004/005/006/008/009/010/011/012/013/015/016; INV-4, INV-5;
 RULE-01, RULE-02, RULE-04, RULE-13. **ADR:** 0134, 0135 (0136, 0137 from the workers).
 **Commits:** 5316ecc, b3c1844, edb6625, b6e0087, 0b46264, 0dbddad, a5839c0, ffc8b81, cd39714.
+
+## 2026-09-22 — backend quality audit across eight review lenses
+
+Joe requested multiple checklists to support implementation without personal code
+review. Added the review process to `docs/EXECUTION_PLAN.md`; current findings,
+commands, limits and next acceptance cases are in `docs/COMPLETION_AUDIT.md` and
+linked from `docs/NEXT_SESSION.md`. This is documentation/audit work under RULE-00,
+RULE-01, RULE-29 and the existing definition of done, not new feature completion.
+
+At `6fe21e6` plus the four pre-existing changed nutrition/test-harness files:
+no-production suite 1030 passed / 628 skipped; disposable SQL 795 passed / 1
+skipped; layout 43/43; chain clean from empty, 73 migrations / 592 statements.
+Merged named-test evidence 673/685; 12 skipped. Temporary PostgreSQL servers were
+stopped. Sandbox shared-memory restrictions required approved escalation for the
+local servers. GitHub metadata was read with approved network escalation.
+
+Review disposition: NOT RELEASE READY. Pure probes exposed missing-token
+acceptance in the unhosted capture handler (REQ-CAP-008), an absent insert-conflict
+result contract (REQ-CAP-016/017), and enqueue exceptions escaping after successful
+insert callbacks. Existing passing tests do not cover these integrated cases.
+GitHub confirms default `v2-day1` still lacks freshness/tests workflows; latest
+tests run September 3. Successful September 22 jobs do not prove fresh input.
+
+WHAT I DID NOT DO: no production database access, deployment, defect repair,
+feature-ledger change, full semantic certification, capture exception or release
+approval. Existing nutrition work and staging were preserved. No new ADR or
+migration applies to this audit/process clarification. Open implementation findings
+are recorded for the capture owner; reserved decisions remain Joe's.
+
+## 2026-09-22 — autonomous goal preparation and local monitor (ADR-0142)
+
+Joe requested loops, crons and an adapting instruction sheet before he submits
+`/goal`. Extended EXECUTION_PLAN with the M0–M6 resume/select/build/test/review/
+repair/continue loop, checkpoint cadence, anti-stall behavior, hold handling and
+the actual release stop condition. NEXT_SESSION now owns one validated control
+header plus the active acceptance contract; AGENTS and DOCUMENTATION_MAP route to
+it. No new master plan or duplicate work queue was introduced.
+
+Implemented `ops/backend_watchdog.py` and behavioral tests. It reads the checkpoint,
+locks/atomically replaces one ignored private status snapshot, refuses malformed
+or future-dated control, distinguishes timestamp refresh from progress, and never
+claims release verified. It has no database/network/model/subprocess dependency.
+The 15-minute launchd job was installed with approved filesystem/launchd escalation
+at `~/Library/LaunchAgents/com.personalos.backend-watchdog.plist`. Registration:
+`gui/502/com.personalos.backend-watchdog`, run interval 900 seconds. Its initial
+RunAtLoad firing wrote `awaiting_goal` at 2026-09-22T13:48:07Z; launchctl reports
+one run and exit 0. A later periodic firing is not yet observed.
+
+Verification: `env -u SUPABASE_DB_URL PYTHONPATH=. python3 -m pytest
+tests/test_backend_watchdog.py -q` — **17 passed**. Layout **43/43**. Generated
+plist passes `plutil -lint`; runtime state/plist are gitignored; staged/unstaged
+whitespace checks pass. Review covered invalid/missing controls, stale progress,
+no false release approval, no instruction mutation or private-text logging,
+overlap exclusion, atomic bounded status and schedule arguments. No backend
+engine/schema changed, so the earlier backend suite is not rerun for this tooling
+unit. No product requirement or feature-ledger status is claimed complete.
+
+WHAT I DID NOT DO: did not start the goal (Joe will), launch another coding agent,
+configure an API-funded model loop, deploy production workflows, change protected
+measurement decisions, or repair backend defects. The monitor cannot restart an
+externally stopped goal or send a chat notification. Full backend completion
+still requires the existing release gates and applicable production approvals.
+
+Commit disposition: a scoped local commit was attempted after verification and
+refused by Git: `cannot do a partial commit during a merge`. The pre-existing
+nutrition merge has MERGE_HEAD `99214f0f8c283bccb30ded83fead91b6359a47cb` and no
+unmerged entries. Removed only this audit/setup's newly added staging with
+`git restore --staged -- <explicit owned paths>`; all worktree files and the four
+nutrition files' original staging remain intact. Setup is saved locally and its
+monitor activated, but is not committed/reproducible from HEAD. M0 now explicitly
+starts with reviewing/reconciling that merge. No merge was aborted or concluded.
+
+## 2026-09-22 — M0 reconciliation completed; goal active
+
+User started the full M0–M6 goal. Reviewed existing index/worktree nutrition deltas
+and preserved original patches plus four source hashes in ignored local recovery
+files. No child agent is active, nutrition branch last changed September 11, and
+its worktree has no tracked edits. Concluded the existing merge as `a8bcbf4`, with
+only the four reviewed nutrition files staged; no work discarded or overwritten.
+
+Sanctioned integration ledger run (production URL/socket/checks removed): **1047
+passed / 628 skipped / 0 failures / 0 errors**, 143.22 seconds. Seventeen new passes
+are the monitor tests. Earlier same-day disposable **795 passed / 1 skipped** and
+chain **73 migrations / 592 statements** remain applicable: nutrition hashes and
+all other backend implementation/migrations were unchanged. SQL spine checks
+exercise invariant queries; the generic RULE-04 query remains pending, not passed.
+No new schema/architecture decision in the merge. Ledger now 14/15 named-test
+passing (nine transitions); its F-013 end-to-end description is not established by
+the cited origin helper. F-006's reported regression is a disposable test skipped
+in the no-database run, with passing SQL evidence already recorded. No hand edits.
+
+Review found remaining nutrition gaps in fractional serving handling, empty-day
+reporting, asymmetric point aggregation and stored-method/width agreement. Recorded
+in NEXT_SESSION for M3, not claimed fixed. Complete backend remains unachieved.
+
+A production SELECT-only connection attempt, repeated outside sandbox, was rejected
+with SQLSTATE **28P01**; no query completed or data was written. Asked Joe to refresh
+the configured secret without sharing it in chat; independent backend work continues.
+Next bounded unit: REQ-CAP-008 fail-closed token validation, with traps proving no
+body access/storage/enrichment occurs before authentication. Remaining serving and
+durable retry integration stays open after that unit.

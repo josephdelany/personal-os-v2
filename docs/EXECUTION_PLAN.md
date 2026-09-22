@@ -20,6 +20,159 @@ switching. A new bug in the active contract belongs in its acceptance list. Unre
 work goes to the relevant later milestone. No fabricated time estimate or completion
 percentage; report completed outcomes and remaining acceptance cases.
 
+## Autonomous loop (Joe's direction, 2026-09-22; ADR-0142)
+
+The objective is **M0 through M6, the complete backend**, with the release decision
+below as the stopping condition. M7 is outside this goal. `/goal` is the execution
+driver; a cron is not a coding agent. Start the goal only when Joe submits it.
+
+### Resume and select
+
+1. Read NEXT_SESSION's current control block and active-unit section, then CLAUDE,
+   CONSTITUTION, this plan, architecture and the relevant contracts. Inspect Git
+   status/worktrees before editing. Preserve other workers' changes and confirm
+   ownership; a historical worker assignment does not prove a live worker exists.
+2. Resume the active unit unless it is complete, newly blocked or displaced by
+   imminent data loss/an integrity defect. Select the earliest actionable milestone
+   dependency. Capture recovery has priority when actionable; otherwise continue
+   independent M2–M5 work. Do not restart completed inventory or planning because
+   a historical paragraph says "next".
+3. Write ONE bounded acceptance contract at the top of NEXT_SESSION: outcome,
+   requirements/ADRs, positive/negative/missing-data cases, owned files, dependency,
+   test commands and next action. Keep implementation/test/integration/deployment/
+   observation as separate states. Milestone tables below define the entire scope;
+   this active unit is one step, not a reduced definition of done.
+
+### Build, test, challenge, repair
+
+4. Reproduce the gap through the actual consumer when possible. Implement the
+   smallest coherent unit; add behavioral regression tests, including the failure
+   path. Use disposable databases and the sanctioned fixtures. A helper returning
+   the expected dictionary is insufficient proof of storage, hosting or delivery.
+5. Run targeted checks, then review with all eight quality lenses below. Try the
+   cases that would falsify the completion claim. Fix findings within the unit and
+   repeat affected checks. After two failed repair attempts on one case, stop
+   speculative changes, reread the contract and diagnose the cause. Record a clean
+   review's coverage and limits without inventing defects.
+6. At integration boundaries run the required full suite, disposable SQL, migration
+   chain when relevant, invariant and layout checks, and the sanctioned feature
+   ledger writer. Remove production credentials from local test environments;
+   never use bare pytest with a production URL. Keep JUnit artifacts and their
+   tested revision/dirty state, reconcile skips, and generate requirement evidence.
+   A green suite plus missing runtime connections is still partial work.
+7. Close the unit under the constitution's Definition of Done, use scoped commits
+   when permitted, update NEXT_SESSION and PROGRESS, and **continue immediately to
+   the next actionable unit**. Do not ask "shall I continue?" or stop merely because
+   one milestone, review, test run or context window ended.
+
+### Adaptive instruction sheet
+
+NEXT_SESSION is the living instruction sheet. Its single `backend-control` JSON
+block is a small scheduling header, not a second requirement ledger. Update it and
+the adjacent active-unit prose together after each unit, failed attempt, changed
+dependency, user steering, or before context handoff. During long work checkpoint
+at a safe boundary approximately every 30 minutes, identifying the running check
+and its log rather than launching it again.
+
+- `status`: `ready` before Joe starts; `running` while actionable work remains;
+  `held` only when all useful authorized work is externally blocked;
+  `release_declared` only after the release decision is evidenced.
+- `updated_at`: actual UTC checkpoint time. `last_progress_at`: actual time of the
+  last implemented change, completed verification, or concrete new diagnosis.
+  Updating prose or rerunning unchanged checks alone is not progress.
+- `unit` and `next_action`: the current bounded unit and exact next operation.
+  Record requirement IDs, acceptance cases, ownership, last command/result,
+  evidence references, open findings and holds in the adjacent prose.
+- Each hold names the missing fact/action, owner, affected requirements, evidence,
+  recommendation, and recheck trigger. Queue ordinary engineering gaps in the
+  relevant milestone; only reserved decisions belong in OPEN_QUESTIONS.
+- Adapt task order and methods to new evidence, never silently change scope,
+  measurement definitions, constitutional rules, acceptance thresholds or approved
+  architecture. An internal dependency is work, not an authorized deferral.
+
+### Scheduled checks and anti-stall loop
+
+| Trigger | Action | Meaning and limits |
+|---|---|---|
+| Each goal continuation / context restoration | Restore active unit; inspect latest checkpoint and watchdog snapshot | Continue work without redoing unchanged tests |
+| Every completed unit | Update evidence, holds, active unit and next action | Goal owner writes the instruction sheet; scheduler never rewrites it |
+| After two failed repairs of one case | Reproduce, inspect contract and diagnose | No test weakening or repeated blind patching |
+| Every 15 minutes, local launchd | `python3 ops/backend_watchdog.py --write-status` | Local snapshot only; advisory alert after 90 minutes without checkpoint/progress; no models, DB or production writes |
+| Each integration boundary | Full quality/release checks appropriate to the change | Publish evidence locally; no repeated full suite on every timer |
+| Once per UTC day while the goal runs, and before deployment | Read actual workflow/default-branch state and available source freshness; reconcile holds | Check only with available credentials; do not run a status command that writes production without authorization |
+| At M6 closure | Review every milestone/requirement/scenario and observed deployment, then disable the temporary watchdog | A fresh heartbeat or passing test count cannot authorize completion |
+
+The watchdog is macOS launchd (the local cron equivalent), label
+`com.personalos.backend-watchdog`. Its bounded snapshot is
+`.local/backend_watchdog/status.json` (gitignored). A recent `checked_at` proves the
+monitor ran; `checkpoint_recent` describes timestamps, not semantic progress.
+Missing/malformed/future-dated control is unhealthy. `release_verified` is always
+false: only the release review can certify the backend. A held state is reported
+without treating elapsed time as approval. Read the snapshot on each continuation;
+if stale, inspect ongoing work, diagnose and choose a useful next action.
+
+Local scheduling requires the Mac's user session; sleep/offline/app interruption
+is not solved by instructions. The watchdog cannot wake/restart a stopped `/goal`,
+does not invoke a model, and cannot send a chat notification. No scheduler-management
+tool for recurring agent sessions is exposed in the setup session. If the goal
+stops externally, resume it from NEXT_SESSION. Do not start a second writer to
+simulate continuity. Native scheduled-task availability is described in the
+[official documentation](https://learn.chatgpt.com/docs/automations).
+
+Existing production cron jobs are separate: capture import, freshness, tests and
+analysis require deployment/activation evidence. Their configuration is not proof
+they run. This setup authorizes the local monitor, not an implicit production
+cutover or publication of unreviewed backend code.
+
+Install/verify the monitor after tests pass (generated plist contains no secrets):
+
+```sh
+mkdir -p .local/backend_watchdog
+python3 ops/backend_watchdog.py --emit-launchd > .local/backend_watchdog/com.personalos.backend-watchdog.plist
+plutil -lint .local/backend_watchdog/com.personalos.backend-watchdog.plist
+mkdir -p ~/Library/LaunchAgents
+cp .local/backend_watchdog/com.personalos.backend-watchdog.plist ~/Library/LaunchAgents/
+launchctl bootstrap "gui/$(id -u)" ~/Library/LaunchAgents/com.personalos.backend-watchdog.plist
+launchctl print "gui/$(id -u)/com.personalos.backend-watchdog"
+cat .local/backend_watchdog/status.json
+```
+
+If already registered, inspect it rather than blindly bootstrapping again. At
+completion, `launchctl bootout "gui/$(id -u)/com.personalos.backend-watchdog"` stops
+the job; remove only its installed plist to prevent restart next login. Record
+removal. Keep production monitoring intact.
+
+### Holds and the actual stopping condition
+
+Prepare exact reviewable production actions before requesting the authorization
+required by CLAUDE. Ask for missing decisions once with recommendations, then work
+independently while waiting. OQ-48/OQ-51 and other reserved measurement decisions
+remain Joe's. OQ-82's fixture exception is not granted by this automation request.
+Do not poll an unchanged external hold every turn or manufacture an implementation
+substitute for a missing observation.
+
+If every remaining unit is externally held, record the exact unblock list and
+follow the goal runtime's blocked-state rules. In this environment, mark a goal
+blocked only after the same impasse recurs for three consecutive goal turns with
+no meaningful independent progress; resumed goals start a fresh audit. Never mark
+complete to stop the loop. Mark complete only when M6's release decision passes,
+with all authorized deferrals cited and all other required work finished. Report
+what is implemented, deployed and observed, and any permitted activation hold.
+
+### Prompt Joe can submit
+
+```text
+/goal Finish the complete Personal OS backend through M6 in docs/EXECUTION_PLAN.md.
+Follow its autonomous loop and eight quality checklists. Use docs/NEXT_SESSION.md
+as the living instruction sheet and update it after every unit and handoff.
+Start by preserving/reconciling current work, then repair and connect capture,
+prioritizing actionable recovery. Continue through all remaining backend milestones,
+not just capture. Build, test, challenge, repair, record evidence, and take the next
+action without asking whether to continue. Respect file ownership, reserved decisions,
+production authorization and all integrity rules. Work independent tasks around holds.
+Do not begin frontend construction or call the backend done until the release gate passes.
+```
+
 ## Milestones and dependency order
 
 | Milestone | Build coverage | Acceptance evidence |
@@ -90,6 +243,40 @@ its sanctioned writer. Its narrow ledger is not a full completion scoreboard. B2
 requirement ledger must include passing behavioral evidence and authorized deferrals;
 matching an ID to a passing test is an index, not proof of full requirement fidelity.
 Do not mass-defer requirements to obtain zero open items.
+
+## Quality review at backend boundaries
+
+Joe requested multiple independent checklists on 2026-09-22 because implementation
+is being directed without routine personal code review. The implementation owner
+must supply the evidence and explain the remaining risk in plain language. Apply
+these review lenses within the existing verification and release gates; they do
+not replace requirements or authorize new deferrals:
+
+- **Contract fidelity:** read the requirement, exercise its behavior, and inspect
+  the assertions. A passing test name alone does not prove the full contract.
+- **Complete user paths:** enter through the actual CLI/API/job, persist the
+  result, read it back, and check provenance, units, uncertainty and refusal.
+- **Failure behavior:** missing configuration, invalid input, duplicates and
+  concurrent retries, partial writes, downstream outage, budget exhaustion and
+  recovery. Test interacting components, not only their separate helpers.
+- **Data integrity:** append-only facts, correction precedence, historical replay,
+  event/knowledge time, missingness and measured/inferred separation.
+- **Access and privacy:** absent credentials must fail closed; verify actual role
+  permissions and permitted egress, including the log and shared budget.
+- **Runtime and deployment:** distinguish import reachability, an exercised entry
+  point, the deployed revision and an observed scheduled outcome. Verify the
+  remote default branch and workflow runs rather than local YAML alone.
+- **Operations and recovery:** observation freshness separate from job success,
+  withheld-feed detection, retries, applicable storage/cost bounds, recovery and
+  cutover evidence, and a runbook matching the deployed system.
+- **Evidence and reproducibility:** exact revision plus dirty-tree status,
+  environment and commands; explain skips, pending invariants and unavailable
+  checks. Record failures and verification limits without turning them green.
+
+Use PASS only for the stated scope actually verified; otherwise record FAIL,
+PARTIAL or NOT VERIFIED with the missing acceptance case. Keep findings in
+COMPLETION_AUDIT and the next bounded unit in NEXT_SESSION. Do not turn these
+review lenses into a second work queue or a completion percentage.
 
 ## Integration ownership and parallel work
 

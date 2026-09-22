@@ -15,6 +15,9 @@ node_modules/
 # OS
 .DS_Store
 
+# Local automation status, locks and diagnostic artifacts; never public evidence.
+.local/
+
 # Data exports — personal data never leaves this system via the repo
 *.parquet
 *.pq

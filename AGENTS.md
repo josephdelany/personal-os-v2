@@ -5,6 +5,11 @@ Follow `docs/EXECUTION_PLAN.md` for work selection and completion, and
 `docs/BACKEND_ARCHITECTURE.md` for component boundaries. Relevant requirements
 and accepted ADRs remain binding. `docs/DOCUMENTATION_MAP.md` classifies references.
 
+For a backend `/goal`, follow EXECUTION_PLAN's autonomous loop through M6.
+Update NEXT_SESSION's single control block and active-unit instructions at each
+unit/handoff; resume them after compaction. Continue independent work around holds.
+The local watchdog reports checkpoint age; it neither runs agents nor proves completion.
+
 Implementation is active. Complete the backend before frontend construction.
 Capture recovery has priority when actionable; external holds do not stop
 independent backend work. Check Git and evidence dates rather than repeating
