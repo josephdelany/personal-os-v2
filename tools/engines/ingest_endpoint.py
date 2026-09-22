@@ -28,6 +28,7 @@ Joe actually say" survives every later opinion about what he meant.
 from __future__ import annotations
 
 from dataclasses import dataclass
+import hmac
 
 IMAGE_LONGEST_EDGE = 1024                     # REQ-CAP-010
 PWA_IMAGE_MECHANISM = '<input type="file" accept="image/*" capture="environment">'  # REQ-CAP-004
@@ -94,6 +95,24 @@ def resize_image(longest_edge):
     return {"longest_edge": longest_edge, "resized_before_upload": True}
 
 
+def authenticated(supplied, expected):
+    """An absent configuration is never a credential (REQ-CAP-008).
+
+    Check types before comparing: two absent values, empty strings or malformed
+    objects can compare equal. Tokens are opaque, with no trimming/normalisation.
+    UTF-8 bytes let constant-time comparison reject or match non-ASCII strings
+    without the TypeError raised by compare_digest's ASCII-only string overload.
+    """
+    if not isinstance(expected, str) or not expected.strip():
+        return False
+    if not isinstance(supplied, str) or not supplied.strip():
+        return False
+    try:
+        return hmac.compare_digest(supplied.encode("utf-8"), expected.encode("utf-8"))
+    except UnicodeEncodeError:
+        return False
+
+
 def handle(request, *, expected_token, existing_capture_ids=(), insert=None, enqueue=None):
     """The endpoint. Returns (status, body, rows).
 
@@ -103,7 +122,7 @@ def handle(request, *, expected_token, existing_capture_ids=(), insert=None, enq
 
     # REQ-CAP-008. The body is not read. Parsing an unauthenticated body is doing work on behalf
     # of whoever sent it, and the body of a capture request is audio.
-    if request.get("bearer_token") != expected_token:
+    if not authenticated(request.get("bearer_token"), expected_token):
         return {"status": 401, "body": {"error": "unauthorized"}, "body_read": False,
                 "rows": ()}
 

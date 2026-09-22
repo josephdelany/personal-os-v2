@@ -26,6 +26,35 @@ def test_REQ_CAP_008_a_bad_token_returns_401_and_the_body_is_NEVER_read():
     assert handle({"body": GOOD["body"]}, expected_token=TOKEN)["status"] == 401
 
 
+@pytest.mark.parametrize("expected,supplied", [
+    (None, None), ("", ""), ("   ", "   "), (False, False), (7, 7),
+    ({"token": "value"}, {"token": "value"}), (b"tok", b"tok"),
+    (TOKEN, None), (TOKEN, ""), (TOKEN, "wrong"), (TOKEN, TOKEN + " "),
+    (TOKEN, "\ud800"),
+])
+def test_REQ_CAP_008_invalid_credentials_never_read_body_or_invoke_callbacks(expected, supplied):
+    class UnreadableBody(dict):
+        def get(self, key, default=None):
+            assert key != "body", "unauthenticated request body was accessed"
+            return super().get(key, default)
+
+    def forbidden_callback(_):
+        pytest.fail("unauthenticated request invoked storage or enrichment")
+
+    out = handle(UnreadableBody(bearer_token=supplied), expected_token=expected,
+                 insert=forbidden_callback, enqueue=forbidden_callback)
+    assert out == {"status": 401, "body": {"error": "unauthorized"},
+                   "body_read": False, "rows": ()}
+
+
+def test_REQ_CAP_008_valid_token_reaches_identity_validation_without_normalisation():
+    # Opaque strings compare exactly; non-ASCII input must not make compare_digest crash.
+    assert handle({"bearer_token": "valid-\u00e9", "body": {}},
+                  expected_token="valid-\u00e9")["status"] == 400
+    assert handle({"bearer_token": "valid-e\u0301", "body": {}},
+                  expected_token="valid-\u00e9")["status"] == 401
+
+
 def test_REQ_CAP_007_missing_identity_fields_return_400_and_keep_the_RAW_BODY():
     """A rejected capture is still the only copy of whatever it was, and a rejection with no body
     cannot be replayed after the fix."""

@@ -7514,3 +7514,30 @@ the configured secret without sharing it in chat; independent backend work conti
 Next bounded unit: REQ-CAP-008 fail-closed token validation, with traps proving no
 body access/storage/enrichment occurs before authentication. Remaining serving and
 durable retry integration stays open after that unit.
+
+## 2026-09-22 — REQ-CAP-008 rejects missing configuration before body access
+
+The old equality check accepted two absent/empty/malformed token values. Added a
+body-access trap and callback traps: seven new cases failed on the old code.
+The handler now requires nonempty string credentials and compares opaque UTF-8
+bytes using `hmac.compare_digest`; invalid Unicode is rejected, not logged or
+normalised. Positive identity-validation behavior remains intact. Covered by
+`test_REQ_CAP_008_invalid_credentials_never_read_body_or_invoke_callbacks` and
+`test_REQ_CAP_008_valid_token_reaches_identity_validation_without_normalisation`.
+
+Verification: focused capture **75 passed**; sanctioned full writer **1060 passed,
+628 skipped, 0 failures/errors**, 150.16 s; layout **43/43**; diff checks clean.
+Tested revision `752f1ba` plus the two auth source changes; exact JUnit, log and
+source hashes retained in ignored `.local/evidence/capture-auth/`. Feature ledger
+unchanged (14/15 named-test passing); known F-006 disposable-only skip remains
+explained by the earlier same-day SQL run. No SQL/schema changed, so reuse the
+795/1 disposable result, spine invariant checks and clean migration-chain evidence
+from this session; generic RULE-04 remains pending. No new policy/ADR required:
+the repair implements REQ-CAP-008 literally. No new dependencies or network calls.
+
+Review lenses: contract/body-order/auth malformed-input behaviors exercised;
+storage callbacks remain untouched before auth; no raw records, temporal logic,
+egress or cost behavior changed. Tests do not establish hosting, deployment or
+observed traffic. WHAT I DID NOT DO: durable insert/conflict/retry integration or
+production deployment. Those are the next active unit; RULE-02/lifecycle-column
+conflict must be resolved explicitly, not by following B16's stale UPDATE recipe.

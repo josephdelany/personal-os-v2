@@ -2,6 +2,31 @@
 
 ## Current quality review — 2026-09-22
 
+### Goal follow-up: merge and authentication repair
+
+The pending nutrition merge was preserved and concluded at `a8bcbf4`; autonomous
+setup/audit evidence is committed at `752f1ba`. The following remains a release
+gap review, not a certification. New REQ-CAP-008 regression cases demonstrated
+seven failures against the old handler by trapping actual body access. The repair
+rejects absent/empty/non-string credentials and compares opaque UTF-8 token bytes
+with `hmac.compare_digest`, without trimming/normalising the value. Focused capture
+checks pass **75/75**. Hosting, insertion-conflict outcomes and downstream recovery
+remain open; this local repair does not prove deployment or fix the other findings.
+Full integration check after the repair: **1060 passed / 628 skipped**, no failures
+or errors; layout **43/43**. Sanctioned ledger unchanged; local evidence and exact
+source hashes retained in `.local/evidence/capture-auth/` (ignored, not public).
+
+Production connection was attempted read-only and rejected with SQLSTATE **28P01**,
+including outside the sandbox. No live schema/freshness query completed. Credential
+refresh was requested through the environment, never via chat. Code work continues.
+
+Review of the next capture unit also found that B16's proposed status UPDATE is
+incompatible with RULE-02 and migration 0012's statement-level mutation trigger.
+REQ-CAP-025..027 name lifecycle columns on raw_captures; ADR-0035 explicitly notes
+that status cannot be flipped. The serving/lifecycle design must resolve this
+contract conflict explicitly before implementation; do not relax the trigger or
+quietly claim the current in-memory resilience helpers persist their state.
+
 **Disposition: backend release not ready.** This is a fresh, multi-checklist review,
 not a claim that every line or every requirement has received independent review.
 Baseline: `6fe21e60763e84fcce1a5c544d745737bbdaa889`, plus the pre-existing staged/

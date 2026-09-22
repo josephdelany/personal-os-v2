@@ -9,26 +9,37 @@ Joe will start `/goal` separately. Do not start backend execution from the monit
 {
   "version": 1,
   "status": "running",
-  "updated_at": "2026-09-22T13:57:24+00:00",
-  "last_progress_at": "2026-09-22T13:57:24+00:00",
-  "unit": "M3-capture-authentication",
-  "next_action": "Add falsifying REQ-CAP-008 cases for absent, empty, malformed and mismatched tokens; ensure body and callbacks are untouched, fix the handler, run focused capture checks. Then continue durable insertion/retry integration and serving path."
+  "updated_at": "2026-09-22T14:03:15+00:00",
+  "last_progress_at": "2026-09-22T14:03:15+00:00",
+  "unit": "M3-capture-durable-ingress",
+  "next_action": "Review existing capture RPC/ADR-0034 and immutable-record contract; implement durable insert/conflict outcomes in the actual serving path, with regression cases for duplicates and post-storage enqueue failure. Resolve lifecycle status contract explicitly; do not weaken append-only enforcement."
 }
 ```
 <!-- backend-control:end -->
 
-## Current active unit — capture authentication
+## Current active unit — durable capture ingress
 
-- **Outcome/requirements:** reject every absent or invalid bearer credential before
-  reading the body or invoking storage/enrichment (REQ-CAP-008, ADR-0130).
-- **Acceptance:** absent/empty/malformed expected or supplied token; wrong token;
-  Unicode token comparison must not crash; valid token still reaches validation.
-  Use a body-access trap and callback traps, not just `body_read=False` assertions.
-- **Owned files:** `tools/engines/ingest_endpoint.py`, `tests/test_ingest_endpoint.py`;
-  main owns this bounded repair, plus checkpoint/progress integration documentation.
-- **Next action:** falsifying tests, minimal repair, focused capture checks. Durable
-  insertion/conflict outcomes and downstream retries remain the next capture unit;
-  no hosted endpoint or full capture-completion claim is made by this repair.
+- **Outcome/requirements:** connect durable storage acknowledgement and duplicate
+  outcomes to the actual ingress path (REQ-CAP-011/016/017/018; downstream
+  REQ-CAP-025..027 where the lifecycle contract is resolved). Read ADR-0034/0130
+  before choosing how to extend the existing PostgREST RPC.
+- **Acceptance:** 202 only after durable insertion; a database-suppressed duplicate
+  returns 200 and schedules no duplicate processing; missing persistence is never
+  success; downstream failure cannot undo capture or prevent acknowledgement;
+  state/trace can be read back. Real concurrency fixture remains subject to OQ-82.
+- **Owned files:** root owns `tools/engines/ingest_endpoint.py`,
+  `tests/test_ingest_endpoint.py` and maintained checkpoint/audit/progress docs.
+  Allocate new adapter/schema files after the contract review, before editing.
+- **Contract issue to settle explicitly:** REQ-CAP-025..027 refer to UPDATEable
+  raw-capture lifecycle columns, but RULE-02 and migration 0012 forbid all updates,
+  confirmed in ADR-0035. Do not follow B16's stale UPDATE recipe or relax triggers.
+  Immutable processing history/current projection is a candidate to assess and
+  record; no requirement rewrite is silently authorized here.
+- **Prior unit complete locally:** REQ-CAP-008 rejects missing/empty/non-string
+  credentials before body access. Seven new cases failed against old code; focused
+  capture suite **75/75**; sanctioned full suite **1060 passed / 628 skipped**, zero
+  failures/errors (150.16 s); layout **43/43**. Ledger unchanged at 14/15. No hosting
+  or deployment claim. Full results are saved under ignored `.local/evidence/capture-auth/`.
 - **M0 closed:** merge `a8bcbf4` integrates the four nutrition files, preserving their
   reviewed working contents. Source hashes and original index/worktree patches are
   in ignored `.local/recovery/goal-start/`. No active child agent exists; nutrition
