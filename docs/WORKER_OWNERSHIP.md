@@ -15,6 +15,11 @@ Root now owns durable capture ingress, allocating migration **0075** and ADR
 No deployment is authorized by this allocation. Root also retains
 ADR **0144** for Joe's approved OQ-83 storage-contract amendment. Migration **0076**
 is reserved for processing history after the receipt unit closes. Root retains
+`tools/engines/capture_processing.py`, `tools/capture_processing.py`, and
+`tests/test_capture_processing.py` for that unit. Receipt work is committed at `b4752b6`.
+Root additionally owns `.github/workflows/capture-processing.yml` and ADR **0145**
+for persisted reviews, operations wiring and remaining runtime boundaries.
+The reviewer was read-only and has finished. Root retains
 `tools/engines/ingest_endpoint.py` and `tests/test_ingest_endpoint.py`, and maintained
 checkpoint/audit/progress documents. Subsequent units must update ownership before
 overlapping an old assignment. No parallel implementation is active.

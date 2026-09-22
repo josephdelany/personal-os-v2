@@ -7574,3 +7574,60 @@ real post-commit readback; phone cutover/replay; legacy anonymous RPC retirement
 enrichment/retry implementation; real two-process proof (OQ-82). Live ACL/RLS of
 both scoped and anon credentials must be inspected before enabling the route.
 The old Python contract helper is not the Worker and remains no hosting evidence.
+
+
+### Processing-history unit started after ingress commit b4752b6
+
+Joe's approved REQ-CAP-025..027 amendment is now implemented in draft0076 plus its
+real Python database consumer. Targeted processing+ingress suite:26 passed/0skipped
+(1.78s), rollback-only server stopped. Five lifecycle tests cover persisted failure,
+unchanged raw row, stable pending clock and exact72-hour threshold, success followed
+by late stale failure, idempotent/reused attempt IDs and mutation/role denial.
+Partial: no persisted stalled-review entry or actual enrichment runner yet; full
+integration checks and commit remain due. Root retains this unit. Evidence/source
+hashes retained locally; this does not replace ingress integration evidence or
+establish production deployment. Independent draft review requested read-only.
+
+
+Draft review continuation: three new cases failed against0076: budget deferral
+lost pending age, and unsupported snapshot isolation was accepted. Repaired both:
+deferred work preserves unresolved provider-failure age; record RPC requires READ
+COMMITTED so head reads refresh after acquiring the transaction lock. Retest29/29
+passed (4.33s), disposable server stopped. Raw events remain immutable. No real
+multi-process evidence claimed. Runner must not mark enriched without persisted
+results, and stalled-review persistence remains unfinished. This is an active
+uncommitted unit, not another completed backend milestone.
+
+
+## 2026-09-22 — capture review maintenance draft
+
+Joe-approved append-only processing contract remains recorded in ADR0144/OQ83 and
+REQ-CAP-025..027. Added persisted stalled reviews, owner readback and permanent
+append-only dismissal, plus a rollback-preview CLI and prepared nightly maintenance
+workflow. Independent review's schema-routing defect is repaired with one bound
+queue/count/heartbeat RPC. Targeted disposable processing + ingress: **38 passed**
+(9.05s), at b4752b6 plus uncommitted root-owned sources. Raw evidence stays immutable.
+Logs/JUnit: /tmp/capture-processing-targeted.{log,xml}; server shutdown confirmed.
+
+WHAT I DID NOT DO: full integration/commit, deployment, actual enrichment execution,
+model-egress capability wiring, durable budget/log reservations, or real concurrent
+and post-commit proof. Maintenance does not close REQ-CAP-026. Next: error/permission
+coverage and final review, then integration; continue actual runner dependencies.
+
+
+### Processing foundation integration checks
+
+Added real role-denial and partial-write failure tests: CLI rollback removes queued
+reviews and success heartbeat; commit mode records only exception class in a new
+error heartbeat. Fixtures never commit. An empty pg8000 result was a tuple rather
+than list; corrected assertion to zero length, preserving the empty-result gate.
+Targeted **43 passed** (10.87s). Full no-DB sanctioned writer: **1061 passed / 671
+skipped**, zero failures/errors (156.03s). Disposable full SQL **838 passed / 1
+skipped** (190.25s), includes spine invariants. Generic RULE04 remains pending.
+Chain **75 migrations / 646 statements**; layout **43/43**. Feature ledger unchanged
+14/15; F006's no-DB skip is covered by disposable SQL. Final read-only review found
+no further material defect after schema-routing repair. Source hashes and reports
+saved under ignored .local/evidence/capture-processing/ at b4752b6 + dirty sources.
+No production/deployment, actual enrichment, real concurrent or post-commit proof.
+Next shared prerequisite: durable pre-call budget/log reservation and restricted
+model-egress capability; do not wire a broad private reader to provider credentials.

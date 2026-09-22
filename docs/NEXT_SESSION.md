@@ -9,15 +9,46 @@ Joe's `/goal` is active. Do not start backend execution from the monitor.
 {
   "version": 1,
   "status": "running",
-  "updated_at": "2026-09-22T16:56:19+00:00",
-  "last_progress_at": "2026-09-22T16:56:19+00:00",
+  "updated_at": "2026-09-22T18:03:49.705783+00:00",
+  "last_progress_at": "2026-09-22T18:03:49.705783+00:00",
   "unit": "M3-capture-processing-history",
-  "next_action": "Commit verified receipt unit, then implement migration0076 append-only processing events/current-status projection under ADR-0144; wire persisted retry/stalled-review behavior and test through real consumer."
+  "next_action": "Commit verified processing-history/review foundation, then implement shared durable model-call reservation and capability separation needed by actual initial/retry enrichment runner. Preserve full M0\u2013M6 scope."
 }
 ```
 <!-- backend-control:end -->
 
 ## Current active unit — append-only capture processing history
+
+- **Current worktree:** ingress/approval committed at `b4752b6`. Root owns the
+  uncommitted migration0076, processing engine/CLI/tests, nightly maintenance
+  workflow, ADR0145, SQL harness and maintained docs. Targeted processing + ingress
+  SQL tests passed **43/43** (10.87s), with rollback and server shutdown confirmed.
+  Latest reports: `/tmp/capture-processing-targeted.log` and matching JUnit XML.
+- **Implemented in draft:** immutable outcome history, current-status view, stable
+  pending age across repeated failures and budget deferrals, predecessor matching,
+  idempotent attempts, and retained stale outcomes that cannot become current.
+  Existing raw terminal states survive projection. Deferred-only captures do not
+  acquire an invented provider-failure age. Raw captures remain unchanged.
+- **Persisted reviews:** strict >72-hour episodes create deduplicated review rows;
+  owner readback hides recovered episodes, and permanent append-only dismissal
+  prevents recurrence. Actual CLI exercises maintenance SQL with rollback preview
+  by default and counts-only heartbeat. Prepared nightly workflow runs maintenance
+  only; it does not execute enrichment and has not been deployed.
+- **Review repairs:** failure-age reset and unsupported snapshot isolation were
+  repaired previously. Latest review found schema-routing knobs could redirect
+  counts/logs while writes stayed bound elsewhere. Removed those knobs and put
+  queue writes, counts and heartbeat in one migration-bound RPC. READ COMMITTED
+  remains mandatory. No real two-process proof is claimed (OQ-82).
+- **Integration verified:** no-database suite 1061 passed/671 skipped, zero failures
+  or errors (156.03s); disposable SQL 838 passed/1 skipped (190.25s); chain
+  75 migrations/646 statements; layout43/43. Ledger unchanged14/15; F006 no-DB
+  skip is covered by disposable SQL. Generic RULE04 remains pending. Final read-only
+  review found no further material defect; rollback/error sanitization and real
+  permission-denial checks pass. Evidence under `.local/evidence/capture-processing/`.
+- **Still required:** scoped commit. Actual initial/retry consumer
+  remains open: preserve separate private-read/model-egress capabilities, durable
+  shared budget/log reservations and atomic verified-result/status persistence.
+  Stale receipts cannot count as success. Maintenance is not retry execution.
 
 - **Outcome/requirements:** implement Joe-approved REQ-CAP-025..027 storage amendment
   (ADR-0144, OQ-83 resolved), retaining durable acknowledgement and RULE-02.
@@ -29,7 +60,7 @@ Joe's `/goal` is active. Do not start backend execution from the monitor.
   (e.g. file/location imports) must survive the projection.
 - **Owned files:** root reserves migration0076; processing engine/runner/tests to be
   named before edits, plus SQL harness, active workflow and maintained docs. No
-  implementation worker is active. Read ADR-0063/0064/0116 and current egress/budget
+  implementation worker is active. Read ADR-0063/0115/0116 and current egress/budget
   contracts before integrating media calls; preserve capability separation.
 - **Receipt unit verified locally:** migration0075 and actual Cloudflare Worker
   entrypoint implement authenticated raw-body retention, client UUIDv7 identity,

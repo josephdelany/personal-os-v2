@@ -1,0 +1,23 @@
+# Local preparation only until migration0076 and default-branch deployment are approved.
+# This job persists reviews; it does not execute or claim media enrichment.
+name: capture-processing-maintenance
+on:
+  schedule:
+    - cron: '13 8 * * *'
+  workflow_dispatch: {}
+concurrency: {group: capture-processing-maintenance, cancel-in-progress: false}
+permissions: {contents: read}
+jobs:
+  reviews:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - run: pip install 'pg8000>=1.30,<2'
+      - name: retain stalled reviews and record maintenance heartbeat
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          PYTHONPATH: ${{ github.workspace }}
+        run: python3 tools/capture_processing.py --commit

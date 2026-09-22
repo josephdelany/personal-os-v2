@@ -111,3 +111,5 @@ rule for branded items (REQ-NUT-050/051).
 
 | ADR-0143 | Accepted locally; deployment held | 2026-09-22 | Authenticated capture Worker and atomic service-only receipt; exact rejection retention; legacy cutover remains open; lifecycle decision resolved by ADR-0144 |
 | ADR-0144 | Accepted by Joe | 2026-09-22 | REQ-CAP-025..027 use append-only processing history and a current-status view; raw capture immutability, nightly retries and 72-hour review retained |
+
+| ADR-0145 | Accepted locally; deployment held | 2026-09-22 | [Persisted capture reviews](adr/0145-capture-review-maintenance.md): append-only stalled reviews and owner dismissal; maintenance CLI/heartbeat; actual enrichment execution remains open |
