@@ -100,3 +100,11 @@ Root owns lib/db.py, lib/egress.py, capture_transcription engine/CLI/tests, new
 tests/test_capture_media.py, ADR0151 and maintained docs. Reviewer is read-only.
 
 Private media unit also owns docs/CAPTURE_RUNTIME.md and its DOCUMENTATION_MAP entry.
+
+## 2026-09-23 — root upload identity/receipt unit
+
+Root owns0081, ADR0152, supabase/capture_storage_policies.sql, capture_media_receipts
+tests, capture_transcription engine/CLI additions, SQL harness and maintained docs.
+Read-only review owns no files; no platform activation or production mutation.
+
+Root also owns forward repair0082, workers/capture-media/, shared ingress auth export, HTTP tests/harness and COMPLETION_AUDIT for this same voice-path unit. Reviewer remains read-only.

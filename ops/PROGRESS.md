@@ -7757,3 +7757,50 @@ Chain79/719 evidence reused: migrations unchanged from936f5cd verified by Git. L
 WHAT I DID NOT DO: live Storage/model/production access, upload/hash receipt issuance,
 StorageACL provisioning, legacy unbound-media recovery, extraction, separate scheduler,
 or hard process-kill supervision. These remain required internal work, not deferrals.
+
+
+### 2026-09-22 — Execution realignment after Joe’s steering
+
+Updated NEXT_SESSION’s active contract to M3/B16 voice capture → persisted atoms → owner readback, following EXECUTION_PLAN’s single-outcome rule. Upload receipts and transcription are supporting dependencies, not milestone closure. Added ordered positive, failure and missing-data gates; preserved the full M0–M6 scope and current uncommitted implementation. Corrected the stale running-test claim: targeted receipt/transcription SQL completed, 29 passed, disposable server stopped. Checkpoint timestamp updated without advancing last_progress_at for prose changes. Validation: control JSON parsed and git diff --check clean.
+
+WHAT I DID NOT DO: no implementation, deployment, real capture, or milestone closure is claimed by this process correction. Full draft integration remains pending; production credential hold remains unchanged.
+
+
+### 2026-09-22 — M3 voice-path upload connection
+
+Implemented authenticated capture-media Worker: bounded bytes → computed SHA256 → committed immutable identity → non-replacing Storage upload → committed completion receipt. Confirmed retries avoid upload; uncertain commit, mismatched hash/path, Storage conflict and lost completion refuse acknowledgement. Reuses ingress authentication before body access. Added deployment configuration without routes/secrets and wired HTTP cases into the existing Python harness. Evidence: Node upload+ingress suite 18 passed. Existing draft0081 SQL evidence remains 29 passed; no unchanged SQL rerun.
+
+WHAT I DID NOT DO: no deployment, live upload, device integration, full integration review/checks, or real voice-to-atoms run. Maximum-size hosting resource behavior is unverified. Gate 1 remains partial; next connect device payload and ingress, then the existing separated model runtime and extraction.
+
+
+### 2026-09-22 — M3 combined recording-to-raw HTTP path
+
+Connected /capture binary upload and metadata to existing raw ingress, preserving original device ID/time and confirmed media hash. Success requires committed raw receipt; confirmed-media retries resume ingestion. Explicit /upload is media-only; unknown routes refuse. Independent reviewer found positive voice duration mismatch and unknown-path upload fallthrough; repaired both with regression cases. Added interrupted-body refusal coverage and documented exact device contract. Evidence: env -u SUPABASE_DB_URL PYTHONPATH=. python3 -m pytest -q tests/test_capture_http.py passed1 in0.26s, wrapping24 Node cases; git diff --check clean.
+
+WHAT I DID NOT DO: no signed/installed Shortcut, silent offline queue/replay, real upload, production action or complete voice-to-atoms runtime. Full integration remains pending. Continue the same M3 path, not a new milestone.
+
+
+### 2026-09-23 — Upload-to-transcription integration and scoped retry repair
+
+Cross-stage rollback-only test now exercises upload identity/completion, actual
+capture_ingest RPC, private media preparation, model_egress reserve/settle and
+service-role consumption. It reproduced23505 on repeated consumption because0076
+had no service-role RLS SELECT policy on processing history. Forward0082 supplies
+only that missing read policy; one capture/result remains after retry, raw payload
+is unchanged and no atom/enriched state is fabricated. Independent reviewer accepted
+the repair and confirmed the prior route fix. Eight lenses recorded in COMPLETION_AUDIT.
+
+Evidence at08b967a plus the scoped dirty worktree: targeted31 passed19.51s;
+fullSQL902 passed/1 production-only skip256.92s; noDB1111 passed/735 skipped169.40s;
+chain81 migrations/746 statements; layout43 passed; git diff --check clean. Both
+full-suite handles exited0, disposable server stopped. NoDB skips are guarded SQL/
+live checks plus two NumPyro dependency cases; those are not new passing evidence.
+FullSQL includes the spine invariant queries; generic RULE04 remains pending.
+Sanctioned ledger writer ran,14/15 unchanged. Logs/JUnit/source hashes archived at
+.local/evidence/capture-upload/. No unchanged verification needs repeating.
+
+WHAT I DID NOT DO: no Shortcut recording/replay implementation or device proof,
+no live Storage/model/production action, no committed fixture/concurrency proof,
+no complete extraction-to-atoms runtime or M3 closure. Apple's generic API action
+documentation does not establish the required ten-second silent failure behavior;
+do not claim the pure queue helper proves it. Continue this same acceptance path.

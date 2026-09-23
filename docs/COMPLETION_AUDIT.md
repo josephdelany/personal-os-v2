@@ -301,3 +301,25 @@ margin and model redirect credential forwarding. SQL permits now expire at UTC
 midnight, client verifies expiry before send, planning stays at9000 and redirects
 fail before a new request. Reviewer rechecked the model transport fix; no further
 material issue found within this scope. No change authorizes release or frontend.
+
+
+## 2026-09-23 — M3 upload-to-transcription integration boundary
+
+Scope: HEAD08b967a plus root-owned upload/receipt draft0081 and forward repair0082.
+The active outcome remains voice capture to atoms; this boundary is partial.
+
+| Lens | Evidence and remaining gate |
+|---|---|
+| Contract fidelity | PARTIAL: binary hash/identity, immutable upload receipt and raw acknowledgement connected. Device silent ten-second queue/replay remains unimplemented/unverified. |
+| Complete user paths | PARTIAL: actual Worker entrypoint and scoped SQL chain upload→raw→transcript exercised in separate harnesses; no device→live Storage→model→atoms run. |
+| Failure behavior | PARTIAL: rollback/mismatched receipt/lost completion, duplicate delivery, stalled body and unknown route refusal tested. Real concurrent/post-commit recovery remains unproved under OQ82. |
+| Data integrity | PASS for tested local scope: upload identity and raw evidence unchanged, repeated consumption stores one result, transcript is not marked enriched. |
+| Access/privacy | PASS for tested local scope: scoped upload/ingress/model/service roles exercised; no private reads granted to uploader/model. New service history SELECT policy repairs previously invisible idempotency receipts without mutation grants. |
+| Runtime/deployment | NOT VERIFIED: Worker routes implemented but undeployed. Scoped secrets, private bucket, maximum-size hosting resources and signed device automation remain pending. |
+| Operations/recovery | PARTIAL: private hash reconciliation handles ambiguous completed upload; no deployed reconciler schedule or observed device replay. No retention/deletion decision inferred. |
+| Evidence/reproducibility | Targeted31 SQL passed19.51s; independent review accepted0082 and route repair. Chain81 migrations/746 statements and layout43 passed. FullSQL902 passed/1 production-only skip256.92s; noDB1111 passed/735 skipped169.40s (DB/live guards plus two NumPyro dependency cases). Both exited0; ledger14/15 unchanged. Generic RULE04 remains pending. |
+
+The connected service-role test reproduced23505 on repeated transcript consumption:
+0076 granted SELECT but omitted an RLS read policy on processing history.0082 adds
+that policy; the same assertion now passes. Review also caught zero-duration input
+and unknown-route fallback, both repaired. No fixture commit or production action.

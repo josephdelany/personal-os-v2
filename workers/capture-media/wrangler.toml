@@ -1,0 +1,9 @@
+name = "personal-os-capture-media"
+main = "index.mjs"
+compatibility_date = "2026-09-22"
+workers_dev = false
+# No deployment or route authorized by this file. Free plan only.
+# Secrets: CAPTURE_TOKEN, SUPABASE_URL, SUPABASE_ANON_KEY,
+# SUPABASE_MEDIA_UPLOAD_JWT (capture_media_upload role only).
+
+# Combined /capture route additionally needs SUPABASE_CAPTURE_JWT (capture_ingest).

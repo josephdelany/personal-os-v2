@@ -23,6 +23,8 @@ def main(argv=None):
     media.add_argument('request_id')
     media.add_argument('capture_id')
     commands.add_parser('consume')
+    reconcile=commands.add_parser('reconcile-media')
+    reconcile.add_argument('capture_id')
     failed=commands.add_parser('fail')
     failed.add_argument('request_id')
     failed.add_argument('error_type')
@@ -50,6 +52,8 @@ def main(argv=None):
                 result=engine.consume(cur,request_id=message['request_id'],response=message['result'])
         elif args.command=='prepare-media':
             result=engine.prepare_media(cur,request_id=args.request_id,capture_id=args.capture_id)
+        elif args.command=='reconcile-media':
+            result=engine.reconcile_media(cur,capture_id=args.capture_id)
         elif args.command=='fail':
             result=engine.fail(cur,request_id=args.request_id,error_type=args.error_type,
                                provider_status=args.provider_status)

@@ -258,6 +258,38 @@ def prepare_media(cur, *, request_id, capture_id, schema='core'):
     row = cur.fetchone()
     if row is None or row[0]!='shortcut_voice' or not isinstance(row[1],dict):
         raise ValueError('voice capture required')
-    body = db.read_capture_media(capture_id,row[1].get('media_path'),row[1].get('media_sha256'))
+    path,digest = row[1].get('media_path'),row[1].get('media_sha256')
+    if digest is None:
+        # Recover a missing envelope hash only from an already verified immutable
+        # upload receipt for this exact capture/path. Never update raw evidence.
+        cur.execute(f'''SELECT u.sha256 FROM {schema}.capture_media_uploads u
+            JOIN {schema}.capture_media_receipts r USING(capture_id,sha256)
+            WHERE u.capture_id=%s AND u.media_path=%s''',(capture_id,path))
+        receipt=cur.fetchone()
+        if receipt is None:
+            raise ValueError('verified media binding required')
+        digest=receipt[0]
+    body = db.read_capture_media(capture_id,path,digest)
     payload = {'audio':base64.b64encode(body).decode('ascii'),**TRANSCRIPTION_PARAMS}
     return prepare(cur,request_id=request_id,capture_id=capture_id,payload=payload,schema=schema)
+
+
+def reconcile_media(cur, *, capture_id, schema='core'):
+    """Verify ambiguous upload completion privately, then append its receipt.
+
+    Caller commits before returning acknowledgement. This requires a previously
+    recorded expected digest; it does not invent provenance for unknown old blobs.
+    """
+    from lib import db
+    schema=_private(schema)
+    capture_id=str(uuid.UUID(str(capture_id)))
+    cur.execute(f'''SELECT media_path,sha256,size_bytes FROM {schema}.capture_media_uploads
+        WHERE capture_id=%s''',(capture_id,))
+    row=cur.fetchone()
+    if row is None:
+        raise ValueError('known upload identity required')
+    body=db.read_capture_media(capture_id,row[0],row[1])
+    if len(body)!=row[2]:
+        raise ValueError('media size mismatch')
+    cur.execute('SELECT public.reconcile_capture_media_upload(%s,%s)',(capture_id,row[1]))
+    return cur.fetchone()[0]

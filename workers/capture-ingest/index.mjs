@@ -8,7 +8,7 @@ function reply(status, body) {
   return Response.json(body, { status, headers: { 'cache-control': 'no-store' } });
 }
 
-async function authenticated(request, expected) {
+export async function authenticated(request, expected) {
   if (typeof expected !== 'string' || !expected.trim()) return false;
   const auth = request.headers.get('authorization') ?? '';
   if (!/^Bearer /i.test(auth)) return false;

@@ -1,7 +1,7 @@
 # Capture runtime — implementation and activation checklist
 
-Current local foundation: ingress936f5cd ancestry plus uncommitted private media read
-(ADR0151). This is a runbook under construction, not an activated capture service.
+Current local foundation: committed private media read at08b967a, plus the local
+upload/receipt integration draft0081 and processing-history read repair0082. This is a runbook under construction, not an activated capture service.
 Production authentication is held per NEXT_SESSION; do not retry the unchanged secret.
 
 ## Process capabilities
@@ -18,6 +18,20 @@ before activation. Environment guards are tested local refusal mechanisms, not p
 of an OS sandbox or deployed permission boundary. No generic SQL reaches the model.
 
 ## Stages already implemented
+
+`workers/capture-media` exposes `/capture` for a binary recording and immutable
+device metadata. It hashes bytes, records expected identity, uploads without
+replacement, records completion, and invokes the existing raw ingress handler.
+Only a committed raw receipt produces202 or duplicate200. `/upload` is explicitly
+media-only; other paths return404. [The Worker contract](../workers/capture-media/README.md)
+specifies headers, retries and acknowledgement matching. No route is deployed.
+
+An ambiguous Storage success is recoverable through
+`tools.capture_transcription reconcile-media CAPTURE_ID`: private acquisition
+verifies the saved expected hash/size and appends a completion receipt. Retry the
+same device request afterwards. This command does not overwrite or delete media.
+The device must retain its original file and metadata until raw acknowledgement;
+the signed Shortcut and silent offline queue/replay remain unimplemented.
 
 `tools.capture_transcription prepare-media REQUEST_ID CAPTURE_ID` reads the immutable
 voice capture reference and digest, downloads only its private captures object and
@@ -56,8 +70,8 @@ next action. Never treat a lost acknowledgement as proof that a write rolled bac
 
 ## Required before activation
 
-- Implement authenticated upload issuance and an append-only hash/object receipt,
-  private bucket policies and replacement refusal. Provision scoped credentials via
+- Activate and verify the implemented authenticated upload/receipt route and
+  private bucket policy artifact with replacement refusal. Provision scoped credentials via
   normal secrets configuration; no secret belongs in chat, source or a Shortcut.
 - Generate/install the Shortcut media payload path, including upload reference/hash.
   Reconcile existing unbound media using trusted append-only evidence. Do not declare

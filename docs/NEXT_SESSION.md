@@ -9,15 +9,123 @@ Joe's `/goal` is active. Do not start backend execution from the monitor.
 {
   "version": 1,
   "status": "running",
-  "updated_at": "2026-09-22T22:06:07.112192+00:00",
-  "last_progress_at": "2026-09-22T22:06:07.112192+00:00",
-  "unit": "M3-capture-media-and-orchestration",
-  "next_action": "Commit verified private media foundation/ADR0151 at936f5cd. FullSQL888/1skip,noDB1111/721skip,layout43;unchanged79/719chain reused.18pure deadline/transport and17SQL cases pass;review accepted. Then implement authenticated upload/hash receipts, StorageACL and unbound-mediarecovery, extraction and separate worker scheduling. No active testprocess; no productionprobe."
+  "updated_at": "2026-09-23T01:31:19.728041+00:00",
+  "last_progress_at": "2026-09-23T01:31:19.728041+00:00",
+  "unit": "M3-B16-voice-capture-to-atoms",
+  "next_action": "Continue same M3 voice-to-atoms outcome: implement device recording/retained queue/replay against /capture, then separated transcription/extraction runtime and atom readback. Upload integration complete locally: full SQL902 pass/1skip; noDB1111pass/735skip; chain81/746; layout43. No live tests remain. Device silence/10second deadline, deployment and real capture still open. Do not restart completed verification."
 }
 ```
 <!-- backend-control:end -->
 
-## Current active unit — capture media acquisition and orchestration
+## Current active unit — M3 / B16 voice capture to persisted atoms
+
+Joe's 2026-09-22 steering: align execution with the working plan and stop
+switching among prerequisites without completing a usable outcome. EXECUTION_PLAN
+remains the only delivery plan. This checkpoint selects one acceptance outcome;
+it does not reduce M3 or the full M0–M6 backend goal.
+
+**Outcome:** an authenticated voice food capture follows the actual runtime path
+from private media upload and immutable raw receipt through saved transcription,
+validated extraction and atom persistence to owner readback with provenance.
+The finish line is an exercised path, not another helper, migration or green suite.
+B16 Scenario 1 supplies the consumer; current requirements and accepted ADRs
+supersede its historical raw-update and retry wording.
+
+**Binding coverage:** REQ-CAP-011/012 (receipt and immutability), 025–027
+(recovery), 030–042 (transcription and shared budget), 050–060 (extraction and
+provenance), and Scenario 1's reference-backed nutrition requirements. Reuse the
+existing nutrition owner; do not let model output become nutrient quantities.
+ADR-0020 preserves process separation; ADR-0144/0148 preserve append-only history
+and transcription results. Photo, other capture profiles, the remaining Ask and
+nutrition gates, and M4–M6 remain open under the existing plan.
+
+**Acceptance gates, in execution order:**
+1. Authenticated upload binds bytes to the capture identity; ingestion retains raw
+   evidence before model work. Same-UUID retries cannot replace media or duplicate
+   facts. Finish the current upload boundary only to support this consumer.
+2. The runtime connects existing private preparation, isolated budgeted dispatch
+   and private result consumption. A saved transcript proceeds to extraction;
+   retries resume the saved stage rather than repeating completed model work.
+3. Verified extraction reaches atom persistence and owner readback. Each accepted
+   field retains its evidence/provenance and raw-capture link; invented spans and
+   prohibited model-generated nutrient values are rejected and logged.
+4. Exercise missing media, invalid extraction, provider failure, exhausted budget
+   and duplicate/stale delivery through that path. Raw evidence survives; no false
+   enriched status or fabricated atom appears. Recovery and status are observable.
+5. Record local integration evidence separately from deployment and a real voice
+   capture. Prepare the concrete activation packet before any required approval.
+   A mocked provider or disposable SQL proof does not close the real-capture gate.
+
+**Work selection:** finish these connected steps before starting unrelated Ask,
+domain work, new monitors, generic refactors or additional planning documents.
+Add a prerequisite only when a named gate above cannot pass without it. Record
+that failing gate and the smallest repair. Switch only for a concrete external
+hold or urgent integrity issue, as EXECUTION_PLAN requires. Report the gate closed,
+what the user can exercise, and the next missing gate; test counts are evidence,
+not milestone completion. Apply the plan's existing eight review lenses at the
+integration boundary rather than creating another checklist.
+
+**Current state / ownership:** root owns draft0081, ADR0152,
+`supabase/capture_storage_policies.sql`, `tests/test_capture_media_receipts.py`,
+capture_transcription engine/CLI additions, SQL harness and maintained docs.
+These uncommitted changes preserve upload identity and completion as separate
+immutable facts; reconciliation verifies hash/size. They are a partial dependency
+of gate 1, not a delivered upload/runtime path. Preserve this work. No other file
+writer is assigned. Private media/transcription foundations are committed at
+`08b967a` and `936f5cd`; reuse them.
+
+**Upload connection implemented locally:** `workers/capture-media/index.mjs` now
+checks authentication before reading bytes, hashes a bounded body, commits upload
+identity, uploads with replacement disabled, validates the Storage path and commits
+the completion receipt. Confirmed retries avoid another upload. Ambiguous responses
+remain unconfirmed for private reconciliation. Root additionally owns this Worker,
+its configuration, the shared ingress authentication export and HTTP tests/harness.
+`node --test tests/capture_media_http.test.mjs tests/capture_http.test.mjs`: 18 passed.
+Transport is substituted; vendor behavior, hosting memory/CPU at the maximum file
+size, device integration and live permissions remain unverified. No gate closed yet.
+
+**Combined device backend connection:** the explicit `/capture` route accepts
+binary media plus retained device identity/metadata, confirms media, then invokes
+the existing ingress handler. It returns 202/duplicate200 only after committed raw
+receipt. `/upload` remains media-only; all other paths return404. Independent review
+identified zero-duration voice acceptance and unknown-path upload fallthrough;
+both repaired with no-read/no-send regressions. A stalled-body test also proves
+cancellation cannot upload a truncated prefix. Latest Python HTTP harness passed
+in0.26s (24 underlying Node cases). Worker README records the exact device contract.
+Actual Shortcut generation, ten-second silent queue/replay and real device execution
+are still missing, so gate1 remains partial. Root owns these route/docs/test changes.
+
+**Connected SQL finding and repair:** upload→raw ingress→private media preparation
+→scoped model reservation/settlement→private consumption now runs through actual
+RPCs in one rollback-only transaction. It exposed repeated consumption failing23505:
+service_role could not see processing events through RLS. Forward0082 supplies the
+missing SELECT policy, preserving existing mutation denials. Same test now confirms
+one raw capture/result and no premature atoms. Reviewer accepted repair scope.
+Targeted31 passed19.51s, chain81 migrations/746 statements passed, layout43 passed.
+FullSQL902 passed/1 skipped256.92s; noDB1111 passed/735 skipped169.40s.
+Both handles exited0; disposable server stopped. No test process remains live.
+Logs are `/tmp/capture-upload-full-sql.log` and `/tmp/capture-upload-full.log`.
+Evidence archived in `.local/evidence/capture-upload/`. The SQL skip is the
+production-only check; noDB skips cover disposable/live DB tests and two NumPyro
+dependency cases. Existing generic RULE04 remains pending. Feature ledger remains
+14/15 and is not a backend completion score. Root additionally owns0082 and COMPLETION_AUDIT.
+
+**Latest verification:** at HEAD `08b967a` plus the current upload draft,
+`env -u SUPABASE_DB_URL PYTHONPATH=. python3 tools/test_local_sql.py --tests
+tests/test_capture_media_receipts.py tests/test_capture_transcription.py
+--junitxml=/tmp/capture-upload-targeted.xml` completed: 29 passed in 15.95s;
+`/tmp/capture-upload-targeted.log` confirms disposable server shutdown. Independent
+review accepted the scoped receipt/policy design. That targeted run is terminal; the newer full integration runs are listed above.
+
+**Holds and limits:** no actual upload, live model call, deployed policy, complete
+runtime or real voice-to-atoms observation is established. Production verification
+is held on SQLSTATE 28P01; Joe owns refreshing the normal secret configuration.
+Remind at the next production verification/deployment boundary, not repeatedly
+during local work. Unknown-hash legacy media remains unresolved. M1 regains
+priority when its recovery dependencies are actionable. These holds do not block
+local completion of this path. Do not infer permission to deploy or send data.
+
+## Completed local unit — private media acquisition
 
 - Root owns lib/db.py, lib/egress.py storage credential guard, capture_transcription
   engine/CLI/tests, new tests/test_capture_media.py and ADR0151. Private download
