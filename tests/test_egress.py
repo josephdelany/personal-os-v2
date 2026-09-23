@@ -273,10 +273,10 @@ def test_RULE_29_every_outbound_request_in_the_repository_is_in_this_module():
 
     # And within this module every request goes through the two logged entry points.
     body = (root / "lib" / "egress.py").read_text()
-    # ADR-0146: model transport now refuses redirects through its own opener.
+    # Both source and model transports now refuse redirects through their openers.
     # Preserve the two-transport inventory rather than counting only the old API.
-    assert body.count("urlopen") == 1, "one source API transport"
-    assert body.count("opener.open(") == 1, "one redirect-refusing model transport"
+    assert body.count("urlopen") == 0, "no implicit redirect-following transport"
+    assert body.count("opener.open(") == 2, "two redirect-refusing transports"
     for entry in ("def _post(", "def _get("):
         assert entry in body
 

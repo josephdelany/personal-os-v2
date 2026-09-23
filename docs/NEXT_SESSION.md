@@ -9,10 +9,10 @@ Joe's `/goal` is active. Do not start backend execution from the monitor.
 {
   "version": 1,
   "status": "running",
-  "updated_at": "2026-09-23T12:29:36.608162+00:00",
-  "last_progress_at": "2026-09-23T12:29:36.608162+00:00",
+  "updated_at": "2026-09-23T13:02:35.761027+00:00",
+  "last_progress_at": "2026-09-23T13:02:35.761027+00:00",
   "unit": "M3-B16-voice-capture-to-atoms",
-  "next_action": "Same voice-to-atoms unit: draft0083 extraction and cache-backed resolution passed full SQL929/1skip, noDB1149/762skip, chain82/815 and layout43. All test handles terminal; independent scoped review complete. Finish evidence/scoped commit, then connect isolated reference prepare/fetch/cache-consume runtime. Quantity language, separated supervisor, deployment and physical device gates remain open; full M0\u2013M6 goal unchanged."
+  "next_action": "Same M3 voice-to-atoms unit: isolated reference dispatcher0084/ADR0155 locally implemented/tested at b114093 plus recorded sources. Final SQL939/1skip, noDB1181/772skip, chain83/829,layout43; all handles terminal and disposable server stopped. Scoped reviewer accepted transport/quota/interrupted-request repairs. Next connect private persisted-reference preparation and receipt-checked cache consumption, including disposable transport guard, then source-order/TTL fidelity and separated supervisor. No external calls/deployment/device proof. Full M0\u2013M6 remains active."
 }
 ```
 <!-- backend-control:end -->
@@ -64,6 +64,35 @@ hold or urgent integrity issue, as EXECUTION_PLAN requires. Report the gate clos
 what the user can exercise, and the next missing gate; test counts are evidence,
 not milestone completion. Apply the plan's existing eight review lenses at the
 integration boundary rather than creating another checklist.
+
+**Current integration checkpoint — isolated reference dispatcher:** root-owned0084/ADR0155
+adds actual `tools/reference_egress.py`, dedicated connection/direct-login checks,
+shared persisted USDA/OFF quota reservation, durable pre-send audit, immutable
+request/response digest receipts and persisted USDA429 cooldown. It reuses existing
+source adapters and migration0072 meters. A session lock spans reservation, HTTP
+and settlement; quotas include the60-second permit lifetime. Initial source
+transport defect (redirect following/unlimited body) is repaired with HTTPS-only,
+redirect refusal and2MiB bounds. Private capture stages reject source credentials.
+
+Final evidence at b114093 plus recorded sources:123 targeted SQL passed14.53s;
+32 pure passed0.39s; fullSQL939 passed/1 skipped341.04s; full noDB1181 passed/772
+skipped207.21s; chain83 migrations829 statements; layout43; diff clean. All handles
+terminal and disposable server stopped. Archive `.local/evidence/reference-dispatch/`.
+SQL skip is production-only shape inspection; noDB skips are guarded DB/live checks
+and the two existing NumPyro dependency cases. Ledger14/15 unchanged; generic RULE04
+remains pending despite scoped spine queries passing in fullSQL.
+
+First targeted launch was sandbox-rejected; approved disposable rerun passed.
+Reviewer found delayed permits could escape quota accounting; count window now
+includes permit lifetime and session lock spans reservation through settlement.
+Self-review found loss of response could lose cooldown: the next owner appends an
+uncertain outcome with NULL hash/status and starts a full USDA cooldown at discovery.
+Denied permits commit that maintenance. Reviewer accepted scoped final repairs;
+actual separate-process crash, concurrency and commit-survival proof remains open.
+Earlier fullSQL938/noDB1181 results were superseded by final runs after this repair.
+This dispatcher is not the complete capture runtime: private saved-request preparation,
+receipt-bound cache consumption, source-order/TTL fidelity and supervision remain
+open. No source call, private production read or deployment occurred.
 
 **Current integration checkpoint — extraction and reference-backed atoms:**
 Draft0083/ADR0154 connects saved transcription to receipt-bound strict extraction,

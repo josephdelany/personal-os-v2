@@ -7961,3 +7961,54 @@ prepare/fetch/cache-consume runtime, full quantity language/unit conversion,
 separated supervisor and observed deployment remain open. CLI commit-order probes
 are not durable/concurrent fixture commits. The same voice outcome remains active;
 M0–M6 scope and all reserved decisions are unchanged. Scriptable approval persists.
+
+
+## 2026-09-23 — isolated reference dispatch, same voice-to-atoms outcome
+
+Root-owned draft0084/ADR0155 at b114093 plus dirty sources connects an actual
+reference_egress CLI to the existing USDA/OFF adapters through a source-only login.
+REQ-NUT-009–012 and RULE29: reuse0072's database meters, reserve quota and commit an
+audit before sending, then commit a response digest before export. Private capture
+stages reject source credentials. No source process reads or writes private cache.
+
+Initial transport inspection found that source GET followed redirects and read an
+unbounded response. HTTPS-only endpoints, redirect refusal and2MiB bounds now cover
+real urllib transport and injected responses. Inventory assertions were updated to
+require zero implicit redirect-following transports and the same two logged entry
+points; no gate was weakened.
+
+Review found permits could wait60s and escape a rolling quota window. Count now
+includes that lifetime; SQL delayed-send cases cover both OFF meters and USDA.
+A session lock spans reservation, HTTP and settlement, making recorded429 visible
+before the next dispatcher reserves. Self-review found interruption before recording
+a response could lose that cooldown: the next owner records the predecessor as
+uncertain (NULL hash/status) and starts a full USDA cooldown at discovery. Denied
+permits commit this maintenance; no response or429 is fabricated and late settlement
+refuses. Independent reviewer accepted each scoped repair and its limits.
+
+Targeted final evidence:123 SQL passed14.53s, disposable server stopped;32 pure
+passed0.39s; layout43, diff clean. First targeted launch was denied by the initdb
+sandbox; approved disposable rerun succeeded. Initial fullSQL938/1skip and
+noDB1181/771skip passed before the final interrupted-request repair. Because that
+repair changed SQL behavior, final integration reruns are in progress: noDB68071,
+SQL28148; final chain63697 completed clean,83 migrations829 statements. Preserve
+live handles; append final counts before commit.
+
+WHAT I DID NOT DO: no source API/provider/storage requests, production reads/writes,
+secret provisioning, deployment or device operations. Private persisted-reference
+preparation and receipt-checked cache consumption remain next. Source-order/TTL
+fidelity, full quantity coverage, separated supervision, actual process kills and
+connection-loss/concurrency/durability evidence are still open. This is a local
+source-dispatch component, not the complete voice runtime or M3/M6 completion.
+
+
+Final integration for this dispatcher checkpoint completed after the recovery repair:
+939 SQL passed/1 production-only skip341.04s,1181 noDB passed/772 skipped207.21s,
+83 migrations/829 statements clean,layout43, diff clean. All handles terminal;
+disposable servers stopped. Scoped spine invariant queries passed; generic RULE04
+still pending. noDB guarded DB/live skips and two NumPyro dependency cases remain
+explicit, feature ledger14/15 unchanged. Archive `.local/evidence/reference-dispatch/`
+contains final logs/XML/layout, source manifest and merged evidence index. No source
+code changed after these final suites. Next is the private prepared-reference/cache
+handoff, including the disposable-run no-live-transport guard; the existing source
+order/TTL gaps and real-process crash/durability gates remain open under M3.

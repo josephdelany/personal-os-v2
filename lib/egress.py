@@ -41,6 +41,7 @@ WORKERS_AI_HOST = "api.cloudflare.com"
 SOFT_CEILING = 9000                        # REQ-CAP-037
 HARD_CAP = 10000                           # REQ-CAP-039 / REQ-CAP-042
 TIMEOUT_SECONDS = 60
+SOURCE_RESPONSE_MAX_BYTES = 2 * 1024 * 1024
 
 
 class BudgetExceeded(Exception):
@@ -388,12 +389,17 @@ def get_json(cur, url, purpose, *, params=None, headers=None, timeout=20,
     """
     from urllib.parse import urlencode, urlsplit
 
-    host = urlsplit(url).hostname or ""
+    parsed = urlsplit(url)
+    if (parsed.scheme != 'https' or not parsed.hostname or parsed.username is not None
+        or parsed.password is not None or parsed.port not in (None, 443)
+        or parsed.query or parsed.fragment):
+        raise PayloadRefused('source destination must be a plain HTTPS endpoint')
+    host = parsed.hostname
     # Schema names are parameters here for the same reason as in the engines (ADR-0061): a
     # test must exercise this against throwaway schemas rather than creating ones called
     # `config`, which RULE-01 forbids.
-    if not re.match(r"^[a-z_][a-z0-9_]*$", config):
-        raise ValueError(f"not a plain schema identifier: {config!r}")
+    if any(not re.fullmatch(r"[a-z_][a-z0-9_]*", value) for value in (config, ops)):
+        raise ValueError('not a plain schema identifier')
     cur.execute(f"select 1 from {config}.egress_allowlist where host = %s", (host,))
     if cur.fetchone() is None:
         raise PayloadRefused(
@@ -414,6 +420,8 @@ def get_json(cur, url, purpose, *, params=None, headers=None, timeout=20,
     started = dt.datetime.now(dt.timezone.utc)
     try:
         raw = (_transport or _get)(full, headers or {}, timeout)
+        if not isinstance(raw, bytes) or len(raw) > SOURCE_RESPONSE_MAX_BYTES:
+            raise PayloadRefused('source response size refused')
     except Exception as e:
         cur.execute(f"""update {ops}.egress_log set detail = detail || %s where egress_id = %s""",
                     (json.dumps({"error": type(e).__name__}), egress_id))
@@ -428,8 +436,21 @@ def get_json(cur, url, purpose, *, params=None, headers=None, timeout=20,
 
 def _get(url, headers, timeout):
     req = urllib.request.Request(url, method="GET", headers=headers)
-    with urllib.request.urlopen(req, timeout=timeout) as resp:
-        return resp.read()
+    opener = urllib.request.build_opener(_RefuseSourceRedirect())
+    with opener.open(req, timeout=timeout) as resp:
+        declared = resp.headers.get('Content-Length')
+        if declared is not None and (not declared.isdecimal()
+                                     or int(declared) > SOURCE_RESPONSE_MAX_BYTES):
+            raise PayloadRefused('source response size refused')
+        body = resp.read(SOURCE_RESPONSE_MAX_BYTES + 1)
+        if len(body) > SOURCE_RESPONSE_MAX_BYTES:
+            raise PayloadRefused('source response size refused')
+        return body
+
+
+class _RefuseSourceRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        raise PayloadRefused('source destination redirect refused')
 
 
 class _RefuseModelRedirect(urllib.request.HTTPRedirectHandler):

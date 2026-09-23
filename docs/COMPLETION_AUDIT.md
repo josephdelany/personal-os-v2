@@ -2,6 +2,31 @@
 
 ## Current quality review — 2026-09-22
 
+### Latest unit: isolated reference dispatch — 2026-09-23 (locally integrated)
+
+At b114093 plus root-owned draft0084/ADR0155. This is the source half of the same
+voice-to-atoms path; private saved-reference preparation/cache consumption is next.
+
+| Review lens | Result and limits |
+|---|---|
+| Contract fidelity | PARTIAL: database USDA/OFF ceilings, shared USDA cooldown, exact existing source adapters and receipt binding; source-order/TTL and complete nutrition contracts remain open |
+| Complete user paths | PARTIAL: actual reference CLI reaches adapter and receipt-gated stdout in injected tests; private prepared-request/cache-consume bridge and complete capture orchestration still open |
+| Failure behavior | PASS scoped redirects, oversized bodies, credentials, changed identity, failed commits, delayed permits, recorded429 and interrupted predecessor recovery; real process crashes not yet exercised |
+| Data integrity | PASS scoped immutable request/result digests and explicit uncertain outcomes without fake hashes/statuses; no cache/atom writes by source process |
+| Access/privacy | PASS direct-login check, private-read denial and private-stage source-credential rejection; actual production privileges and OS boundaries remain unverified |
+| Runtime/deployment | NOT VERIFIED: source CLI exists but is not deployed, scheduled or observed against a live provider |
+| Operations/recovery | PARTIAL: durable quota/audit and interrupted-request cooldown policy locally exercised; separate-session kill/restart, bounded process lifetime and unattended recovery remain open |
+| Evidence/reproducibility | PASS local scope:939 SQL/1 production-only skip;1181 noDB/772 guarded or dependency skips;83 migrations/829 statements; layout43; targeted123 SQL/32 pure. All handles terminal and disposable server stopped |
+
+Review found the reservation/send-time quota gap; repaired by including permit TTL
+in the count window. Session lock covers request through settlement. Self-review
+identified lost-response cooldown risk; interrupted predecessors now become uncertain
+and conservatively gate USDA for an hour from discovery. Reviewer accepted scoped
+repairs. Rollback fixtures and simulated commit acknowledgements cannot establish
+real commit durability, concurrent sessions or crash survival. Generic RULE04 remains
+pending; full SQL includes scoped spine queries. Feature ledger14/15 is unchanged.
+Evidence archive: `.local/evidence/reference-dispatch/`.
+
 ### Latest unit: saved extraction to reference-backed atoms — 2026-09-23
 
 Local evidence at dca0ac4 plus draft0083/ADR0154, archived under

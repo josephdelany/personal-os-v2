@@ -105,3 +105,43 @@ See `device/scriptable/README.md` for the physical timeout/lock/offline acceptan
 packet. Missing device observations remain open while the private extraction and
 runtime connection proceed. Production verification still requires the refreshed
 normal DB secret; Joe was reminded at this activation boundary.
+
+
+## Reference dispatch connection — local draft0084 / ADR0155
+
+`PYTHONPATH=. python3 tools/reference_egress.py` reads one bounded JSON request on
+stdin and returns `{request_id,result}` only after a committed digest receipt.
+Request keys are exactly request_id,source,query,brand,barcode. Sources are
+usda_foundation/usda_branded/off_search/off_product; product requests carry only a
+barcode, name requests carry a query and optional brand. No arbitrary URL or nutrient
+value is accepted. The private saved-request producer and cache consumer are still
+required; manually assembling this envelope does not establish capture provenance.
+
+The process requires REFERENCE_EGRESS_DB_URL authenticating directly as
+reference_egress, plus USDA_FDC_API_KEY/PERSONAL_OS_USDA_API_KEY or the OFF contact
+configuration for its source. It refuses private/model credentials, including
+SUPABASE_DB_URL, service/Storage keys, MODEL_EGRESS_DB_URL and CF_API_TOKEN. Conversely
+private capture stages refuse reference credentials. Migration0083 creates a NOLOGIN
+role; no live login or secret has been provisioned by this implementation.
+
+0084 reuses0072's rate events/cooldowns, charges a durable reservation, and stores an
+immutable response-digest receipt. The reference reservation is the committed
+pre-send audit; existing adapters add a per-HTTP detail audit at settlement. Quotas
+include permit lifetime to account for delayed sends. A session lock serializes
+reservation through settlement so a recorded429 gates the next dispatch. A process
+crash releases the lock; an outstanding reservation remains charged and must not be
+resent with the same identity. Source cache publication must verify both digests.
+
+HTTPS, no redirects and2MiB responses are locally enforced. The socket timeout does
+not replace the supervisor's total process deadline. Separate-session behavior,
+uncertain commit recovery, TTL refresh, complete source-order fidelity and scheduling
+remain acceptance work. Nothing here authorizes production provisioning or proves
+an actual originating-API request or device capture.
+
+
+Interrupted reference reservations are reconciled under that same session lock:
+missing results become immutable uncertain outcomes with no fabricated hash/status.
+USDA then waits a full hour from discovery, since the lost response may have been429.
+A denied reservation commits that maintenance; late results cannot replace it.
+This recovery policy is locally tested, but independent-process kill/connection-loss
+acceptance has not yet been exercised. It is not an observed unattended recovery.

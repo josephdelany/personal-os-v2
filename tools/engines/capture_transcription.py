@@ -22,7 +22,8 @@ FAILURES = {'BudgetExceeded', 'DispatchRefused', 'DispatchUncertain',
 
 
 def _private(schema):
-    if any(os.environ.get(key) for key in ('CF_API_TOKEN', 'MODEL_EGRESS_DB_URL')):
+    if any(os.environ.get(key) for key in ('CF_API_TOKEN', 'MODEL_EGRESS_DB_URL', 'REFERENCE_EGRESS_DB_URL',
+                                                 'USDA_FDC_API_KEY', 'PERSONAL_OS_USDA_API_KEY')):
         raise RuntimeError('provider capability present in private capture process')
     if not isinstance(schema,str) or not re.fullmatch('[a-z_][a-z0-9_]*',schema):
         raise ValueError('invalid schema')

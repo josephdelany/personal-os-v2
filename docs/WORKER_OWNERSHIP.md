@@ -135,3 +135,15 @@ atomic rollback and scoped role access. No independent writer assigned.
 Root also owns nutrition_day/nutrition_display missingness and provenance filtering,
 draft0083 statistics views/triggers, and associated tests. Final read-only reviewer
 follow-up completed; no remaining scoped blocker. No concurrent file writer.
+
+
+## 2026-09-23 — isolated reference dispatch in the same voice path
+
+Root owns draft0084/ADR0155, lib/egress.py source transport, lib/db.py reference
+connection, reference_dispatch engine and reference_egress CLI, new reference
+transport/dispatch/SQL tests, test_egress transport inventory and disposable-suite
+registration. Private capture credential guard and maintained checkpoint/audit/docs
+are also root-owned. Acceptance: direct source login, bounded HTTPS/no redirects,
+quota reservation and audit before send, settled response binding, persistent429,
+no private reads, no repeated-ID sends. Private preparation/cache consumption and
+supervisor remain the next connected gates. Reviewer is read-only.

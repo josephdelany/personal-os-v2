@@ -66,6 +66,17 @@ def connect_model_egress():
     return _connect_url(url)
 
 
+def connect_reference_egress():
+    """Source-only credential; the dispatcher also verifies the actual login role."""
+    if any(os.environ.get(key) for key in ('SUPABASE_DB_URL', 'SUPABASE_SERVICE_ROLE_KEY',
+        'SUPABASE_STORAGE_READ_JWT', 'MODEL_EGRESS_DB_URL', 'CF_API_TOKEN')):
+        raise RuntimeError('private or model credentials present in reference process')
+    url = os.environ.get('REFERENCE_EGRESS_DB_URL')
+    if not url:
+        raise RuntimeError('REFERENCE_EGRESS_DB_URL not set')
+    return _connect_url(url)
+
+
 def _connect_url(url):
     p = urlparse(url)
     return pg8000.dbapi.connect(
