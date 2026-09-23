@@ -13,8 +13,13 @@ Only the food query and supplier token leave for the approved reference source.
 
 No fuzzy brand classification or language-model nutrient computation is introduced.
 Detected shared or ambiguous supplier clauses refuse instead of dropping the
-qualifier. Brand prefixes, possessives, more complex clauses, and barcode support
-remain open requirements; this parser does not claim general brand recognition.
+qualifier. Version 2 also retains possessive supplier qualifiers inside verified
+evidence but outside the extracted food name. Personal ownership, negation,
+conflicting suffixes, narrowed unverified spans and shared possessive context refuse.
+Possessives inside the full food name are not reclassified. General brand prefixes,
+full-name disambiguation, more complex clauses and barcode support remain open;
+this parser does not claim general brand recognition. Conservative clause checks
+can refuse otherwise valid multi-item sentences.
 A literal origin phrase can be broader than a commercial supplier; exact source
 brand matching is still required and an unmatched phrase stays unresolved.
 
@@ -37,3 +42,10 @@ generic RULE04 remains pending. Ledger14/15 unchanged. No migration change.
 Independent scoped review accepted the query/alias repair; archive
 `.local/evidence/capture-brand/` records base d70923a and tested source hashes.
 This does not close general supplier recognition, M3 or M6.
+
+Version2 integration after5ea1cd8:22 pure and38 reference SQL tests pass after
+review repair of narrowed personal-ownership evidence. Full noDB1295 passed834
+skipped174.24s; full SQL1001 passed1 production-only skip339.62s; layout43.
+Ledger14/15 unchanged/F006 existing diagnostic; genericRULE04 pending. No migration.
+Source hashes and JUnit/logs archived .local/evidence/capture-possessive/. Review
+accepted the scoped repair with conservative multi-item refusals noted.

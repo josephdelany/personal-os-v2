@@ -221,3 +221,10 @@ terminal-capture mailbox retirement; same private worker and same M3 unit.
 Root owns tools/capture_service_entry.py, ops/capture_services.py and tests
 test_capture_service_entry.py/test_capture_services.py for uninstalled role service
 packet and protected secret loading; no account or production provisioning performed.
+
+## 2026-09-23 possessive supplier preservation after5ea1cd8
+Root owns capture_food_context.py, its tests and capture-reference/runtime SQL
+regressions plus ADR0157/checkpoint evidence. REQ-NUT013/016,CAP053: a possessive
+qualifier inside verified evidence but outside the extracted food name must not be
+dropped to generic lookup. Preserve offsets; refuse ambiguous/narrowed evidence.
+No model-schema, measurement definition, dependency or production change.

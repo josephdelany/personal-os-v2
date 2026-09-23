@@ -524,6 +524,34 @@ def test_REQ_NUT_016_025_ambiguous_cache_ids_refuse_but_exact_alias_selects_iden
     assert cached['food_id']==str(selected)
 
 
+def test_REQ_NUT_013_016_REQ_CAP_053_possessive_supplier_survives_reference_and_atom_readback(cur):
+    supplier="Examplo's"
+    extraction=saved_food_extraction(cur,food_name=NAME,prefix=supplier+' ')
+    cur.execute('''INSERT INTO core_pytest.foods_cache
+        (canonical_name,source,source_id,nutrients_per_100g,serving_g)
+        VALUES (%s,'usda_foundation','fixture-generic',%s,40)''',(NAME,json.dumps({'kcal':100})))
+    before=capture_resolution.resolve(cur,request_id=uuid.uuid4(),capture_id=CID,
+        extraction_request_id=extraction['request_id'],schema='core_pytest',ops='ops_pytest')
+    assert before['items'][0]['status']=='unresolved' and count(cur,'atoms')==0
+    request=next_source(cur,extraction)
+    assert request['source']=='usda_branded' and request['brand']==supplier and request['query']==NAME
+    row=usda.cache_row(branded_food(brandName=supplier,householdServingFullText='1 bar'),'usda_branded')
+    row['fetched_at']=row['fetched_at'].isoformat()
+    response={'status':'resolved','row':row}
+    settled(cur,request,response);applied=consume(cur,request,response)
+    assert next_source(cur,extraction)=={'status':'cached','food_id':applied['food_id']}
+    done=capture_resolution.resolve(cur,request_id=uuid.uuid4(),capture_id=CID,
+        extraction_request_id=extraction['request_id'],schema='core_pytest',ops='ops_pytest')
+    assert done['processing_status']=='enriched'
+    read=transcription.readback(cur,capture_id=CID,schema='core_pytest')
+    item=read['extraction']['resolved_items'][0]
+    context=item['resolution']['food_context']
+    assert context['brand_evidence']==supplier and context['brand_evidence_start']==4
+    assert context['context_version']=='capture-food-context-v2'
+    kcal=next(a for a in item['atoms'] if a['metric_key']=='kcal')
+    assert float(kcal['value_point'])==180 and count(cur,'raw_captures')==1
+
+
 def test_REQ_NUT_013_015_016_branded_misses_never_fall_back_to_generic_and_keep_brand_in_review(cur):
     extraction=saved_food_extraction(cur,food_name=NAME,suffix=' from Examplo')
     for source in ('usda_branded','off_search'):

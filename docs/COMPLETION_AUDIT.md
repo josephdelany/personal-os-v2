@@ -543,3 +543,31 @@ suite covered by fullSQL. Evidence archive `.local/evidence/capture-services/`.
 This closes local operational integration only; all deployment/physical/host-loss
 limits above remain. Next voice-path contract defect: verified possessive supplier
 context currently drops brand and can route a named item through generic lookup.
+
+
+## 2026-09-23 — Verified possessive supplier context after5ea1cd8 (integration running)
+
+| Lens | Evidence and remaining gate |
+|---|---|
+| Contract fidelity | PARTIAL: REQ-NUT013/016 and CAP053 verified possessive qualifier outside food name preserved; full-name brand disambiguation/general prefixes remain open. |
+| Complete user paths | Scoped SQL38 passes: saved extraction → branded reference → cached repeat → resolved atoms/readback; real device/provider path remains open. |
+| Failure behavior | Pure22 passes: invalid/narrowed, personal, negated, conflicting and shared context refuses; no generic substitution. |
+| Data integrity | Exact evidence offset/version retained; raw count unchanged; original name and seven-field schema preserved. Rollback-only disposable SQL fixtures. |
+| Access/privacy | Same private context owner; only existing query/supplier reference payload. No new destination, permission or dependency. |
+| Runtime/deployment | Local parser and consumers only; no deployment or observed capture claim. |
+| Operations/recovery | Existing unresolved path remains; conservative clause checks can refuse valid multi-item sentences. No retry/retention change. |
+| Evidence/reproducibility | Pure22passed0.09s; final SQL38passed30.01s; layout43pass. Full noDB37511 and SQL97269 running; source manifest .local/evidence/capture-possessive/. Generic RULE04 remains pending. |
+
+Independent review found narrowed personal ownership bypass; repaired clause-left
+checks and added regression. Reviewer accepted repair/shared-context refusal with
+no additional scoped blocker; broader brand recognition remains explicitly partial.
+No migration changed. Final integration evidence and ledger reconciliation pending.
+
+Possessive-context final integration disposition: full noDB1295 passed834 skipped
+174.24s (terminal37511); full SQL1001 passed1 production-only skip339.62s
+(terminal97269/server stopped). Layout43 passed. Ledger14/15 unchanged; existing
+F006 warning unchanged. NoDB skips cover SQL/live guards and two NumPyro cases.
+Invariant suite passes within fullSQL; genericRULE04 remains pending. Source/test
+hashes match archived launch manifest; logs/JUnit .local/evidence/capture-possessive/.
+No migration changed. This closes the scoped parser repair, not general supplier
+recognition, real capture observation, M3 or M6.

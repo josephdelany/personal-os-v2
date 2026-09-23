@@ -1,16 +1,41 @@
 """Private, deterministic context from the transcript used by saved extraction.
 
-Explicit `food from supplier` clauses retain the supplier verbatim. This does not
-claim general brand recognition; unsupported/shared context refuses when detected.
+Explicit `food from supplier` clauses and possessive qualifiers outside the food
+name in verified evidence retain the supplier verbatim. This does not claim general
+brand recognition; unsupported/shared context refuses when detected.
 """
 import re
 from tools.engines.capture_transcription import _private
 
-VERSION = 'capture-food-context-v1'
+VERSION = 'capture-food-context-v2'
 
 
 class ContextUnresolved(ValueError):
     pass
+
+
+def _possessive_prefix(transcript,evidence,evidence_start,name_offset,other_starts):
+    prefix=evidence[:name_offset]
+    if not re.search(r"['’]s\b",prefix,re.I):
+        if re.search(r"['’]s\s+$",transcript[:evidence_start+name_offset],re.I):
+            raise ContextUnresolved('unverified_supplier_context')
+        before=transcript[:evidence_start+name_offset]
+        left=max((m.end() for m in re.finditer(r'[.!?;\n]',before)),default=0)
+        if re.search(r"['’]s\b",before[left:],re.I):
+            raise ContextUnresolved('shared_supplier_context')
+        return None
+    match=re.fullmatch(r"\s*(?P<brand>[\w][\w &'’\-]*['’]s)\s+",prefix,re.I)
+    if match is None:raise ContextUnresolved('ambiguous_supplier_context')
+    supplier=match['brand']
+    if (len(supplier)>512 or re.search(
+        r'\b(?:not|but|from|at|my|your|his|her|their|our|i|we|you|ate|had|bought|ordered|a|an|the|one|two)\b',
+        supplier,re.I) or any(evidence_start<=v<evidence_start+name_offset for v in other_starts)):
+        raise ContextUnresolved('ambiguous_supplier_context')
+    offset=evidence_start+match.start('brand')
+    left=max((m.end() for m in re.finditer(r'[.!?;\n]',transcript[:offset])),default=0)
+    if re.search(r'\b(?:not|without|rather|instead|my|your|his|her|their|our)\b',transcript[left:offset],re.I):
+        raise ContextUnresolved('ambiguous_supplier_context')
+    return supplier,offset
 
 
 def explicit_supplier(transcript, *, name, evidence, evidence_start, other_starts=()):
@@ -22,6 +47,7 @@ def explicit_supplier(transcript, *, name, evidence, evidence_start, other_start
     if len(matches)!=1:
         raise ContextUnresolved('ambiguous_food_context')
     start=evidence_start+matches[0].start()
+    possessive=_possessive_prefix(transcript,evidence,evidence_start,matches[0].start(),other_starts)
     query=re.split(r'\s+from\s+',name,maxsplit=1,flags=re.I)[0]
     end=start+len(query)
     # Never consume the next item's evidence as a brand. Sentence boundaries are
@@ -38,7 +64,13 @@ def explicit_supplier(transcript, *, name, evidence, evidence_start, other_start
         right=end+sentence_end.start() if sentence_end else len(transcript)
         if re.search(r'\bfrom\b',transcript[left:right],re.I):
             raise ContextUnresolved('shared_supplier_context')
+        if possessive is not None:
+            supplier,offset=possessive
+            return {'query':query,'brand':supplier,'brand_evidence':supplier,
+                    'brand_evidence_start':offset,'context_version':VERSION}
         return {'query':query,'brand':None,'brand_evidence':None,'brand_evidence_start':None,'context_version':VERSION}
+    if possessive is not None:
+        raise ContextUnresolved('conflicting_supplier_context')
     if sentence_end and stop<next_item and transcript[stop+1:].strip():
         raise ContextUnresolved('ambiguous_supplier_context')
     supplier=match[1].strip()

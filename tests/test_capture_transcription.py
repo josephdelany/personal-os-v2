@@ -595,9 +595,9 @@ def test_REQ_CAP_034_053_current_extraction_must_match_current_transcript(cur):
     assert transcription.work_queue(cur,schema='core_pytest')['items'][0]['next_stage']=='extract'
 
 
-def saved_food_extraction(cur, *, repeated=False, quantity=1, quantity_text='one',food_name='fixture food',temporal=None,suffix=''):
+def saved_food_extraction(cur, *, repeated=False, quantity=1, quantity_text='one',food_name='fixture food',temporal=None,suffix='',prefix=''):
     from tools.engines import capture_extraction as extraction
-    text=quantity_text+' '+food_name+suffix + (' and '+quantity_text+' '+food_name+suffix if repeated else '')
+    text=quantity_text+' '+prefix+food_name+suffix + (' and '+quantity_text+' '+prefix+food_name+suffix if repeated else '')
     starts=[0,text.rindex(quantity_text)] if repeated else [0]
     if temporal:text+=' '+temporal
     transcript={'success':True,'result':{'text':text,'segments':[]}}
@@ -607,7 +607,7 @@ def saved_food_extraction(cur, *, repeated=False, quantity=1, quantity_text='one
     req=extraction.prepare(cur,request_id=uuid.uuid4(),capture_id=CID,schema='core_pytest')
     items=[]
     for start in starts:
-        items.append({'name':food_name,'evidence':food_name,'evidence_start':start+len(quantity_text)+1,
+        items.append({'name':food_name,'evidence':prefix+food_name,'evidence_start':start+len(quantity_text)+1,
                       'quantity':quantity,'quantity_unit':None,'quantity_evidence':quantity_text,'quantity_evidence_start':start})
     response={'success':True,'result':{'response':{'items':items,'temporal_evidence':temporal,
                                                  'temporal_evidence_start':text.index(temporal) if temporal else None}}}

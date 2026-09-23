@@ -9,15 +9,31 @@ Joe's `/goal` is active. Do not start backend execution from the monitor.
 {
   "version": 1,
   "status": "running",
-  "updated_at": "2026-09-23T19:14:40.013215+00:00",
-  "last_progress_at": "2026-09-23T19:14:40.013215+00:00",
+  "updated_at": "2026-09-23T19:45:46.263253+00:00",
+  "last_progress_at": "2026-09-23T19:45:46.263253+00:00",
   "unit": "M3-B16-voice-capture-to-atoms",
-  "next_action": "Same M3-B16: private service deadline/cursor recovery/retention/capacity and uninstalled role-service packet locally integrated after b2078cd. FullSQL1000passed1production-onlyskip335.68s terminal79887/server stopped; fullnoDB1285passed833skipped181.01s terminal60268; stagedlayout43;4plutil checks; scoped reviewer accepted. Ledger14/15 unchanged/F006 diagnostic; genericRULE04 pending. Source manifest/archive .local/evidence/capture-services. NEXT scoped commit then repair verified possessive supplier context (REQ-NUT013/016,CAP053): Examplo's burger currently returns brandNone and permits generic lookup. Retain exact extraction schema, evidence offsets and shared preparation/resolution owner. Activation/OS isolation/credentials/device/provider and SQL crash proof remain open; fullM0-M6 unchanged."
+  "next_action": "Same M3-B16 after5ea1cd8: possessive v2 repair integrated/reviewed. Full noDB1295passed834skipped174.24s; fullSQL1001passed1production-onlyskip339.62s terminal97269/server stopped; layout43pass; ledger14/15 unchanged/F006 diagnostic. Source hashes match, logs/JUnit archived .local/evidence/capture-possessive. GenericRULE04 pending. Scoped commit now; then next acceptance contract for nonpossessive verified qualifier loss (name burger/evidence Examplo burger currently brandNone/queryburger). Preserve exact schema, source-backed supplier identity and no generic substitution; full-name disambiguation also open. FullM0-M6/activation/device/provider holds unchanged."
 }
 ```
 <!-- backend-control:end -->
 
 ## Current active unit — M3 / B16 voice capture to persisted atoms
+
+**Current bounded acceptance after5ea1cd8:** preserve a possessive supplier qualifier
+inside the verified item evidence but outside its extracted food name. Reproduction:
+Examplo's burger with name burger/evidence Examplo's burger previously lost brand.
+Version2 now preserves it; pure22 passed0.09s. Review accepted ownership/shared
+context repairs, noting conservative multi-item refusal. Final SQL38 passed30.01s, session13059 terminal0/server stopped. Full noDB1295 passed834 skipped174.24s, terminal37511; ledger14/15 unchanged,
+F006 existing evidence-name warning. FullSQL1001 passed1 production-only skip339.62s, terminal97269/server stopped.
+Layout43 passed; code/test hashes match archived manifest. No migration change.
+GenericRULE04 remains pending; invariant suite passes within fullSQL. Scoped review
+accepted repairs. Next scoped commit, then nonpossessive qualifier-loss acceptance.
+REQ-NUT013/016,CAP053, ADR0157: positive bound source query and generic-cache refusal;
+negative ambiguous/contradictory qualifiers and invalid/narrowed spans; original
+food names and raw evidence unchanged. Root owns shared context parser and related
+pure/reference/runtime tests. No extraction schema change or brand guessing from
+capitalization. General prefix recognition and full-name disambiguation remain open.
+
 
 **Current service integration:** root owns tools/capture_service_entry.py,
 ops/capture_services.py and their tests. Fixed role entry reads one owner-only JSON

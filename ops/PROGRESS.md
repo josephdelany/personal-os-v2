@@ -8215,3 +8215,29 @@ WHAT I DID NOT DO: install daemons, provision accounts/ACLs/secrets, run a real
 provider/device capture, prove independent SQL crash durability or provider-supervisor
 host-loss recovery. Deployed capacity/log monitoring and media/SQL retention remain
 release work. Next fix possessive supplier evidence dropping brand in the voice path.
+
+
+## 2026-09-23 — Verified possessive supplier context (after5ea1cd8; locally integrated)
+
+REQ-NUT013/016 and CAP053: shared private context parser v2 preserves a possessive
+supplier qualifier outside the extracted name but inside verified evidence. Saved
+reference preparation refuses generic cache/source substitution and stores the
+verbatim supplier, offset and context version with resolved atom provenance.
+Original names and the exact seven-field model schema remain unchanged.
+
+Independent review found a narrowed evidence span bypassing personal ownership
+checks. Repaired by checking the surrounding clause; shared possessive context also
+refuses. Reviewer accepted the repairs, noting conservative multi-item refusals.
+Pure22 passed0.09s; saved reference SQL38 passed30.01s, server stopped. Full noDB1295
+passed834 skipped174.24s; ledger14/15 unchanged/F006 prior evidence-name warning.
+Skips are guarded database/live checks and two existing NumPyro dependency cases.
+Layout43 passes. FullSQL1001 passed1 production-only skip339.62s; session97269
+terminal0/server stopped. Invariant suite passes within fullSQL.
+Source/test hashes match .local/evidence/capture-possessive/source-hashes.json;
+noDB/reference logs and JUnit archived there. No migration change.
+
+WHAT I DID NOT DO: general prefix/full-name supplier recognition, real provider or
+device testing, deployment, independent SQL crash proof or M3/M6 release. Generic
+RULE04 remains pending. Reproduced next gap: evidence Examplo burger with name burger
+drops the qualifier. Source-backed supplier recognition needs its own acceptance
+cases; unknown modifiers must not silently disappear into a generic match.

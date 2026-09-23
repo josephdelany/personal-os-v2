@@ -44,3 +44,35 @@ def test_REQ_NUT_016_shared_supplier_does_not_silently_make_first_item_generic()
 def test_REQ_CAP_053_context_rejects_a_fabricated_evidence_span():
     with pytest.raises(ContextUnresolved,match='unverified_food_context'):
         explicit_supplier('one bar from Examplo',name='bar',evidence='bar',evidence_start=0)
+
+
+@pytest.mark.parametrize('supplier',["Examplo's",'Examplo’s',"Trader Joe's"])
+def test_REQ_NUT_013_possessive_qualifier_in_verified_evidence_is_preserved(supplier):
+    evidence=supplier+' burger';text='one '+evidence
+    result=explicit_supplier(text,name='burger',evidence=evidence,evidence_start=4)
+    assert result['query']=='burger' and result['brand']==supplier
+    assert result['brand_evidence']==supplier and result['brand_evidence_start']==4
+    assert text[result['brand_evidence_start']:result['brand_evidence_start']+len(supplier)]==supplier
+
+
+@pytest.mark.parametrize('text,evidence',[
+    ("one Examplo's burger","burger"),
+    ("not Examplo's burger","not Examplo's burger"),
+    ("my friend's burger","my friend's burger"),
+    ("my friend's burger","friend's burger"),
+    ("Examplo's burger from Other","Examplo's burger"),
+])
+def test_REQ_NUT_016_possessive_context_cannot_silently_become_generic(text,evidence):
+    with pytest.raises(ContextUnresolved):
+        explicit_supplier(text,name='burger',evidence=evidence,evidence_start=text.index(evidence))
+
+
+def test_REQ_NUT_013_possessive_part_of_food_name_is_not_reclassified_as_supplier():
+    result=parse("one shepherd's pie",name="shepherd's pie")
+    assert result['query']=="shepherd's pie" and result['brand'] is None
+
+
+def test_REQ_NUT_016_shared_possessive_does_not_make_later_item_generic():
+    text="Examplo's burger and fries"
+    with pytest.raises(ContextUnresolved,match='shared_supplier_context'):
+        explicit_supplier(text,name='fries',evidence='fries',evidence_start=text.index('fries'))
