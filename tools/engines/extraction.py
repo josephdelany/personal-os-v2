@@ -110,9 +110,9 @@ def span_matches(transcript, evidence, evidence_start):
     at that offset in the transcript. This converts "did the model make this up" from a judgement
     into `transcript[start:start+len(evidence)] == evidence`.
     """
-    if evidence is None or evidence_start is None:
+    if not isinstance(transcript, str) or not isinstance(evidence, str) or not evidence:
         return False
-    if not isinstance(evidence_start, int) or evidence_start < 0:
+    if type(evidence_start) is not int or evidence_start < 0:
         return False
     return transcript[evidence_start:evidence_start + len(evidence)] == evidence
 
@@ -127,6 +127,13 @@ def resolve_field(name, value, transcript, *, evidence=None, evidence_start=None
         # REQ-CAP-059. The model produced it with no span to point at. Kept, marked, not trusted.
         return Field(name, value, "inferred", "model value with no evidence span")
     if span_matches(transcript, evidence, evidence_start):
+        # A genuine span alone does not support an arbitrary model label. Keep
+        # the verbatim food/name contract: "salmon" cannot cite "bagel", and
+        # "ham" cannot cite the middle of "champagne". Case is not meaning.
+        if name == "name" and (not isinstance(value, str) or not value.strip()
+                or re.search(r"(?<!\w)" + re.escape(value.casefold()) + r"(?!\w)",
+                             evidence.casefold()) is None):
+            return Field(name, None, "inferred", "value_not_in_span")
         return Field(name, value, "extracted")          # REQ-CAP-058
     # REQ-CAP-054. The VALUE is discarded, not merely flagged: a span that does not match means
     # the model pointed at text that is not there, and nothing it said about that field survives.

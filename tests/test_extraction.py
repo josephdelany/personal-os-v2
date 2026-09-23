@@ -218,3 +218,24 @@ def test_REQ_CAP_109_the_extractive_only_contract_binds_EVERY_profile():
         assert bad.value is None and bad.reason == "span_mismatch", profile
         validate_schema(profile, {"properties": {f: {} for f in FOOD_FIELDS}}
                         if profile == "food" else {"properties": {"note": {}}})
+
+
+@pytest.mark.parametrize("value,evidence", [("salmon", "bagel"), ("ham", "champagne"),
+                                            ("", "bagel"), (None, "bagel")])
+def test_REQ_CAP_053_054_058_real_evidence_cannot_launder_an_invented_name(value,evidence):
+    field = resolve_field("name", value, evidence, evidence=evidence, evidence_start=0)
+    assert field.value is None
+    assert field.provenance == "inferred"
+    assert field.reason == "value_not_in_span"
+
+
+def test_REQ_CAP_053_058_verbatim_name_can_have_surrounding_words_and_case():
+    field = resolve_field("name", "Big Mac", "a Big Mac", evidence="a Big Mac", evidence_start=0)
+    assert field.value == "Big Mac" and field.provenance == "extracted"
+    field = resolve_field("name", "BIG MAC", "a Big Mac", evidence="a Big Mac", evidence_start=0)
+    assert field.value == "BIG MAC" and field.provenance == "extracted"
+
+
+@pytest.mark.parametrize("evidence,offset", [("",0),("a",False),("a",True),(1,0),([],0),("a",0.0)])
+def test_REQ_CAP_053_invalid_or_empty_evidence_never_proves_a_value(evidence,offset):
+    assert span_matches("a", evidence, offset) is False

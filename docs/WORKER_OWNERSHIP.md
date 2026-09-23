@@ -108,3 +108,9 @@ tests, capture_transcription engine/CLI additions, SQL harness and maintained do
 Read-only review owns no files; no platform activation or production mutation.
 
 Root also owns forward repair0082, workers/capture-media/, shared ingress auth export, HTTP tests/harness and COMPLETION_AUDIT for this same voice-path unit. Reviewer remains read-only.
+
+## 2026-09-23 — same voice-path device transport
+
+Root owns device/scriptable/, ADR0153, tests/capture_device_queue.test.cjs, HTTP harness, extraction verifier/tests and maintained checkpoint/decision/runbook docs. Reviewer is read-only. Joe approved the free Scriptable helper; no device installation or production action has occurred.
+
+Device packet ownership includes PersonalOSSetup, tools/package_capture_device.py, DOCUMENTATION_MAP and COMPLETION_AUDIT. Source-only artifact is under ignored .local/device/. No separate worker edits these files.

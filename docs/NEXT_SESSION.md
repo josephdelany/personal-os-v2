@@ -9,10 +9,10 @@ Joe's `/goal` is active. Do not start backend execution from the monitor.
 {
   "version": 1,
   "status": "running",
-  "updated_at": "2026-09-23T01:31:19.728041+00:00",
-  "last_progress_at": "2026-09-23T01:31:19.728041+00:00",
+  "updated_at": "2026-09-23T01:52:33.566852+00:00",
+  "last_progress_at": "2026-09-23T01:52:33.566852+00:00",
   "unit": "M3-B16-voice-capture-to-atoms",
-  "next_action": "Continue same M3 voice-to-atoms outcome: implement device recording/retained queue/replay against /capture, then separated transcription/extraction runtime and atom readback. Upload integration complete locally: full SQL902 pass/1skip; noDB1111pass/735skip; chain81/746; layout43. No live tests remain. Device silence/10second deadline, deployment and real capture still open. Do not restart completed verification."
+  "next_action": "Continue gates2/3 of the same M3 voice-to-atoms outcome: connect saved transcription to schema-validated, receipt-bound extraction and atomic item/atom persistence using existing nutrition owner. Device source packet is locally verified and packaged at.local/device/PersonalOSCapture.zip; signed Shortcut, installation and physical timing/replay remain open. FullnoDB1122pass/735skip191.56s; layout43; no live checks. Do not repeat unchanged upload SQL; production secret reminder delivered at activation boundary."
 }
 ```
 <!-- backend-control:end -->
@@ -64,6 +64,60 @@ hold or urgent integrity issue, as EXECUTION_PLAN requires. Report the gate clos
 what the user can exercise, and the next missing gate; test counts are evidence,
 not milestone completion. Apply the plan's existing eight review lenses at the
 integration boundary rather than creating another checklist.
+
+**Current checkpoint — device source packet verified locally:** actual Scriptable
+queue → actual combined Worker regression now preserves the original ID/time/bytes
+and removes pending only after raw acknowledgement. `PersonalOSSetup` uses a masked
+on-device token field and one coupled local Keychain configuration; no setup request.
+`tools/package_capture_device.py` produces `.local/device/PersonalOSCapture.zip`
+with source hashes and explicit unsigned/uninstalled status. Independent review found
+no further material blocker in this local scope. README contains physical acceptance
+steps; it is not a generated/signed Shortcut or an installed hourly automation.
+
+Full noDB ledger writer1122 passed/735 skipped191.56s at e4497b0 plus current
+changes; layout43 passed, diff check clean, archive `.local/evidence/capture-device/`.
+Ledger14/15 unchanged. Skips remain guarded DB/live tests and two NumPyro dependency
+cases; generic RULE04 pending. No migration/SQL code changed, so prior902-pass SQL
+and81-migration chain evidence is reused. All handles terminal; no running tests.
+Joe was reminded to refresh the normal production DB secret at the activation
+boundary; no new production access occurred and no secret was requested in chat.
+
+Next executable backend action: reproduce the missing saved-transcript→persisted
+extraction consumer, then add receipt-bound private prepare/consume stages and
+atomic item/atom output. Cover REQ-CAP-050–060/063–066 and Scenario9 before marking
+any capture enriched; reuse the shared budget, append-only processing history and
+nutrition owner. Keep device installation/signed Shortcut/physical observations open
+alongside this same user path; do not substitute this source packet for those gates.
+
+**Current device draft (after committed upload integration e4497b0):** Joe
+approved free Scriptable as a local transport helper; Shortcuts still owns recording.
+ADR0153 records cost/privacy before introducing the helper. `device/scriptable/`
+contains actual Scriptable entrypoint and queue module plus installation/acceptance
+instructions. Source recording is copied before dispatch; each capture has a UUIDv7,
+retained metadata and local JSONL entry. Matching raw202/duplicate200 removes only
+the pending line; media/manifests remain. Redirects refuse; a separate ten-second
+wait timer ignores late receipts. Native idle timeout alone is not a total deadline.
+
+Reviewer found torn metadata publication, false retained-source reporting and orphan
+media omitted from recovery. Repaired: validated saved metadata repairs partial
+publication, mismatched pending metadata cannot send, acknowledgement marker is
+validated before pending removal, unavailable metadata is counted without invention,
+and errors report unconfirmed. Node exercises the actual Scriptable entrypoint with
+platform adapters and real temporary files; it does not prove native iOS persistence,
+timing or app lifetime. Device install, signed/generated Shortcuts, hourly automation
+and physical acceptance remain open. No server or device was contacted.
+
+While the helper choice was pending, extraction review reproduced an invented-name
+hole: real bagel evidence could mark salmon extracted. `resolve_field` now requires
+the name within the verified span (case-insensitive, word boundaries); malformed,
+empty and boolean-offset spans refuse. Big Mac within a Big Mac remains valid.
+This verifier repair does not itself persist extracted items or close gate3.
+
+Latest targeted check: `env -u SUPABASE_DB_URL PYTHONPATH=. python3 -m pytest -q
+tests/test_capture_http.py tests/test_extraction.py` passed34 in2.36s (HTTP harness
+includes14 device Node cases and24 Worker cases; extraction33). Layout43 passed; git diff --check clean. No test process remains live. Root owns device draft,
+extraction verifier/tests and docs; no other writer. Prior upload integration and
+full-suite results below are historical evidence, not instructions to redo them.
 
 **Current state / ownership:** root owns draft0081, ADR0152,
 `supabase/capture_storage_policies.sql`, `tests/test_capture_media_receipts.py`,

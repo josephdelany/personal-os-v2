@@ -14,6 +14,7 @@ def test_REQ_CAP_007_008_009_011_016_017_018_deployable_http_contract():
             'SUPABASE_ANON_KEY', 'CAPTURE_TOKEN')}
     root = Path(__file__).resolve().parents[1]
     result = subprocess.run([node, '--test', 'tests/capture_http.test.mjs',
-                             'tests/capture_media_http.test.mjs'],
+                             'tests/capture_media_http.test.mjs',
+                             'tests/capture_device_queue.test.cjs'],
                             cwd=root, env=env, capture_output=True, text=True, timeout=30)
     assert result.returncode == 0, result.stdout + result.stderr

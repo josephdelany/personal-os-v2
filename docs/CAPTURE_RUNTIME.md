@@ -31,7 +31,9 @@ An ambiguous Storage success is recoverable through
 verifies the saved expected hash/size and appends a completion receipt. Retry the
 same device request afterwards. This command does not overwrite or delete media.
 The device must retain its original file and metadata until raw acknowledgement;
-the signed Shortcut and silent offline queue/replay remain unimplemented.
+a local Scriptable queue/replay implementation now exists under `device/scriptable/`
+(ADR0153, approved by Joe), but signed Shortcuts and physical silence/deadline
+acceptance remain open.
 
 `tools.capture_transcription prepare-media REQUEST_ID CAPTURE_ID` reads the immutable
 voice capture reference and digest, downloads only its private captures object and
@@ -86,3 +88,20 @@ next action. Never treat a lost acknowledgement as proof that a write rolled bac
 Media retention/deletion and reserved measurement decisions remain Joe's. No uploads,
 provider calls, deletion, production migration or deployment were performed to create
 this document or the associated local tests.
+
+
+## Device source packet
+
+Build the source-only installation bundle with
+`python3 tools/package_capture_device.py --out .local/device/PersonalOSCapture.zip`.
+It contains the queue, capture entrypoint, manual on-device setup and instructions,
+plus a hash manifest. Setup stores endpoint/token together in local Keychain without
+sending a request. This is not a signed Shortcut or evidence of installation.
+
+The device queue is now exercised through the actual combined Worker in a local
+contract test, with backend HTTP substituted. Pending removal follows raw202 or
+matching duplicate200, not an upload receipt. The recording and manifest remain.
+See `device/scriptable/README.md` for the physical timeout/lock/offline acceptance
+packet. Missing device observations remain open while the private extraction and
+runtime connection proceed. Production verification still requires the refreshed
+normal DB secret; Joe was reminded at this activation boundary.

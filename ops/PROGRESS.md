@@ -7804,3 +7804,53 @@ no live Storage/model/production action, no committed fixture/concurrency proof,
 no complete extraction-to-atoms runtime or M3 closure. Apple's generic API action
 documentation does not establish the required ten-second silent failure behavior;
 do not claim the pure queue helper proves it. Continue this same acceptance path.
+
+
+### 2026-09-23 — Approved device transport implementation; extraction honesty repair
+
+Joe approved free Scriptable for transport while Shortcuts owns recording. ADR0153
+records local/$0/privacy bounds before code. Added Scriptable entrypoint and local
+queue with UUIDv7, save-before-send, same-bytes/ID replay, matching raw receipt gate,
+redirect refusal and ten-second wait timer (native request timeout is idle-only).
+Retains source/media/manifests; only acknowledged pending queue entries are removed.
+Reviewer findings repaired: torn metadata publications recover from validated copies;
+wrapper no longer claims retention without evidence; orphan media contributes to
+recovery_errors. Conflicting metadata never sends; late acknowledgement cannot clear
+queue. Tests use real temporary files and a platform adapter for actual script entry.
+
+During pending helper choice, fixed extraction verifier accepting unrelated names
+under a genuine evidence span. Unrelated/substring names and malformed empty/bool
+spans now refuse; Big Mac inside a Big Mac still extracts. Reviewer accepted scope.
+Targeted HTTP+extraction harness34 passed2.36s (14 device and24 Worker Node cases
+inside one Python test, plus33 extraction tests). Full upload integration at e4497b0
+is unchanged; no migration/SQL behavior changed in this device draft.
+
+WHAT I DID NOT DO: no installed/signed Shortcut, physical file sharing/deadline/lock
+acceptance, hourly device automation, production deployment or complete extraction
+persistence/runtime. Scriptable move documentation is not an atomicity guarantee.
+Device packet and same voice-to-atoms outcome remain active; M0–M6 scope unchanged.
+
+Device draft layout43 passed and git diff --check clean. All targeted/layout processes exited0; no test process remains live.
+
+
+### 2026-09-23 — Device-to-Worker contract and installable source packet
+
+Added a real-file queue regression traversing the actual combined Worker entrypoint
+with substituted backend HTTP. Original capture ID/time/bytes reach raw ingestion;
+pending removal waits for raw acknowledgement. Added masked on-device setup using
+one Keychain configuration and no request. Reproducible source-only zip includes
+three scripts, instructions and SHA256 manifest, explicitly unsigned/uninstalled.
+Independent reviewer accepted this scope and confirmed earlier recovery repairs.
+
+Evidence at e4497b0 plus scoped changes: targeted34 passed2.52s (16 device Node
+cases+24 Worker cases within HTTP harness,33 extraction tests); full noDB1122
+passed/735 skipped191.56s,0 failures/errors; layout43, clean diff check. Ledger14/15
+unchanged. All handles exited0. Archive .local/evidence/capture-device/. SQL/migrations
+unchanged; prior902-pass SQL/81-migration evidence reused. NoDB skips remain DB/live
+guards and two NumPyro dependency cases, not completion evidence. Generic RULE04 pending.
+
+WHAT I DID NOT DO: no generated/signed Shortcut, device installation, physical
+atomicity/deadline/locked replay proof, live request or production write. Source
+bundle is .local/device/PersonalOSCapture.zip. Joe received the requested production
+secret reminder at this activation boundary. Continue same M3 outcome with saved
+transcript→receipt-bound extraction→atomic items/atoms; device acceptance remains open.
