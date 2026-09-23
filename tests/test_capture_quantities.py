@@ -105,3 +105,53 @@ def test_REQ_NUT_019_source_serving_symbols_do_not_fold_mega_into_milli():
     from tools.engines import nutrition_off, nutrition_usda
     assert nutrition_off.serving_mass({'serving_quantity':1,'serving_quantity_unit':'Mg'})[0] is None
     assert nutrition_usda._serving_mass({'servingSize':1,'servingSizeUnit':'Mg'})[0] is None
+
+
+@pytest.mark.parametrize('value,unit,evidence,grams',[
+    (1,'kilogram','one kilogram',1000),
+    (25,'grams','twenty-five grams',25),
+    (150,'grams','one hundred and fifty grams',150),
+    (0.5,'kilograms','zero point five kilograms',500),
+    (0.5,'kilogram','half a kilogram',500),
+    (2.5,'grams','two and a half grams',2.5),
+    (0.75,'gram','three quarters of a gram',0.75),
+])
+def test_REQ_CAP_053_REQ_NUT_019_word_quantity_matches_exact_stated_value(value,unit,evidence,grams):
+    assert _quantity(fields(value,unit,evidence),0,'fixture food')=={'grams':pytest.approx(grams)}
+
+
+@pytest.mark.parametrize('value,unit,evidence',[
+    (2,'kilograms','one kilogram'),(20,'grams','twenty-five grams'),
+    (100,'grams','one hundred and grams'),(0.5,'kilograms','about half a kilogram'),
+    (2,'grams','one or two grams'),(1,'grams','one point grams'),
+    (0.5,'grams','half-ish grams'),(2,'grams','a couple of grams'),
+])
+def test_REQ_CAP_054_REQ_NUT_053_word_quantity_never_guesses(value,unit,evidence):
+    with pytest.raises(Unresolved):
+        _quantity(fields(value,unit,evidence),0,'fixture food')
+
+
+@pytest.mark.parametrize('phrase,value',[
+    ('one thousand and five',1005),('one million two hundred thousand and five',1200005),
+    ('twenty-one',21),('one third',1/3),('two thirds',2/3),
+    ('one hundred and fifty point zero five',150.05),
+])
+def test_REQ_CAP_053_exact_word_numbers_support_only_the_stated_value(phrase,value):
+    from lib.quantity_literals import matches_number
+    assert matches_number(value,phrase)
+    assert not matches_number(value+1,phrase)
+
+
+@pytest.mark.parametrize('phrase',[
+    'one hundred and','twenty zero','one thousand thousand','one and two',
+    'one point fifty','one or two','one half one','half-ish','about half',
+    'oneitems','negative one','-one','1/0','one million million',
+])
+def test_REQ_CAP_054_ambiguous_number_language_cannot_supply_a_quantity(phrase):
+    from lib.quantity_literals import quantity_label
+    assert quantity_label(1,phrase,{'items'}) is None
+
+
+def test_REQ_NUT_050_zero_count_is_unresolved_instead_of_nutrition_crash():
+    with pytest.raises(Unresolved):
+        _quantity(fields(0,None,'zero'),0,'fixture food')

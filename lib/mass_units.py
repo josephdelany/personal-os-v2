@@ -4,6 +4,7 @@ import math
 import re
 from decimal import Decimal
 from functools import lru_cache
+from lib.quantity_literals import matches_number, number_phrase
 
 # Fixed token mapping prevents Pint's expression parser from interpreting model
 # text as an arithmetic expression or choosing a regional household definition.
@@ -58,9 +59,9 @@ def literal_pair(value, unit, evidence):
     token = normalize_unit(unit)
     if token not in MASS_INPUT_UNITS and token not in VOLUME_INPUT_UNITS:
         return False
-    match = re.fullmatch(r'\s*(\d+(?:\.\d+)?)\s*([a-z]+)\s*', evidence, re.I)
+    match = re.fullmatch(r'\s*(.+?)\s*([a-z]+)\s*', evidence, re.I)
     return bool(match and normalize_unit(match[2]) == token
-                and Decimal(match[1]) == Decimal(str(value)))
+                and matches_number(value,number_phrase(match[1])))
 
 
 def convert_quantity(value, unit):

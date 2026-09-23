@@ -248,3 +248,9 @@ SQL fixture/tests. Reviewer read-only; no competing implementation agent.
 lib/mass_units.py, extraction/resolution binding, OFF/USDA consumers, quantity and
 transcription tests, dependency workflows/runbook, ADR0160 and maintained docs.
 Reviewer read-only; no second implementation writer. No migration reserved.
+
+
+2026-09-23 after962747f: root owns word-valued quantity proof: shared lexical helper,
+lib/mass_units.py, capture_extraction/resolution, nutrition_display fraction constants
+if moved, pure quantity tests and registered transcription SQL tests, maintained docs.
+No other writer; reviewer remains read-only. No new migration/dependency.

@@ -7,6 +7,7 @@ import json
 import re
 import uuid
 from lib.mass_units import MASS_INPUT_UNITS, VOLUME_INPUT_UNITS, convert_quantity, literal_pair, normalize_unit
+from lib.quantity_literals import quantity_label, COUNT_UNITS, vague_phrase
 
 from tools.engines import nutrition, capture_food_context
 from tools.engines.capture_transcription import _private, _lock
@@ -14,8 +15,7 @@ from tools.engines.capture_processing import record_outcome
 from tools.engines.extraction import resolve_time
 from tools.importers.common import ET, subject_day
 
-VERSION = 'capture-food-resolution-v4'
-COUNT_UNITS = {'each','item','items','serving','servings','piece','pieces'}
+VERSION = 'capture-food-resolution-v5'
 
 
 def event_time(fields, captured_at):
@@ -34,6 +34,9 @@ def event_time(fields, captured_at):
 
 def _quantity(fields, index, name):
     quantity, unit = fields[(index,'quantity')], fields[(index,'quantity_unit')]
+    if quantity['provenance']=='extracted' and vague_phrase(quantity['evidence']):
+        raise nutrition.Unresolved(name,[{'quantity_evidence':quantity['evidence']}],
+                                   reason='vague_fraction',review_reason='vague_fraction')
     if quantity['value'] is None:
         if quantity['evidence'] is not None or quantity['reason'] in ('span_mismatch','value_not_in_span'):
             raise nutrition.Unresolved(name,[],reason='unverified_quantity',review_reason='unverified_quantity')
@@ -62,12 +65,9 @@ def _quantity(fields, index, name):
         # A missing model unit is not proof of a count. Accept a bounded count
         # phrase, rather than treating every unknown dimension as item count.
         evidence = quantity['evidence'] or ''
-        count_number = r'(?:\d+(?:\.\d+)?|a|an|one|two|three|four|five|six|seven|eight|nine|ten|zero)'
-        count_label = '|'.join(re.escape(label) for label in sorted(COUNT_UNITS | {name.casefold()}))
-        count_pair = re.fullmatch(r'\s*'+count_number+r'(?:\s+('+count_label+r'))?\s*',evidence,re.I)
-        if count_pair is None:
+        label = quantity_label(quantity['value'],evidence,COUNT_UNITS | {name.casefold()})
+        if label is None or quantity['value']==0:
             raise nutrition.Unresolved(name,[],reason='quantity_unit_unresolved',review_reason='quantity_unit_unresolved')
-        label = (count_pair[1] or '').casefold()
         if ((label in ('serving','servings')) != (mass_unit in ('serving','servings'))
                 or (unit['value'] is not None and unit['provenance'] != 'extracted')):
             raise nutrition.Unresolved(name,[],reason='quantity_unit_unresolved',review_reason='quantity_unit_unresolved')

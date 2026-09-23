@@ -8360,3 +8360,29 @@ Independent review accepted conversion/overflow/case/density boundaries. No migr
 This closes local Pint conversion of verified literal decimal quantities and the
 runtime dependency declaration, not word-valued amounts, density-dependent food
 mass, actual deployment/device/provider observation, M3 or M6.
+
+
+## 2026-09-23 — Word-valued quantity connection (after962747f)
+
+CAP053/054,NUT019/050-053,RULE09/12: one lexical proof owner connects cardinal,
+decimal and explicit-fraction phrases to saved resolution; vague quantities retain
+verbatim review with no guessed number. Count versus serving and partial-component
+uncertainty remain distinct. Pure104passed0.70s; savedSQL73passed51.19s before final
+zero-count guard; reviewer found no scoped blocker. FullnoDB72395,SQL59653 and
+layout90121 running; source/targeted artifacts .local/evidence/capture-word-quantity.
+Eight-lens audit recorded. No dependency or migration.
+
+WHAT I DID NOT DO: arbitrary natural-language quantities, density inference,
+post-enrichment correction lifecycle, real device/provider/deployment observation,
+M3/M6 release. GenericRULE04 remains pending. Full gates and scoped commit pending.
+
+
+Word-quantity final integration: fullnoDB1396passed881skipped168.74s, terminal72395;
+fullSQL1054passed1production-onlyskip386.00s, terminal59653/server stopped;
+stagedlayout43passes, terminal81617. Source hashes match; JUnit/logs/skip reasons
+archived .local/evidence/capture-word-quantity. SQLskip is live visits_public shape;
+noDB skips are SQL/live guards and two existing NumPyro cases. Ledger14/15 unchanged,
+pre-existing F006 diagnostic. Four spine invariants pass; genericRULE04 pending.
+Independent review accepted scoped grammar, exact binding and vague refusal.
+No migration, dependency or deployment change. Unsupported language still refuses;
+post-enrichment correction, device/provider observation and M3/M6 remain open.

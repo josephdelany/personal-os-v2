@@ -12,12 +12,13 @@ from typing import Annotated
 
 from pydantic import BaseModel, ConfigDict, Field, StrictInt, StrictStr
 from lib.model_contract import request_bytes
-from lib.mass_units import literal_pair
+from lib.mass_units import literal_pair, MASS_INPUT_UNITS, VOLUME_INPUT_UNITS
+from lib.quantity_literals import quantity_label, COUNT_UNITS, vague_phrase
 from tools.engines.capture_transcription import _private, _lock
 from tools.engines.extraction import FOOD_FIELDS, NUTRITION_TERMS, validate_schema, resolve_field
 
 MODEL_ID = '@cf/meta/llama-3.1-8b-instruct'
-VERSION = 'capture-food-extraction-v2'
+VERSION = 'capture-food-extraction-v3'
 MAX_OUTPUT_TOKENS = 2048
 INPUT_NEURONS_PER_MILLION = 25608
 OUTPUT_NEURONS_PER_MILLION = 75147
@@ -111,18 +112,15 @@ def validated_fields(response, transcript):
                                                        evidence.casefold()) is None)):
                 from tools.engines.extraction import Field as ExtractedField
                 field = ExtractedField(name, None, 'inferred', 'value_not_in_span')
-            if name == 'quantity' and value is not None and field.provenance == 'extracted':
+            if name == 'quantity' and field.provenance == 'extracted' and vague_phrase(evidence):
+                from tools.engines.extraction import Field as ExtractedField
+                field = ExtractedField(name, None, 'extracted', 'vague_fraction')
+            elif name == 'quantity' and value is not None and field.provenance == 'extracted':
                 # A real span is not proof of an arbitrary number. Only literal
                 # numeric tokens or explicit small count words support this
                 # stage; portion/gram conversion belongs to nutrition.
-                words = {'a': 1, 'an': 1, 'one': 1, 'two': 2, 'three': 3,
-                         'four': 4, 'five': 5, 'six': 6, 'seven': 7,
-                         'eight': 8, 'nine': 9, 'ten': 10, 'zero': 0}
-                tokens = re.findall(r'(?<![\w.,/+\-])\d+(?:\.\d+)?(?![\w.,/\-])|\b[a-z]+\b', evidence.lower())
-                supported = literal or any(Decimal(token) == Decimal(str(value)) if token[0].isdigit()
-                                           else words.get(token) == value for token in tokens)
-                if re.search(r'\b(?:twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred|thousand|million|dozen|half|quarter|third)\b', evidence, re.I):
-                    supported = False
+                supported = literal or quantity_label(value,evidence,
+                    set(MASS_INPUT_UNITS)|set(VOLUME_INPUT_UNITS)|COUNT_UNITS|{item.name}) is not None
                 if not supported:
                     from tools.engines.extraction import Field as ExtractedField
                     field = ExtractedField(name, None, 'inferred', 'value_not_in_span')

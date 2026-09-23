@@ -689,3 +689,32 @@ Independent review accepted conversion/overflow/case/density boundaries. No migr
 This closes local Pint conversion of verified literal decimal quantities and the
 runtime dependency declaration, not word-valued amounts, density-dependent food
 mass, actual deployment/device/provider observation, M3 or M6.
+
+
+## 2026-09-23 — Verified word quantities after962747f (integration running)
+
+| Lens | Evidence and remaining gate |
+|---|---|
+| Contract fidelity | CAP053/054,NUT019/050-053,RULE09/12: whole cardinal/decimal/fraction phrase proves model quantity. Vague expressions have no numerical mapping. Unsupported grammar refuses. |
+| Complete user paths | SavedSQL73passed51.19s covers worded grams/kg through extraction/atoms/readback, worded fractional counts versus servings, separate methods/provenance and retained vague review. Final zero-count guard postdates targeted run; fullSQL59653 running. |
+| Failure behavior | Pure104passed0.70s covers mismatched values, malformed cardinals/decimals, approximation and ranges, suffix boundaries and zero count refusal. Span-mismatch and dimensional guards retained. |
+| Data integrity | Shared lexical owner, no model arithmetic or density/portion guessing. Verbatim quantity spans retained; vague numeric guesses become null before persistence. Existing fractional defaulted provenance and wider method preserved. |
+| Access/privacy | No dependency, network path, privilege or provider change. Disposable rollback fixtures only. |
+| Runtime/deployment | Actual saved capture path exercised locally; no deployment or device/provider observation. |
+| Operations/recovery | Vague quantities are normal unresolved review outcomes with exact phrase. No transport/retry/storage change. Post-enrichment human-correction lifecycle remains open. |
+| Evidence/reproducibility | Red7failed55passed before implementation; pure104passes and SQL73passes archived .local/evidence/capture-word-quantity with source hashes. FullnoDB72395/SQL59653/layout90121 running. No migration; genericRULE04 pending. |
+
+Independent reviewer found no scoped blocker, noting bounded unsupported language
+still refuses. No thresholds/gates weakened. Full integration and ledger/skip
+reconciliation remain pending; not a claim of complete B16, M3 or M6.
+
+
+Word-quantity final integration: fullnoDB1396passed881skipped168.74s, terminal72395;
+fullSQL1054passed1production-onlyskip386.00s, terminal59653/server stopped;
+stagedlayout43passes, terminal81617. Source hashes match; JUnit/logs/skip reasons
+archived .local/evidence/capture-word-quantity. SQLskip is live visits_public shape;
+noDB skips are SQL/live guards and two existing NumPyro cases. Ledger14/15 unchanged,
+pre-existing F006 diagnostic. Four spine invariants pass; genericRULE04 pending.
+Independent review accepted scoped grammar, exact binding and vague refusal.
+No migration, dependency or deployment change. Unsupported language still refuses;
+post-enrichment correction, device/provider observation and M3/M6 remain open.

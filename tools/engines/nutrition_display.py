@@ -33,6 +33,7 @@ from __future__ import annotations
 import math
 import re
 from dataclasses import dataclass
+from lib.quantity_literals import VAGUE_QUANTIFIERS, EXPLICIT_FRACTIONS
 
 # REQ-NUT-046. Methods whose intervals are tight enough for a trend analysis to restrict to.
 TIGHT_METHODS = ("weighed", "labelled", "portion_alias")
@@ -41,10 +42,6 @@ METHOD_WEIGHT = {"weighed": "solid", "labelled": "solid", "portion_alias": "medi
                  "estimated": "light", "inferred": "light"}
 
 # REQ-NUT-053. Quantifiers that map to no explicit fraction.
-VAGUE_QUANTIFIERS = ("most of", "a few bites", "some of", "a bit of", "half-ish", "a couple of",
-                     "part of", "picked at")
-EXPLICIT_FRACTIONS = {"half": 0.5, "a half": 0.5, "quarter": 0.25, "a quarter": 0.25,
-                      "third": 1 / 3, "a third": 1 / 3, "three quarters": 0.75}
 
 UNRESOLVED = "unresolved"
 

@@ -779,7 +779,8 @@ def test_REQ_NUT_001_014_050_empty_cache_source_lookup_reaches_capture_atoms(cur
 
 
 @pytest.mark.parametrize('value,unit,text',[(150,'grams','150 grams'),(0.15,'kg','0.15 kg'),
-    (150,'g','150g'),(0.15,'kilograms','0.15 kilograms'),(150000,'milligrams','150000milligrams')])
+    (150,'g','150g'),(0.15,'kilograms','0.15 kilograms'),(150000,'milligrams','150000milligrams'),
+    (150,'grams','one hundred and fifty grams'),(0.15,'kilograms','zero point one five kilograms')])
 @pytest.mark.parametrize('source,method',[('usda_foundation','weighed'),('usda_branded','labelled')])
 def test_REQ_CAP_053_REQ_NUT_019_032_035_stated_mass_persists_weighed_atoms_and_readback(cur,value,unit,text,source,method):
     from tools.engines import capture_resolution as resolution
@@ -828,6 +829,41 @@ def test_REQ_NUT_050_missing_serving_unit_cannot_become_piece_count(cur,unit,exp
     else:
         assert result['processing_status']=='enriched'
         assert [row[0] for row in rows]==[expected]
+
+
+@pytest.mark.parametrize('unit,text,whole,fraction',[
+    (None,'two and a half',40,10),('servings','two and a half servings',120,30)])
+def test_REQ_CAP_053_REQ_NUT_050_052_word_fraction_persists_separate_components(cur,unit,text,whole,fraction):
+    from tools.engines import capture_resolution as resolution
+    req=saved_food_extraction(cur,quantity=2.5,quantity_text=text,quantity_unit=unit,food_name='cookies')
+    cache_resolution_food(cur,name='cookies',serving_g=30,household='3 cookies')
+    result=resolution.resolve(cur,request_id=uuid.uuid4(),capture_id=CID,
+        extraction_request_id=req['request_id'],schema='core_pytest',ops='ops_pytest')
+    assert result['processing_status']=='enriched'
+    cur.execute('''SELECT capture_component,value_point,estimate_method FROM core_pytest.atoms
+        WHERE metric_key='kcal' ORDER BY capture_component''')
+    assert [tuple(row) for row in cur.fetchall()]==[
+        ('fraction',fraction,'portion_table'),('whole',whole,'labelled')]
+    saved=transcription.readback(cur,capture_id=CID,schema='core_pytest')['extraction']['resolved_items'][0]
+    assert saved['resolution']['quantity_provenance']=='defaulted'
+    assert len(saved['atoms'])==4
+
+
+@pytest.mark.parametrize('quantity',[None,0.75])
+def test_REQ_NUT_053_vague_fraction_keeps_verbatim_review_without_atoms(cur,quantity):
+    from tools.engines import capture_resolution as resolution
+    req=saved_food_extraction(cur,quantity=quantity,quantity_text='most of',food_name='cookies')
+    cache_resolution_food(cur,name='cookies',serving_g=30,household='3 cookies')
+    result=resolution.resolve(cur,request_id=uuid.uuid4(),capture_id=CID,
+        extraction_request_id=req['request_id'],schema='core_pytest',ops='ops_pytest')
+    assert result['items'][0]['reason']=='vague_fraction'
+    assert count(cur,'atoms')==0
+    cur.execute('SELECT tried FROM core_pytest.unresolved_items')
+    review=cur.fetchone()[0]
+    assert review['review_reason']=='vague_fraction'
+    assert review['tried']==[{'quantity_evidence':'most of'}]
+    cur.execute("SELECT value,evidence,provenance FROM core_pytest.capture_extraction_fields WHERE name='quantity'")
+    assert tuple(cur.fetchone())==(None,'most of','extracted')
 
 
 def test_REQ_NUT_052_fractional_count_persists_separate_method_components(cur):

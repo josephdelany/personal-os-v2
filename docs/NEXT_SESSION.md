@@ -9,15 +9,61 @@ Joe's `/goal` is active. Do not start backend execution from the monitor.
 {
   "version": 1,
   "status": "running",
-  "updated_at": "2026-09-23T23:14:23.488863+00:00",
-  "last_progress_at": "2026-09-23T23:14:23.488863+00:00",
+  "updated_at": "2026-09-23T23:30:48.732510+00:00",
+  "last_progress_at": "2026-09-23T23:30:48.732510+00:00",
   "unit": "M3-B16-voice-capture-to-atoms",
-  "next_action": "Pint unit verified on cf404e6 dirty: noDB1360/873skip216.21s,SQL1046/1production-onlyskip379.92s,stagedlayout43; allhandles terminal/server stopped. Sources match archive .local/evidence/capture-pint. Scoped commit next, then samepath verified word quantities: one kilogram extracted1 currently refuses. Preserve strict spans/dimensions; no density guessing. Use /tmp/personal-os-pint-venv-cf404e6/bin/python; explicit PATH for ledger. No migration/deployment/fullrelease."
+  "next_action": "Wordquantity unit final verified on962747f dirty/staged: noDB1396/881skip168.74s,SQL1054/1production-onlyskip386s,layout43; allhandles terminal/server stopped, source hashes match .local/evidence/capture-word-quantity. Commit scoped unit then sameM3-B16 explicit append-only corrections after enrichment; current resolve returns oldoutcome. Read actual item/atom/schema and correction consumers, write bounded contract before edits. No new migration/deployment/fullrelease yet."
 }
 ```
 <!-- backend-control:end -->
 
 ## Current active unit — M3 / B16 voice capture to persisted atoms
+
+
+Word-quantity final integration: fullnoDB1396passed881skipped168.74s, terminal72395;
+fullSQL1054passed1production-onlyskip386.00s, terminal59653/server stopped;
+stagedlayout43passes, terminal81617. Source hashes match; JUnit/logs/skip reasons
+archived .local/evidence/capture-word-quantity. SQLskip is live visits_public shape;
+noDB skips are SQL/live guards and two existing NumPyro cases. Ledger14/15 unchanged,
+pre-existing F006 diagnostic. Four spine invariants pass; genericRULE04 pending.
+Independent review accepted scoped grammar, exact binding and vague refusal.
+No migration, dependency or deployment change. Unsupported language still refuses;
+post-enrichment correction, device/provider observation and M3/M6 remain open.
+
+**Word-quantity integration checkpoint:** shared lib/quantity_literals.py proves
+whole cardinal/decimal/fraction phrases against model values, with exact amount/unit
+binding through extraction and resolution. Existing explicit-fraction and vague
+constants moved from nutrition_display into this owner. Vague phrases retain their
+verbatim extracted span with null quantity and vague_fraction review; no nutrient
+atoms. Worded2.5 counts/servings retain separate labelled whole and portion_table
+fraction components and defaulted quantity provenance. Zero count refuses before
+nutrition rather than crashing. Pure104passed0.70s; savedSQL73passed51.19s/server
+stopped predates final zero-count guard; independent review found no scoped blocker.
+RUNNING fullnoDB72395 /tmp/capture-word-quantity-full-nodb.log; fullSQL59653
+/tmp/capture-word-quantity-full-sql.log and.xml; layout90121. Do not duplicate.
+Source manifest and targeted artifacts .local/evidence/capture-word-quantity.
+Full gates, eight-lens record, archive and scoped commit remain pending.
+
+
+**Current bounded acceptance after962747f — stated quantities written in words:**
+CAP053/054,NUT019/050-053,RULE09/12; B12/B16. Reproducer: actual validated_fields
+marks quantity1 from one kilogram extracted, then resolver refuses unverified_quantity.
+One shared deterministic lexical proof must connect ordinary cardinal words,
+explicit decimal words and explicit fractions to the stated numeric value; retain
+original evidence and units. Cover mass, count and serving paths through saved
+extraction/atoms/readback, not only a helper. Positive: one kilogram, twenty-five
+grams, one hundred and fifty grams, zero point five kilograms, half a kilogram,
+and two and a half servings. Negative: mismatched model value, incomplete/ranged/
+approximate phrases, compound or wrong dimensions, fabricated span, negative and
+nonfinite quantities. Keep vague phrases unresolved; no portion/density guessing.
+Root owns a shared lexical helper, mass literal_pair, capture extraction/resolution,
+shared existing fraction definitions if moved, tests/test_capture_quantities.py,
+registered transcription SQL tests and relevant existing quantity tests. No new
+library/migration/measurement definition. First red cases, then implementation,
+review and full integration. Red pure acceptance7failed55passed; log
+/tmp/capture-word-quantity-red.log. All processes terminal. Preserve NUT052 fractional
+component defaulted/portion_table behavior; NUT053 requires vague_fraction reason
+and retained phrase, not only generic unit refusal. Previous Pint evidence is committed.
 
 
 Pint final integration: fullnoDB1360passed873skipped216.21s, terminal24127;
