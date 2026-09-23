@@ -27,6 +27,15 @@ def main(argv=None):
     extraction.add_argument('capture_id')
     commands.add_parser('consume')
     commands.add_parser('consume-extraction')
+    reference=commands.add_parser('prepare-reference')
+    reference.add_argument('request_id')
+    reference.add_argument('capture_id')
+    reference.add_argument('extraction_request_id')
+    reference.add_argument('item_index',type=int)
+    reference.add_argument('source',choices=('usda_foundation','usda_branded','off_search'))
+    commands.add_parser('consume-reference')
+    reference_reconcile=commands.add_parser('reconcile-reference')
+    reference_reconcile.add_argument('request_id')
     resolve=commands.add_parser('resolve')
     resolve.add_argument('request_id')
     resolve.add_argument('capture_id')
@@ -53,7 +62,7 @@ def main(argv=None):
         conn=db.connect()
         cur=conn.cursor()
         owner_context(cur)
-        if args.command in {'prepare','consume','consume-extraction'}:
+        if args.command in {'prepare','consume','consume-extraction','consume-reference'}:
             message=json.load(sys.stdin)
             required=({'request_id','capture_id','payload'} if args.command=='prepare' else {'request_id','result'})
             if not isinstance(message,dict) or set(message)!=required:
@@ -63,6 +72,9 @@ def main(argv=None):
             elif args.command=='consume-extraction':
                 from tools.engines import capture_extraction
                 result=capture_extraction.consume(cur,request_id=message['request_id'],response=message['result'])
+            elif args.command=='consume-reference':
+                from tools.engines import capture_reference
+                result=capture_reference.consume(cur,request_id=message['request_id'],response=message['result'])
             else:
                 result=engine.consume(cur,request_id=message['request_id'],response=message['result'])
         elif args.command=='prepare-media':
@@ -70,6 +82,13 @@ def main(argv=None):
         elif args.command=='prepare-extraction':
             from tools.engines import capture_extraction
             result=capture_extraction.prepare(cur,request_id=args.request_id,capture_id=args.capture_id)
+        elif args.command=='prepare-reference':
+            from tools.engines import capture_reference
+            result=capture_reference.prepare(cur,request_id=args.request_id,capture_id=args.capture_id,
+                extraction_request_id=args.extraction_request_id,item_index=args.item_index,source=args.source)
+        elif args.command=='reconcile-reference':
+            from tools.engines import capture_reference
+            result=capture_reference.consume(cur,request_id=args.request_id,response=None)
         elif args.command=='resolve':
             from tools.engines import capture_resolution
             result=capture_resolution.resolve(cur,request_id=args.request_id,capture_id=args.capture_id,

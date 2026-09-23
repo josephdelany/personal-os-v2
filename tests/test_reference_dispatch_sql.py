@@ -7,7 +7,8 @@ from tests._location_fixture import apply_chain
 from tests._sql_fixture import connect, requires_disposable
 
 pytestmark=requires_disposable
-DIGEST=hashlib.sha256(b'fixture').hexdigest()
+BODY='{}'
+DIGEST=hashlib.sha256(BODY.encode()).hexdigest()
 
 
 @pytest.fixture
@@ -33,13 +34,13 @@ def test_RULE_29_REQ_NUT_005_receipt_binding_and_repeat_identity(cur):
     rid,permit=reserve(cur)
     assert permit['allowed']
     assert not reserve(cur,rid=rid)[1]['allowed']
-    cur.execute('SELECT public.settle_reference_call(%s,%s,%s,%s)',(rid,DIGEST,50,None))
-    cur.execute('SELECT public.settle_reference_call(%s,%s,%s,%s)',(rid,DIGEST,50,None))
+    cur.execute('SELECT public.settle_reference_response(%s,%s,%s)',(rid,BODY,None))
+    cur.execute('SELECT public.settle_reference_response(%s,%s,%s)',(rid,BODY,None))
     cur.execute('SELECT r.payload_sha256,s.response_sha256 FROM ops_pytest.reference_requests r JOIN ops_pytest.reference_results s USING(request_id)')
     assert tuple(cur.fetchone())==(DIGEST,DIGEST)
     cur.execute('SAVEPOINT changed')
     with pytest.raises(Exception):
-        cur.execute('SELECT public.settle_reference_call(%s,%s,%s,%s)',(rid,'0'*64,50,None))
+        cur.execute('SELECT public.settle_reference_response(%s,%s,%s)',(rid,'{"changed":true}',None))
     cur.execute('ROLLBACK TO SAVEPOINT changed')
     cur.execute('SAVEPOINT private_read')
     with pytest.raises(Exception): cur.execute('SELECT * FROM core_pytest.raw_captures')
@@ -52,7 +53,7 @@ def test_REQ_NUT_009_011_database_meter_refuses_at_limit(cur,meter,source,limit)
     cur.execute('SET LOCAL ROLE reference_egress')
     rid,permit=reserve(cur,source)
     assert permit['allowed']
-    cur.execute('SELECT public.settle_reference_call(%s,%s,%s,%s)',(rid,DIGEST,50,None))
+    cur.execute('SELECT public.settle_reference_response(%s,%s,%s)',(rid,BODY,None))
     other='usda_foundation' if source=='usda_branded' else source
     assert reserve(cur,other)[1]=={'allowed':False,'reason':'source_quota'}
 
@@ -61,7 +62,7 @@ def test_REQ_NUT_012_provider_cooldown_survives_a_new_request_identity(cur):
     cur.execute('SET LOCAL ROLE reference_egress')
     rid,permit=reserve(cur)
     assert permit['allowed']
-    cur.execute('SELECT public.settle_reference_call(%s,%s,%s,%s)',(rid,DIGEST,40,429))
+    cur.execute('SELECT public.settle_reference_response(%s,%s,%s)',(rid,BODY,429))
     assert reserve(cur,'usda_foundation')[1]=={'allowed':False,'reason':'source_cooldown'}
     assert reserve(cur,'off_search')[1]['allowed']
     cur.execute('RESET ROLE')
@@ -75,7 +76,7 @@ def test_RULE_29_REQ_NUT_003_private_consumer_cannot_forge_source_receipt(cur):
     cur.execute('SELECT payload_sha256 FROM ops_pytest.reference_requests WHERE request_id=%s',(rid,))
     assert cur.fetchone()[0]==DIGEST
     cur.execute('SAVEPOINT forbidden')
-    with pytest.raises(Exception): cur.execute('SELECT public.settle_reference_call(%s,%s,%s,%s)',(rid,DIGEST,50,None))
+    with pytest.raises(Exception): cur.execute('SELECT public.settle_reference_response(%s,%s,%s)',(rid,BODY,None))
     cur.execute('ROLLBACK TO SAVEPOINT forbidden')
 
 
@@ -102,7 +103,7 @@ def test_REQ_NUT_012_uncertain_predecessor_starts_a_full_cooldown_when_discovere
     assert tuple(cur.fetchone())==('uncertain',None,None)
     cur.execute('SAVEPOINT late_result')
     with pytest.raises(Exception):
-        cur.execute('SELECT public.settle_reference_call(%s,%s,%s,%s)',(rid,DIGEST,50,None))
+        cur.execute('SELECT public.settle_reference_response(%s,%s,%s)',(rid,BODY,None))
     cur.execute('ROLLBACK TO SAVEPOINT late_result')
     cur.execute('RESET ROLE')
     cur.execute("SELECT blocked_until>clock_timestamp()+interval '59 minutes',reason FROM ops_pytest.rate_limit_cooldowns WHERE meter='usda'")

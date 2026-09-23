@@ -147,3 +147,19 @@ are also root-owned. Acceptance: direct source login, bounded HTTPS/no redirects
 quota reservation and audit before send, settled response binding, persistent429,
 no private reads, no repeated-ID sends. Private preparation/cache consumption and
 supervisor remain the next connected gates. Reviewer is read-only.
+
+## 2026-09-23 — private reference handoff in the same voice path
+
+Root owns draft0085, capture_reference engine, prepare-reference/consume-reference
+private CLI branches, capture readback reference history, reference transport guard
+and their tests, plus maintained ADR0155/runtime/checkpoint/audit docs. Acceptance:
+REQ-NUT-002–005/024/025 and CAP053–060: verified saved item -> immutable bounded
+request -> matching isolated receipt -> exact reparsed source cache/alias -> existing
+atom resolver. Duplicate/stale delivery and failed writes must not publish partial
+or substituted data. Source-order/TTL and supervision remain open, not waived.
+Reviewer is read-only; no other file writer assigned.
+
+Root continues0085 recovery and owns updates to `tests/test_reference_dispatch_sql.py`
+for the new durable-body settlement capability. Reviewer remains read-only.
+Root also owns `tests/test_reference_transport.py` for the transport-owner patch
+needed to satisfy the unchanged network-import lint at integration.

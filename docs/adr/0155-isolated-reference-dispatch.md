@@ -62,3 +62,42 @@ Final local integration:939 SQL passes/1 production-only skip,1181 noDB passes/7
 skips,83 migrations/829 statements and43 layout checks. Final scoped review accepted
 the timing/interruption repairs. Evidence and remaining gates are in PROGRESS and
 COMPLETION_AUDIT; this is not a complete capture-runtime or deployment claim.
+
+## Private handoff (implementation continuation)
+
+Private preparation binds the saved extraction, item index, selected source and
+processing predecessor to an immutable exact lookup payload/hash before export.
+The source runner receives no capture identity or transcript. A private consumer
+requires both the prepared request hash and isolated response receipt, rechecks the
+exact match and reparses the source payload through its existing adapter, then writes
+cache, verbatim alias and immutable consumption outcome in one savepoint. It never
+accepts model nutrient values. Stale extraction records an unapplied outcome without
+cache publication. Completed same-ID deliveries reuse the saved outcome.
+
+This handoff initially accepts an explicit source stage; it does not pretend to
+finish automatic source ordering, barcode/brand extraction or TTL refresh. Those
+remain consuming runtime requirements in the same voice path. No new dependency,
+service, authorization or recurring cost is introduced.
+
+Draft0085 recovery continuation: service-only `reconcile_reference_call` acquires
+the existing dispatcher lock and records a lone abandoned request as uncertain,
+including the existing USDA cooldown policy. No extra request is required for orphan
+discovery. Existing settled receipts are preserved and unknown reservations refuse.
+The source-only `settle_reference_response` RPC now stores the exact bounded response
+text atomically with its digest receipt. Only the private service role can read this
+immutable handoff; the source role cannot retrieve historical bodies or use the old
+hash-only settlement RPC. Recovery reuses the saved canonical bytes and the same
+receipt binding, source parser and cache transaction as direct consumption. Lost
+stdout therefore needs no redispatch. Actual CLI integration exercises preparation,
+source dispatch, discarded output, recovery and atom resolution under the respective
+session identities; rollback-only commit probes establish ordering, not durability
+or separate-process isolation.
+
+Integration layout found an earlier direct urllib import in the source transport
+test. The test now patches `lib.egress`'s existing urllib dependency. The same real
+redirect handler/size checks run without sockets; the network-import gate is unchanged.
+
+0085 local integration:958 SQL passes/1 production-only skip;1182 noDB passes/791
+skips;84 migrations850 statements;layout43. Actual CLI handoff reaches saved atoms
+after lost stdout. Automatic order, refresh and runtime/process/device gates remain
+open; this is not backend release or deployment evidence.

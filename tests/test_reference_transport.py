@@ -2,7 +2,6 @@
 import io
 import json
 from email.message import Message
-import urllib.request
 
 import pytest
 
@@ -39,7 +38,7 @@ def test_RULE_29_REQ_NUT_005_destination_refused_before_log_or_transport(url):
 def test_RULE_29_REQ_NUT_005_real_opener_refuses_redirect_before_second_destination(monkeypatch):
     destinations = []
 
-    class RedirectingSource(urllib.request.BaseHandler):
+    class RedirectingSource(egress.urllib.request.BaseHandler):
         handler_order = 100
 
         def https_open(self, request):
@@ -49,8 +48,8 @@ def test_RULE_29_REQ_NUT_005_real_opener_refuses_redirect_before_second_destinat
             return self.parent.error('http', request, io.BytesIO(b''), 302,
                                      'Found', headers)
 
-    original = urllib.request.build_opener
-    monkeypatch.setattr(urllib.request, 'build_opener',
+    original = egress.urllib.request.build_opener
+    monkeypatch.setattr(egress.urllib.request, 'build_opener',
                         lambda *handlers: original(RedirectingSource(), *handlers))
     cur = Cursor()
     with pytest.raises(egress.PayloadRefused, match='redirect refused'):
@@ -89,7 +88,7 @@ def test_RULE_29_REQ_NUT_006_real_transport_bounds_declared_and_actual_body(monk
         def open(self, request, timeout):
             return Response()
 
-    monkeypatch.setattr(urllib.request, 'build_opener', lambda *handlers: Opener())
+    monkeypatch.setattr(egress.urllib.request, 'build_opener', lambda *handlers: Opener())
     if refused:
         with pytest.raises(egress.PayloadRefused, match='size refused'):
             egress._get('https://api.nal.usda.gov/', {}, 20)

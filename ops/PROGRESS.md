@@ -8012,3 +8012,44 @@ contains final logs/XML/layout, source manifest and merged evidence index. No so
 code changed after these final suites. Next is the private prepared-reference/cache
 handoff, including the disposable-run no-live-transport guard; the existing source
 order/TTL gaps and real-process crash/durability gates remain open under M3.
+
+## 2026-09-23 — M3 reference single-item recovery (draft0085)
+
+REQ-NUT-012: private recovery now settles a lone interrupted reservation as uncertain
+under the source dispatch lock, preserving USDA cooldown and allowing a fresh private
+attempt without unrelated provider traffic. Existing settled receipts stay unchanged;
+unknown reservations refuse. Actual service-role regression and targeted neighboring
+SQL tests:70 passed47.70s at f54f1c9 plus root-owned draft, log
+`/tmp/capture-reference-targeted.log`, JUnit `/tmp/capture-reference-targeted.xml`.
+Initial68-pass/1-fail run exposed only a list/tuple assertion mismatch; fixed and rerun.
+Session31276 terminal, disposable server stopped. Scoped independent reviewer found
+no new blocker in this repair. Full integration checks and commit remain pending.
+WHAT I DID NOT DO: recover lost stdout after settled receipt (next required repair),
+prove multi-process crash/concurrency/commit survival, call external providers, deploy,
+or close the M3/full backend gate.
+
+## 2026-09-23 — M3 private reference handoff integrated locally (0085)
+
+REQ-NUT-003/004/005/012, REQ-CAP-060, RULE09/29: saved extraction prepares a
+bound request; source-only settlement stores immutable receipt+exact response;
+private consumption reparses source raw data and publishes cache/alias/outcome
+atomically. Actual prepare/source/reconcile/resolve CLIs reach nutrition atoms
+with one injected provider call even when source stdout is discarded. Lone orphan
+recovery preserves uncertainty/cooldown without unrelated traffic. Review caught
+old hash-onlyRPC bypass; revoked and actual-role denial verified. Final review
+found no blocker within the handoff. No source can read historical response bodies.
+
+Evidence at f54f1c9 plus recorded sources:19 capture-referenceSQL passed14.95s;
+fullSQL958 passed/1 skipped288.12s; fullnoDB1182 passed/791 skipped162.13s; chain
+84migrations850statements; layout43; final transport33 passed0.32s. All handles
+terminal, disposable servers stopped. Archive `.local/evidence/capture-reference/`.
+Ledger14/15 unchanged; genericRULE04 pending. SQL skip is production shape; noDB
+skips are guarded DB/live tests and two NumPyro dependency cases. FullnoDB preceded
+only the transport-test owner-dependency patch/unused import cleanup, verified by33
+targeted tests. Initial CLI failure was nonexistent config_pytest fixture setting;
+corrected to config. Layout exposed a preexisting tracked direct-network test import;
+test now patches lib.egress's dependency; gate unchanged. Narrow SQL sandbox startup
+failed before testing; approved rerun completed.
+WHAT I DID NOT DO: automatic source-order/TTL completion, independent-process crash
+or commit-survival proof, runtime supervision, live provider/device/production work,
+or closure of M3/M0–M6. Eight lenses recorded in COMPLETION_AUDIT.

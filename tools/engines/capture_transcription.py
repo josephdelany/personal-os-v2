@@ -226,7 +226,9 @@ def readback(cur, *, capture_id, schema='core'):
             resolved.append({**dict(zip(('item_id','item_index','occurred_at','subject_day','time_precision',
                                          'time_provenance','time_reason','resolution'),item)), 'atoms':atoms})
         extraction['resolved_items']=resolved
+    from tools.engines import capture_reference
     return {'capture_id':str(row[0]),'processing_status':row[1],'last_error':row[2],
+            'reference_attempts':capture_reference.readback(cur,capture_id=str(row[0]),schema=schema),
             'processing_event_id':row[3], 'extraction':extraction, 'transcription': None if row[4] is None else {
                 'request_id':str(row[4]),'event_id':row[5],'text':row[6],
                 'segments':row[7],'model_id':row[8],'processor_version':row[9]}}

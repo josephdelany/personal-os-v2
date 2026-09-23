@@ -9,10 +9,10 @@ Joe's `/goal` is active. Do not start backend execution from the monitor.
 {
   "version": 1,
   "status": "running",
-  "updated_at": "2026-09-23T13:02:35.761027+00:00",
-  "last_progress_at": "2026-09-23T13:02:35.761027+00:00",
+  "updated_at": "2026-09-23T13:50:19.517523+00:00",
+  "last_progress_at": "2026-09-23T13:50:19.517523+00:00",
   "unit": "M3-B16-voice-capture-to-atoms",
-  "next_action": "Same M3 voice-to-atoms unit: isolated reference dispatcher0084/ADR0155 locally implemented/tested at b114093 plus recorded sources. Final SQL939/1skip, noDB1181/772skip, chain83/829,layout43; all handles terminal and disposable server stopped. Scoped reviewer accepted transport/quota/interrupted-request repairs. Next connect private persisted-reference preparation and receipt-checked cache consumption, including disposable transport guard, then source-order/TTL fidelity and separated supervisor. No external calls/deployment/device proof. Full M0\u2013M6 remains active."
+  "next_action": "Same M3 voice-to-atoms unit:0085 private reference handoff is connected through actual CLIs and locally verified, including lone-orphan and lost-stdout recovery. FullSQL958/1skip288.12s; noDB1182/791skip162.13s; chain84/850; layout43; all handles terminal and disposable servers stopped. Scoped review accepted repairs. Next enforce automatic source order and365-day cache refresh through the existing nutrition owner, then separated runtime supervision and process/device proof. No production access/deployment; full M0\u2013M6 remains active."
 }
 ```
 <!-- backend-control:end -->
@@ -64,6 +64,44 @@ hold or urgent integrity issue, as EXECUTION_PLAN requires. Report the gate clos
 what the user can exercise, and the next missing gate; test counts are evidence,
 not milestone completion. Apply the plan's existing eight review lenses at the
 integration boundary rather than creating another checklist.
+
+**Current integration checkpoint — private reference handoff0085:** saved verified
+extraction now prepares a bound lookup; isolated source settlement stores an immutable
+exact response and receipt atomically; private consumption reparses source-owned raw
+food, publishes cache/alias/outcome together and feeds the existing atom resolver.
+Actual prepare/source/reconcile/resolve CLIs were exercised with respective session
+identities and an injected source, deliberately discarding source stdout. Readback
+returned the expected nutrition interval; only one provider transport call occurred.
+Source workers cannot read historical bodies or use the old hash-only settlement RPC.
+
+Lone abandoned reservations reconcile under the dispatcher's lock without unrelated
+traffic, retaining uncertainty and USDA cooldown. Lost settled output recovers from
+saved response bytes. Mismatched receipts, altered nutrients, wrong source matches,
+HTTP failures, stale work and partial cache writes cannot publish false success.
+Independent review found and repaired the old-RPC bypass; final scoped review found
+no remaining blocker within this handoff. Commit probes remain rollback-only: they
+do not prove independent processes, real crash durability or concurrency.
+
+Final evidence at f54f1c9 plus root-owned0085 sources: capture-referenceSQL19 passed
+14.95s; fullSQL958 passed/1 production-only skip288.12s; fullnoDB1182 passed/791 skipped
+162.13s; chain84 migrations850 statements; layout43; final transport33 passed0.32s.
+FullnoDB predates only the test's owner-dependency import patch and unused-import
+removal, both covered by targeted33. Skips remain guarded DB/live checks plus the two
+NumPyro dependency cases. Ledger14/15 unchanged, unmatchedF006 diagnostic unchanged,
+genericRULE04 pending. All handles terminal (SQL83471 exit0); servers stopped.
+Archive `.local/evidence/capture-reference/`. Initial CLI test used nonexistent
+config_pytest instead of the fixture's config; repaired from harness evidence.
+Layout caught an earlier test's direct network import after tracking; test now patches
+the existing egress owner's dependency without weakening the lint. First narrowed
+SQL launch hit sandbox shared-memory restriction; approved rerun completed.
+
+**Next dependent operation:** automatic source ordering and365-day Branded/OFF cache
+refresh through the existing nutrition owner. Current lookup can return expired
+entries;0085 refuses conflicting/expired cache publication rather than claiming a
+refresh. Explicit source selection is not REQ-NUT-001 completion. Keep brand/barcode
+extraction, quantity language, asymmetric daily-total point behavior and separated
+supervisor/process/device proof open in this same voice path. No production call,
+write, deployment or physical-device observation occurred. Full M0–M6 remains active.
 
 **Current integration checkpoint — isolated reference dispatcher:** root-owned0084/ADR0155
 adds actual `tools/reference_egress.py`, dedicated connection/direct-login checks,

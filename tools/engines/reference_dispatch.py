@@ -49,6 +49,8 @@ def dispatch(conn, request, *, _transport=None, _monotonic=time.monotonic, env=N
     body = validate(request)
     if any(os.environ.get(key) for key in PRIVATE_CREDENTIALS):
         raise egress.DispatchRefused('private or model capability present')
+    if os.environ.get('PERSONAL_OS_TEST_SOCKET') and _transport is None:
+        raise egress.DispatchRefused('disposable run requires an injected source transport')
     # Configuration is checked before reserving a quota slot; no key is exported.
     env = os.environ if env is None else env
     source = request['source']
@@ -134,8 +136,8 @@ def _dispatch_reserved(conn,cur,request,source,body,env,ops,config,_transport,_m
         result = {'status':'deferred','reason':'reference_dispatch_failed'}
     response = request_bytes(result)
     try:
-        cur.execute('SELECT public.settle_reference_call(%s,%s,%s,%s)',
-                    (request['request_id'],hashlib.sha256(response).hexdigest(),len(response),provider_status))
+        cur.execute('SELECT public.settle_reference_response(%s,%s,%s)',
+                    (request['request_id'],response.decode('utf-8'),provider_status))
         conn.commit()
     except Exception:
         try: conn.rollback()

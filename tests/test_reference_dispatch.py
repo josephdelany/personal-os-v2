@@ -1,6 +1,5 @@
 """Source dispatch ordering; rollback SQL tests separately exercise database meters."""
 import datetime as dt
-import hashlib
 import io
 import json
 import uuid
@@ -63,8 +62,8 @@ def test_RULE_29_REQ_NUT_003_005_commit_before_send_and_receipt_before_result():
     assert result['status']=='resolved'
     assert result['row']['source_id']=='999001'
     assert conn.commits==2
-    settlement=next(e for e in conn.events if e[0]=='sql' and 'settle_reference_call' in e[1])
-    assert settlement[2][1]==hashlib.sha256(request_bytes(result)).hexdigest()
+    settlement=next(e for e in conn.events if e[0]=='sql' and 'settle_reference_response' in e[1])
+    assert settlement[2][1].encode('utf-8')==request_bytes(result)
     assert settlement[2][-1] is None
     assert conn.events[-2]==('commit',2)
     assert 'pg_advisory_unlock' in conn.events[-1][1]
@@ -111,7 +110,7 @@ def test_REQ_NUT_012_provider_429_is_settled_with_cooldown_signal():
     conn=Connection()
     result=invoke(conn,send)
     assert result=={'status':'deferred','reason':'rate_limited_provider'}
-    settlement=next(e for e in conn.events if e[0]=='sql' and 'settle_reference_call' in e[1])
+    settlement=next(e for e in conn.events if e[0]=='sql' and 'settle_reference_response' in e[1])
     assert settlement[2][-1]==429
     assert conn.commits==2
 
@@ -151,3 +150,11 @@ def test_RULE_29_private_capture_stage_rejects_source_capabilities(monkeypatch,k
     monkeypatch.setenv(key,'fixture')
     with pytest.raises(RuntimeError,match='provider capability'):
         _private('core')
+
+
+def test_RULE_01_disposable_reference_dispatch_requires_explicit_injected_transport(monkeypatch):
+    monkeypatch.setenv('PERSONAL_OS_TEST_SOCKET','/tmp/fixture-only')
+    conn=Connection()
+    with pytest.raises(egress.DispatchRefused,match='injected source transport'):
+        engine.dispatch(conn,REQUEST,env={'USDA_FDC_API_KEY':'fixture'})
+    assert conn.events==[]
