@@ -1,7 +1,7 @@
 """Private saved-food lookup preparation and receipt-bound source cache publication.
 
 No source credentials or external requests. Caller commits before payload export.
-Automatic source ordering and versioned TTL refresh remain runtime work.
+Name-search ordering uses persisted outcomes; brand/barcode evidence remains open.
 """
 import datetime as dt
 import hashlib
@@ -14,7 +14,8 @@ from tools.engines import nutrition, nutrition_off as off, nutrition_usda as usd
 from tools.engines.reference_dispatch import validate
 from tools.engines.capture_transcription import _private, _lock
 
-SOURCES = {'usda_foundation','usda_branded','off_search'}
+SOURCE_ORDER = ('usda_foundation','usda_branded','off_search')
+SOURCES = set(SOURCE_ORDER)
 ACTIVE = {'extracted','pending_enrichment','deferred_budget'}
 
 
@@ -30,11 +31,22 @@ def _current(cur, capture_id, schema):
     return cur.fetchone()
 
 
-def prepare(cur, *, request_id, capture_id, extraction_request_id, item_index, source, schema='core'):
+def source_outcomes(cur, *, capture_id, extraction_request_id, item_index, schema='core'):
     schema = _private(schema)
+    cur.execute(f'''SELECT DISTINCT ON (a.source) a.source,a.request_id,o.status,o.reason
+        FROM {schema}.capture_reference_attempts a
+        LEFT JOIN {schema}.capture_reference_outcomes o USING(request_id)
+        WHERE a.capture_id=%s AND a.extraction_request_id=%s AND a.item_index=%s
+        ORDER BY a.source,a.attempt_no DESC''',(capture_id,extraction_request_id,item_index))
+    return {source:{'request_id':str(rid),'status':status,'reason':reason}
+            for source,rid,status,reason in cur.fetchall()}
+
+
+def prepare(cur, *, request_id, capture_id, extraction_request_id, item_index, source='auto', schema='core', ops='ops'):
+    schema,ops = _private(schema),_private(ops)
     request_id,capture_id,extraction_request_id = map(lambda v:str(uuid.UUID(str(v))),
                                                    (request_id,capture_id,extraction_request_id))
-    if type(item_index) is not int or item_index<0 or source not in SOURCES:
+    if type(item_index) is not int or item_index<0 or source not in SOURCES|{'auto'}:
         raise ValueError('invalid reference item or source')
     _lock(cur,capture_id)
     current = _current(cur,capture_id,schema)
@@ -44,9 +56,15 @@ def prepare(cur, *, request_id, capture_id, extraction_request_id, item_index, s
         FROM {schema}.capture_reference_attempts WHERE request_id=%s''',(request_id,))
     old = cur.fetchone()
     if old is not None:
-        if (str(old[0]),str(old[1]),old[2],old[3]) != (capture_id,extraction_request_id,item_index,source):
+        if ((str(old[0]),str(old[1]),old[2]) != (capture_id,extraction_request_id,item_index)
+            or (source!='auto' and old[3]!=source)):
             raise ValueError('reference request identity reused')
-        return _prepared_or_done(cur,request_id,old[4],schema)
+        result=_prepared_or_done(cur,request_id,old[4],schema)
+        if source=='auto' and 'status' not in result:
+            cur.execute(f'SELECT 1 FROM {ops}.reference_requests WHERE request_id=%s',(request_id,))
+            if cur.fetchone() is not None:
+                return {'status':'awaiting_result','request_id':request_id}
+        return result
     cur.execute(f'''SELECT value,provenance FROM {schema}.capture_extraction_fields
         WHERE request_id=%s AND item_index=%s AND name='name' ''',(extraction_request_id,item_index))
     name = cur.fetchone()
@@ -55,12 +73,29 @@ def prepare(cur, *, request_id, capture_id, extraction_request_id, item_index, s
     cached,_ = nutrition.lookup_cached(cur,name[0],schema)
     if cached is not None:
         return {'status':'cached','food_id':cached['food_id']}
+    if source=='auto':
+        outcomes=source_outcomes(cur,capture_id=capture_id,extraction_request_id=extraction_request_id,
+                                 item_index=item_index,schema=schema)
+        for candidate in SOURCE_ORDER:
+            outcome=outcomes.get(candidate)
+            if outcome is not None and outcome['status']=='unresolved':
+                continue
+            if outcome is not None and outcome['status'] is None:
+                cur.execute(f'SELECT 1 FROM {ops}.reference_requests WHERE request_id=%s',
+                            (outcome['request_id'],))
+                if cur.fetchone() is not None:
+                    return {'status':'awaiting_result','request_id':outcome['request_id']}
+            source=candidate
+            break
+        else:
+            return {'status':'unresolved','reason':'no_source_match',
+                    'sources':[{'source':name,**outcomes[name]} for name in SOURCE_ORDER]}
     # Reuse a pending request even when another processing event advanced the
     # head; source polling must not create multiple billable requests per item.
     cur.execute(f'''SELECT a.request_id,a.payload FROM {schema}.capture_reference_attempts a
         LEFT JOIN {schema}.capture_reference_outcomes o USING(request_id)
         WHERE a.capture_id=%s AND a.extraction_request_id=%s AND a.item_index=%s AND a.source=%s
-          AND (o.request_id IS NULL OR (a.expected_event_id=%s AND o.status NOT IN ('deferred','stale')))
+          AND (o.request_id IS NULL OR (a.expected_event_id=%s AND o.status='unresolved'))
         ORDER BY a.recorded_at DESC,a.request_id LIMIT 1''',
         (capture_id,extraction_request_id,item_index,source,current[1]))
     pending = cur.fetchone()
@@ -182,7 +217,7 @@ def consume(cur, *, request_id, response, schema='core', ops='ops'):
         if not applied:
             status,reason = 'stale','extraction_changed'
         elif row is not None:
-            food_id = off.insert_cache_row(cur,row,schema=schema)
+            food_id = off.insert_cache_row(cur,row,schema=schema,refresh=True)
             if food_id is None:
                 food_id = nutrition.cached_food_id(cur,row,schema=schema)
                 if food_id is not None:

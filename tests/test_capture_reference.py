@@ -193,7 +193,8 @@ def test_REQ_NUT_003_changed_existing_cache_is_not_misreported_as_the_new_source
 
 
 @pytest.mark.parametrize('commit_fails',[False,True])
-def test_RULE_29_REQ_NUT_003_private_prepare_cli_waits_for_commit(cur,monkeypatch,capsys,commit_fails):
+@pytest.mark.parametrize('automatic',[False,True])
+def test_RULE_29_REQ_NUT_003_private_prepare_cli_waits_for_commit(cur,monkeypatch,capsys,commit_fails,automatic):
     from tools import capture_transcription as cli
     extraction=saved_food_extraction(cur,food_name=NAME)
     calls=[]
@@ -210,13 +211,17 @@ def test_RULE_29_REQ_NUT_003_private_prepare_cli_waits_for_commit(cur,monkeypatc
     monkeypatch.setattr(reference,'prepare',lambda cursor,**kw:actual(cursor,schema='core_pytest',**kw))
     cur.execute('SET SESSION AUTHORIZATION service_role')
     try:
-        assert cli.main(['prepare-reference',str(uuid.uuid4()),CID,extraction['request_id'],'0','usda_branded'])==(1 if commit_fails else 0)
+        argv=['prepare-reference',str(uuid.uuid4()),CID,extraction['request_id'],'0']
+        if not automatic:argv.append('usda_branded')
+        assert cli.main(argv)==(1 if commit_fails else 0)
         output=capsys.readouterr()
         if commit_fails:
             assert not output.out and calls==['commit','rollback','close']
             assert 'fixture secret' not in output.err
         else:
-            assert json.loads(output.out)['query']==NAME
+            result=json.loads(output.out)
+            assert result['query']==NAME
+            assert result['source']==('usda_foundation' if automatic else 'usda_branded')
             assert calls==['commit','close']
     finally:cur.execute('RESET SESSION AUTHORIZATION')
 
@@ -327,3 +332,137 @@ def test_REQ_CAP_060_REQ_NUT_003_actual_cli_handoff_resolves_saved_food(cur,monk
         assert (float(kcal['value_low']),float(kcal['value_point']),float(kcal['value_high']))==(162,180,198)
         assert len(sends)==1 and len(commits)==5
     finally:cur.execute('RESET SESSION AUTHORIZATION')
+
+
+def test_REQ_NUT_008_expired_reference_refresh_appends_version_and_preserves_alias_history(cur):
+    import datetime as dt
+    from tools.engines import nutrition_off as off
+    extraction=saved_food_extraction(cur,food_name=NAME)
+    old=source_result()['row']
+    old['fetched_at']=dt.datetime.now(dt.timezone.utc)-dt.timedelta(days=366)
+    old['nutrients_per_100g']['kcal']=300
+    old_id=off.insert_cache_row(cur,old,schema='core_pytest')
+    nutrition.remember_alias(cur,'my usual bar',old,food_id=old_id,schema='core_pytest')
+    cur.execute('SELECT to_jsonb(c) FROM core_pytest.foods_cache c WHERE food_id=%s',(old_id,))
+    original=cur.fetchone()[0]
+    assert nutrition.lookup_cached(cur,'my usual bar','core_pytest')==(None,None)
+    request=reference.prepare(cur,request_id=uuid.uuid4(),capture_id=CID,
+        extraction_request_id=extraction['request_id'],item_index=0,source='usda_branded',schema='core_pytest')
+    assert request['source']=='usda_branded'  # expired row is not a cache success
+    response=source_result()
+    settled(cur,request,response)
+    result=consume(cur,request,response)
+    assert result['status']=='resolved' and result['food_id']!=str(old_id)
+    assert count(cur,'foods_cache')==2
+    cur.execute('SELECT to_jsonb(c) FROM core_pytest.foods_cache c WHERE food_id=%s',(old_id,))
+    assert cur.fetchone()[0]==original
+    # The historical alias remains intact but current lookup follows the fresh
+    # version of that same identity, including when the alias differs from name.
+    cur.execute("SELECT food_id FROM core_pytest.food_aliases WHERE alias='my usual bar'")
+    assert str(cur.fetchone()[0])==str(old_id)
+    current,method=nutrition.lookup_cached(cur,'my usual bar','core_pytest')
+    assert current['food_id']==result['food_id'] and current['nutrients_per_100g']['kcal']==450
+    assert method=='usda_branded'
+    assert consume(cur,request,response)==result and count(cur,'foods_cache')==2
+
+
+@pytest.mark.parametrize('source,days,usable',[
+    ('usda_branded',364,True),('usda_branded',366,False),
+    ('off_product',364,True),('off_product',366,False),
+    ('usda_foundation',1000,True),('joe',1000,True),
+])
+def test_REQ_NUT_008_cache_freshness_applies_to_canonical_and_alias_matches(cur,source,days,usable):
+    import datetime as dt
+    from tools.engines import nutrition_off as off
+    row=source_result()['row']
+    row.update(source=source,fetched_at=dt.datetime.now(dt.timezone.utc)-dt.timedelta(days=days))
+    food=off.insert_cache_row(cur,row,schema='core_pytest')
+    nutrition.remember_alias(cur,'usual snack',row,food_id=food,schema='core_pytest')
+    for name in (NAME,'usual snack'):
+        cached,_=nutrition.lookup_cached(cur,name,'core_pytest')
+        assert (cached is not None)==usable
+
+
+@pytest.mark.parametrize('isolation',['REPEATABLE READ','SERIALIZABLE'])
+def test_REQ_NUT_008_cache_publication_refuses_stale_transaction_snapshots(isolation):
+    from tests._sql_fixture import connect
+    from tools.engines import nutrition_off as off
+    conn=connect()
+    try:
+        conn.rollback()
+        cursor=conn.cursor()
+        cursor.execute('SET TRANSACTION ISOLATION LEVEL '+isolation)
+        with pytest.raises(ValueError,match='READ COMMITTED required'):
+            off.insert_cache_row(cursor,source_result()['row'],schema='core_pytest',refresh=True)
+    finally:
+        conn.rollback()
+        conn.close()
+
+
+def next_source(cur,extraction,request_id=None):
+    return reference.prepare(cur,request_id=request_id or uuid.uuid4(),capture_id=CID,
+        extraction_request_id=extraction['request_id'],item_index=0,schema='core_pytest',ops='ops_pytest')
+
+
+def test_REQ_NUT_001_024_ordered_sources_distinguish_final_no_match_from_missing_service(cur):
+    extraction=saved_food_extraction(cur,food_name=NAME)
+    initial=capture_resolution.resolve(cur,request_id=uuid.uuid4(),capture_id=CID,
+        extraction_request_id=extraction['request_id'],schema='core_pytest',ops='ops_pytest')
+    assert initial['items'][0]['reason']=='no_source_available'
+    cur.execute('SELECT item_id,tried,tried_recorded_at FROM core_pytest.unresolved_items')
+    original=cur.fetchone()
+    for expected in ('usda_foundation','usda_branded','off_search'):
+        request=next_source(cur,extraction)
+        assert request['source']==expected
+        assert next_source(cur,extraction)==request  # pending preparation is reused
+        response={'status':'unresolved','reason':'no_source_match'}
+        settled(cur,request,response)
+        assert consume(cur,request,response)['status']=='unresolved'
+    final=next_source(cur,extraction)
+    assert final['status']=='unresolved' and final['reason']=='no_source_match'
+    assert [s['source'] for s in final['sources']]==list(reference.SOURCE_ORDER)
+    assert count(cur,'capture_reference_attempts')==3
+    cur.execute('SET LOCAL ROLE service_role')
+    resolved=capture_resolution.resolve(cur,request_id=uuid.uuid4(),capture_id=CID,
+        extraction_request_id=extraction['request_id'],schema='core_pytest',ops='ops_pytest')
+    assert resolved['items'][0]['reason']=='no_source_match'
+    assert resolved['items'][0]['status']=='unresolved'
+    assert count(cur,'atoms')==0
+    cur.execute('SELECT item_id,tried,tried_recorded_at FROM core_pytest.unresolved_items')
+    current=cur.fetchone()
+    assert current[0]==original[0] and current[2]>original[2]
+    assert current[1]['reason']==current[1]['review_reason']=='no_source_match'
+    assert len(current[1]['tried'])==3
+    cur.execute('SELECT tried,recorded_at FROM core_pytest.unresolved_item_history WHERE item_id=%s',(original[0],))
+    assert tuple(cur.fetchone())==(original[1],original[2])
+    cur.execute('RESET ROLE')
+
+
+def test_REQ_NUT_001_002_ordered_lookup_stops_on_fresh_reference_success(cur):
+    extraction=saved_food_extraction(cur,food_name=NAME)
+    first=next_source(cur,extraction)
+    missing={'status':'unresolved','reason':'no_source_match'}
+    settled(cur,first,missing)
+    consume(cur,first,missing)
+    second=next_source(cur,extraction)
+    assert second['source']=='usda_branded'
+    response=source_result()
+    settled(cur,second,response)
+    applied=consume(cur,second,response)
+    assert next_source(cur,extraction)=={'status':'cached','food_id':applied['food_id']}
+    assert count(cur,'capture_reference_attempts')==2
+
+
+def test_REQ_NUT_012_ordered_lookup_reconciles_reserved_attempt_and_retries_deferred_stage(cur):
+    extraction=saved_food_extraction(cur,food_name=NAME)
+    first=next_source(cur,extraction)
+    deferred={'status':'deferred','reason':'rate_limited_provider'}
+    settled(cur,first,deferred,provider_status=429)
+    waiting={'status':'awaiting_result','request_id':first['request_id']}
+    assert next_source(cur,extraction)==waiting
+    assert next_source(cur,extraction,first['request_id'])==waiting
+    consume(cur,first,deferred)
+    retry=next_source(cur,extraction)
+    assert retry['source']=='usda_foundation' and retry['request_id']!=first['request_id']
+    assert 'status' not in retry
+    assert count(cur,'capture_reference_attempts')==2

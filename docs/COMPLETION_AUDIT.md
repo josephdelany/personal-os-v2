@@ -415,3 +415,24 @@ removal; targeted33 tests re-exercised those unchanged assertions. Initial CLI t
 used nonexistent config_pytest; corrected to config per the disposable harness.
 Earlier layout43 claims missed the test's import before it was tracked; this run
 found and repaired it without changing the lint gate. No production action occurred.
+
+## 2026-09-23 — Ordered name lookup and reference freshness (0086)
+
+Scope: ec2cda2 plus root-owned0086/ADR0156 and existing nutrition/capture owners.
+
+| Lens | Evidence and remaining gate |
+|---|---|
+| Contract fidelity | PARTIAL: name-only fresh-cache→Foundation→Branded→OFF sequence uses saved outcomes; Branded/OFF expire after365 days, Foundation/Joe do not. Brand/restaurant and barcode evidence remain open; this does not close full REQ-NUT-001/013. |
+| Complete user paths | PASS in local scope: default prepare CLI emits first ordered request after commit; persisted misses advance stages, success stops on fresh cache, all misses reach exact-item review eligibility. Real provider/device path unverified. |
+| Failure behavior | PASS in tested scope: reserved request directs reconciliation; deferred provider outcome retries without becoming no-match; stale cache misses; fresh conflicting data refuses; snapshot modes that invalidate lock/read ordering refuse. |
+| Data integrity | PASS in tested scope: refresh appends a new food_id/version and retains prior rows/aliases; current aliases follow that identity to newest fresh version under correction precedence. Review projection changes append old reason/knowledge time to immutable history in the same transaction. |
+| Access/privacy | PASS in tested scope: private automatic preparation performs no egress; service can update only review tried projection and read its history; history insertion belongs to the trigger owner. Existing source/private separation remains. |
+| Runtime/deployment | PARTIAL: actual CLI default, owner engines and SQL roles exercised. Supervisor, independent-session crash/concurrency, deployment and physical device remain unverified. |
+| Operations/recovery | PARTIAL: no-match differs from operational hold in both current review item and immutable prior evidence; no repeat source calls are needed merely to advance a saved stage. Live scheduling/storage bounds remain release gates. |
+| Evidence/reproducibility | Latest targeted146 passed30.52s; scoped independent review accepted isolation and persisted-review repairs. Chain85 migrations865 statements; layout43. FullSQL972 passed/1 production-only skip340.26s; noDB1182 passed/805 skipped180.64s; all handles terminal, servers stopped. Ledger14/15 unchanged, genericRULE04 pending. |
+
+Review repaired missing READ COMMITTED enforcement in the shared cache publisher and
+stale persisted review reasons after outage→three misses→terminal no-match. A further
+owner check refuses fresh conflicting reference data and supplies the existing food_id
+for an identical concurrent publication. Full release, brand/barcode fidelity and
+historical consumer coverage are not inferred from these scoped passes.

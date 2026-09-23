@@ -32,7 +32,7 @@ def main(argv=None):
     reference.add_argument('capture_id')
     reference.add_argument('extraction_request_id')
     reference.add_argument('item_index',type=int)
-    reference.add_argument('source',choices=('usda_foundation','usda_branded','off_search'))
+    reference.add_argument('source',nargs='?',default='auto',choices=('auto','usda_foundation','usda_branded','off_search'))
     commands.add_parser('consume-reference')
     reference_reconcile=commands.add_parser('reconcile-reference')
     reference_reconcile.add_argument('request_id')

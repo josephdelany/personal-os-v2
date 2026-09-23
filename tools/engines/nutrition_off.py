@@ -517,21 +517,40 @@ def cache_row(product, parsed=None, *, fetched_at=None):
     }
 
 
-def insert_cache_row(cur, row, schema="core"):
+def insert_cache_row(cur, row, schema="core", *, refresh=False):
     """Append the row if it is new. Returns the `food_id`, or None when it was already there.
 
-    `ON CONFLICT DO NOTHING` on 0050's `(canonical_name, source, source_id)` key: a second
-    lookup of the same product must not rewrite the first one's `raw`, because that is the
-    payload an earlier reading was derived from (INV-1).
+    Publication is serialized by identity. A requested refresh appends a new
+    version only after expiry; no earlier row or provenance link is rewritten.
     """
     if not _SCHEMA_RE.match(schema):
         raise ValueError(f"not a plain schema identifier: {schema!r}")
+    cur.execute("SELECT current_setting('transaction_isolation')")
+    if cur.fetchone()[0]!='read committed':
+        raise ValueError('READ COMMITTED required for cache publication')
+    identity=(row['canonical_name'],row['source'],row['source_id'])
+    cur.execute('SELECT pg_advisory_xact_lock(hashtextextended(%s,771008))',
+                (json.dumps(identity,separators=(',',':')),))
+    cur.execute(f'''SELECT fetched_at,clock_timestamp(),brand,nutrients_per_100g,serving_g,raw FROM {schema}.foods_cache
+        WHERE canonical_name=%s AND source=%s AND source_id IS NOT DISTINCT FROM %s
+        ORDER BY fetched_at DESC,food_id LIMIT 1''',identity)
+    existing=cur.fetchone()
+    if existing is not None:
+        fetched,now=existing[:2]
+        if (not refresh or row['source'] not in ('usda_branded','off_product')
+            or not needs_refetch(fetched,now) or row['fetched_at']<=fetched):
+            if refresh:
+                actual=(existing[2],existing[3],None if existing[4] is None else float(existing[4]),existing[5])
+                expected=(row['brand'],row['nutrients_per_100g'],row['serving_g'],row['raw'])
+                if actual!=expected:
+                    raise ValueError('cache version conflict requires refresh')
+            return None
     cur.execute(
         f"""insert into {schema}.foods_cache
               (canonical_name, source, source_id, brand, nutrients_per_100g, serving_g,
                fetched_at, raw)
             values (%s, %s, %s, %s, %s::jsonb, %s, %s, %s::jsonb)
-            on conflict (canonical_name, source, source_id) do nothing
+            on conflict do nothing
             returning food_id""",
         (row["canonical_name"], row["source"], row["source_id"], row["brand"],
          json.dumps(row["nutrients_per_100g"]), row["serving_g"], row["fetched_at"],

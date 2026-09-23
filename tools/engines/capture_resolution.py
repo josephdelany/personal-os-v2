@@ -116,6 +116,15 @@ def resolve(cur, *, request_id, capture_id, extraction_request_id, schema='core'
                 resolved=nutrition.resolve_item(cur,name['value'],schema=schema,config=config,ops=ops,
                                                 sources=sources,**quantity)
             except nutrition.Unresolved as missing:
+                if missing.reason=='no_source_available':
+                    from tools.engines import capture_reference
+                    attempts=capture_reference.source_outcomes(cur,capture_id=capture_id,
+                        extraction_request_id=extraction_request_id,item_index=index,schema=schema)
+                    if all(attempts.get(source,{}).get('status')=='unresolved'
+                           for source in capture_reference.SOURCE_ORDER):
+                        missing=nutrition.Unresolved(name['value'],
+                            [{'source':source,**attempts[source]} for source in capture_reference.SOURCE_ORDER],
+                            reason='no_source_match',review_reason='no_source_match')
                 nutrition.record_unresolved(cur,missing,raw_capture_id=capture_id,subject_day=day,schema=schema,
                                              extraction_request_id=extraction_request_id,item_index=index)
                 items.append({'item_index':index,'status':'unresolved','reason':missing.reason})

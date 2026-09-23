@@ -8053,3 +8053,39 @@ failed before testing; approved rerun completed.
 WHAT I DID NOT DO: automatic source-order/TTL completion, independent-process crash
 or commit-survival proof, runtime supervision, live provider/device/production work,
 or closure of M3/M0–M6. Eight lenses recorded in COMPLETION_AUDIT.
+
+## 2026-09-23 — M3 reference freshness draft0086
+
+REQ-NUT-008, INV1/3, RULE10: stale Branded/OFF canonical+alias lookups miss;
+shared nutrition publisher appends newer cache versions after expiry under an
+identity lock; aliases reach fresh versions without changing historical rows/IDs.
+Foundation/Joe do not expire. Capture receipt consumption and legacy resolver use
+the same refresh owner. Reviewer found stale-snapshot risk; shared helper now
+requires READ COMMITTED, with actual RR/Serializable refusal tests. Reviewer
+accepted repair. Targeted143 passed28.46s at ec2cda2 plus root draft; previous26
+passed18.30s. Log `/tmp/capture-freshness-targeted.log`, JUnit same prefix.xml.
+Session58319 terminal exit0; disposable server stopped.
+WHAT I DID NOT DO: ordered runtime source selection (next), complete brand/barcode
+handling, full integration checks or commit for0086, independent-process crash/
+concurrency proof, production/device work, or backend release.
+
+## 2026-09-23 — M3 ordered names, cache versions and review history0086
+
+REQ-NUT-001/008/024 (name-only scope), RULE10/29: prepare-reference defaults to
+saved stage ordering; fresh success stops search, reserved output requests recovery,
+deferred remains retryable, all source misses persist terminal review eligibility.
+Cache refresh appends versions while preserving old food IDs/aliases; current reads
+exclude expired Branded/OFF and retain correction precedence. Review found stale
+snapshot publication and stale persisted review reason; guard and atomic historical
+review trigger repaired both. Final scoped review found no remaining blocker here.
+
+Evidence at ec2cda2 plus recorded sources:targeted146 passed30.52s; fullSQL972
+passed/1 skipped340.26s; fullnoDB1182 passed/805 skipped180.64s; chain85/865;layout43.
+FullSQL includes two final default-auto CLI commit-order cases added after targeted
+run. SQL24689/noDB56486/chain22007 terminal exit0; servers stopped. Archive
+`.local/evidence/capture-freshness/`. Ledger14/15 unchanged; F006 unmatched-ID
+diagnostic unchanged; genericRULE04 pending. SQL skip is production-only shape;
+noDB skips cover DB/live guards and two NumPyro dependency cases.
+WHAT I DID NOT DO: brand/restaurant evidence or barcode fidelity (brand is next),
+full quantity language, daily-total point repair, independent-process crash/concurrency
+proof, supervisor/deployment/device observations, frontend or backend release.

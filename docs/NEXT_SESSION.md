@@ -9,10 +9,10 @@ Joe's `/goal` is active. Do not start backend execution from the monitor.
 {
   "version": 1,
   "status": "running",
-  "updated_at": "2026-09-23T13:50:19.517523+00:00",
-  "last_progress_at": "2026-09-23T13:50:19.517523+00:00",
+  "updated_at": "2026-09-23T14:22:26.794160+00:00",
+  "last_progress_at": "2026-09-23T14:22:26.794160+00:00",
   "unit": "M3-B16-voice-capture-to-atoms",
-  "next_action": "Same M3 voice-to-atoms unit:0085 private reference handoff is connected through actual CLIs and locally verified, including lone-orphan and lost-stdout recovery. FullSQL958/1skip288.12s; noDB1182/791skip162.13s; chain84/850; layout43; all handles terminal and disposable servers stopped. Scoped review accepted repairs. Next enforce automatic source order and365-day cache refresh through the existing nutrition owner, then separated runtime supervision and process/device proof. No production access/deployment; full M0\u2013M6 remains active."
+  "next_action": "Same M3 voice-to-atoms unit:0086 ordered name lookup, append-only cache refresh and review-reason history locally integrated. FullSQL972/1skip340.26s, noDB1182/805skip180.64s, chain85/865,layout43; all handles terminal, servers stopped. Scoped review accepted snapshot and stale-review repairs. NEXT preserve verified brand/restaurant context across saved extraction, ordered source preparation and private cache resolution (including ambiguous-cache behavior), then supervisor/process/device proof. Quantity language, barcode and daily-total gaps remain open; full M0\u2013M6 unchanged."
 }
 ```
 <!-- backend-control:end -->
@@ -64,6 +64,47 @@ hold or urgent integrity issue, as EXECUTION_PLAN requires. Report the gate clos
 what the user can exercise, and the next missing gate; test counts are evidence,
 not milestone completion. Apply the plan's existing eight review lenses at the
 integration boundary rather than creating another checklist.
+
+**Current integration checkpoint — ordered name lookup and freshness0086/ADR0156:**
+the existing prepare-reference CLI defaults to automatic name-source selection:
+fresh cache, Foundation, Branded, OFF. Saved no-match advances a stage; a reserved
+unconsumed request directs reconciliation; deferred remains retryable. Three stored
+misses let private resolution persist no_source_match with review eligibility rather
+than permanently reporting no_source_available. This is name-only behavior: it does
+not close brand/restaurant or barcode requirements.
+
+Shared nutrition publication appends a new food version after365-day Branded/OFF
+expiry, retains historical food_id rows and aliases, and follows an alias's identity
+to the latest fresh version under existing correction precedence. Foundation/Joe
+remain non-expiring. READ COMMITTED plus the identity lock prevents stale-snapshot
+publication; fresh differing responses refuse. The legacy resolver reuses the same
+publisher and retains the existing food_id for an identical concurrent response.
+
+Review found that the operational unresolved row retained its earlier reason after
+three later misses. The same row now becomes reviewable with terminal source evidence;
+an atomic trigger preserves each prior tried JSON/knowledge timestamp in immutable
+history and stamps the current projection with DB time. Raw captures/atoms stay
+immutable. Actual service-role tests exercise the initial outage→three misses→review
+transition and historical evidence. Independent review accepted both this repair and
+the shared isolation guard; simultaneous-session/commit-survival proof remains open.
+
+Final evidence at ec2cda2 plus root-owned0086 sources: targeted146 passed30.52s;
+fullSQL972 passed/1 production-only skip340.26s; fullnoDB1182 passed/805 skipped
+180.64s; chain85 migrations865 statements; layout43. FullSQL also covers the final
+two default-auto CLI commit-order cases. All handles terminal (SQL24689 exit0,
+noDB56486 exit0, chain22007 exit0); disposable servers stopped. Archive
+`.local/evidence/capture-freshness/`. Ledger14/15 unchanged; unmatchedF006 diagnostic
+unchanged; genericRULE04 pending. noDB skips include guarded DB/live checks and the
+two existing NumPyro dependency cases. No production call, write, deployment or
+physical-device observation occurred.
+
+**Next dependent operation:** preserve verified brand/restaurant context across
+saved extraction, reference preparation and private cache resolution. A generic food
+must not satisfy a branded item (REQ-NUT-013/016); also exercise ambiguous cache
+identities. Do not add fields forbidden by the exact food extraction schema or infer
+unsupported context. Then connect separated runtime supervision. Barcode support,
+quantity language, asymmetric daily-total point behavior and physical/process evidence
+remain open in the same voice path. Full M0–M6 remains active and release unproven.
 
 **Current integration checkpoint — private reference handoff0085:** saved verified
 extraction now prepares a bound lookup; isolated source settlement stores an immutable

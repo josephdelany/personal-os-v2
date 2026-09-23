@@ -175,10 +175,16 @@ def lookup_cached(cur, name, schema="core", brand=None):
         f"""select c.canonical_name, c.source, c.nutrients_per_100g, c.serving_g, c.brand,
                    c.food_id,c.source_id,c.raw
               from {schema}.foods_cache c
-             where lower(c.canonical_name) = lower(%s)
-                or c.food_id in (select a.food_id from {schema}.food_aliases a
-                                  where lower(a.alias) = lower(%s))
-             order by array_position(%s::text[], c.source)""",
+             where (lower(c.canonical_name) = lower(%s)
+                or exists (select 1 from {schema}.food_aliases a
+                    join {schema}.foods_cache original on original.food_id=a.food_id
+                    where lower(a.alias)=lower(%s)
+                      and original.canonical_name=c.canonical_name
+                      and original.source=c.source
+                      and original.source_id is not distinct from c.source_id))
+               and (c.source not in ('usda_branded','off_product')
+                    or c.fetched_at >= clock_timestamp()-interval '365 days')
+             order by array_position(%s::text[], c.source),c.fetched_at desc,c.food_id""",
         (name, name, list(SOURCE_PRECEDENCE)))
     for canonical, source, nutrients, serving_g, row_brand, food_id, source_id, raw in cur.fetchall():
         if brand and not cached_row_answers_brand(source, row_brand, brand):
@@ -510,7 +516,8 @@ def cached_food_id(cur, row, schema="core"):
     """
     cur.execute(f"""select food_id from {schema}.foods_cache
                      where canonical_name = %s and source = %s
-                       and source_id is not distinct from %s""",
+                       and source_id is not distinct from %s
+                     order by fetched_at desc,food_id limit 1""",
                 (row["canonical_name"], row["source"], row.get("source_id")))
     found = cur.fetchone()
     return found[0] if found else None
@@ -633,7 +640,9 @@ def resolve_item(cur, item_text, *, grams=None, servings=None, item_count=None, 
     # for an answer already in hand spends a request REQ-NUT-011 rations.
     food_id, alias_id = cached.get('food_id'), None
     if not outcome.get("from_cache") and outcome.get("cache_row") is not None:
-        food_id = nutrition_off.insert_cache_row(cur, outcome["cache_row"], schema=schema)
+        food_id = nutrition_off.insert_cache_row(cur, outcome["cache_row"], schema=schema, refresh=True)
+        if food_id is None:
+            food_id = cached_food_id(cur,outcome['cache_row'],schema=schema)
         if learn_alias:
             alias_id = remember_alias(cur, item_text, outcome["cache_row"],
                                       food_id=food_id, schema=schema)
@@ -959,17 +968,20 @@ def record_unresolved(cur, unresolved, *, raw_capture_id, subject_day, schema="c
         raise ValueError('complete extracted-item identity required')
     identity = ' AND extraction_request_id=%s AND capture_item_index=%s' if extraction_request_id is not None else ''
     identity_args = (extraction_request_id,item_index) if extraction_request_id is not None else ()
-    cur.execute(f"""select item_id from {schema}.unresolved_items
+    cur.execute(f"""select item_id,tried from {schema}.unresolved_items
                      where item_text = %s and subject_day = %s and resolved_at is null
                        and raw_capture_id is not distinct from %s
                        {identity}
                      limit 1""", (unresolved.item_text, subject_day, raw_capture_id)+identity_args)
     existing = cur.fetchone()
-    if existing:
-        return None
     tried = json.dumps({"reason": unresolved.reason, "review_reason": unresolved.review_reason,
                         "brand": unresolved.brand, "tried": list(unresolved.tried)},
                        default=str)
+    if existing:
+        if existing[1]!=json.loads(tried):
+            cur.execute(f'UPDATE {schema}.unresolved_items SET tried=%s::jsonb WHERE item_id=%s',
+                        (tried,existing[0]))
+        return None
     columns = ',extraction_request_id,capture_item_index' if identity_args else ''
     placeholders = ',%s,%s' if identity_args else ''
     cur.execute(

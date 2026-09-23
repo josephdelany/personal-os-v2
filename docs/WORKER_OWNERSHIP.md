@@ -163,3 +163,14 @@ Root continues0085 recovery and owns updates to `tests/test_reference_dispatch_s
 for the new durable-body settlement capability. Reviewer remains read-only.
 Root also owns `tests/test_reference_transport.py` for the transport-owner patch
 needed to satisfy the unchanged network-import lint at integration.
+
+## 2026-09-23 reference freshness within the same M3 outcome
+Root owns migration0086, ADR0156, nutrition.py/nutrition_off.py,
+capture_reference.py and their tests/maintained docs. REQ-NUT-008: stale Branded/OFF
+misses trigger fresh publication without overwriting prior food/provenance rows;
+Foundation/Joe remain non-expiring. Then connect ordered source selection.
+No implementation worker runs concurrently; reviewer is read-only.
+Root extends the same0086 unit to `tools/capture_transcription.py` and
+`tools/engines/capture_resolution.py`: automatic name-source preparation and
+persisted no-match review transitions. Migration0086 also preserves review-reason
+history before updating the current unresolved-item projection.
