@@ -80,7 +80,7 @@ def test_REQ_CAP_026_failed_reconciliation_does_not_claim_settlement(monkeypatch
 @pytest.mark.parametrize('key',worker.FOREIGN_CREDENTIALS+('PERSONAL_OS_TEST_SOCKET',))
 def test_RULE_29_foreign_or_disposable_context_refuses_before_worker_launch(monkeypatch,key):
     monkeypatch.setenv(key,'fixture forbidden')
-    monkeypatch.setattr(worker.subprocess,'Popen',lambda *a,**kw:pytest.fail('must not launch'))
+    monkeypatch.setattr(worker.process.subprocess,'Popen',lambda *a,**kw:pytest.fail('must not launch'))
     with pytest.raises(ValueError):worker.run(REQUEST)
 
 

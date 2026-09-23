@@ -193,3 +193,18 @@ Root also owns tools/test_local_sql.py registration and tests/test_capture_trans
 Root extends this same runtime unit to tools/model_worker.py, tools/model_egress.py,
 tools/engines/capture_runtime.py, tests/test_model_worker.py, tests/test_capture_runtime.py
 and the existing media-receipt fixture. No parallel implementation owner.
+
+## 2026-09-23 reference supervision / durable handoff continuation
+Root owns shared lib/worker_process.py, tools/model_worker.py, new reference worker,
+reference dispatcher/CLI callback, migration0088 and their tests/docs. Gate2/4 needs
+the same bounded owned-process recovery for reference requests before scheduler
+handoff can connect all stages. No external calls/deployment or other writer.
+
+Root also owns lib/capture_mailbox.py, tools/capture_dispatch_mailbox.py and
+tests/test_capture_mailbox.py for the same durable runtime handoff.
+Root additionally owns tools/capture_transcription.py, tools/engines/capture_mailbox.py
+and tests/test_capture_runtime.py for commit-before-publication and SQL-gated retirement.
+Root owns tools/capture_private_worker.py and expanded mailbox/runtime tests for
+the same capture scheduling connection; no additional implementation worker.
+Root owns tests/test_capture_private_worker.py and ADR0159/index for private
+pagination and operational nightly sweep gating in the same capture unit.

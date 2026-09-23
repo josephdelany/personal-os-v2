@@ -29,6 +29,25 @@ def reserve(cur,source='usda_branded',rid=None):
     return rid,cur.fetchone()[0]
 
 
+@pytest.mark.parametrize('settled',[False,True])
+def test_REQ_NUT_012_owned_stopped_reference_preserves_success_or_cooldown(cur,settled):
+    cur.execute('SET LOCAL ROLE reference_egress')
+    rid,permit=reserve(cur)
+    assert permit['allowed']
+    if settled:cur.execute('SELECT public.settle_reference_response(%s,%s,NULL)',(rid,BODY))
+    for _ in range(2):
+        cur.execute('SELECT public.reconcile_stopped_reference_call(%s)',(rid,))
+        assert cur.fetchone()[0]==('settled' if settled else 'uncertain')
+    cur.execute('RESET ROLE')
+    cur.execute("SELECT count(*) FROM ops_pytest.rate_limit_cooldowns WHERE meter='usda' AND blocked_until>clock_timestamp()+interval '59 minutes'")
+    assert cur.fetchone()[0]==int(not settled)
+    cur.execute('SET LOCAL ROLE model_egress')
+    cur.execute('SAVEPOINT forbidden_recovery')
+    with pytest.raises(Exception,match='permission denied'):
+        cur.execute('SELECT public.reconcile_stopped_reference_call(%s)',(rid,))
+    cur.execute('ROLLBACK TO SAVEPOINT forbidden_recovery')
+
+
 def test_RULE_29_REQ_NUT_005_receipt_binding_and_repeat_identity(cur):
     cur.execute('SET LOCAL ROLE reference_egress')
     rid,permit=reserve(cur)

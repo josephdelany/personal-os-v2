@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Isolated source dispatcher. Pipe private output to cache consumption, never logs."""
 import json
+import os
 import sys
 from lib import db
 from tools.engines import reference_dispatch
@@ -15,7 +16,13 @@ def main():
         request = json.loads(text)
         reference_dispatch.validate(request)
         conn = db.connect_reference_egress()
-        result = reference_dispatch.dispatch(conn,request)
+        receipt_fd=os.environ.get('PERSONAL_OS_REFERENCE_RESERVATION_FD')
+        def reserved(request_id):
+            if receipt_fd is not None:
+                raw=json.dumps({'request_id':request_id,'reserved':True}).encode()+b'\n'
+                if os.write(int(receipt_fd),raw)!=len(raw):
+                    raise RuntimeError('reservation acknowledgement incomplete')
+        result = reference_dispatch.dispatch(conn,request,_on_reserved=reserved)
         print(json.dumps({'request_id':request['request_id'],'result':result}))
         return 0
     except Exception as exc:

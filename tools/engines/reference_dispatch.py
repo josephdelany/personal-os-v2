@@ -45,7 +45,7 @@ def validate(request):
 
 
 def dispatch(conn, request, *, _transport=None, _monotonic=time.monotonic, env=None,
-             ops='ops', config='config'):
+             ops='ops', config='config', _on_reserved=None):
     body = validate(request)
     if any(os.environ.get(key) for key in PRIVATE_CREDENTIALS):
         raise egress.DispatchRefused('private or model capability present')
@@ -63,7 +63,7 @@ def dispatch(conn, request, *, _transport=None, _monotonic=time.monotonic, env=N
     if tuple(cur.fetchone()) != ('reference_egress','reference_egress'):
         raise egress.DispatchRefused('dedicated reference identity required')
     with _serialized(cur):
-        return _dispatch_reserved(conn,cur,request,source,body,env,ops,config,_transport,_monotonic)
+        return _dispatch_reserved(conn,cur,request,source,body,env,ops,config,_transport,_monotonic,_on_reserved)
 
 
 @contextmanager
@@ -78,7 +78,7 @@ def _serialized(cur):
         cur.execute('SELECT pg_advisory_unlock(791554)')
 
 
-def _dispatch_reserved(conn,cur,request,source,body,env,ops,config,_transport,_monotonic):
+def _dispatch_reserved(conn,cur,request,source,body,env,ops,config,_transport,_monotonic,_on_reserved):
     try:
         started = _monotonic()
         cur.execute('SELECT public.reserve_reference_call(%s,%s,%s,%s)',
@@ -101,6 +101,8 @@ def _dispatch_reserved(conn,cur,request,source,body,env,ops,config,_transport,_m
         try: conn.rollback()
         except Exception: pass
         raise egress.DispatchRefused('reference reservation not confirmed') from None
+    if _on_reserved is not None:
+        _on_reserved(request['request_id'])
     if _monotonic()-started >= lifetime:
         raise egress.DispatchRefused('reference reservation expired')
 

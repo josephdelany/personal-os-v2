@@ -52,8 +52,84 @@ def model_receipt(cur,action,response=None,error=None):
     cur.execute('RESET ROLE')
 
 
-def test_REQ_CAP_026_034_050_REQ_NUT_016_private_runtime_reaches_atoms_from_saved_receipts(cur,advance):
+def test_REQ_CAP_026_038_private_worker_consumes_budget_and_retires_after_commit(cur,monkeypatch,tmp_path):
+    from lib import capture_mailbox as mailbox
+    from tools import capture_private_worker as worker
+    monkeypatch.setattr(db,'read_capture_media',lambda *args:b'fixture')
+    paths={name:tmp_path/name for name in ('model_outbox','model_results','reference_outbox')}
+    for path in paths.values():path.mkdir(mode=0o750)
+    commits=[]
+    class Connection:
+        def cursor(self):return cur
+        def commit(self):commits.append(mailbox.pending(paths['model_outbox']))
+    conn=Connection()
+    cur.execute('SET SESSION AUTHORIZATION service_role')
+    try:
+        result=worker.advance(conn,CID,**paths,schema='core_pytest',ops='ops_pytest')
+        assert result['status']=='queued' and commits==[[]]
+        request=mailbox.read(paths['model_outbox'],result['request_id'])
+        mailbox.store_result(paths['model_results'],request,
+            {'request_id':result['request_id'],'status':'deferred_budget'})
+        result=worker.advance(conn,CID,**paths,schema='core_pytest',ops='ops_pytest')
+        assert result['status']=='deferred_budget'
+        assert commits[-1]==[request['request_id']]
+        assert mailbox.pending(paths['model_outbox'])==[]
+    finally:cur.execute('RESET SESSION AUTHORIZATION')
+    assert count(cur,'raw_captures')==1 and count(cur,'capture_transcription_outcomes')==1
+
+
+def test_REQ_CAP_026_private_poll_uses_sql_queue_and_persists_daily_gate(cur,monkeypatch,tmp_path):
+    from lib import capture_mailbox as mailbox
+    from tools import capture_private_worker as worker
+    monkeypatch.setattr(db,'read_capture_media',lambda *args:b'fixture')
+    paths={name:tmp_path/name for name in
+           ('state_directory','model_outbox','model_results','reference_outbox')}
+    for path in paths.values():path.mkdir(mode=0o750)
+    class Connection:
+        def cursor(self):return cur
+        def commit(self):pass
+        def rollback(self):raise AssertionError('unexpected rollback')
+    cur.execute('SET SESSION AUTHORIZATION service_role')
+    try:
+        first=worker.poll(Connection(),**paths,retry=True,schema='core_pytest',ops='ops_pytest')
+        assert first['sweep_complete'] and first['result']['status']=='queued'
+        second=worker.poll(Connection(),**paths,retry=True,schema='core_pytest',ops='ops_pytest')
+        assert second['status']=='already_scanned'
+        assert mailbox.pending(paths['model_outbox'])==[first['result']['request_id']]
+    finally:cur.execute('RESET SESSION AUTHORIZATION')
+    assert count(cur,'capture_transcription_attempts')==1
+
+
+@pytest.mark.parametrize('reserved',[False,True])
+@pytest.mark.parametrize('stage',['transcribe','extract'])
+def test_REQ_CAP_026_038_budget_control_defers_only_without_sql_receipt(cur,advance,reserved,stage):
+    from tools.engines.capture_mailbox import consume_control,consumed
     action=advance()
+    if stage=='extract':
+        model_receipt(cur,action,{'success':True,'result':{'text':'one '+NAME,'segments':[]}})
+        action=advance()
+    request=action['request']
+    if reserved:
+        response=({'success':True,'result':{'text':'one apple','segments':[]}} if stage=='transcribe'
+                  else extraction_response(name=NAME,evidence=NAME,evidence_start=4,
+                      quantity=1,quantity_evidence='one',quantity_evidence_start=0))
+        model_receipt(cur,action,response)
+    control={'request_id':request['request_id'],'status':'deferred_budget'}
+    with pytest.raises(ValueError,match='saved attempt'):
+        consume_control(cur,{**request,'payload':{}},control,stage=stage,schema='core_pytest')
+    result=consume_control(cur,request,control,stage=stage,schema='core_pytest')
+    assert result['processing_status']==(('transcribed' if stage=='transcribe' else 'extracted') if reserved else 'deferred_budget')
+    assert consumed(cur,request,stage=stage,schema='core_pytest')
+    if not reserved:
+        assert advance()['status']=='deferred_budget'
+        assert consume_control(cur,request,control,stage=stage,schema='core_pytest')==result
+
+
+def test_REQ_CAP_026_034_050_REQ_NUT_016_private_runtime_reaches_atoms_from_saved_receipts(cur,advance):
+    from tools.engines.capture_mailbox import consumed
+    action=advance()
+    transcript_request=action['request']
+    assert not consumed(cur,transcript_request,stage='transcribe',schema='core_pytest')
     assert action['stage']=='transcribe' and action['worker']=='model'
     assert advance()==action  # initial polling cannot mint duplicate work
     assert count(cur,'capture_transcription_attempts')==1
@@ -61,12 +137,17 @@ def test_REQ_CAP_026_034_050_REQ_NUT_016_private_runtime_reaches_atoms_from_save
     model_receipt(cur,action,{'success':True,'result':{'text':text,'segments':[]}})
     action=advance()
     assert action['stage']=='extract'
+    assert consumed(cur,transcript_request,stage='transcribe',schema='core_pytest')
+    with pytest.raises(ValueError,match='queued payload'):
+        consumed(cur,{**transcript_request,'payload':{}},stage='transcribe',schema='core_pytest')
+    extraction_request=action['request']
     assert action['request']['payload']['messages'][1]['content']==text
     assert advance()==action
     model_receipt(cur,action,extraction_response(name=NAME,evidence=NAME,evidence_start=4,
         quantity=1,quantity_evidence='one',quantity_evidence_start=0))
     action=advance()
     assert action['worker']=='reference' and action['request']['brand']=='Examplo'
+    assert consumed(cur,extraction_request,stage='extract',schema='core_pytest')
     request=action['request'];body=request_bytes(request)
     assert advance()==action
     cur.execute('SET LOCAL ROLE reference_egress')
@@ -80,6 +161,7 @@ def test_REQ_CAP_026_034_050_REQ_NUT_016_private_runtime_reaches_atoms_from_save
         (request['request_id'],request_bytes(source_result()).decode()))
     cur.execute('RESET ROLE')
     assert advance()['status']=='progress'
+    assert consumed(cur,request,stage='reference',schema='core_pytest')
     done=advance()
     assert done['status']=='complete' and done['result']['processing_status']=='enriched'
     before=count(cur,'atoms')

@@ -21,6 +21,17 @@ def main(argv=None):
     advance=commands.add_parser('advance')
     advance.add_argument('capture_id')
     advance.add_argument('--retry',action='store_true')
+    advance.add_argument('--model-outbox')
+    advance.add_argument('--reference-outbox')
+    retire=commands.add_parser('retire-request')
+    retire.add_argument('stage',choices=('transcribe','extract','reference'))
+    retire.add_argument('directory')
+    retire.add_argument('request_id')
+    control=commands.add_parser('consume-control')
+    control.add_argument('stage',choices=('transcribe','extract'))
+    control.add_argument('request_directory')
+    control.add_argument('result_directory')
+    control.add_argument('request_id')
     commands.add_parser('prepare')
     media=commands.add_parser('prepare-media')
     media.add_argument('request_id')
@@ -62,6 +73,8 @@ def main(argv=None):
     queue.add_argument('--limit',type=int,default=100)
     queue.add_argument('--cursor',type=json.loads)
     args=parser.parse_args(argv)
+    if args.command=='advance' and bool(args.model_outbox)!=bool(args.reference_outbox):
+        parser.error('both role outboxes are required together')
     conn=None
     try:
         engine._private('core')
@@ -83,6 +96,18 @@ def main(argv=None):
                 result=capture_reference.consume(cur,request_id=message['request_id'],response=message['result'])
             else:
                 result=engine.consume(cur,request_id=message['request_id'],response=message['result'])
+        elif args.command=='consume-control':
+            from lib import capture_mailbox
+            from tools.engines.capture_mailbox import consume_control
+            queued_request=capture_mailbox.read(args.request_directory,args.request_id)
+            control=capture_mailbox.result(args.result_directory,queued_request)
+            result=consume_control(cur,queued_request,control,stage=args.stage)
+        elif args.command=='retire-request':
+            from lib import capture_mailbox
+            from tools.engines.capture_mailbox import consumed
+            queued_request=capture_mailbox.read(args.directory,args.request_id)
+            ready=consumed(cur,queued_request,stage=args.stage)
+            result={'status':'retired' if ready else 'awaiting_consumption','request_id':args.request_id}
         elif args.command=='advance':
             from tools.engines import capture_runtime
             result=capture_runtime.advance(cur,capture_id=args.capture_id,retry=args.retry)
@@ -119,6 +144,14 @@ def main(argv=None):
         else:
             result=engine.work_queue(cur,limit=args.limit,cursor=args.cursor)
         conn.commit()
+        if args.command=='retire-request' and ready:
+            capture_mailbox.retire(args.directory,queued_request)
+        if args.command=='advance' and args.model_outbox and result.get('status')=='dispatch':
+            from lib import capture_mailbox
+            directory={'model':args.model_outbox,'reference':args.reference_outbox}[result['worker']]
+            capture_mailbox.publish(directory,result['request'])
+            result={'status':'queued','worker':result['worker'],'stage':result['stage'],
+                    'request_id':result['request']['request_id']}
         print(json.dumps(result,default=str))
         return 0
     except Exception as error:

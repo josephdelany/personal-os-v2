@@ -8166,3 +8166,25 @@ WHAT I DID NOT DO: durable scheduler handoff, bounded reference-worker supervisi
 installed schedule, separate OS secret-file isolation, supervisor/host-loss recovery
 before durable completion, real provider/device verification, or broader unresolved
 M3 nutrition/profile contracts. No production action. Full M0–M6 remains active.
+
+
+## 2026-09-23 — Capture worker handoff integration,0088/ADR0159
+
+Connected isolated reference supervision, durable role mailboxes, private capture
+progression/consumption, commit-before-publication, SQL-gated retirement, budget
+control and regular/nightly queue cursors. REQ-CAP025/026/038 covered in targeted
+behavior; full capture/schedule contracts remain partial. Raw evidence stays immutable.
+Root review fixed reader-group inheritance and created temporary files0600 before
+assigning their final group/mode. Independent review found no new scoped blocker.
+
+Evidence: fullSQL1000 passed1 production-only skip439.31s (51143 terminal0/server
+stopped); fullnoDB1246 passed833 skipped250.53s (26545 terminal0); chain87/880;
+stagedlayout43. Ledger14/15 unchanged, existing F006 naming diagnostic unchanged.
+Final permission repair22 targeted tests0.45s. Pre-review full-suite manifests and
+final source hashes archived `.local/evidence/capture-mailbox/`. Invariants covered
+by fullSQL; genericRULE04 pending. Eight lenses in COMPLETION_AUDIT remain scoped.
+
+WHAT I DID NOT DO: deploy or install a capture schedule, provision OS identities or
+secrets, observe a real provider/device capture, prove independent commit survival,
+close private service deadlines, disk retention/capacity or supervisor-host-loss
+recovery. These are the next operational work, not a complete M3/M6 claim.

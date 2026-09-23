@@ -1,8 +1,62 @@
 # Capture runtime — implementation and activation checklist
 
-Current local foundation: committed private media read at08b967a, plus the local
-upload/receipt integration draft0081 and processing-history read repair0082. This is a runbook under construction, not an activated capture service.
+Current local foundation: receipt-backed private progression at5356c09 plus the
+0088/ADR0159 worker-mailbox integration draft. Earlier stage notes below document
+the individual interfaces; NEXT_SESSION records current evidence and remaining gates.
+This is a runbook under construction, not an activated capture service.
 Production authentication is held per NEXT_SESSION; do not retry the unchanged secret.
+
+## Connected worker invocation packet — not installed
+
+Provision three OS identities: private, model and reference. The service manager
+must independently inject each role's allowed environment; a shell that loads all
+three secret sets and then filters them is forbidden. Use a fixed reviewed checkout
+and Python environment. No credential is written into these commands or a job plist.
+
+Provision separate directories beneath an operator-selected protected root:
+
+| Directory | Owner/writer | Reader group |
+|---|---|---|
+| model-outbox | private | model |
+| model-results | model | private |
+| reference-outbox | private | reference |
+| reference-results | reference | private |
+| private-state | private | private only |
+| model-state | model | model only |
+| reference-state | reference | reference only |
+
+Mailboxes require owner write, intended reader access, no group write and no world
+access; state directories are0700. Protect all ancestor paths. Verify access using
+the actual identities, including denial of other roles' secrets and private data.
+The writer must belong to each channel's reader group: publication explicitly sets
+that group and refuses if it cannot do so. Same-user local tests do not prove the
+deployed permission boundary; do not treat this draft as an activated packet.
+
+Run each command only within its independently provisioned role environment. The
+paths below are deployment path templates, not claims that directories exist:
+
+```sh
+python3 -m tools.capture_private_worker --state-directory /capture/private-state --model-outbox /capture/model-outbox --model-results /capture/model-results --reference-outbox /capture/reference-outbox
+python3 -m tools.capture_dispatch_mailbox model /capture/model-outbox /capture/model-results --state-directory /capture/model-state
+python3 -m tools.capture_dispatch_mailbox reference /capture/reference-outbox /capture/reference-results --state-directory /capture/reference-state
+```
+
+Each private invocation handles one queue item; schedule repeated regular ticks.
+Each outbound invocation defaults to one request, with --limit bounded at10.
+For the nightly lane, invoke the private command with --retry repeatedly until
+sweep_complete is true. Its separate cursor holds the insertion cutoff across ticks
+and prevents another completed retry sweep during the same UTC operational day.
+Regular ticks continue without --retry and consume already dispatched results.
+Nonzero exit/incomplete must remain a failure in job monitoring; an empty/finished
+scan is not evidence of a provider result or observation freshness.
+
+Before activation, supply bounded service invocations, a nightly trigger that
+continues all pages, actual OS identities/secret injection, disk-capacity handling,
+and deployed revision/migration verification. Private DB connection/lock stalls and
+supervisor/host loss still need operational handling. Do not install a job whose
+timeout silently discards an issued reservation or whose success hides incomplete
+captures. Physical voice/photo, independent commit-survival and observed schedule
+acceptance remain separate release gates.
 
 ## Process capabilities
 

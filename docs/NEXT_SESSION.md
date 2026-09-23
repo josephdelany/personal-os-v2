@@ -9,15 +9,78 @@ Joe's `/goal` is active. Do not start backend execution from the monitor.
 {
   "version": 1,
   "status": "running",
-  "updated_at": "2026-09-23T16:50:52.558186+00:00",
-  "last_progress_at": "2026-09-23T16:50:52.558186+00:00",
+  "updated_at": "2026-09-23T18:35:47.004295+00:00",
+  "last_progress_at": "2026-09-23T18:35:47.004295+00:00",
   "unit": "M3-B16-voice-capture-to-atoms",
-  "next_action": "Same M3-B16 voice-to-atoms unit:0087/ADR0158 locally integrated private advance CLI, durable model responses and bounded owned model worker. Full SQL992 passed1skip311.68s, noDB1214 passed825 skipped149.70s, chain86/877, staged layout43; targeted runtime30/recovery89/process37. All handles terminal, servers stopped; ledger14/15 unchanged, genericRULE04 pending. NEXT connect durable scheduler handoff between independently credentialed workers and bounded reference supervision. Existing model worker emits metadata; private advance returns next prepared action and consumes persisted receipts. Never load all secrets in scheduler. Supervisor/host loss before durable completion, installed schedule, separate OS identity and real-device/provider proof remain open. Full M0\u2013M6 unchanged."
+  "next_action": "Same M3-B16:0088/ADR0159 worker-mailbox local integration verified. FullSQL1000passed1production-onlyskip439.31s terminal51143/server stopped; fullnoDB1246passed833skipped250.53s terminal26545, ledger14/15 unchanged/F006 diagnostic. Chain87/880; stagedlayout43. Final GID/temp0600 repair supplemented by22puretests0.45s; full-suite pre-review and final-source manifests archived .local/evidence/capture-mailbox. Independent reviewer no new blocker. NEXT scoped checkpoint commit then bounded service activation packet, capacity/retention and host-loss ownership work; preserve same voice-to-atoms outcome. No deployment/OS identity proof/device/provider observation or fullM3/M6 completion."
 }
 ```
 <!-- backend-control:end -->
 
 ## Current active unit — M3 / B16 voice capture to persisted atoms
+
+**Integration evidence — 0088/ADR0159:** fullSQL1000 passed/1 production-only skip
+439.31s; session51143 terminal0 and disposable server stopped. FullnoDB1246 passed/
+833 skipped250.53s; ledger14/15 unchanged, existing F006 unmatched-ID warning.
+Skips cover guarded SQL/live checks and two existing NumPyro cases. Chain87/880;
+stagedlayout43. Root review repaired mailbox reader-group assignment and temporary
+creation mode0600; final affected22 tests passed0.45s. Full-suite pre-review sources
+and final code hashes are separately archived in `.local/evidence/capture-mailbox/`.
+Independent review found no new reproducible blocker; deployed identities, private
+invocation deadlines, retention/capacity and host-loss recovery remain unverified.
+Invariant suite passed within fullSQL; genericRULE04 remains pending. No production
+calls/deployment, real-provider capture or independent SQL commit-survival claim.
+Next bounded service activation and remaining operational gaps within this same
+voice-to-atoms outcome. Earlier in-progress checkpoints below are historical evidence.
+
+
+**In-progress handoff, 2026-09-23 (dirty sources after5356c09):** root owns
+`lib/capture_mailbox.py`, `tools/capture_dispatch_mailbox.py` and their tests in
+addition to reference supervision0088. REQ-CAP-025/026, gates2/4: immutable
+UUID request publication, bound result metadata and owner-only retirement now
+have local tests. Unsafe permissions, symlinks, FIFO reads, altered identity and
+interrupted publication refuse. One-role CLI invokes only its selected worker,
+persists control metadata and leaves retirement to private SQL consumption.
+Mailbox/model/reference targeted suite41 passed2.73s; reference/runtime SQL53
+passed41.07s, disposable server stopped. Tests use temporary filesystem fixtures
+and rollback SQL; no independent SQL commit-survival or deployed OS separation
+claim. Full integration checks/review have not run for these dirty changes.
+Private CLI now publishes prepared requests only after a confirmed commit using
+paired --model-outbox/--reference-outbox options; queued stdout is metadata only.
+retire-request requires a saved private outcome and matching payload hash, then
+commits before unlinking. Failed/unconfirmed commit retains the request. Targeted
+mailbox15 passed0.58s; actual runtime SQL4 passed7.67s covers all three outcome
+joins and altered-payload refusal; session75686 terminal0/server stopped. SQL
+fixtures remain rollback-only; no independent commit-survival claim.
+Budget control is now connected by consume-control: mailbox digest binds the
+control to the queued request, saved attempt verifies capture/stage/payload, and
+SQL receipts take precedence. With no reservation, BudgetExceeded invokes the
+existing append-only failure owner; repeated consumption is idempotent. Terminal
+bound mailbox control prevents redispatch while awaiting private consumption.
+Mailbox17 passed0.57s; runtime SQL8 passed13.94s covers transcription and extraction
+budget deferral, current-day hold and SQL success overriding stale budget metadata.
+Session84735 terminal0/server stopped. Test requirement suffix corrected from036
+to038 after this run; behavior unchanged. No independent concurrency proof yet.
+Outbound poll now uses a role-bound durable cursor and exclusive state-directory
+lock, persists position before dispatch, processes1-10 requests per invocation and
+reports incomplete results. Failure/interruption advances fairly without removing
+requests. Separate request/result/state directories prevent nested-lock deadlock.
+New tools/capture_private_worker.py connects one capture's controls, runtime SQL
+progression, confirmed commit, publication and retirement. Service-role SQL tests
+exercise budget deferral and raw preservation through this actual worker, with
+rollback-only commit probes. Mailbox19 passed0.51s; runtimeSQL9 passed8.00s,
+session17930 terminal0/server stopped. No host-kill/independent SQL durability claim.
+Private poll now pages the real fixed-cutoff SQL queue one capture per tick,
+with protected regular/nightly cursors. Regular passes do not enable retries.
+Nightly sweeps run once per UTC operational day; failures advance fairly and remain
+incomplete after sweep completion. A private crash before cursor publication may
+revisit the same idempotent attempt. Pure mailbox/private21 passed0.43s; actual
+runtimeSQL10 passed11.40s, session73482 terminal0/server stopped. ADR0159 records
+architecture, cost/privacy and verification limits. No independent crash proof.
+Next service-manager activation packet with bounded invocations and separate OS
+identities, then eight-lens review and full integration/commit. Retention/disk
+capacity and supervisor-host loss remain explicit gaps. No scope reduction.
+
 
 Joe's 2026-09-22 steering: align execution with the working plan and stop
 switching among prerequisites without completing a usable outcome. EXECUTION_PLAN

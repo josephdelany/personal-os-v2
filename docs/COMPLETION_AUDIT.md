@@ -479,3 +479,35 @@ handling. Integration tests exposed SQL NULL-head lookup generating duplicate wo
 and a retry-creation gate incorrectly preventing receipt consumption. These were
 repaired with unchanged acceptance assertions and new behavioral regressions.
 No production action, physical capture or independent SQL commit-survival proof.
+
+
+## 2026-09-23 — Worker mailboxes and private queue connection (integration in progress)
+
+Scope: dirty sources after5356c09,0088/ADR0159. Full noDB26545 and SQL51143
+were launched against pre-review sources archived under
+`.local/evidence/capture-mailbox/pre-review-sources.json`; reader-group repair
+followed. Do not treat these runs as final evidence for later repairs.
+
+| Lens | Evidence and remaining gate |
+|---|---|
+| Contract fidelity | PARTIAL: existing CAP025/026/038 owners now connected through private worker; nightly retry cursor is operational UTC state, not a measurement definition. Installed nightly run and full capture profiles remain open. |
+| Complete user paths | PARTIAL: actual private worker/SQL roles verify preparation, budget deferral and retirement; prior private runtime reaches atoms. No deployed multi-identity voice/provider path. |
+| Failure behavior | PARTIAL: commit ambiguity retains work; failed poll entries advance fairly; terminal controls prevent redispatch; saved SQL success overrides stale budget control. Host-loss and simultaneous-process proofs remain open. |
+| Data integrity | PASS in targeted scope: request identities immutable, payload hashes bind retirement, SQL owns processing outcomes, raw captures preserved. Files never substitute for successful SQL evidence. |
+| Access/privacy | PARTIAL: per-role guards and ACL tests; mailbox owner/group/mode checks, no symlink/FIFO reads. Root review repaired reader-group inheritance with explicit group assignment and fail-closed publication. Actual OS identities/secret permissions not deployed. |
+| Runtime/deployment | PARTIAL: bounded outbound child supervision, one-capture private polling and durable cursors implemented. Private DB/lock stall bounds and installed service-manager packet remain open. |
+| Operations/recovery | PARTIAL: regular/nightly cursors, daily gate, failure status and request retention tested. Capacity/retention, supervisor-host-loss ownership and observed schedule/freshness remain open. |
+| Evidence/reproducibility | Pending full suite/reviewer completion. Chain87 migrations880 statements clean, session67388 terminal0. Targeted reader-group/mailbox/private22 passed0.62s before temporary-file creation-mode hardening. No full release claim. |
+
+
+Integration disposition: fullSQL1000 passed/1 production-only skip439.31s,
+terminal51143/server stopped; fullnoDB1246 passed833 skipped250.53s, terminal26545.
+Ledger14/15 unchanged, F006 unmatched test-ID warning unchanged. Skips include
+guarded SQL/live checks and two NumPyro cases. Chain87/880 and stagedlayout43 pass.
+Full suites cover the pre-review source manifest; final reader-GID/temporary0600
+repair has22 scoped tests passing0.45s. Final source hashes archived separately.
+Independent read-only review found no new reproducible blocker in commit ordering,
+receipt precedence, identity binding, poll progress or GID repair. No deployment,
+OS isolation, host-loss, private invocation deadline or retention proof. Generic
+RULE04 remains pending; invariant suite passed within fullSQL. These results close
+local handoff integration, not the full M3 voice path or M6 release.

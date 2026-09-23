@@ -303,8 +303,8 @@ def test_REQ_CAP_060_REQ_NUT_003_actual_cli_handoff_resolves_saved_food(cur,monk
         assert len(commits)==2  # prepare and source reservation precede network
         sends.append(1)
         return json.dumps({'foods':[branded_food(householdServingFullText='1 bar')]}).encode()
-    monkeypatch.setattr(reference_dispatch,'dispatch',lambda conn,request:dispatch_actual(
-        conn,request,env={'USDA_FDC_API_KEY':'fixture'},ops='ops_pytest',config='config',_transport=transport))
+    monkeypatch.setattr(reference_dispatch,'dispatch',lambda conn,request,**kw:dispatch_actual(
+        conn,request,env={'USDA_FDC_API_KEY':'fixture'},ops='ops_pytest',config='config',_transport=transport,**kw))
     cur.execute('SET SESSION AUTHORIZATION service_role')
     try:
         assert private_cli.main(['prepare-reference',str(uuid.uuid4()),CID,extraction['request_id'],'0','usda_branded'])==0
