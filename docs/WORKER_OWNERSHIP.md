@@ -93,3 +93,10 @@ tools/engines/capture_transcription.py, tests/test_capture_transcription.py,
 shared egress/model_contract and dispatch CLI/tests, capture_budget/tests, SQL harness
 and maintained docs. Read-only reviewer owns no files. Media acquisition/extraction
 and actual orchestration remain required; no production writes or deployment.
+
+## 2026-09-22 — root private media unit
+
+Root owns lib/db.py, lib/egress.py, capture_transcription engine/CLI/tests, new
+tests/test_capture_media.py, ADR0151 and maintained docs. Reviewer is read-only.
+
+Private media unit also owns docs/CAPTURE_RUNTIME.md and its DOCUMENTATION_MAP entry.

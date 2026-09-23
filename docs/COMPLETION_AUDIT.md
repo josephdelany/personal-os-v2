@@ -2,6 +2,26 @@
 
 ## Current quality review — 2026-09-22
 
+### Latest unit: private media retrieval (locally verified)
+
+At936f5cd plus dirty sources. This covers the download/preparation boundary, not upload
+or complete capture activation. ADR0151 and CAPTURE_RUNTIME describe the limits.
+
+| Review lens | Result and limits |
+|---|---|
+| Contract fidelity | PARTIAL: immutable reference/hash drives request bytes; upload/hash issuance and existing unbound-media recovery remain open |
+| Complete user paths | PARTIAL: prepare-media command is connected to private acquisition/preparation; SQL test verifies service-role engine flow with mocked download; no live capture path |
+| Failure behavior | PASS tested invalid origin/path/hash, absent credentials, redirect, oversize and signal deadline; hard native-stall process termination remains supervisor work |
+| Data integrity | PASS tested byte/hash binding before request preparation and existing immutable consumption; device provenance and object replacement policies remain unverified |
+| Access/privacy | PASS local fixed Supabase destination and model rejection of Storage read capability; effective Storage policies and OS isolation remain open |
+| Runtime/deployment | NOT VERIFIED: POSIX CLI deadline implemented; no upload, provider request, deployment or observed schedule |
+| Operations/recovery | PARTIAL: documented stage capabilities, pagination and timeout limits; supervisor, upload receipts, legacy media recovery and real replay still required |
+| Evidence/reproducibility |18 pure tests passed0.23s;17 SQL passed8.86s; full noDB1111/721skip189.42s; layout43; fullSQL888/1skip249.52s; unchanged79-migration/719-statement chain evidence reused |
+
+Independent review accepted path/digest/redirect and credential boundaries. It found
+socket timeout was not a whole-acquisition deadline; a POSIX signal timer now interrupts
+a blocking read and preserves signal state. This is not a universal process-kill claim.
+
 ### Latest unit: immutable transcription consumption
 
 At `d3639a3` plus recorded dirty sources, migration0080 and the private CLI are locally

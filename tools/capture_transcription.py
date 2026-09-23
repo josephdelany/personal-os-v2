@@ -4,7 +4,7 @@
 prepare accepts {request_id,capture_id,payload} on stdin and emits the exact model
 request only after commit. consume accepts isolated dispatch's {request_id,result}.
 fail records a correlated dispatch failure. readback/queue recover persisted work.
-Media retrieval and a supervisor with separately scoped environments are required
+Media upload/Storage provisioning and a supervisor with separately scoped environments are required
 before these stages form a deployed voice-to-atom path.
 """
 import argparse
@@ -19,6 +19,9 @@ def main(argv=None):
     parser=argparse.ArgumentParser(description=__doc__)
     commands=parser.add_subparsers(dest='command',required=True)
     commands.add_parser('prepare')
+    media=commands.add_parser('prepare-media')
+    media.add_argument('request_id')
+    media.add_argument('capture_id')
     commands.add_parser('consume')
     failed=commands.add_parser('fail')
     failed.add_argument('request_id')
@@ -45,6 +48,8 @@ def main(argv=None):
                 result=engine.prepare(cur,**message)
             else:
                 result=engine.consume(cur,request_id=message['request_id'],response=message['result'])
+        elif args.command=='prepare-media':
+            result=engine.prepare_media(cur,request_id=args.request_id,capture_id=args.capture_id)
         elif args.command=='fail':
             result=engine.fail(cur,request_id=args.request_id,error_type=args.error_type,
                                provider_status=args.provider_status)

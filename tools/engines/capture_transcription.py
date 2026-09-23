@@ -246,3 +246,18 @@ def work_queue(cur, *, limit=100, cursor=None, schema='core'):
                      'next_stage':'extract' if transcript is not None else 'transcribe'}
                     for cid,event,status,transcript,captured_at in selected],
             'next_cursor':next_cursor}
+
+
+def prepare_media(cur, *, request_id, capture_id, schema='core'):
+    """Build the request from hash-bound private media, never caller-supplied audio."""
+    import base64
+    from lib import db
+    schema = _private(schema)
+    capture_id = str(uuid.UUID(str(capture_id)))
+    cur.execute(f'SELECT source,payload FROM {schema}.raw_captures WHERE capture_id=%s',(capture_id,))
+    row = cur.fetchone()
+    if row is None or row[0]!='shortcut_voice' or not isinstance(row[1],dict):
+        raise ValueError('voice capture required')
+    body = db.read_capture_media(capture_id,row[1].get('media_path'),row[1].get('media_sha256'))
+    payload = {'audio':base64.b64encode(body).decode('ascii'),**TRANSCRIPTION_PARAMS}
+    return prepare(cur,request_id=request_id,capture_id=capture_id,payload=payload,schema=schema)

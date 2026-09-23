@@ -74,7 +74,8 @@ def dispatch(conn, *, request_id, model_id, call_kind, payload, estimated_neuron
     screen_payload(payload)
     request_id = str(uuid.UUID(str(request_id)))
     body = request_bytes(payload)
-    if os.environ.get('SUPABASE_DB_URL') or os.environ.get('SUPABASE_SERVICE_ROLE_KEY'):
+    if any(os.environ.get(key) for key in ('SUPABASE_DB_URL', 'SUPABASE_SERVICE_ROLE_KEY',
+                                          'SUPABASE_STORAGE_READ_JWT')):
         raise DispatchRefused('private credentials present')
     cur = conn.cursor()
     try:

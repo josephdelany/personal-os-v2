@@ -7728,3 +7728,32 @@ WHAT I DID NOT DO: retrieve/upload media, call provider, deploy, run actual nigh
 orchestration, persist extraction atoms, prove live commit survival/concurrency, or
 close the backend release gate. Next: media binding/acquisition and separated capture
 orchestration/extraction using this storage path. Full M0–M6 goal remains active.
+
+## 2026-09-22 — private media preparation draft
+
+Added hash-bound private Storage read in lib/db and prepare-media stage. Immutable
+capture reference chooses only its UUID/filename in the private captures bucket;
+SHA256 verifies bytes before fixed model payload preparation. Redirects, missing
+configuration and oversized/mismatched bodies refuse. Model processes also reject
+Storage read credentials.16 pure tests passed0.18s;17 rollback SQL passed8.86s;
+layout43. Independent review accepted boundary checks and clarified that socket
+30s timeout is not an overall deadline; supervisor deadline remains required.
+WHAT I DID NOT DO: upload/hash receipt issuance, bucket policy, legacy unbound-media
+recovery, actual network/media/model request, full integration, commit, extraction,
+or scheduled orchestration. Checkpoint names these remaining internal dependencies.
+
+## 2026-09-22 — private media deadline and integration verified
+
+A45-second POSIX main-thread signal deadline now surrounds acquisition and digest
+verification, beyond the30-second socket timeout. Real blocking-read interruption and
+preservation of prior timer/handler pass. Independent review accepts the behavior;
+it is not a hard process-kill guarantee for every native-library stall. CAPTURE_RUNTIME
+records the required separate credential scopes and activation/recovery obligations.
+
+18 focused pure passed0.23s;17 SQL passed8.86s. Full sanctioned noDB1111 passed/721
+skipped189.42s, no failures/errors; fullSQL888 passed/1 skipped249.52s. Layout43.
+Chain79/719 evidence reused: migrations unchanged from936f5cd verified by Git. Ledger
+14/15, generic RULE04 pending. Disposable server stopped; all process handles exit0.
+WHAT I DID NOT DO: live Storage/model/production access, upload/hash receipt issuance,
+StorageACL provisioning, legacy unbound-media recovery, extraction, separate scheduler,
+or hard process-kill supervision. These remain required internal work, not deferrals.

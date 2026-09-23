@@ -16,6 +16,7 @@ Use each document for one purpose. Updated 2026-09-09.
 | Undecided facts | `docs/OPEN_QUESTIONS.md` | Relevant dependency only; resolved entries are history |
 | Intent-to-build traceability | `docs/INTENT_COVERAGE.md` | Scope interpretation and release audit |
 | Product design | `docs/THE_FILE.md`, `docs/WHAT_THIS_IS.md` | Product interpretation |
+| Capture runtime procedure | `docs/CAPTURE_RUNTIME.md` | Stage capabilities, activation prerequisites and recovery limits; verify status in NEXT_SESSION |
 | Implementation detail | `docs/build/B*.md` | Active unit only; verify schema and prerequisites |
 | Frontend detail | `docs/FRONTEND_PLAN.md`, `docs/build/L*.md` | Backend response contracts now; frontend construction after release |
 | Historical evidence | `ops/PROGRESS.md`, dated audits/handoffs | Investigating a specific claim |

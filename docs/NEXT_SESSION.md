@@ -9,15 +9,42 @@ Joe's `/goal` is active. Do not start backend execution from the monitor.
 {
   "version": 1,
   "status": "running",
-  "updated_at": "2026-09-22T21:50:36.133069+00:00",
-  "last_progress_at": "2026-09-22T21:50:36.133069+00:00",
-  "unit": "M3-capture-enrichment-results",
-  "next_action": "Commit verified uncommitted0080/ADR0150 capture transcription foundation at d3639a3 after evidence archive. FullSQL887/1skip,noDB1093/719skip,79migrations/719statements,layout43. Then actual media acquisition/binding, extraction and separated orchestration; no production probe until secret refreshed. Goal remains fullM0-M6."
+  "updated_at": "2026-09-22T22:06:07.112192+00:00",
+  "last_progress_at": "2026-09-22T22:06:07.112192+00:00",
+  "unit": "M3-capture-media-and-orchestration",
+  "next_action": "Commit verified private media foundation/ADR0151 at936f5cd. FullSQL888/1skip,noDB1111/721skip,layout43;unchanged79/719chain reused.18pure deadline/transport and17SQL cases pass;review accepted. Then implement authenticated upload/hash receipts, StorageACL and unbound-mediarecovery, extraction and separate worker scheduling. No active testprocess; no productionprobe."
 }
 ```
 <!-- backend-control:end -->
 
-## Current active unit — verified capture transcription foundation, ready to commit
+## Current active unit — capture media acquisition and orchestration
+
+- Root owns lib/db.py, lib/egress.py storage credential guard, capture_transcription
+  engine/CLI/tests, new tests/test_capture_media.py and ADR0151. Private download
+  now validates captureUUID/filename, immutable SHA256, fixed private Supabase host,
+  credentials, redirect refusal,50MiB size cap and30-second socket timeout.
+  Review confirms boundary checks. A45-second POSIX main-thread SIGALRM now also
+  bounds acquisition including body/hash checks, preserving existing timers/handlers.
+  Native-stall hard process termination remains a supervisor responsibility.
+-18 pure tests passed0.23s (including real timer interruption);17 disposableSQL
+  passed8.86s, rollback/server shutdown
+  confirmed. Layout43 passed. SQL uses mocked download; transport uses mocked opener.
+  No live media/network call. Independent review accepted the deadline repair with
+  native-stall limitation recorded. Full noDB1111 passed/721 skipped189.42s;
+  fullSQL888 passed/1 skipped249.52s;layout43. All processes exit0 and disposable
+  server stopped. Chain79/719 reused with unchanged migrations verified by Git.
+  Logs /tmp/capture-media-full.log and full-sql.log/XML; archive `.local/evidence/capture-media/`.
+  Full feature ledger14/15 is not backend completion; generic RULE04 remains pending.
+- Still required: actual upload/hash receipt and bucket policy, trusted recovery for
+  unbound legacy media, Shortcut payload generation, extraction/atoms and separated
+  runtime/schedule. Strict hash refusal alone does not close capture recovery.
+
+Transcription foundation committed at `936f5cd`; clean worktree verified before this
+checkpoint update. Next work must bind actual private media to its immutable capture
+and connect extraction/atom persistence plus separate runtime stages. Do not treat the
+prepared-payload CLI or queue pagination as a deployed capture path.
+
+## Completed local unit — capture transcription foundation
 
 - Root owns migration0080/ADR0150, capture_transcription engine/CLI/tests, shared
   egress/model_contract and dispatch CLI/tests, capture_budget/tests, processing
@@ -40,7 +67,7 @@ Joe's `/goal` is active. Do not start backend execution from the monitor.
   production query/write/deploy, or commit/concurrency durability proof occurred.
 - Reports: `/tmp/capture-transcription-full.log`, matching full-sql XML/log,
   chain/layout logs; archive `.local/evidence/capture-transcription/` with source hashes.
-  Commit these dependencies together, then continue capture delivery. B16 historical
+  Dependencies committed together at `936f5cd`; continue capture delivery. B16 historical
   raw-update/three-retry wording is superseded by current CAP requirements/ADRs.
 
 ## Completed local unit — separated Ask stages and insertion-time integrity

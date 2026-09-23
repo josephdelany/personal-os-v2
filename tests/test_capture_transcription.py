@@ -24,7 +24,8 @@ def cur(monkeypatch, request):
         apply_chain(cursor)
         cursor.execute('SELECT public.receive_capture(%s)',(json.dumps({
             'capture_id':CID,'captured_at':'2026-09-22T08:00:00-04:00','source':'shortcut_voice',
-            'payload':{'kind':'food','media_path':'fixture/audio','duration_s':getattr(request,'param',12)}}),))
+            'payload':{'kind':'food','media_path':CID+'/audio.m4a','media_sha256':hashlib.sha256(b'fixture').hexdigest(),
+                       'duration_s':getattr(request,'param',12)}}),))
         yield cursor
     finally:
         conn.rollback()
@@ -300,3 +301,19 @@ def test_REQ_CAP_026_queue_paginates_past_failed_heads_without_new_arrival_starv
     assert len(set(ids))==103 and CID in ids and str(late) not in ids
     again=transcription.work_queue(cur,cursor=first['next_cursor'],schema='core_pytest')
     assert again==second
+
+
+def test_REQ_CAP_006_034_prepare_media_uses_immutable_reference_then_bound_request(cur,monkeypatch):
+    from lib import db
+    calls=[]
+    def download(cid,path,digest):
+        calls.append((cid,path,digest))
+        return b'fixture'
+    monkeypatch.setattr(db,'read_capture_media',download)
+    cur.execute('SET LOCAL ROLE service_role')
+    request=transcription.prepare_media(cur,request_id=uuid.uuid4(),capture_id=CID,schema='core_pytest')
+    assert calls==[(CID,CID+'/audio.m4a',hashlib.sha256(b'fixture').hexdigest())]
+    assert request['payload']==PAYLOAD
+    cur.execute('RESET ROLE')
+    settle(cur,request)
+    assert consume(cur,request)['applied']
