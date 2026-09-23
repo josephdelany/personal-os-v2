@@ -25,6 +25,12 @@ Provision separate directories beneath an operator-selected protected root:
 | model-state | model | model only |
 | reference-state | reference | reference only |
 
+Reader-group entries describe the intended reader, not a permission to reuse a
+role's primary group. Provision dedicated channel groups containing only that
+channel's writer and reader. Do not add outbound identities to a general private
+data group just to permit file-group assignment. State/log directories stay0700;
+each role's secret JSON stays0600 and owned by that role.
+
 Mailboxes require owner write, intended reader access, no group write and no world
 access; state directories are0700. Protect all ancestor paths. Verify access using
 the actual identities, including denial of other roles' secrets and private data.
@@ -199,3 +205,74 @@ USDA then waits a full hour from discovery, since the lost response may have bee
 A denied reservation commits that maintenance; late results cannot replace it.
 This recovery policy is locally tested, but independent-process kill/connection-loss
 acceptance has not yet been exercised. It is not an observed unattended recovery.
+
+
+### Private service deadline — local continuation after b2078cd
+
+`python3 -m tools.capture_private_service` accepts the same polling directory flags
+and optional --retry as capture_private_worker. It starts only that fixed child,
+passes only private DB/Storage configuration, discards child output and enforces a
+120-second wait followed by process-group kill/reap. Its output describes invocation
+completion or an unconfirmed result; it never certifies capture completion or SQL
+rollback. Missing/foreign/disposable context refuses. Child result inspection stays
+in protected private SQL/worker tools; it is not public scheduler output.
+
+Private polling saves the next cursor and an incomplete marker before capture
+work. A real SIGKILL filesystem test verifies that a replacement process advances
+to the next item. An interrupted final nightly page keeps the daily gate incomplete;
+it does not replay earlier retry work that day. A crash before actual capture work
+can defer that item until the next pass, with the failed sweep visible. This is
+process/filesystem evidence, not independent SQL commit-survival or power-loss proof.
+Do not install unattended scheduling until the remaining service invocation bounds
+and deployment checks are covered. The wrapper does not solve its
+own host loss, deployed OS isolation or provider reservation ownership recovery.
+
+
+### Transport retention and publication capacity
+
+Private polling checks one request independently of active capture status and
+retires it only after matching saved SQL outcome/payload and confirmed commit.
+Outbound polling checks one control projection and removes it only after the
+private request disappears from the existing channel. Malformed/missing channel
+configuration refuses; neither worker deletes raw captures, media or SQL history.
+
+Publication refuses above1024 files or1GiB per directory or below64MiB free-space
+reserve (including the new temporary body). Per-file limit remains72MiB. Identical
+request publication remains idempotent without allocation. Failures stay visible;
+there is no automatic evidence eviction or paid fallback. If disk headroom is too
+low for cursor writes, restore space before recovery polling. Validate deployed
+capacity monitoring and retention before activation.
+
+### Generated service packet — not installed
+
+`ops/capture_services.py` emits four launchd daemon definitions: private regular,
+private nightly, model and reference. Require explicit absolute checkout/Python/
+runtime paths and three distinct unprivileged account names. These are daemon
+definitions using UserName, not per-user LaunchAgents; installation/provisioning
+requires a separately reviewed privileged action. No installation was performed.
+The current source packet is `.local/capture-services/`; its four plists pass
+`plutil -lint`, which proves syntax only. Example account names in that packet are
+unprovisioned targets, not evidence those accounts or permissions exist.
+
+Each60-second tick executes `tools.capture_service_entry` for one role, which
+reads only `<runtime-root>/secrets/<role>.json` (nightly uses private.json).
+The file must be regular, owned by the executing identity and inaccessible to
+group/world, with only that role's allowed environment keys. The launcher refuses
+preloaded credentials rather than becoming a parent that holds all roles' secrets.
+It replaces itself with a fixed worker using only selected configuration and
+PYTHONPATH. Never put secret values in the plist, command line or logs.
+
+Private ticks use the120-second supervisor. Model/reference ticks retain the
+existing90-second child plus10-second settlement limits and nonblocking mailbox
+locks; filesystem/host failures remain explicit operational limits. Nightly ticks
+skip before06:00 UTC (01:00/02:00 New York), then resume their saved sweep each
+minute. After the database daily gate closes, later ticks perform no new retry
+sweep. This is a scheduling choice, not a measurement-day decision. Host/DB clock
+agreement must be checked at deployment. Sleep/offline time can delay a run.
+
+Provision protected readable checkout/Python dependencies, role-owned log
+directories, channel groups/directories and secrets through normal configuration
+before any install. Verify effective access and negative cross-role reads, apply
+authorized migration/runtime revision, then install and observe actual schedule
+and capture outcomes. A plist's RunAtLoad=false avoids an explicit load trigger,
+but installing an interval service enables subsequent work and is itself activation.

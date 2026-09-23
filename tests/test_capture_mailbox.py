@@ -1,5 +1,8 @@
 """REQ-CAP-025/026 durable transport boundaries; SQL remains authoritative."""
 import os
+import subprocess
+import sys
+import time
 import uuid
 
 import pytest
@@ -210,3 +213,108 @@ def test_REQ_CAP_026_poll_crash_advances_cursor_without_losing_request(boxes,tmp
     assert mailbox.pending(boxes[0])==ids
     with pytest.raises(ValueError,match='separate'):
         worker.poll('model',*boxes,boxes[1])
+
+
+def test_REQ_CAP_026_contending_process_refuses_promptly_without_changing_queue(boxes,request_body):
+    requests,_=boxes
+    mailbox.publish(requests,request_body)
+
+    script='''import os,fcntl,sys
+fd=os.open(sys.argv[1],os.O_RDONLY|os.O_DIRECTORY)
+fcntl.flock(fd,fcntl.LOCK_EX)
+print('ready',flush=True)
+sys.stdin.read(1)
+'''
+    child=subprocess.Popen([sys.executable,'-c',script,str(requests)],env={},
+        stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True)
+    try:
+        # communicate cannot be used until the lock-holder is released.
+        import select
+        ready,_,_=select.select([child.stdout],[],[],5)
+        assert ready and child.stdout.readline().strip()=='ready'
+        start=time.monotonic()
+        with pytest.raises(BlockingIOError):mailbox.publish(requests,request_body)
+        assert time.monotonic()-start<1
+        assert mailbox.read(requests,request_body['request_id'])==request_body
+    finally:
+        try:child.communicate('x',timeout=5)
+        except subprocess.TimeoutExpired:child.kill();child.communicate()
+    assert child.returncode==0
+    mailbox.publish(requests,request_body)
+
+
+def test_REQ_CAP_026_control_retention_follows_request_retirement(boxes,request_body):
+    requests,results=boxes;identity=request_body['request_id']
+    receipt={'request_id':identity,'status':'settled'}
+    mailbox.publish(requests,request_body)
+    mailbox.store_result(results,request_body,receipt)
+    assert not mailbox.retire_control(requests,results,identity)
+    assert mailbox.result(results,request_body)==receipt
+    mailbox.retire(requests,request_body)
+    assert mailbox.retire_control(requests,results,identity)
+    assert mailbox.pending(results)==[]
+    assert not mailbox.retire_control(requests,results,identity)
+
+
+def test_REQ_CAP_026_missing_channel_or_present_symlink_cannot_authorize_control_removal(boxes,request_body,tmp_path):
+    requests,results=boxes;identity=request_body['request_id']
+    mailbox.store_result(results,request_body,{'request_id':identity,'status':'settled'})
+    with pytest.raises(FileNotFoundError):mailbox.retire_control(tmp_path/'missing',results,identity)
+    (requests/(identity+'.json')).symlink_to(requests/'missing')
+    assert not mailbox.retire_control(requests,results,identity)
+    assert mailbox.pending(results)==[identity]
+
+
+def test_REQ_CAP_026_outbound_poll_cleans_orphan_control_without_provider(boxes,request_body,tmp_path,monkeypatch):
+    from tools import capture_dispatch_mailbox as worker
+    requests,results=boxes;state=tmp_path/'state';state.mkdir(mode=0o700)
+    mailbox.store_result(results,request_body,{'request_id':request_body['request_id'],'status':'settled'})
+    monkeypatch.setattr(worker,'dispatch',lambda *a:pytest.fail('no queued provider request'))
+    result=worker.poll('model',requests,results,state)
+    assert result['status']=='polled' and result['cleanup']['status']=='retired'
+    assert result['items']==[] and mailbox.pending(results)==[]
+
+
+@pytest.mark.parametrize('bound',['files','bytes','free'])
+def test_REQ_CAP_026_capacity_refuses_new_work_without_removing_existing_request(boxes,request_body,monkeypatch,bound):
+    requests,_=boxes
+    mailbox.publish(requests,request_body)
+    if bound=='files':monkeypatch.setattr(mailbox,'MAX_DIRECTORY_FILES',1)
+    elif bound=='bytes':monkeypatch.setattr(mailbox,'MAX_DIRECTORY_BYTES',1)
+    else:
+        from types import SimpleNamespace
+        monkeypatch.setattr(mailbox.os,'fstatvfs',lambda fd:SimpleNamespace(f_bavail=0,f_frsize=4096))
+    mailbox.publish(requests,request_body)  # confirmed identical publication needs no disk allocation
+    with pytest.raises(ValueError,match='capacity'):
+        mailbox.publish(requests,{**request_body,'request_id':str(uuid.uuid4())})
+    assert mailbox.read(requests,request_body['request_id'])==request_body
+    assert list(requests.iterdir())==[requests/(request_body['request_id']+'.json')]
+
+
+def test_REQ_CAP_026_killed_publication_temporary_recovers_under_writer_lock(boxes,request_body):
+    import signal
+    from pathlib import Path
+    requests,_=boxes
+    script='''import os,signal
+from lib import capture_mailbox as mailbox
+def crash(*args,**kwargs):os.kill(os.getpid(),signal.SIGKILL)
+mailbox.os.link=crash
+mailbox.publish(DIRECTORY,REQUEST)
+'''.replace('DIRECTORY',repr(str(requests))).replace('REQUEST',repr(request_body))
+    root=Path(__file__).resolve().parents[1]
+    child=subprocess.run([sys.executable,'-c',script],cwd=root,env={'PYTHONPATH':str(root)},
+        stdin=subprocess.DEVNULL,stdout=subprocess.PIPE,stderr=subprocess.PIPE,timeout=10)
+    assert child.returncode==-signal.SIGKILL
+    assert len(list(requests.glob('.tmp-*')))==1 and mailbox.pending(requests)==[]
+    mailbox.publish(requests,request_body)
+    assert list(requests.glob('.tmp-*'))==[]
+    assert mailbox.read(requests,request_body['request_id'])==request_body
+
+
+def test_REQ_CAP_026_pruning_temporary_hardlink_preserves_published_request(boxes,request_body):
+    requests,_=boxes
+    mailbox.publish(requests,request_body)
+    os.link(requests/(request_body['request_id']+'.json'),requests/('.tmp-'+str(uuid.uuid4())))
+    mailbox.publish(requests,request_body)
+    assert list(requests.glob('.tmp-*'))==[]
+    assert mailbox.read(requests,request_body['request_id'])==request_body

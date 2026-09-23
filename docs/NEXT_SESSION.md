@@ -9,15 +9,102 @@ Joe's `/goal` is active. Do not start backend execution from the monitor.
 {
   "version": 1,
   "status": "running",
-  "updated_at": "2026-09-23T18:35:47.004295+00:00",
-  "last_progress_at": "2026-09-23T18:35:47.004295+00:00",
+  "updated_at": "2026-09-23T19:14:40.013215+00:00",
+  "last_progress_at": "2026-09-23T19:14:40.013215+00:00",
   "unit": "M3-B16-voice-capture-to-atoms",
-  "next_action": "Same M3-B16:0088/ADR0159 worker-mailbox local integration verified. FullSQL1000passed1production-onlyskip439.31s terminal51143/server stopped; fullnoDB1246passed833skipped250.53s terminal26545, ledger14/15 unchanged/F006 diagnostic. Chain87/880; stagedlayout43. Final GID/temp0600 repair supplemented by22puretests0.45s; full-suite pre-review and final-source manifests archived .local/evidence/capture-mailbox. Independent reviewer no new blocker. NEXT scoped checkpoint commit then bounded service activation packet, capacity/retention and host-loss ownership work; preserve same voice-to-atoms outcome. No deployment/OS identity proof/device/provider observation or fullM3/M6 completion."
+  "next_action": "Same M3-B16: private service deadline/cursor recovery/retention/capacity and uninstalled role-service packet locally integrated after b2078cd. FullSQL1000passed1production-onlyskip335.68s terminal79887/server stopped; fullnoDB1285passed833skipped181.01s terminal60268; stagedlayout43;4plutil checks; scoped reviewer accepted. Ledger14/15 unchanged/F006 diagnostic; genericRULE04 pending. Source manifest/archive .local/evidence/capture-services. NEXT scoped commit then repair verified possessive supplier context (REQ-NUT013/016,CAP053): Examplo's burger currently returns brandNone and permits generic lookup. Retain exact extraction schema, evidence offsets and shared preparation/resolution owner. Activation/OS isolation/credentials/device/provider and SQL crash proof remain open; fullM0-M6 unchanged."
 }
 ```
 <!-- backend-control:end -->
 
 ## Current active unit — M3 / B16 voice capture to persisted atoms
+
+**Current service integration:** root owns tools/capture_service_entry.py,
+ops/capture_services.py and their tests. Fixed role entry reads one owner-only JSON
+secret file, rejects preloaded credentials, and execs one fixed worker with only
+that role's environment. Four uninstalled launchd daemon definitions use three
+separate account names and no inline secrets. Nightly ticks skip before06:00 UTC,
+then continue the saved once-per-day sweep. Regular/private deadline and outbound
+reservation supervision remain separate. Deployment must check clocks/identities.
+Targeted23 passed1.48s, session12318 terminal0; four generated plists in
+`.local/capture-services/` pass plutil syntax checks. Reviewer found no scoped
+blocker, but account/ancestor permissions, secret completeness and installed
+execution remain unverified. Packet is not activated or claimed activation-ready.
+Final integration: fullnoDB1285 passed/833 skipped181.01s, terminal60268;
+fullSQL1000 passed/1 production-only skip335.68s, terminal79887/server stopped.
+Ledger14/15 unchanged, existing F006 evidence-name warning unchanged. Skips cover
+guarded SQL/live checks and two NumPyro cases. Stagedlayout43 passes;4plutil checks.
+Invariant suite passes within fullSQL; genericRULE04 remains pending. No migration
+changed; prior87/880 chain applies. Source hashes match the integration launch;
+logs/JUnit archived `.local/evidence/capture-services/`. Independent review accepted
+recovery repairs and found no scoped service-entry blocker. No deployment/OS proof.
+Next commit this checkpoint, then fix the reproduced verified possessive supplier
+case: Examplo's burger with extracted name burger returns brandNone today. Binding
+REQ-NUT013/016 and CAP053 require preserving named-supplier evidence and preventing
+generic substitution. Keep the exact model schema and reuse the same context owner.
+
+
+**Review repair — interrupted publication:** review found `.tmp-*` files could
+accumulate after killed writers. Publication now removes at most one canonical
+owner-owned regular temporary under the exclusive directory lock; published UUID
+hardlinks survive. A real SIGKILL publication test recovers on next publication.
+Final targeted46 passed2.05s, session15889 terminal0; reviewer rechecking this repair.
+No raw/media/SQL deletion or deployment is involved.
+
+**Latest retention/capacity continuation:** outbound polling has independent
+one-entry control cleanup; only a validated transport projection whose UUID request
+is absent from an existing channel is removed. Missing channel, malformed metadata
+or a present request/symlink cannot authorize deletion. Publication caps are1024
+files/1GiB per directory,72MiB per file,64MiB free reserve; no eviction or billing.
+An identical immutable request needs no new allocation and remains idempotent at
+capacity. Existing raw/media/SQL retention rules are untouched. Full-disk cleanup
+is not promised: operators must restore headroom if cursor writes cannot proceed.
+Pure44 passed2.11s; runtimeSQL10 passed8.17s, session8255 terminal0/server stopped.
+A misplaced test insertion initially failed; restored the original contention body
+and all original assertions, then reran successfully. Reviewer is examining these
+operational changes after b2078cd. Full integration/review completion still pending.
+Next resolve review, remaining service invocation bounds and installable packet.
+
+
+**Latest operational repair:** mailbox writer locks use nonblocking exclusive
+acquisition. A competing tick refuses without modifying queued work; private and
+outbound CLI report busy with nonzero exit. A real competing process test proves
+prompt refusal and later retry, while readers continue seeing the immutable file.
+Mailbox/private/service36 passed1.81s, session17940 terminal0. Root owns the touched
+mailbox, private/outbound CLI and test files. No production/OS provisioning change.
+Terminal-capture retirement recovery is now connected: an independent durable
+retirement cursor scans one model/reference request per private tick, including
+empty active queues and completed nightly sweeps. It requires a saved SQL outcome
+and matching payload, confirms commit, then retires only that transient request.
+Pure mailbox/private/service38 passed2.07s; runtimeSQL10 passed7.44s, session6549
+terminal0/server stopped. Actual private poll recovers leftover transcription,
+extraction and reference files after enriched completion; raw/atom counts unchanged.
+Unconsumed work and files with an unconfirmed commit remain. Cleanup failure does
+not stop active capture progression, but invocation reports incomplete.
+Next outbound control-projection retention and disk-capacity bounds, then remaining
+service bounds/installable scheduling. Raw/media retention decisions remain separate.
+
+
+**Current continuation after b2078cd — private service deadline:** root owns new
+`tools/capture_private_service.py` and `tests/test_capture_private_service.py`.
+REQ-CAP-026 operational prerequisite: a stalled connection/lock must release the
+scheduled invocation; timeout must not claim SQL rollback or capture completion.
+Fixed child, private env allowlist, suppressed output and120s process deadline are
+implemented. Real child stall/termination, failed exit, foreign/disposable refusal,
+unrelated-env exclusion and actual missing-credential entrypoint tests pass;
+private-service/private-worker11 passed1.81s, session82934 terminal0. No provider
+or DB called by these process tests. Full integration not yet run for this change.
+Forced-termination fairness is now repaired: private polling persists its next
+cursor and an incomplete marker before capture work; final-page daily gate is also
+saved first. A real SIGKILL child test proves another process advances to the next
+capture; interrupted final nightly pages remain incomplete that day. Earlier failed
+entries retain incomplete sweep status. A pre-work crash can defer the item until
+next regular wrap/nightly sweep; raw/attempt records are not removed. Final pure
+private/service15 passed1.67s; runtimeSQL10 passed7.95s, session30307 terminal0 and
+server stopped. This is filesystem/process evidence, not independent SQL durability.
+Next remaining service bounds and installable scheduling packet, then review/full
+integration. Capacity/retention and provider-supervisor host loss remain open.
+
 
 **Integration evidence — 0088/ADR0159:** fullSQL1000 passed/1 production-only skip
 439.31s; session51143 terminal0 and disposable server stopped. FullnoDB1246 passed/

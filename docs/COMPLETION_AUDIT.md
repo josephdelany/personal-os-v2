@@ -511,3 +511,35 @@ receipt precedence, identity binding, poll progress or GID repair. No deployment
 OS isolation, host-loss, private invocation deadline or retention proof. Generic
 RULE04 remains pending; invariant suite passed within fullSQL. These results close
 local handoff integration, not the full M3 voice path or M6 release.
+
+
+## 2026-09-23 — Capture service activation packet after b2078cd (checks running)
+
+| Lens | Evidence and remaining gate |
+|---|---|
+| Contract fidelity | PARTIAL: CAP026 regular/nightly semantics and incomplete daily gate tested; observed nightly work and full capture profiles remain open. UTC06 service window is operational scheduling, not measurement-day interpretation. |
+| Complete user paths | PARTIAL: private SQL path reaches enriched atoms then recovers all three stages' leftover request files via actual polling; process entry refuses missing credentials. Real multi-identity/provider/device path remains open. |
+| Failure behavior | PASS in scoped local cases: real SIGKILL cursor and temporary-file recovery, competing writer refusal, budget hold, ambiguous commit retention and failed sweep preservation. Independent SQL crash durability and provider-supervisor host loss unverified. |
+| Data integrity | PASS in tested scope: transient retirement requires matching immutable SQL outcome/payload; raw/atom counts unchanged. Control cleanup removes only orphan transport projections. No authoritative data eviction. |
+| Access/privacy | PARTIAL: role secret-file ownership/mode/type, inherited-credential refusal and fixed exec environment tested; generated plists carry no secret. Dedicated OS users/channel groups/ancestors still unprovisioned. |
+| Runtime/deployment | PARTIAL: private120-second process bound, existing outbound90+10 bounds, nonblocking locks, four generated plists pass plutil. No installed daemon or real schedule evidence; filesystem/host failure bounds remain limited. |
+| Operations/recovery | PARTIAL: one-entry cleanup cursors,1024-file/1GiB channel caps and64MiB reserve tested. Exhaustion retains work; operator restores space when cursor writes cannot proceed. Deployed monitoring, media/SQL retention and host-loss ownership remain open. |
+| Evidence/reproducibility | Final targeted46 recovery/retention tests and23 entry/service tests pass; targetedSQL10 pass8.17s. Full noDB60268/SQL79887 running, manifest .local/evidence/capture-services/source-hashes.json. No migration changed since verified87/880 chain. |
+
+Independent review identified abandoned temporary accumulation; repaired with
+exclusive-lock owner/type/name checks and real SIGKILL/hardlink regressions.
+Reviewer accepted the repair and found no scoped launcher/schedule blocker.
+An initial test insertion misplaced an existing contention test body; restored its
+original assertions and all targeted checks pass. No threshold/gate was relaxed.
+
+
+Service integration disposition: fullnoDB1285 passed833 skipped181.01s;
+fullSQL1000 passed1 production-only skip335.68s, server stopped. Both handles
+terminal0 (60268/79887). Stagedlayout43 and four plutil checks pass; code hashes
+match the launch manifest. No SQL migration changed; prior87/880 chain applies.
+Ledger14/15 unchanged; F006 evidence-name warning unchanged. Skips cover guarded
+SQL/live checks and two NumPyro dependency cases. GenericRULE04 pending; invariant
+suite covered by fullSQL. Evidence archive `.local/evidence/capture-services/`.
+This closes local operational integration only; all deployment/physical/host-loss
+limits above remain. Next voice-path contract defect: verified possessive supplier
+context currently drops brand and can route a named item through generic lookup.

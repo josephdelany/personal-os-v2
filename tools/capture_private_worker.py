@@ -54,6 +54,37 @@ def advance(conn,capture_id,*,model_outbox,model_results,reference_outbox,retry=
     return result
 
 
+def _retire_saved(conn,state,binding,*,model_outbox,reference_outbox,schema):
+    """Check one mailbox entry independently of active capture status."""
+    name='retirement.json'
+    try:saved,_=mailbox._read(state,name)
+    except FileNotFoundError:saved={'binding':binding,'after':None}
+    if not isinstance(saved,dict) or set(saved)!={'binding','after'} or saved['binding']!=binding:
+        raise ValueError('retirement cursor configuration mismatch')
+    after=saved['after']
+    if after is not None:
+        role,identity=after.split(':',1)
+        if role not in ('model','reference'):raise ValueError('invalid retirement cursor')
+        mailbox._name(identity)
+    directories={'model':model_outbox,'reference':reference_outbox}
+    entries=sorted(role+':'+identity for role,directory in directories.items()
+                   for identity in mailbox.pending(directory))
+    if not entries:return {'status':'idle'}
+    key=next((key for key in entries if after is None or key>after),entries[0])
+    mailbox._write(state,name,{'binding':binding,'after':key},replace=True)
+    role,identity=key.split(':',1);directory=directories[role]
+    try:request=mailbox.read(directory,identity)
+    except FileNotFoundError:return {'status':'absent'}
+    stage='reference' if role=='reference' else request.get('call_kind')
+    cur=conn.cursor();owner_context(cur)
+    ready=consumed(cur,request,stage=stage,schema=schema)
+    conn.commit()
+    if not ready:return {'status':'awaiting_consumption'}
+    try:mailbox.retire(directory,request)
+    except FileNotFoundError:pass
+    return {'status':'retired','request_id':identity}
+
+
 def poll(conn,*,state_directory,model_outbox,model_results,reference_outbox,retry=False,
          schema='core',ops='ops',config='config'):
     """Advance one capture per tick; the nightly lane scans at most once per UTC day."""
@@ -75,30 +106,45 @@ def poll(conn,*,state_directory,model_outbox,model_results,reference_outbox,retr
         cur=conn.cursor();owner_context(cur)
         cur.execute("SELECT (clock_timestamp() AT TIME ZONE 'UTC')::date")
         today=cur.fetchone()[0].isoformat()
+        try:
+            cleanup=_retire_saved(conn,state,binding,model_outbox=model_outbox,
+                reference_outbox=reference_outbox,schema=schema)
+        except Exception:
+            conn.rollback()
+            cleanup={'status':'error','error_type':'MailboxRetirementUnavailable'}
+        cleanup_failed=cleanup['status']=='error'
         if saved['completed_day'] is not None:
             dt.date.fromisoformat(saved['completed_day'])
         if retry and saved['completed_day'] is not None and saved['completed_day']>=today:
             conn.commit()
-            return {'status':'incomplete' if saved['failed'] else 'already_scanned','retry':True}
+            return {'status':'incomplete' if saved['failed'] or cleanup_failed else 'already_scanned',
+                    'retry':True,'cleanup':cleanup}
         if saved['cursor'] is None:saved['failed']=False
+        owner_context(cur)
         queue=capture_transcription.work_queue(cur,limit=1,cursor=saved['cursor'],schema=schema)
         conn.commit()
+        # Persist the next position before potentially stalled capture work.
+        # Until the final write confirms a return, this sweep is incomplete.
+        # On the last page the daily gate is also durable, preventing a killed
+        # nightly invocation from replaying earlier captures that same day.
+        failed=saved['failed'] or cleanup_failed
+        saved['cursor']=queue['next_cursor']
+        complete=queue['next_cursor'] is None
+        if complete:saved['completed_day']=today
+        saved['failed']=True
+        mailbox._write(state,name,saved,replace=True)
         result={'status':'idle'}
         for item in queue['items']:
             try:
                 result=advance(conn,item['capture_id'],**paths,retry=retry,schema=schema,ops=ops,config=config)
             except Exception:
                 conn.rollback()
-                saved['failed']=True
+                failed=True
                 result={'status':'error','error_type':'PrivateCaptureWorkerUnavailable'}
-        saved['cursor']=queue['next_cursor']
-        complete=queue['next_cursor'] is None
-        failed=saved['failed']
-        if complete:
-            saved['completed_day']=today
+        saved['failed']=failed
         mailbox._write(state,name,saved,replace=True)
         return {'status':'incomplete' if failed else 'polled','sweep_complete':complete,
-                'retry':retry,'result':result}
+                'retry':retry,'result':result,'cleanup':cleanup}
 
 
 def main():
@@ -124,6 +170,12 @@ def main():
             result=advance(conn,capture_id,**values)
         print(json.dumps(result,default=str))
         return 1 if result['status']=='incomplete' else 0
+    except BlockingIOError:
+        if conn is not None:
+            try:conn.rollback()
+            except Exception:pass
+        print(json.dumps({'status':'busy','error_type':'MailboxWriterActive'}),file=sys.stderr)
+        return 1
     except Exception:
         if conn is not None:
             try:conn.rollback()

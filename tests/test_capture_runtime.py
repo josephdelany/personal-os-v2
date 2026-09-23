@@ -125,7 +125,7 @@ def test_REQ_CAP_026_038_budget_control_defers_only_without_sql_receipt(cur,adva
         assert consume_control(cur,request,control,stage=stage,schema='core_pytest')==result
 
 
-def test_REQ_CAP_026_034_050_REQ_NUT_016_private_runtime_reaches_atoms_from_saved_receipts(cur,advance):
+def test_REQ_CAP_026_034_050_REQ_NUT_016_private_runtime_reaches_atoms_from_saved_receipts(cur,advance,tmp_path):
     from tools.engines.capture_mailbox import consumed
     action=advance()
     transcript_request=action['request']
@@ -169,6 +169,29 @@ def test_REQ_CAP_026_034_050_REQ_NUT_016_private_runtime_reaches_atoms_from_save
     read=capture_transcription.readback(cur,capture_id=CID,schema='core_pytest')
     kcal=next(a for a in read['extraction']['resolved_items'][0]['atoms'] if a['metric_key']=='kcal')
     assert float(kcal['value_point'])==180 and count(cur,'raw_captures')==1
+    # Files can survive failed retirement after SQL has reached terminal status.
+    # The actual private poll must recover these even with an empty active queue.
+    from lib import capture_mailbox as mailbox
+    from tools import capture_private_worker as worker
+    paths={name:tmp_path/name for name in
+           ('state_directory','model_outbox','model_results','reference_outbox')}
+    for path in paths.values():path.mkdir(mode=0o750)
+    for prepared in (transcript_request,extraction_request):
+        mailbox.publish(paths['model_outbox'],prepared)
+    mailbox.publish(paths['reference_outbox'],request)
+    class Connection:
+        def cursor(self):return cur
+        def commit(self):pass
+        def rollback(self):raise AssertionError('unexpected cleanup rollback')
+    cur.execute('SET SESSION AUTHORIZATION service_role')
+    try:
+        for _ in range(3):
+            result=worker.poll(Connection(),**paths,schema='core_pytest',ops='ops_pytest')
+            assert result['result']['status']=='idle' and result['cleanup']['status']=='retired'
+        assert mailbox.pending(paths['model_outbox'])==[]
+        assert mailbox.pending(paths['reference_outbox'])==[]
+    finally:cur.execute('RESET SESSION AUTHORIZATION')
+    assert count(cur,'atoms')==before and count(cur,'raw_captures')==1
 
 
 def test_REQ_CAP_025_026_runtime_provider_error_waits_for_explicit_scheduled_retry(cur,advance):

@@ -208,3 +208,16 @@ Root owns tools/capture_private_worker.py and expanded mailbox/runtime tests for
 the same capture scheduling connection; no additional implementation worker.
 Root owns tests/test_capture_private_worker.py and ADR0159/index for private
 pagination and operational nightly sweep gating in the same capture unit.
+
+Root owns tools/capture_private_service.py and tests/test_capture_private_service.py
+for bounded private polling after b2078cd; same M3 voice path, no external activation.
+Root extends the same deadline unit to tools/capture_private_worker.py and
+tests/test_capture_private_worker.py for durable pre-work cursor/incomplete state.
+Root extends the same service-boundary unit to lib/capture_mailbox.py,
+tools/capture_dispatch_mailbox.py and tests/test_capture_mailbox.py for nonblocking
+writer contention and real-process refusal/retry proof.
+Root additionally owns tests/test_capture_runtime.py for real SQL verification of
+terminal-capture mailbox retirement; same private worker and same M3 unit.
+Root owns tools/capture_service_entry.py, ops/capture_services.py and tests
+test_capture_service_entry.py/test_capture_services.py for uninstalled role service
+packet and protected secret loading; no account or production provisioning performed.

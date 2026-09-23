@@ -14,6 +14,37 @@ import uuid
 from lib.model_contract import request_bytes
 
 MAX_BYTES=72*1024*1024
+MAX_DIRECTORY_BYTES=1024*1024*1024
+MAX_DIRECTORY_FILES=1024
+MIN_FREE_BYTES=64*1024*1024
+
+
+def _prune_temp(directory):
+    """Caller holds the writer lock, so no cooperating publication is live."""
+    for name in os.listdir(directory):
+        if not name.startswith('.tmp-'):continue
+        _name(name[5:])
+        info=os.stat(name,dir_fd=directory,follow_symlinks=False)
+        if not stat.S_ISREG(info.st_mode) or info.st_uid!=os.fstat(directory).st_uid:
+            raise ValueError('unsafe mailbox temporary')
+        # Only the temporary name is removed, including if publication created
+        # another hard link before the writer died. That UUID request survives.
+        os.unlink(name,dir_fd=directory);os.fsync(directory)
+        return
+
+
+def _capacity(directory,name,size,replace):
+    """Bound transient channels without deleting evidence to make room."""
+    total=0;names=os.listdir(directory)
+    for entry in names:
+        info=os.stat(entry,dir_fd=directory,follow_symlinks=False)
+        if not stat.S_ISREG(info.st_mode):raise ValueError('unexpected mailbox entry')
+        total+=info.st_size
+    final_count=len(names)+(0 if replace and name in names else 1)
+    free=os.fstatvfs(directory)
+    if (final_count>MAX_DIRECTORY_FILES or total+size>MAX_DIRECTORY_BYTES
+        or free.f_bavail*free.f_frsize<MIN_FREE_BYTES+size):
+        raise ValueError('mailbox capacity exhausted')
 
 
 def _name(request_id):
@@ -29,7 +60,9 @@ def _directory(path,*,write=False):
         info=os.fstat(fd)
         if info.st_mode & 0o027 or (write and info.st_uid!=os.geteuid()):
             raise ValueError('mailbox requires one owner writer and no public access')
-        if write:fcntl.flock(fd,fcntl.LOCK_EX)
+        # Scheduled ticks must not accumulate behind a live/stalled writer.
+        # A conflicting invocation retains its work and retries on a later tick.
+        if write:fcntl.flock(fd,fcntl.LOCK_EX|fcntl.LOCK_NB)
         yield fd
     finally:os.close(fd)
 
@@ -54,6 +87,14 @@ def _read(directory,name):
 def _write(directory,name,value,*,replace=False):
     body=request_bytes(value)
     if len(body)>MAX_BYTES:raise ValueError('mailbox file too large')
+    _prune_temp(directory)
+    if not replace:
+        try:existing=_read(directory,name)[1]
+        except FileNotFoundError:existing=None
+        if existing is not None:
+            if existing!=body:raise ValueError('mailbox request identity reused')
+            return
+    _capacity(directory,name,len(body),replace)
     temp='.tmp-'+str(uuid.uuid4())
     fd=os.open(temp,os.O_WRONLY|os.O_CREAT|os.O_EXCL|os.O_NOFOLLOW,0o600,dir_fd=directory)
     try:
@@ -121,3 +162,27 @@ def retire(directory,request):
         name=_name(request['request_id'])
         if _read(fd,name)[1]!=request_bytes(request):raise ValueError('retirement identity mismatch')
         os.unlink(name,dir_fd=fd);os.fsync(fd)
+
+
+def retire_control(request_directory,result_directory,request_id):
+    """Remove only a transport projection after the private request is absent.
+
+    The result owner cannot remove private requests or SQL evidence. A missing
+    request directory is a configuration error, not proof of request retirement.
+    """
+    name=_name(request_id)
+    with _directory(request_directory) as requests:
+        with _directory(result_directory,write=True) as results:
+            try:value,_=_read(results,name)
+            except FileNotFoundError:return False
+            if (not isinstance(value,dict) or set(value)!={'version','request_sha256','result'}
+                or type(value['version']) is not int or value['version']!=1
+                or not isinstance(value['request_sha256'],str) or len(value['request_sha256'])!=64
+                or any(c not in '0123456789abcdef' for c in value['request_sha256'])
+                or not isinstance(value['result'],dict) or value['result'].get('request_id')!=request_id):
+                raise ValueError('invalid control projection')
+            try:os.stat(name,dir_fd=requests,follow_symlinks=False)
+            except FileNotFoundError:
+                os.unlink(name,dir_fd=results);os.fsync(results)
+                return True
+            return False

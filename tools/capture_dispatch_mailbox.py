@@ -49,6 +49,22 @@ def poll(role,request_directory,result_directory,state_directory,*,limit=1):
             raise ValueError('worker cursor configuration mismatch')
         after=saved['after']
         if after is not None:mailbox._name(after)
+        cleanup={'status':'idle'}
+        try:
+            try:retired,_=mailbox._read(state,'retirement.json')
+            except FileNotFoundError:retired={'binding':binding,'after':None}
+            if not isinstance(retired,dict) or set(retired)!={'binding','after'} or retired['binding']!=binding:
+                raise ValueError('control retirement cursor mismatch')
+            previous=retired['after']
+            if previous is not None:mailbox._name(previous)
+            controls=mailbox.pending(result_directory)
+            if controls:
+                identity=next((identity for identity in controls if previous is None or identity>previous),controls[0])
+                mailbox._write(state,'retirement.json',{'binding':binding,'after':identity},replace=True)
+                removed=mailbox.retire_control(request_directory,result_directory,identity)
+                cleanup={'status':'retired' if removed else 'retained','request_id':identity}
+        except Exception:
+            cleanup={'status':'error','error_type':'ControlRetirementUnavailable'}
         identities=mailbox.pending(request_directory)
         ordered=identities if after is None else (
             [identity for identity in identities if identity>after]+
@@ -62,8 +78,8 @@ def poll(role,request_directory,result_directory,state_directory,*,limit=1):
             except Exception:
                 result={'request_id':identity,'status':'error','error_type':'MailboxDispatchUnavailable'}
             results.append(result)
-        ok=all(item.get('status') in ('settled','deferred_budget') for item in results)
-        return {'status':'polled' if ok else 'incomplete','items':results}
+        ok=cleanup['status']!='error' and all(item.get('status') in ('settled','deferred_budget') for item in results)
+        return {'status':'polled' if ok else 'incomplete','items':results,'cleanup':cleanup}
 
 
 def main():
@@ -84,6 +100,9 @@ def main():
             result=dispatch(args.role,args.request_directory,args.result_directory,args.request_id)
         print(json.dumps(result))
         return 0 if result['status'] in ('settled','deferred_budget','polled') else 1
+    except BlockingIOError:
+        print(json.dumps({'status':'busy','error_type':'MailboxWriterActive'}),file=sys.stderr)
+        return 1
     except Exception:
         print(json.dumps({'status':'error','error_type':'MailboxDispatchUnavailable'}),file=sys.stderr)
         return 1

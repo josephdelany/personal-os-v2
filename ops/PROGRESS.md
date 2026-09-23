@@ -8188,3 +8188,30 @@ WHAT I DID NOT DO: deploy or install a capture schedule, provision OS identities
 secrets, observe a real provider/device capture, prove independent commit survival,
 close private service deadlines, disk retention/capacity or supervisor-host-loss
 recovery. These are the next operational work, not a complete M3/M6 claim.
+
+
+## 2026-09-23 — Capture service deadlines, recovery and uninstalled schedule packet
+
+After b2078cd, connected private120-second supervision, pre-work durable cursor
+and incomplete nightly gate, nonblocking writer contention, SQL-verified cleanup
+independent of active captures, orphan control/temp cleanup and bounded publication.
+CAP026/038 and RULE29 scoped tests cover real SIGKILL/competing-process behavior,
+commit ambiguity, raw/atom preservation and role-secret isolation. Four uninstalled
+launchd definitions use separate role identities; no credentials embedded. Private
+nightly eligibility begins06:00 UTC and uses the existing database daily sweep gate.
+
+Review found orphan temporary accumulation; repaired under exclusive writer lock
+with owner/type/name checks, preserving published hardlinks. Reviewer accepted the
+repair and found no new service-entry/scheduling blocker. Initial test-body placement
+error was fixed with all original contention assertions retained.
+
+Evidence: fullnoDB1285 passed833 skipped181.01s; fullSQL1000 passed1 production-only
+skip335.68s, terminal79887/server stopped; stagedlayout43; four plutil checks. Final
+code hashes match integration-launch manifest in `.local/evidence/capture-services/`.
+Ledger14/15 unchanged/F006 existing diagnostic. GenericRULE04 pending; invariant
+suite passes in fullSQL. No migration changed; prior87/880 chain evidence applies.
+
+WHAT I DID NOT DO: install daemons, provision accounts/ACLs/secrets, run a real
+provider/device capture, prove independent SQL crash durability or provider-supervisor
+host-loss recovery. Deployed capacity/log monitoring and media/SQL retention remain
+release work. Next fix possessive supplier evidence dropping brand in the voice path.
