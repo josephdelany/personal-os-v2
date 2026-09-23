@@ -133,3 +133,4 @@ rule for branded items (REQ-NUT-050/051).
 | ADR-0155 | Implemented/tested locally; private handoff open | 2026-09-23 | [Isolated reference dispatch](adr/0155-isolated-reference-dispatch.md): persistent source quotas, committed audit and digest receipts; direct source identity and bounded transport; private prepare/cache-consume and runtime open |
 
 | ADR-0159 | Local implementation; integration/activation open | 2026-09-23 | [Capture worker mailboxes](adr/0159-capture-worker-mailboxes.md): separate role handoff, SQL-gated retirement, bounded reference supervision and durable queue cursors |
+| ADR-0160 | Locally integrated; deployment unverified | 2026-09-23 | [Pint quantity conversion](adr/0160-pint-quantity-conversion.md): NUT019 local pinned dependency, bounded unit parsing and no density inference; $0 recurring |

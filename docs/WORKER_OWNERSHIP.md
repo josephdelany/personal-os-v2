@@ -242,3 +242,9 @@ Root after a7fd2b4: stated mass connection in same M3-B16 path; owns quantity
 binding in capture_resolution/capture_extraction, common mass conversion plus
 OFF/USDA consumers, tests/test_capture_quantities.py and existing transcription
 SQL fixture/tests. Reviewer read-only; no competing implementation agent.
+
+
+2026-09-23: cf404e6 closes literal mass adapter. Root owns NUT019 Pint conversion:
+lib/mass_units.py, extraction/resolution binding, OFF/USDA consumers, quantity and
+transcription tests, dependency workflows/runbook, ADR0160 and maintained docs.
+Reviewer read-only; no second implementation writer. No migration reserved.

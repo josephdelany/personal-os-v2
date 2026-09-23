@@ -12,11 +12,12 @@ from typing import Annotated
 
 from pydantic import BaseModel, ConfigDict, Field, StrictInt, StrictStr
 from lib.model_contract import request_bytes
+from lib.mass_units import literal_pair
 from tools.engines.capture_transcription import _private, _lock
 from tools.engines.extraction import FOOD_FIELDS, NUTRITION_TERMS, validate_schema, resolve_field
 
 MODEL_ID = '@cf/meta/llama-3.1-8b-instruct'
-VERSION = 'capture-food-extraction-v1'
+VERSION = 'capture-food-extraction-v2'
 MAX_OUTPUT_TOKENS = 2048
 INPUT_NEURONS_PER_MILLION = 25608
 OUTPUT_NEURONS_PER_MILLION = 75147
@@ -103,7 +104,9 @@ def validated_fields(response, transcript):
             ('quantity_unit', item.quantity_unit, item.quantity_evidence, item.quantity_evidence_start),
         ):
             field = resolve_field(name, value, transcript, evidence=evidence, evidence_start=offset)
+            literal = literal_pair(item.quantity, item.quantity_unit, evidence)
             if (name == 'quantity_unit' and value is not None and field.provenance == 'extracted'
+                    and not literal
                     and (not value.strip() or re.search(r'(?<!\w)' + re.escape(value.casefold()) + r'(?!\w)',
                                                        evidence.casefold()) is None)):
                 from tools.engines.extraction import Field as ExtractedField
@@ -116,8 +119,8 @@ def validated_fields(response, transcript):
                          'four': 4, 'five': 5, 'six': 6, 'seven': 7,
                          'eight': 8, 'nine': 9, 'ten': 10, 'zero': 0}
                 tokens = re.findall(r'(?<![\w.,/+\-])\d+(?:\.\d+)?(?![\w.,/\-])|\b[a-z]+\b', evidence.lower())
-                supported = any(Decimal(token) == Decimal(str(value)) if token[0].isdigit()
-                                else words.get(token) == value for token in tokens)
+                supported = literal or any(Decimal(token) == Decimal(str(value)) if token[0].isdigit()
+                                           else words.get(token) == value for token in tokens)
                 if re.search(r'\b(?:twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred|thousand|million|dozen|half|quarter|third)\b', evidence, re.I):
                     supported = False
                 if not supported:

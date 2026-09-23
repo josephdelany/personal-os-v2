@@ -52,6 +52,10 @@ def product(**kw):
 
 # ================================================================ units and basis
 
+def test_REQ_NUT_019_off_overflowing_serving_is_malformed():
+    with pytest.raises(off.OffMalformed, match='invalid_serving_quantity'):
+        off.parse_product(product(serving_quantity=1e308,serving_quantity_unit='kg'))
+
 def test_REQ_NUT_003_off_per_100g_fields_parse_into_this_systems_keys_and_units():
     """The x1000 that is silent when it is wrong.
 

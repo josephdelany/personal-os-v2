@@ -55,13 +55,15 @@ class NutritionDisplayError(Exception):
 
 # ---------------------------------------------------------------- §D.4 quantity
 
-def convert_quantity(value, unit, *, converter):
+def convert_quantity(value, unit):
     """REQ-NUT-019. A mass or volume unit converts, and the provenance is `extracted`.
 
     A stated unit is something Joe said. It is not an inference and must not be marked as one.
     """
-    grams = converter(value, unit)
-    return {"grams": grams, "provenance": "extracted", "basis": f"{value} {unit}"}
+    from lib.mass_units import convert_quantity as convert
+    quantity = convert(value, unit)
+    key = 'grams' if quantity['unit'] == 'g' else 'volume_ml'
+    return {key: quantity['value'], "provenance": "extracted", "basis": f"{value} {unit}"}
 
 
 def resolve_vernacular(phrase, food_class, portion_aliases):

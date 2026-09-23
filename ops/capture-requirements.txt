@@ -1,0 +1,5 @@
+# Role-separated Python capture workers; local libraries only (ADR-0160).
+pg8000>=1.30,<2
+pydantic>=2.12,<3
+dateparser>=1.2,<2
+Pint==0.26.1

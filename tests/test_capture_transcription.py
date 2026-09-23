@@ -778,9 +778,10 @@ def test_REQ_NUT_001_014_050_empty_cache_source_lookup_reaches_capture_atoms(cur
     assert cur.fetchone()[0]==1
 
 
-@pytest.mark.parametrize('value,unit,text',[(150,'grams','150 grams'),(0.15,'kg','0.15 kg')])
+@pytest.mark.parametrize('value,unit,text',[(150,'grams','150 grams'),(0.15,'kg','0.15 kg'),
+    (150,'g','150g'),(0.15,'kilograms','0.15 kilograms'),(150000,'milligrams','150000milligrams')])
 @pytest.mark.parametrize('source,method',[('usda_foundation','weighed'),('usda_branded','labelled')])
-def test_REQ_CAP_053_REQ_NUT_032_035_stated_mass_persists_weighed_atoms_and_readback(cur,value,unit,text,source,method):
+def test_REQ_CAP_053_REQ_NUT_019_032_035_stated_mass_persists_weighed_atoms_and_readback(cur,value,unit,text,source,method):
     from tools.engines import capture_resolution as resolution
     req=saved_food_extraction(cur,quantity=value,quantity_text=text,quantity_unit=unit)
     cache_resolution_food(cur,source=source)
@@ -793,9 +794,13 @@ def test_REQ_CAP_053_REQ_NUT_032_035_stated_mass_persists_weighed_atoms_and_read
     read=transcription.readback(cur,capture_id=CID,schema='core_pytest')
     assert len(read['extraction']['resolved_items'])==1
     assert len(read['extraction']['resolved_items'][0]['atoms'])==2
+    assert read['extraction']['resolved_items'][0]['resolution']['quantity_provenance']=='extracted'
+    cur.execute("SELECT value,provenance,evidence FROM core_pytest.capture_extraction_fields WHERE request_id=%s AND name='quantity_unit'",(req['request_id'],))
+    assert tuple(cur.fetchone())==(unit,'extracted',text)
 
 
 @pytest.mark.parametrize('unit,text',[('g','150 ml and 200 g'),('ml','150 ml'),
+    ('ml','150ml'),('liters','150 liters'),('oz','150 fluid oz'),
     (None,'150 grams'),(None,'150 kilograms'),(None,'150 milligrams'),(None,'150 teaspoons')])
 def test_REQ_CAP_054_REQ_NUT_032_unbound_mass_never_creates_atoms(cur,unit,text):
     from tools.engines import capture_resolution as resolution

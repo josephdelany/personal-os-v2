@@ -644,3 +644,48 @@ F006 diagnostic unchanged. Four spine invariant tests pass; genericRULE04 pendin
 No migration. Independent review accepted repairs. This closes the stated literal
 mass adapter only; NUT019 Pint conversion remains the next same-path requirement,
 not deferred or claimed complete. No deployment/device/provider observation.
+
+
+## 2026-09-23 — Pint quantity integration after cf404e6 (full gates running)
+
+| Lens | Evidence and remaining gate |
+|---|---|
+| Contract fidelity | NUT019/CAP053/054/RULE09/12/28: Pint0.26.1 owns approved mass/volume conversions; exact decimal span proof supports compact150g and spelled unit aliases. Word-valued amounts and density-dependent food conversion remain gaps, not waived. |
+| Complete user paths | Registered saved-transcript SQL cases now cover compact150g, kilogram/milligram aliases, saved extracted unit evidence, persisted nutrition provenance, generic/branded method and readback. Prior SQL168passed64.74s predates final refinements; fullSQL40238 running. |
+| Failure behavior | Final pure133passed40SQLskips1.31s: mismatched spans/pairs, undefined symbols, compound units, nonfinite/overflow and volume-as-mass refuse. Mg is not mg. OFF/USDA overflow maps to malformed-source outcomes. |
+| Data integrity | Existing nutrient owner/methods unchanged; shared converter replaces fixed factors and arbitrary converter injection. Source serving parsing still prioritizes parenthesized declared weight. No density inference or raw/atom updates. |
+| Access/privacy | ADR0160 documents local BSD library, $0 recurring/no service/quota/overage/runtime egress. No new credentials, destinations, privileges or production action. |
+| Runtime/deployment | Pip install tested in .local/pint-venv; dependencies archived. CI test/acceptance and runtime requirements/runbook updated. Actual three-account deployment/device/provider path remains unverified. |
+| Operations/recovery | Density-unavailable quantity remains pending enrichment; it cannot falsely complete. Missing dependency fails readiness; no arithmetic fallback. No new retry/storage policy. |
+| Evidence/reproducibility | Source hashes .local/evidence/capture-pint; pure/layout43 evidence archived. FullnoDB24127 and fullSQL40238 running. GenericRULE04 pending; no migration. Previous cf404e6 evidence remains distinct. |
+
+Independent reviewer accepted bounded conversion and final case/overflow/density
+repairs. New regression tests initially14failed25passed0.32s before implementation;
+no thresholds or expected-failure gates weakened. Full integration and ledger/skip
+reconciliation remain pending. This is not a claim of all quantity semantics,
+observed capture operation, M3 or M6 completion.
+
+
+Pint integration environment diagnosis: fullnoDB1360passed873skipped216.21s,
+terminal24127/ledger14of15 unchanged(existingF006). FullSQL1045passed1failed1skipped
+442.08s, terminal40238/server stopped. Failure was RULE29 repository scanner finding
+pip's vendor HTTP code in .local/pint-venv. Moved the isolated environment outside
+checkout to /tmp/personal-os-pint-venv-cf404e6; no scanner/test exemption or source
+change. Direct interpreter/Pint0.26.1 and unchanged scanner assertion verified.
+Direct pytest invocation of that assertion skipped under its existing SQL guard;
+not counted as a passed test. Final fullSQL29354 is running; failed-run artifacts
+in .local/evidence/capture-pint/environment-layout-failure. NoDB JUnit and skips
+archived separately; its passing result remains applicable to unchanged sources.
+
+
+Pint final integration: fullnoDB1360passed873skipped216.21s, terminal24127;
+finalSQL1046passed1production-onlyskip379.92s, terminal29354/server stopped.
+Stagedlayout43passes, terminal3756. Source hashes match; logs/JUnit/dependency
+versions/skip reasons archived .local/evidence/capture-pint, original environmental
+failure retained separately. Ledger14/15 unchanged; pre-existing F006 diagnostic.
+SQLskip is live visits_public shape; noDB skips are SQL/live guards and two existing
+NumPyro cases. Four spine invariants pass; genericRULE04 remains pending.
+Independent review accepted conversion/overflow/case/density boundaries. No migration.
+This closes local Pint conversion of verified literal decimal quantities and the
+runtime dependency declaration, not word-valued amounts, density-dependent food
+mass, actual deployment/device/provider observation, M3 or M6.

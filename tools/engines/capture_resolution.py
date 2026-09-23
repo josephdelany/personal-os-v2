@@ -6,10 +6,7 @@ The existing nutrition owner owns reference lookup, arithmetic and atom writes.
 import json
 import re
 import uuid
-import math
-from decimal import Decimal
-
-from lib.mass_units import MASS_UNITS_TO_G
+from lib.mass_units import MASS_INPUT_UNITS, VOLUME_INPUT_UNITS, convert_quantity, literal_pair, normalize_unit
 
 from tools.engines import nutrition, capture_food_context
 from tools.engines.capture_transcription import _private, _lock
@@ -17,7 +14,7 @@ from tools.engines.capture_processing import record_outcome
 from tools.engines.extraction import resolve_time
 from tools.importers.common import ET, subject_day
 
-VERSION = 'capture-food-resolution-v3'
+VERSION = 'capture-food-resolution-v4'
 COUNT_UNITS = {'each','item','items','serving','servings','piece','pieces'}
 
 
@@ -43,22 +40,23 @@ def _quantity(fields, index, name):
         return {}
     if quantity['provenance'] != 'extracted':
         raise nutrition.Unresolved(name,[],reason='unverified_quantity',review_reason='unverified_quantity')
-    mass_unit = str(unit['value']).strip().lower()
-    if mass_unit in MASS_UNITS_TO_G:
+    mass_unit = normalize_unit(str(unit['value']))
+    if mass_unit in MASS_INPUT_UNITS or mass_unit in VOLUME_INPUT_UNITS:
         # Require one complete literal amount/unit pair. Finding the number and
         # unit separately would misread "150 ml and 200 g" as 150 g.
         evidence = quantity['evidence'] or ''
-        pair = re.fullmatch(r'\s*(\d+(?:\.\d+)?)\s+([a-z]+)\s*', evidence, re.I)
         value = quantity['value']
         if (unit['provenance'] == 'extracted'
-                and unit['evidence'] == evidence and pair
-                and pair[2].lower() == mass_unit
-                and isinstance(value, (int, float, Decimal)) and not isinstance(value, bool)
-                and math.isfinite(value) and value > 0
-                and Decimal(pair[1]) == Decimal(str(value))):
-            grams = float(value) * MASS_UNITS_TO_G[mass_unit]
-            if math.isfinite(grams) and grams > 0:
-                return {'grams': grams}
+                and unit['evidence'] == evidence and literal_pair(value,mass_unit,evidence)):
+            try:
+                converted = convert_quantity(value,mass_unit)
+            except ValueError:
+                pass
+            else:
+                if converted['unit'] == 'g':
+                    return {'grams': converted['value']}
+                raise nutrition.Unresolved(name,[],reason='volume_density_unavailable',
+                                           review_reason='volume_density_unavailable')
         raise nutrition.Unresolved(name,[],reason='unverified_quantity',review_reason='unverified_quantity')
     if unit['value'] is None or str(unit['value']).lower() in COUNT_UNITS:
         # A missing model unit is not proof of a count. Accept a bounded count
@@ -168,7 +166,7 @@ def resolve(cur, *, request_id, capture_id, extraction_request_id, schema='core'
                 # Source outages and unsupported evidence must remain retryable;
                 # a reference miss is a normal, explicitly unresolved food outcome.
                 pending |= missing.reason in ('no_source_available','unverified_quantity','quantity_unit_unresolved',
-                                              'no_branded_serving','no_quantity')
+                                              'no_branded_serving','no_quantity','volume_density_unavailable')
                 continue
             item_id=str(uuid.uuid5(uuid.UUID(extraction_request_id),str(index)))
             cur.execute(f'''INSERT INTO {schema}.capture_resolved_items

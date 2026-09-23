@@ -9,15 +9,79 @@ Joe's `/goal` is active. Do not start backend execution from the monitor.
 {
   "version": 1,
   "status": "running",
-  "updated_at": "2026-09-23T22:37:33.017264+00:00",
-  "last_progress_at": "2026-09-23T22:37:33.017264+00:00",
+  "updated_at": "2026-09-23T23:14:23.488863+00:00",
+  "last_progress_at": "2026-09-23T23:14:23.488863+00:00",
   "unit": "M3-B16-voice-capture-to-atoms",
-  "next_action": "Stated mass adapter verified on a7fd2b4 dirty: fullnoDB1334/864skip161.22s,SQL1035/1production-onlyskip372.26s,layout43. All processes terminal/server stopped; hashes match archive .local/evidence/capture-mass. Reviewer accepted repairs. Commit scoped unit, then same quantity path NUT019 Pint conversion (not installed), exact alias/amount binding and no volume-to-mass without density. Record dependency cost ADR before adding. FullM0-M6 remains; no deployment."
+  "next_action": "Pint unit verified on cf404e6 dirty: noDB1360/873skip216.21s,SQL1046/1production-onlyskip379.92s,stagedlayout43; allhandles terminal/server stopped. Sources match archive .local/evidence/capture-pint. Scoped commit next, then samepath verified word quantities: one kilogram extracted1 currently refuses. Preserve strict spans/dimensions; no density guessing. Use /tmp/personal-os-pint-venv-cf404e6/bin/python; explicit PATH for ledger. No migration/deployment/fullrelease."
 }
 ```
 <!-- backend-control:end -->
 
 ## Current active unit — M3 / B16 voice capture to persisted atoms
+
+
+Pint final integration: fullnoDB1360passed873skipped216.21s, terminal24127;
+finalSQL1046passed1production-onlyskip379.92s, terminal29354/server stopped.
+Stagedlayout43passes, terminal3756. Source hashes match; logs/JUnit/dependency
+versions/skip reasons archived .local/evidence/capture-pint, original environmental
+failure retained separately. Ledger14/15 unchanged; pre-existing F006 diagnostic.
+SQLskip is live visits_public shape; noDB skips are SQL/live guards and two existing
+NumPyro cases. Four spine invariants pass; genericRULE04 remains pending.
+Independent review accepted conversion/overflow/case/density boundaries. No migration.
+This closes local Pint conversion of verified literal decimal quantities and the
+runtime dependency declaration, not word-valued amounts, density-dependent food
+mass, actual deployment/device/provider observation, M3 or M6.
+
+**Authoritative environment/gate update:** fullnoDB1360passed873skipped216.21s,
+terminal24127. First fullSQL1045passed1failed1skipped442.08s, terminal40238/server
+stopped: unchanged RULE29 repository scanner found pip vendor network code under
+.local/pint-venv. The environment was moved outside the repository to
+`/tmp/personal-os-pint-venv-cf404e6`; direct bin/python and Pint0.26.1 verified.
+Do not use the moved activation/pip scripts, whose shebangs reference the old path;
+use direct bin/python (-m pip as needed) and explicit PATH for the ledger's python3.
+The unchanged repository assertion passes directly; a pytest-only invocation skipped
+due to its module-wide SQL guard and is not counted as proof. FINAL fullSQLsession
+29354 is running /tmp/capture-pint-final-sql.log and.xml. Do not duplicate.
+No source change; old failed run archived .local/evidence/capture-pint/environment-layout-failure.
+Final SQL, archive, evidence disposition and scoped commit remain pending.
+
+
+**Pint integration checkpoint:** shared converter is now connected to compact-span
+verification in extraction and mass/volume resolution. OFF/USDA serving parsers and
+nutrition_display reuse it. Unit symbols preserve case (Mg cannot become mg);
+invalid/overflow source quantities become malformed outcomes. Verified volume
+stays pending with volume_density_unavailable. CI test/acceptance installs and
+ops/capture-requirements.txt/runbook include Pint. No service deployed.
+Reviewer accepted final refinements. Pure133passed40SQLskips1.31s; layout43pass.
+Earlier targetedSQL168passed64.74s preceded final symbol/overflow/density refinements.
+RUNNING fullnoDB24127 /tmp/capture-pint-full-nodb.log, fullSQL40238
+/tmp/capture-pint-full-sql.log and.xml. Do not duplicate; source hashes and prior
+logs .local/evidence/capture-pint. Final gates/eight-lens record/commit pending.
+
+**Current bounded acceptance after cf404e6 — requirement-compliant unit conversion:**
+REQ-NUT019, CAP053/054 and RULE09/12/28; B12/B16. One shared Pint-backed conversion
+owner, pinned dependency with $0 recurring/no egress documented in ADR0160 before
+installation. Positive: supported literal mass aliases and compact number/unit
+spans retain exact original evidence and extracted provenance through saved
+resolution/atoms/readback; volume conversion retains its dimension. Negative:
+volume cannot become food mass without explicit source density; ambiguous units,
+compound expressions, conflicting pairs, inferred/fabricated spans and nonfinite
+amounts refuse. Preserve established count/serving and branded/generic methods.
+Root owns shared mass module, capture extraction/resolution, OFF/USDA consumer
+adapters, pure and existing registered SQL tests, relevant dependency workflows
+and runbook. No measurement redefinition, migration or production call expected.
+Pint0.26.1 installed in .local/pint-venv with system site packages;
+flexcache0.3/flexparser0.4 installed, platformdirs4.9.4/typing-extensions4.15.0 reused.
+Use .local/pint-venv/bin/python for this unit's tests; default python lacks Pint.
+Red tests14failed25passed0.32s; first shared converter + capture mass adapter now
+pure39passed0.66s (/tmp/capture-pint-pure.log). All handles terminal. Implementation
+is PARTIAL: extraction still rejects compact150g before resolver; OFF/USDA still
+use fixed-factor legacy constant; dependency workflows/runbook not updated.
+Next shared exact-pair proof in extraction/resolution, source consumers, actual
+saved-transcript SQL aliases/compact and volume refusal, dependency installation,
+review/full integration. No claimed NUT019 completion yet. Do not
+claim NUT019 complete from the previous fixed-factor adapter. Sources checked:
+https://pypi.org/project/Pint/ (0.26.1,Python>=3.12,BSD) and official Pint tutorial.
 
 
 Stated-mass final integration: fullnoDB1334passed864skipped161.22s, terminal43957;

@@ -21,8 +21,13 @@ ITEMS = [{"kcal_low": 250, "kcal_high": 320}, {"kcal_low": 400, "kcal_high": 620
 
 def test_REQ_NUT_019_a_stated_unit_converts_and_is_EXTRACTED():
     """A stated unit is something Joe said. It is not an inference and must not be marked one."""
-    out = convert_quantity(2, "oz", converter=lambda v, u: v * 28.35)
-    assert out["provenance"] == "extracted" and out["grams"] == pytest.approx(56.7)
+    out = convert_quantity(2, "oz")
+    assert out["provenance"] == "extracted" and out["grams"] == pytest.approx(56.69904625)
+
+
+def test_REQ_NUT_019_volume_conversion_never_implicitly_supplies_density():
+    out = convert_quantity(0.25, 'liters')
+    assert out == {'volume_ml':250, 'provenance':'extracted', 'basis':'0.25 liters'}
 
 
 def test_REQ_NUT_020_a_vernacular_phrase_resolves_as_DEFAULTED():

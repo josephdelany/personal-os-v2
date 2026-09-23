@@ -41,6 +41,11 @@ from tools.run_migration import split_statements
 
 BRANDED, FOUNDATION = usda.BRANDED, usda.FOUNDATION
 
+
+def test_REQ_NUT_019_usda_overflowing_serving_is_malformed():
+    with pytest.raises(usda.UsdaMalformed, match='invalid_serving_quantity'):
+        usda.parse_food(branded_food(servingSize=1e308,servingSizeUnit='kg'),BRANDED)
+
 # Synthetic throughout. Not a key, not Joe's, and shaped so it cannot trip the RULE-29 screen.
 KEY_ENV = {"USDA_FDC_API_KEY": "SYNTHETICKEYNOTREAL"}
 

@@ -58,11 +58,11 @@ import time
 from collections import deque
 
 from lib import egress
-from lib.mass_units import MASS_UNITS_TO_G
+from lib.mass_units import MASS_INPUT_UNITS, VOLUME_INPUT_UNITS, convert_quantity, normalize_unit
 from tools.engines import nutrition_off
 
 
-CODE_VERSION = "nutrition-usda-v1"
+CODE_VERSION = "nutrition-usda-v2"
 
 BRANDED = "usda_branded"
 FOUNDATION = "usda_foundation"
@@ -473,7 +473,10 @@ def parse_food(food, source):
         # REQ-NUT-016's branded-source check be satisfied by a generic row.
         brand = None
 
-    serving_g, serving_note = _serving_mass(food)
+    try:
+        serving_g, serving_note = _serving_mass(food)
+    except ValueError:
+        raise UsdaMalformed(source, 'invalid_serving_quantity') from None
 
     return {
         "canonical_name": name,
@@ -498,12 +501,12 @@ def _serving_mass(food):
     resolved at 1 g/ml would be wrong by whatever its sugar contributes.
     """
     value = _number(food.get("servingSize"))
-    unit = str(food.get("servingSizeUnit") or "").strip().lower()
+    unit = normalize_unit(str(food.get("servingSizeUnit") or ""))
     if value is None or value <= 0:
         return None, None
-    if unit in ("g", "gram", "grams", "mg", "kg", "oz"):
-        return round(value * MASS_UNITS_TO_G[unit], 4), None
-    if unit in ("ml", "l", "cl", "dl"):
+    if unit in MASS_INPUT_UNITS:
+        return round(convert_quantity(value,unit)['value'], 4), None
+    if unit in VOLUME_INPUT_UNITS:
         return None, f"serving_stated_in_volume_{unit}"
     return None, f"serving_unit_unrecognised_{unit or 'blank'}" if unit else None
 

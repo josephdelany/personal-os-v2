@@ -13,6 +13,23 @@ must independently inject each role's allowed environment; a shell that loads al
 three secret sets and then filters them is forbidden. Use a fixed reviewed checkout
 and Python environment. No credential is written into these commands or a job plist.
 
+The worker interpreter must be Python 3.12 or newer and have
+`ops/capture-requirements.txt` installed. Provision its environment before loading
+any runtime secrets; use the exact interpreter path in the generated service packet:
+
+```sh
+python3 -m venv /capture/venv
+/capture/venv/bin/python -m pip install -r ops/capture-requirements.txt
+/capture/venv/bin/python -c "import pg8000, pydantic, dateparser, pint; from lib.mass_units import convert_quantity; assert convert_quantity(1, 'kg')['value'] == 1000"
+```
+
+These are deployment templates, not executed activation steps. ADR0160 pins Pint
+for shared mass/volume conversion; no network request occurs during conversion.
+The code checkout and environment must be readable but not writable by worker
+identities. Local verification uses `/tmp/personal-os-pint-venv-cf404e6`, outside the
+checkout so dependency source files do not enter repository egress scanning. This
+is not a deployed environment; the system interpreter does not acquire its dependencies.
+
 Provision separate directories beneath an operator-selected protected root:
 
 | Directory | Owner/writer | Reader group |

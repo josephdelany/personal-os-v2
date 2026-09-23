@@ -8318,3 +8318,45 @@ F006 diagnostic unchanged. Four spine invariant tests pass; genericRULE04 pendin
 No migration. Independent review accepted repairs. This closes the stated literal
 mass adapter only; NUT019 Pint conversion remains the next same-path requirement,
 not deferred or claimed complete. No deployment/device/provider observation.
+
+
+## 2026-09-23 — Pint conversion owner, ADR0160 (after cf404e6)
+
+REQ-NUT019/CAP053/054: exact compact numeric pair verification connects extraction
+to Pint conversion; OFF/USDA and display wrapper reuse the owner. Case-sensitive
+symbols prevent Mg->mg corruption; overflow becomes malformed source, and volumes
+remain pending without density. New dependency cost/privacy and actual runtime/CI
+installation declared before use. No network or model arithmetic during conversion.
+Final pure133passed40SQLskips1.31s/layout43; prior targetedSQL168passed64.74s before
+final refinements. Reviewer accepted final refinements. FullnoDB24127/fullSQL40238
+running; source hashes/dependency versions archived .local/evidence/capture-pint.
+
+WHAT I DID NOT DO: word-valued quantity parsing, density-dependent food mass,
+three-account deployment, real device/provider observation, M3/M6 release. Generic
+RULE04 remains pending; no migration. Full integration, ledger/skip reconciliation
+and scoped commit pending. Eight-lens review in COMPLETION_AUDIT.
+
+
+Pint integration environment diagnosis: fullnoDB1360passed873skipped216.21s,
+terminal24127/ledger14of15 unchanged(existingF006). FullSQL1045passed1failed1skipped
+442.08s, terminal40238/server stopped. Failure was RULE29 repository scanner finding
+pip's vendor HTTP code in .local/pint-venv. Moved the isolated environment outside
+checkout to /tmp/personal-os-pint-venv-cf404e6; no scanner/test exemption or source
+change. Direct interpreter/Pint0.26.1 and unchanged scanner assertion verified.
+Direct pytest invocation of that assertion skipped under its existing SQL guard;
+not counted as a passed test. Final fullSQL29354 is running; failed-run artifacts
+in .local/evidence/capture-pint/environment-layout-failure. NoDB JUnit and skips
+archived separately; its passing result remains applicable to unchanged sources.
+
+
+Pint final integration: fullnoDB1360passed873skipped216.21s, terminal24127;
+finalSQL1046passed1production-onlyskip379.92s, terminal29354/server stopped.
+Stagedlayout43passes, terminal3756. Source hashes match; logs/JUnit/dependency
+versions/skip reasons archived .local/evidence/capture-pint, original environmental
+failure retained separately. Ledger14/15 unchanged; pre-existing F006 diagnostic.
+SQLskip is live visits_public shape; noDB skips are SQL/live guards and two existing
+NumPyro cases. Four spine invariants pass; genericRULE04 remains pending.
+Independent review accepted conversion/overflow/case/density boundaries. No migration.
+This closes local Pint conversion of verified literal decimal quantities and the
+runtime dependency declaration, not word-valued amounts, density-dependent food
+mass, actual deployment/device/provider observation, M3 or M6.

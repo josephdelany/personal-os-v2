@@ -58,9 +58,9 @@ import unicodedata
 from collections import deque
 
 from lib import egress
-from lib.mass_units import MASS_UNITS_TO_G as _MASS_UNITS_TO_G
+from lib.mass_units import MASS_INPUT_UNITS, VOLUME_INPUT_UNITS, convert_quantity, normalize_unit
 
-CODE_VERSION = "nutrition-off-v1"
+CODE_VERSION = "nutrition-off-v2"
 
 # The `foods_cache.source` and `config.nutrition_interval_widths.method` value for everything
 # this module produces. Defined in migration 0050; restated here as a reference, never as a
@@ -122,7 +122,6 @@ _MACRO_SUM_CEILING = 105.0   # protein + carbs + fat + fibre, with rounding head
 CEILING_PER_100G = _CEILING_PER_100G
 MACRO_SUM_CEILING = _MACRO_SUM_CEILING
 
-_VOLUME_UNITS_TO_ML = {"ml": 1.0, "cl": 10.0, "dl": 100.0, "l": 1000.0, "litre": 1000.0}
 
 _SERVING_RE = re.compile(r"([0-9]+(?:[.,][0-9]+)?)\s*([a-zA-Z]+)")
 _PARENTHESISED = re.compile(r"\(([^)]*)\)")
@@ -334,11 +333,11 @@ def serving_mass(product):
     later ruling can use them.
     """
     quantity = _number(product.get("serving_quantity"))
-    unit = str(product.get("serving_quantity_unit") or "").strip().lower()
-    if quantity is not None and unit in _MASS_UNITS_TO_G:
-        return quantity * _MASS_UNITS_TO_G[unit], None, None
-    if quantity is not None and unit in _VOLUME_UNITS_TO_ML:
-        return None, quantity * _VOLUME_UNITS_TO_ML[unit], "serving_declared_in_volume"
+    unit = normalize_unit(str(product.get("serving_quantity_unit") or ""))
+    if quantity is not None and quantity > 0 and unit in MASS_INPUT_UNITS:
+        return convert_quantity(quantity,unit)['value'], None, None
+    if quantity is not None and quantity > 0 and unit in VOLUME_INPUT_UNITS:
+        return None, convert_quantity(quantity,unit)['value'], "serving_declared_in_volume"
 
     # `serving_size` is free text. A label writes the household measure first and the metric
     # weight in parentheses — "1 oz (28 g)" — and the parenthesised figure is the declared one.
@@ -349,11 +348,11 @@ def serving_mass(product):
         match = _SERVING_RE.search(candidate)
         if not match:
             continue
-        amount, parsed_unit = _number(match.group(1)), match.group(2).lower()
-        if amount is not None and parsed_unit in _MASS_UNITS_TO_G:
-            return amount * _MASS_UNITS_TO_G[parsed_unit], None, "serving_parsed_from_text"
-        if amount is not None and parsed_unit in _VOLUME_UNITS_TO_ML:
-            return None, amount * _VOLUME_UNITS_TO_ML[parsed_unit], "serving_declared_in_volume"
+        amount, parsed_unit = _number(match.group(1)), normalize_unit(match.group(2))
+        if amount is not None and amount > 0 and parsed_unit in MASS_INPUT_UNITS:
+            return convert_quantity(amount,parsed_unit)['value'], None, "serving_parsed_from_text"
+        if amount is not None and amount > 0 and parsed_unit in VOLUME_INPUT_UNITS:
+            return None, convert_quantity(amount,parsed_unit)['value'], "serving_declared_in_volume"
 
     # `serving_quantity` with no unit at all: Open Food Facts writes grams there by
     # convention, but a convention is not a declaration, and a household measure ("1 bar")
@@ -392,7 +391,10 @@ def parse_product(product):
     if not isinstance(nutriments, dict) or not nutriments:
         raise OffMalformed("no_nutriments")
 
-    grams, millilitres, serving_note = serving_mass(product)
+    try:
+        grams, millilitres, serving_note = serving_mass(product)
+    except ValueError:
+        raise OffMalformed('invalid_serving_quantity') from None
     notes = [serving_note] if serving_note else []
 
     declared_basis = str(product.get("nutrition_data_per") or "").strip().lower()
