@@ -182,3 +182,14 @@ tests/test_capture_transcription.py, new context tests and maintained docs/ADR01
 REQ-NUT-013/016/025, REQ-CAP-053: preserve explicit verified supplier context in
 both reference query and private cache resolution; refuse ambiguous cache identities.
 No model schema field addition, external request or production mutation is authorized.
+
+## 2026-09-23 model handoff recovery within M3
+Root owns migration0087, lib/egress.py, capture model recovery engine/private CLI,
+related tests, ADR0158 and maintained evidence/checkpoint docs. Reviewer read-only.
+Gate2/4 currently fail if successful model stdout is lost: digest-only settlement
+cannot reconstruct a response. Implement bounded durable settlement and private
+reconciliation before the separated supervisor can safely resume saved work.
+Root also owns tools/test_local_sql.py registration and tests/test_capture_transcription.py fixture migration to atomic settlement.
+Root extends this same runtime unit to tools/model_worker.py, tools/model_egress.py,
+tools/engines/capture_runtime.py, tests/test_model_worker.py, tests/test_capture_runtime.py
+and the existing media-receipt fixture. No parallel implementation owner.

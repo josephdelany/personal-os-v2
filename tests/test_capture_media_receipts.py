@@ -240,8 +240,8 @@ def test_REQ_CAP_006_011_016_030_034_uploaded_voice_reaches_saved_transcript(cur
     response={'success':True,'result':{'text':'fixture words',
               'segments':[{'start':0,'end':1.2,'text':'fixture words'}]}}
     received=request_bytes(response)
-    cur.execute('SELECT public.settle_model_call(%s,%s,%s,%s)',
-        (prepared['request_id'],'ok',len(received),hashlib.sha256(received).hexdigest()))
+    cur.execute('SELECT public.settle_model_response(%s,%s,%s,%s)',
+        (prepared['request_id'],'ok',received.decode(),None))
     cur.execute('RESET ROLE')
     cur.execute('SET LOCAL ROLE service_role')
     outcome=engine.consume(cur,request_id=prepared['request_id'],response=response,schema='core_pytest')

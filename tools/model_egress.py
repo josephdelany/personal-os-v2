@@ -6,6 +6,7 @@ credential. Output contains provider data for the private result consumer, so pi
 it directly there, never to a CI log or public artifact. Errors expose codes only.
 """
 import json
+import os
 import sys
 from lib import db, egress
 
@@ -18,7 +19,13 @@ def main():
         if not isinstance(request, dict) or not required <= request.keys() or request.keys()-required-{'capture_id'}:
             raise ValueError('invalid request')
         conn = db.connect_model_egress()
-        result = egress.dispatch(conn, **request)
+        receipt_fd = os.environ.get('PERSONAL_OS_MODEL_RESERVATION_FD')
+        def reserved(request_id):
+            if receipt_fd is not None:
+                raw = json.dumps({'request_id':request_id,'reserved':True}).encode()+b'\n'
+                if os.write(int(receipt_fd),raw) != len(raw):
+                    raise RuntimeError('reservation acknowledgement incomplete')
+        result = egress.dispatch(conn, **request, _on_reserved=reserved)
         print(json.dumps({'request_id': request['request_id'], 'result': result}))
         return 0
     except Exception as exc:

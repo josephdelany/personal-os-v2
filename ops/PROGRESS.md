@@ -8110,3 +8110,59 @@ WHAT I DID NOT DO: general supplier language, barcode, quantity-language and dai
 sum gaps; runtime supervision, independent-process durability/concurrency,
 production deployment or physical device verification. Scriptable remains approved;
 its device gate remains open. Same M3-B16 unit and full M0–M6 objective continue.
+
+
+## 2026-09-23 — M3 runtime model handoff, work in progress
+
+At b46846f plus root-owned0087, model settlement now retains bounded canonical
+response text atomically with its digest and optional HTTP failure. Private
+reconcile-model recovers transcription/extraction after lost stdout via original
+receipt-bound consumers. Model role cannot read historical bodies or invoke old
+hash-only/standalone-status RPCs. Issued reservations remain waiting.
+
+Targeted SQL87 passed66.95s, server stopped, session92319 exit0; pure dispatcher17
+passed0.20s. Initial targeted run82 passed/1 failed: fixture called revoked old RPC;
+updated to the atomic settlement API with all receipt assertions retained. New test
+module added to sanctioned SQL harness after its initial invalid-choice refusal.
+Scoped independent review found no material blocker. Full integration remains
+pending, no commit/deployment in this checkpoint. Archive capture-model-recovery.
+
+WHAT I DID NOT DO: abandoned-issued owner/termination reconciliation, separated
+runtime scheduling, real process durability or device/provider proof. These remain
+within the same M3 voice-to-atoms path; no new delivery plan or milestone closure.
+
+
+## 2026-09-23 — M3 private progression and owned model-worker integration (0087)
+
+REQ-CAP-025/026/034/038/050/055/056, REQ-NUT-016 and RULE29; ADR0158. The private
+advance CLI now selects saved stages, reuses pending identities, consumes durable
+receipts, prepares ordered reference requests and persists atoms through the existing
+resolver. Actual service-role CLI tests reach reference-backed kcal readback while
+preserving the raw row and avoiding duplicate atoms. Retry flags control creation of
+new attempts, not consumption of completed attempts; quarantine remains terminal.
+
+A model-only worker launches a fixed child with an allowlisted environment, bounds
+provider execution, kills its process group before reaping, and reconciles only after
+receiving its own confirmed-new-reservation acknowledgement. The narrow model RPC
+preserves any successful receipt or settles issued error without refund. No ack or
+unconfirmed settlement remains explicitly unconfirmed. Provider output is not emitted
+by the supervisor. A disposable environment cannot launch a real provider worker.
+
+Evidence at b46846f plus archived root-owned source hashes: runtime30 passed24.80s;
+recovery89 passed88.34s; process/dispatch37 passed2.39s; fullSQL992 passed/1 production-only
+skip311.68s; fullnoDB1214 passed/825 skipped149.70s; chain86/877; staged layout43.
+All handles terminal (SQL25546 exit0), disposable servers stopped. Ledger14/15 unchanged,
+F006 unmatched-ID diagnostic unchanged; genericRULE04 pending. noDB skips include
+guarded SQL/live tests and the two existing NumPyro dependency cases. Archive:
+`.local/evidence/capture-runtime/`. Eight review lenses recorded in COMPLETION_AUDIT.
+
+Review found missing quarantine routing and disposable-marker stripping; targeted
+runs also found NULL-head duplicate preparation and a retry gate blocking receipt
+consumption. Each was diagnosed and repaired with its behavioral regression. An old
+media fixture used the now-revoked digest-only settlement RPC; it now invokes atomic
+body settlement with unchanged persistence assertions. Final scoped review accepted.
+
+WHAT I DID NOT DO: durable scheduler handoff, bounded reference-worker supervision,
+installed schedule, separate OS secret-file isolation, supervisor/host-loss recovery
+before durable completion, real provider/device verification, or broader unresolved
+M3 nutrition/profile contracts. No production action. Full M0–M6 remains active.

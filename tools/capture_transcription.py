@@ -18,6 +18,9 @@ from tools.engines import capture_transcription as engine
 def main(argv=None):
     parser=argparse.ArgumentParser(description=__doc__)
     commands=parser.add_subparsers(dest='command',required=True)
+    advance=commands.add_parser('advance')
+    advance.add_argument('capture_id')
+    advance.add_argument('--retry',action='store_true')
     commands.add_parser('prepare')
     media=commands.add_parser('prepare-media')
     media.add_argument('request_id')
@@ -27,6 +30,9 @@ def main(argv=None):
     extraction.add_argument('capture_id')
     commands.add_parser('consume')
     commands.add_parser('consume-extraction')
+    model_reconcile=commands.add_parser('reconcile-model')
+    model_reconcile.add_argument('stage',choices=('transcribe','extract'))
+    model_reconcile.add_argument('request_id')
     reference=commands.add_parser('prepare-reference')
     reference.add_argument('request_id')
     reference.add_argument('capture_id')
@@ -77,6 +83,9 @@ def main(argv=None):
                 result=capture_reference.consume(cur,request_id=message['request_id'],response=message['result'])
             else:
                 result=engine.consume(cur,request_id=message['request_id'],response=message['result'])
+        elif args.command=='advance':
+            from tools.engines import capture_runtime
+            result=capture_runtime.advance(cur,capture_id=args.capture_id,retry=args.retry)
         elif args.command=='prepare-media':
             result=engine.prepare_media(cur,request_id=args.request_id,capture_id=args.capture_id)
         elif args.command=='prepare-extraction':
@@ -86,6 +95,9 @@ def main(argv=None):
             from tools.engines import capture_reference
             result=capture_reference.prepare(cur,request_id=args.request_id,capture_id=args.capture_id,
                 extraction_request_id=args.extraction_request_id,item_index=args.item_index,source=args.source)
+        elif args.command=='reconcile-model':
+            from tools.engines import capture_model_recovery
+            result=capture_model_recovery.reconcile(cur,request_id=args.request_id,stage=args.stage)
         elif args.command=='reconcile-reference':
             from tools.engines import capture_reference
             result=capture_reference.consume(cur,request_id=args.request_id,response=None)

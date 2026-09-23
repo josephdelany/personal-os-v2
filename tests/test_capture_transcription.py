@@ -194,8 +194,7 @@ def test_REQ_CAP_025_provider_status_requires_bound_receipt(cur):
          len(body),hashlib.sha256(body).hexdigest()))
     assert cur.fetchone()[0]['allowed']
     cur.execute('SET LOCAL ROLE model_egress')
-    cur.execute("SELECT public.settle_model_call(%s,'error',NULL,NULL)",(request['request_id'],))
-    cur.execute('SELECT public.record_model_http_failure(%s,503)',(request['request_id'],))
+    cur.execute("SELECT public.settle_model_response(%s,'error',NULL,503)",(request['request_id'],))
     cur.execute('RESET ROLE')
     result=transcription.fail(cur,**params)
     assert result['applied'] and result['processing_status']=='pending_enrichment'

@@ -457,3 +457,25 @@ included the supplier clause. Preparation now uses the same normalized food quer
 as publication/resolution, and regression coverage verifies both cache reuse and
 original spoken alias retention. Review accepted the repair and strengthened
 wrong-brand/no-match cases. Generic RULE04 remains pending; no production action.
+
+
+## 2026-09-23 — Runtime progression and model response recovery (0087, locally integrated)
+
+Scope: b46846f plus root-owned0087/ADR0158, private advance CLI and bounded model worker.
+
+| Lens | Evidence and remaining gate |
+|---|---|
+| Contract fidelity | PARTIAL: saved stage progression preserves REQ-CAP-025/026/034/050 and quarantine; retry creation requires explicit scheduled retry, existing result consumption does not. Full schedule/profile/language contracts remain open. |
+| Complete user paths | PARTIAL: actual private CLI with SQL roles traverses voice preparation, saved transcription/extraction, reference request/receipt and immutable atoms/readback. Real provider, independent role services and physical device remain unverified. |
+| Failure behavior | PASS in tested scope: lost stdout, duplicate/unconfirmed reservation ownership, timeout/reaping, provider errors, budget holds, invalid extraction/quarantine, oversized response and commit failure covered. Supervisor SIGKILL/host loss before durable completion remains an explicit hold. |
+| Data integrity | PASS in tested scope: body/digest/status settlement is atomic, immutable and receipt-bound; interrupted calls retain budget charge; stopped-call reconciliation preserves saved successes; raw rows and atoms remain immutable. |
+| Access/privacy | PASS locally: old hash-only/status RPCs revoked from model role; historical bodies private; only model role can reconcile its stopped call. Model worker refuses foreign credentials/disposable launch and passes an env allowlist. Separate OS secret-file isolation not yet deployed/proven. |
+| Runtime/deployment | PARTIAL: real child timeout/reap and actual private CLI exercised; no mixed-credential parent added. Durable scheduler handoff, reference supervisor, installed schedule and live provisioning remain open. |
+| Operations/recovery | PARTIAL: receipt recovery, source-stage progression, explicit retry gate and quarantine prevent blind retries. Missing acknowledgements remain unconfirmed; orphan recovery requires ownership evidence. Storage retention and full crash recovery remain release work. |
+| Evidence/reproducibility | Targeted runtime30 passed24.80s, recovery89 passed88.34s, process/dispatch37 passed2.39s. Full noDB1214 passed825 skipped149.70s; chain86/877; staged layout43; ledger14/15 unchanged. Full SQL992 passed/1 production-only skip311.68s, including invariant suite; session25546 exit0 and server stopped. GenericRULE04 pending. |
+
+Review found disposable-marker loss in child environment and missing quarantine
+handling. Integration tests exposed SQL NULL-head lookup generating duplicate work,
+and a retry-creation gate incorrectly preventing receipt consumption. These were
+repaired with unchanged acceptance assertions and new behavioral regressions.
+No production action, physical capture or independent SQL commit-survival proof.

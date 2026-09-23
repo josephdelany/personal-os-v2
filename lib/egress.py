@@ -65,7 +65,7 @@ class DispatchUncertain(Exception):
 
 
 def dispatch(conn, *, request_id, model_id, call_kind, payload, estimated_neurons,
-             capture_id=None, _transport=None, _monotonic=time.monotonic):
+             capture_id=None, _transport=None, _monotonic=time.monotonic, _on_reserved=None):
     """Own the dedicated reservation and settlement transactions (ADR-0146).
 
     Receives an already prepared payload, never a private-row cursor. The database
@@ -117,13 +117,22 @@ def dispatch(conn, *, request_id, model_id, call_kind, payload, estimated_neuron
         except Exception:
             pass
         raise DispatchRefused('reservation not confirmed') from None
+    if _on_reserved is not None:
+        # Only a confirmed NEW reservation reaches this callback. A supervisor
+        # can thereby distinguish its own send from an unrelated/duplicate call.
+        # A failed acknowledgement prevents sending; it never implies retry safety.
+        _on_reserved(request_id)
     if _monotonic()-started >= lifetime:
         raise DispatchRefused('reservation expired before dispatch')
     provider_status = None
     try:
         raw = (_transport or _post)(model_id, body)
+        if len(raw) > 2097152:
+            raise PayloadRefused("model response too large")
         result = json.loads(raw.decode())
-        response_digest = hashlib.sha256(request_bytes(result)).hexdigest()
+        response_body = request_bytes(result).decode()
+        if len(response_body.encode()) > 2097152:
+            raise PayloadRefused("model response too large")
         outcome = 'ok'
     except Exception as exc:
         if isinstance(exc, urllib.error.HTTPError) and type(exc.code) is int and 300 <= exc.code <= 599:
@@ -131,12 +140,10 @@ def dispatch(conn, *, request_id, model_id, call_kind, payload, estimated_neuron
         result = None
         raw = None
         outcome = 'error'
-        response_digest = None
+        response_body = None
     try:
-        cur.execute('SELECT public.settle_model_call(%s,%s,%s,%s)',
-                    (request_id, outcome, len(raw) if raw is not None else None, response_digest))
-        if provider_status is not None:
-            cur.execute('SELECT public.record_model_http_failure(%s,%s)',(request_id,provider_status))
+        cur.execute('SELECT public.settle_model_response(%s,%s,%s,%s)',
+                    (request_id, outcome, response_body, provider_status))
         conn.commit()
     except Exception:
         try:
@@ -469,4 +476,7 @@ def _post(model_id, body):
         "Authorization": f"Bearer {token}", "Content-Type": "application/json"})
     opener = urllib.request.build_opener(_RefuseModelRedirect())
     with opener.open(req, timeout=TIMEOUT_SECONDS) as resp:
-        return resp.read()
+        raw = resp.read(2097153)
+        if len(raw) > 2097152:
+            raise PayloadRefused("model response too large")
+        return raw

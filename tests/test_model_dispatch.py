@@ -130,7 +130,9 @@ def test_RULE_29_model_transport_installs_redirect_refusal(monkeypatch):
     class Reply:
         def __enter__(self): return self
         def __exit__(self, *args): pass
-        def read(self): return b'{}'
+        def read(self, limit):
+            assert limit == 2097153
+            return b'{}'
     class Opener:
         def open(self, req, timeout):
             calls.append((req.full_url, req.data, timeout))
@@ -192,7 +194,7 @@ def test_REQ_CAP_025_http_failure_code_is_committed_without_error_body():
         invoke(conn,transport=fail)
     assert caught.value.provider_status==503
     assert 'private' not in str(caught.value)
-    assert conn.events[-2][2]==(RID,503)
+    assert conn.events[-2][2]==(RID,'error',None,503)
     assert conn.events[-1]==('commit',2)
 
 

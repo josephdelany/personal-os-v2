@@ -9,10 +9,10 @@ Joe's `/goal` is active. Do not start backend execution from the monitor.
 {
   "version": 1,
   "status": "running",
-  "updated_at": "2026-09-23T15:37:55.617599+00:00",
-  "last_progress_at": "2026-09-23T15:37:55.617599+00:00",
+  "updated_at": "2026-09-23T16:50:52.558186+00:00",
+  "last_progress_at": "2026-09-23T16:50:52.558186+00:00",
   "unit": "M3-B16-voice-capture-to-atoms",
-  "next_action": "Same M3-B16 voice-to-atoms unit: ADR0157 supported explicit supplier context and ambiguous-cache refusal locally integrated. SQL976 passed1skip365.32s; noDB1194 passed809 skipped146.63s; targeted152 and pure12; staged layout43. All handles terminal, disposable server stopped; ledger14/15 unchanged, generic RULE04 pending. NEXT connect separated runtime supervision through existing private/model/reference stages with bounded deadlines and recovery from saved state. General supplier language, barcode, quantity and daily totals remain open, as do independent-process durability, deployment and physical-device evidence. Scriptable approval persists; full M0\u2013M6 goal unchanged."
+  "next_action": "Same M3-B16 voice-to-atoms unit:0087/ADR0158 locally integrated private advance CLI, durable model responses and bounded owned model worker. Full SQL992 passed1skip311.68s, noDB1214 passed825 skipped149.70s, chain86/877, staged layout43; targeted runtime30/recovery89/process37. All handles terminal, servers stopped; ledger14/15 unchanged, genericRULE04 pending. NEXT connect durable scheduler handoff between independently credentialed workers and bounded reference supervision. Existing model worker emits metadata; private advance returns next prepared action and consumes persisted receipts. Never load all secrets in scheduler. Supervisor/host loss before durable completion, installed schedule, separate OS identity and real-device/provider proof remain open. Full M0\u2013M6 unchanged."
 }
 ```
 <!-- backend-control:end -->
@@ -64,6 +64,33 @@ hold or urgent integrity issue, as EXECUTION_PLAN requires. Report the gate clos
 what the user can exercise, and the next missing gate; test counts are evidence,
 not milestone completion. Apply the plan's existing eight review lenses at the
 integration boundary rather than creating another checklist.
+
+**Current local runtime integration checkpoint (0087/ADR0158):** the actual private
+`advance` CLI now starts from voice preparation, consumes saved transcription and
+extraction receipts, requests ordered reference work, consumes its durable receipt,
+and invokes the existing atom resolver. Targeted SQL enters this CLI with the real
+service role and proves original raw-row preservation, kcal readback, idempotent
+polling, provider-error retry gating and terminal extraction quarantine. Receipt
+fixtures remain rollback-only; this is not independent-process durability proof.
+
+The model-only supervisor runs a fixed child with an allowlisted environment. Only
+a private-pipe acknowledgement after a confirmed new reservation gives ownership.
+Timeout kills the process group before reaping; only then may the model-only RPC
+preserve a saved success or settle its issued call as error without refund. A missing
+ack or uncertain DB settlement remains unconfirmed. Disposable environments refuse
+before subprocess launch. Separate OS identities/secret isolation remain deployment
+requirements, not properties proved by same-user local process tests.
+
+Final targeted runtime30 passed24.80s; recovery89 passed88.34s; process/dispatch37
+passed2.39s. Full noDB1214 passed/825 skipped149.70s; ledger14/15 unchanged, existing
+F006 unmatched-ID diagnostic unchanged. Chain86 migrations877 statements; layout43
+on staged dependencies. Full SQL992 passed/1 production-only skip311.68s;
+session25546 terminal exit0 and server stopped. Invariant suite passed within SQL;
+generic RULE04 remains pending. Archive `.local/evidence/capture-runtime/` records
+base b46846f and tested source hashes. No deployment occurred. Reviewer accepted
+null-head, consumption-gate, quarantine
+and disposable-launch repairs. Next: scheduler handoff and bounded reference worker,
+then installed schedule and observed real voice capture. Supervisor/host loss before durable completion remains explicitly unreconciled without ownership proof.
 
 **Current local integration checkpoint — verified supplier context / ADR0157:** supported explicit
 `food from supplier` clauses now retain a verified supplier span through source
