@@ -609,3 +609,38 @@ NumPyro cases. Invariant suite passes within fullSQL; genericRULE04 remains pend
 No migration changed. Independent review accepted final cache-identity repair.
 This closes the scoped local integration, not unseen-brand semantics, post-enrichment
 correction lifecycle, observed device/provider execution, M3 or M6.
+
+
+## 2026-09-23 — Verified stated food mass after a7fd2b4 (integration pending)
+
+| Lens | Evidence and remaining gate |
+|---|---|
+| Contract fidelity | CAP053/054, NUT032/035: exact spaced decimal amount/unit pair reaches deterministic nutrition. Shared existing mass factors; unsupported forms refuse. NUT019 explicitly requires Pint and is NOT closed; the next quantity unit must implement it. |
+| Complete user paths | Saved transcript/extraction SQL cases cover generic weighed and branded labelled kcal270/300/330 from150g, persisted atoms and private readback. Multi-piece serving tests preserve servings versus items. No real device/provider observation. |
+| Failure behavior | Pure87passed40SQLskips: missing/inferred/conflicting units, fluid ounces, invalid numbers, multiple amounts refuse. Positive count grammar prevents unsupported dimensions becoming counts. |
+| Data integrity | Raw evidence remains unchanged; existing nutrition owner writes append-only atoms. Existing source-specific method precedence retained. SQL fixtures disposable/rollback-only. |
+| Access/privacy | No new egress, role, credential, provider or dependency. No production read/write. |
+| Runtime/deployment | Local saved-extraction consumer exercised; deployment and actual device execution remain unverified. |
+| Operations/recovery | Existing pending-enrichment path handles refusal. Replay behavior uses existing outcomes; no retry policy change. |
+| Evidence/reproducibility | FullnoDB1334passed864skipped161.22s; layout43pass. FullSQLsession9489 still running. Source manifest .local/evidence/capture-mass/source-hashes.json. Ledger14/15 unchanged; pre-existing F006 diagnostic. GenericRULE04 pending. |
+
+Independent reviewer identified missing-unit kilograms becoming item counts, then
+missing-unit servings becoming pieces. Both repaired with actual saved-consumer
+regressions; final review found no bounded blocker. Initial SQL47passed2failed
+because the fixture was branded but expected generic weighed method; tests now
+cover both source contracts. Next SQL54passed36.75s preceded serving repair.
+Final targeted SQL55passed1test-only failure39.37s: empty cursor tuple compared to
+list; exact zero-length assertion fixed before full integration. Full integration
+must prove final sources. No migration; Pint-based conversion and broader quantity
+forms remain open. This unit does not close M3/M6.
+
+
+Stated-mass final integration: fullnoDB1334passed864skipped161.22s, terminal43957;
+fullSQL1035passed1production-onlyskip372.26s, terminal9489/server stopped. Layout43
+passes; tested source hashes match. JUnit/logs/noDB skip reasons archived under
+.local/evidence/capture-mass. SQLskip is live visits_public shape; noDB skips are
+SQL/live guards and two existing NumPyro cases. Ledger14/15 unchanged; existing
+F006 diagnostic unchanged. Four spine invariant tests pass; genericRULE04 pending.
+No migration. Independent review accepted repairs. This closes the stated literal
+mass adapter only; NUT019 Pint conversion remains the next same-path requirement,
+not deferred or claimed complete. No deployment/device/provider observation.

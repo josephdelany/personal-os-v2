@@ -237,3 +237,8 @@ read-only. Current code clean at commit; acceptance/replay safeguards in NEXT_SE
 Source-context v3 review repair: root additionally owns tools/engines/nutrition.py,
 capture_runtime.py, capture_mailbox.py and tools/capture_private_worker.py for
 source identity and late terminal receipt cleanup; associated existing tests.
+
+Root after a7fd2b4: stated mass connection in same M3-B16 path; owns quantity
+binding in capture_resolution/capture_extraction, common mass conversion plus
+OFF/USDA consumers, tests/test_capture_quantities.py and existing transcription
+SQL fixture/tests. Reviewer read-only; no competing implementation agent.

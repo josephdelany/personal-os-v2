@@ -6,6 +6,10 @@ The existing nutrition owner owns reference lookup, arithmetic and atom writes.
 import json
 import re
 import uuid
+import math
+from decimal import Decimal
+
+from lib.mass_units import MASS_UNITS_TO_G
 
 from tools.engines import nutrition, capture_food_context
 from tools.engines.capture_transcription import _private, _lock
@@ -13,7 +17,7 @@ from tools.engines.capture_processing import record_outcome
 from tools.engines.extraction import resolve_time
 from tools.importers.common import ET, subject_day
 
-VERSION = 'capture-food-resolution-v2'
+VERSION = 'capture-food-resolution-v3'
 COUNT_UNITS = {'each','item','items','serving','servings','piece','pieces'}
 
 
@@ -39,13 +43,37 @@ def _quantity(fields, index, name):
         return {}
     if quantity['provenance'] != 'extracted':
         raise nutrition.Unresolved(name,[],reason='unverified_quantity',review_reason='unverified_quantity')
-    if unit['value'] is None or str(unit['value']).lower() in COUNT_UNITS:
-        # A rejected model unit is not proof of a count. Bare numeric/count
-        # evidence can proceed; a mass/volume phrase awaits its unit resolver.
+    mass_unit = str(unit['value']).strip().lower()
+    if mass_unit in MASS_UNITS_TO_G:
+        # Require one complete literal amount/unit pair. Finding the number and
+        # unit separately would misread "150 ml and 200 g" as 150 g.
         evidence = quantity['evidence'] or ''
-        if re.search(r'\b(?:grams?|g|kg|mg|ml|liters?|litres?|oz|ounces?|cups?|pounds?|lbs?)\b',evidence,re.I):
+        pair = re.fullmatch(r'\s*(\d+(?:\.\d+)?)\s+([a-z]+)\s*', evidence, re.I)
+        value = quantity['value']
+        if (unit['provenance'] == 'extracted'
+                and unit['evidence'] == evidence and pair
+                and pair[2].lower() == mass_unit
+                and isinstance(value, (int, float, Decimal)) and not isinstance(value, bool)
+                and math.isfinite(value) and value > 0
+                and Decimal(pair[1]) == Decimal(str(value))):
+            grams = float(value) * MASS_UNITS_TO_G[mass_unit]
+            if math.isfinite(grams) and grams > 0:
+                return {'grams': grams}
+        raise nutrition.Unresolved(name,[],reason='unverified_quantity',review_reason='unverified_quantity')
+    if unit['value'] is None or str(unit['value']).lower() in COUNT_UNITS:
+        # A missing model unit is not proof of a count. Accept a bounded count
+        # phrase, rather than treating every unknown dimension as item count.
+        evidence = quantity['evidence'] or ''
+        count_number = r'(?:\d+(?:\.\d+)?|a|an|one|two|three|four|five|six|seven|eight|nine|ten|zero)'
+        count_label = '|'.join(re.escape(label) for label in sorted(COUNT_UNITS | {name.casefold()}))
+        count_pair = re.fullmatch(r'\s*'+count_number+r'(?:\s+('+count_label+r'))?\s*',evidence,re.I)
+        if count_pair is None:
             raise nutrition.Unresolved(name,[],reason='quantity_unit_unresolved',review_reason='quantity_unit_unresolved')
-        return {('servings' if unit['value'] in ('serving','servings') else 'item_count'):quantity['value']}
+        label = (count_pair[1] or '').casefold()
+        if ((label in ('serving','servings')) != (mass_unit in ('serving','servings'))
+                or (unit['value'] is not None and unit['provenance'] != 'extracted')):
+            raise nutrition.Unresolved(name,[],reason='quantity_unit_unresolved',review_reason='quantity_unit_unresolved')
+        return {('servings' if mass_unit in ('serving','servings') else 'item_count'):quantity['value']}
     raise nutrition.Unresolved(name,[],reason='quantity_unit_unresolved',review_reason='quantity_unit_unresolved')
 
 

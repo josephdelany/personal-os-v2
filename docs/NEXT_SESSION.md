@@ -9,15 +9,53 @@ Joe's `/goal` is active. Do not start backend execution from the monitor.
 {
   "version": 1,
   "status": "running",
-  "updated_at": "2026-09-23T21:46:48.052612+00:00",
-  "last_progress_at": "2026-09-23T21:46:48.052612+00:00",
+  "updated_at": "2026-09-23T22:37:33.017264+00:00",
+  "last_progress_at": "2026-09-23T22:37:33.017264+00:00",
   "unit": "M3-B16-voice-capture-to-atoms",
-  "next_action": "Same M3-B16 source contextv3 locally integrated afterbc5c92c: final fullnoDB1310passed852skipped168.74s; fullSQL1023passed1production-onlyskip335.88s terminal3988/server stopped; layout43. Final source/test hashes match .local/evidence/capture-supplier/final. Ledger14/15 unchanged/F006 warning; genericRULE04 pending. Scoped commit now, then stated-mass connection: verified150 grams currently quantity_unit_unresolved; preserve extraction evidence, reuse deterministic conversion/nutrient owner and weighed intervals without volume-density guessing. No live processes. FullM0-M6 and unseen-brand/post-enrichment correction/deployment/device holds remain open."
+  "next_action": "Stated mass adapter verified on a7fd2b4 dirty: fullnoDB1334/864skip161.22s,SQL1035/1production-onlyskip372.26s,layout43. All processes terminal/server stopped; hashes match archive .local/evidence/capture-mass. Reviewer accepted repairs. Commit scoped unit, then same quantity path NUT019 Pint conversion (not installed), exact alias/amount binding and no volume-to-mass without density. Record dependency cost ADR before adding. FullM0-M6 remains; no deployment."
 }
 ```
 <!-- backend-control:end -->
 
 ## Current active unit — M3 / B16 voice capture to persisted atoms
+
+
+Stated-mass final integration: fullnoDB1334passed864skipped161.22s, terminal43957;
+fullSQL1035passed1production-onlyskip372.26s, terminal9489/server stopped. Layout43
+passes; tested source hashes match. JUnit/logs/noDB skip reasons archived under
+.local/evidence/capture-mass. SQLskip is live visits_public shape; noDB skips are
+SQL/live guards and two existing NumPyro cases. Ledger14/15 unchanged; existing
+F006 diagnostic unchanged. Four spine invariant tests pass; genericRULE04 pending.
+No migration. Independent review accepted repairs. This closes the stated literal
+mass adapter only; NUT019 Pint conversion remains the next same-path requirement,
+not deferred or claimed complete. No deployment/device/provider observation.
+
+**Current bounded acceptance after a7fd2b4 — stated food mass:** CAP053/054,
+NUT032/035 and RULE09/12; B12/B16, existing deterministic nutrition/interval owner.
+Root owns capture_resolution/capture_extraction quantity binding, shared mass-unit
+conversion and its OFF/USDA consumers, pure quantity tests and saved-transcription
+SQL regressions. Positive: literal verified grams/kg (and supported mass aliases)
+produce weighed nutrient intervals through saved extraction, atoms and readback;
+reuse the existing conversion definitions and preserve original evidence. Negative:
+unverified/missing/mismatched amount-unit pairs, conflicting dimensions, invalid
+numbers and volume-without-density cannot become grams or item counts. Existing
+count/serving semantics remain covered. Do not infer density or reserve a new
+measurement definition. No dependency, production call or migration expected.
+Implementation: shared lib/mass_units.py factors reused by OFF/USDA; verified
+spaced numeric mass pairs resolve through nutrition owner. Compact and word-valued
+mass phrases remain conservatively unsupported. Review found missing-unit kilograms
+falling back to counts; positive count grammar closes that. Second review found
+missing-unit servings becoming pieces; now refused, with multi-cookie-serving SQL
+regression. Initial SQL47passed/2failed was a test fixture error: branded weighed
+foods correctly remain labelled under the existing owner contract. Expanded generic/
+branded cases passed SQL54 in36.75s before the final serving repair. Final targeted SQL55passed/1test-only failure39.37s: cursor returns an empty
+tuple rather than list; exact zero-row assertion repaired before full integration.
+Reviewer accepted dimensional/count and serving repairs. Pure87passed40SQLskips
+0.36s. RUNNING fullnoDB ledger session43957 /tmp/capture-mass-full-nodb.log;
+fullSQL session9489 /tmp/capture-mass-full-sql.log and.xml. Observe existing handles.
+Source hashes archived .local/evidence/capture-mass/source-hashes.json. Full
+integration/layout/evidence/audit/commit remain pending. No live provider or migration. Prior source-context work is committed below.
+
 
 **Next bounded acceptance after bc5c92c — source-backed supplier recognition:**
 REQ-NUT013/016, CAP053 and ADR0157. Root owns shared food context, reference

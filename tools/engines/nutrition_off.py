@@ -58,6 +58,7 @@ import unicodedata
 from collections import deque
 
 from lib import egress
+from lib.mass_units import MASS_UNITS_TO_G as _MASS_UNITS_TO_G
 
 CODE_VERSION = "nutrition-off-v1"
 
@@ -121,8 +122,6 @@ _MACRO_SUM_CEILING = 105.0   # protein + carbs + fat + fibre, with rounding head
 CEILING_PER_100G = _CEILING_PER_100G
 MACRO_SUM_CEILING = _MACRO_SUM_CEILING
 
-_MASS_UNITS_TO_G = {"g": 1.0, "gram": 1.0, "grams": 1.0, "mg": 0.001, "kg": 1000.0,
-                    "oz": 28.349523125, "lb": 453.59237}
 _VOLUME_UNITS_TO_ML = {"ml": 1.0, "cl": 10.0, "dl": 100.0, "l": 1000.0, "litre": 1000.0}
 
 _SERVING_RE = re.compile(r"([0-9]+(?:[.,][0-9]+)?)\s*([a-zA-Z]+)")

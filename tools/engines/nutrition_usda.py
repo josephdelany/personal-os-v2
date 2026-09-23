@@ -58,6 +58,7 @@ import time
 from collections import deque
 
 from lib import egress
+from lib.mass_units import MASS_UNITS_TO_G
 from tools.engines import nutrition_off
 
 
@@ -500,14 +501,8 @@ def _serving_mass(food):
     unit = str(food.get("servingSizeUnit") or "").strip().lower()
     if value is None or value <= 0:
         return None, None
-    if unit in ("g", "gram", "grams"):
-        return round(value, 4), None
-    if unit in ("mg",):
-        return round(value * 0.001, 4), None
-    if unit in ("kg",):
-        return round(value * 1000.0, 4), None
-    if unit in ("oz",):
-        return round(value * 28.349523125, 4), None
+    if unit in ("g", "gram", "grams", "mg", "kg", "oz"):
+        return round(value * MASS_UNITS_TO_G[unit], 4), None
     if unit in ("ml", "l", "cl", "dl"):
         return None, f"serving_stated_in_volume_{unit}"
     return None, f"serving_unit_unrecognised_{unit or 'blank'}" if unit else None

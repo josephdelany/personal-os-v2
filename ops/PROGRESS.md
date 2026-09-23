@@ -8290,3 +8290,31 @@ NumPyro cases. Invariant suite passes within fullSQL; genericRULE04 remains pend
 No migration changed. Independent review accepted final cache-identity repair.
 This closes the scoped local integration, not unseen-brand semantics, post-enrichment
 correction lifecycle, observed device/provider execution, M3 or M6.
+
+
+## 2026-09-23 — Stated food mass integration (after a7fd2b4)
+
+CAP053/054,NUT032/035,RULE09/12: verified literal mass pairs now flow through saved
+extraction to deterministic nutrients/atoms/readback. OFF/USDA share existing mass
+factors; source method precedence stays intact. Review repaired missing dimensional
+units becoming counts and missing serving units becoming pieces. Reviewer accepted
+both repairs. FullnoDB1334passed864skipped161.22s; layout43passes; ledger14/15
+unchanged with existing F006 diagnostic. FullSQLsession9489 is running; source
+hashes .local/evidence/capture-mass/source-hashes.json. Earlier targeted failures
+and eight-lens disposition recorded in COMPLETION_AUDIT.
+
+WHAT I DID NOT DO: full NUT019 Pint conversion (newly confirmed next local gap),
+compact/word mass support, density inference, deployment or device/provider
+observation, broader correction lifecycle or M3/M6 release. No migration. Generic
+RULE04 remains pending; SQL integration and scoped commit remain pending.
+
+
+Stated-mass final integration: fullnoDB1334passed864skipped161.22s, terminal43957;
+fullSQL1035passed1production-onlyskip372.26s, terminal9489/server stopped. Layout43
+passes; tested source hashes match. JUnit/logs/noDB skip reasons archived under
+.local/evidence/capture-mass. SQLskip is live visits_public shape; noDB skips are
+SQL/live guards and two existing NumPyro cases. Ledger14/15 unchanged; existing
+F006 diagnostic unchanged. Four spine invariant tests pass; genericRULE04 pending.
+No migration. Independent review accepted repairs. This closes the stated literal
+mass adapter only; NUT019 Pint conversion remains the next same-path requirement,
+not deferred or claimed complete. No deployment/device/provider observation.
