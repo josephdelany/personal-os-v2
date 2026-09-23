@@ -9,10 +9,10 @@ Joe's `/goal` is active. Do not start backend execution from the monitor.
 {
   "version": 1,
   "status": "running",
-  "updated_at": "2026-09-23T01:52:33.566852+00:00",
-  "last_progress_at": "2026-09-23T01:52:33.566852+00:00",
+  "updated_at": "2026-09-23T12:29:36.608162+00:00",
+  "last_progress_at": "2026-09-23T12:29:36.608162+00:00",
   "unit": "M3-B16-voice-capture-to-atoms",
-  "next_action": "Continue gates2/3 of the same M3 voice-to-atoms outcome: connect saved transcription to schema-validated, receipt-bound extraction and atomic item/atom persistence using existing nutrition owner. Device source packet is locally verified and packaged at.local/device/PersonalOSCapture.zip; signed Shortcut, installation and physical timing/replay remain open. FullnoDB1122pass/735skip191.56s; layout43; no live checks. Do not repeat unchanged upload SQL; production secret reminder delivered at activation boundary."
+  "next_action": "Same voice-to-atoms unit: draft0083 extraction and cache-backed resolution passed full SQL929/1skip, noDB1149/762skip, chain82/815 and layout43. All test handles terminal; independent scoped review complete. Finish evidence/scoped commit, then connect isolated reference prepare/fetch/cache-consume runtime. Quantity language, separated supervisor, deployment and physical device gates remain open; full M0\u2013M6 goal unchanged."
 }
 ```
 <!-- backend-control:end -->
@@ -64,6 +64,48 @@ hold or urgent integrity issue, as EXECUTION_PLAN requires. Report the gate clos
 what the user can exercise, and the next missing gate; test counts are evidence,
 not milestone completion. Apply the plan's existing eight review lenses at the
 integration boundary rather than creating another checklist.
+
+**Current integration checkpoint — extraction and reference-backed atoms:**
+Draft0083/ADR0154 connects saved transcription to receipt-bound strict extraction,
+then the actual private `resolve` CLI to the existing nutrition owner. Immutable
+attempts/outcomes/fields and per-item/component atom identities preserve retry and
+repeated-phrase behavior. Extraction quarantine reaches the owner review RPC;
+readback includes source, evidence, intervals and time/quantity provenance.
+
+Private resolution is cache-only under ADR0020. Missing reference data stays pending;
+a later cache entry resumes the saved extraction and closes only that item's
+unresolved record. Supported household counts map to reference servings; fractional
+Branded counts persist separate whole/portion components. Defaulted time/quantity
+is retained in evidence but excluded from statistics, with omissions disclosed in
+nutrition-day. Empty totals remain missing, not zero. All writes in each consume or
+resolve operation share a rollback boundary; raw captures remain immutable.
+
+**Evidence at dca0ac4 plus root-owned draft, 2026-09-23:** full disposable SQL
+929 passed / 1 skipped (256.76s), noDB sanctioned ledger run1149 passed /762 skipped
+(162.92s), migration chain82 files/815 statements, layout43 passed. All handles
+terminal, disposable server stopped. SQL skip is the explicit production shape
+check. noDB skips cover guarded DB/live checks and two existing NumPyro dependency
+cases; ledger14/15 unchanged, generic RULE04 remains pending. Evidence archive:
+`.local/evidence/capture-resolution/`. CLI commit-order probes and rollback fixtures
+do not prove real commit durability or concurrent processes.
+
+Independent review repaired quarantine visibility, nutrient leakage, unsupported
+count token acceptance, stale transcript selection, count-to-serving mapping,
+private reference egress, and missing defaulted quantity/time exclusions. Final
+follow-up found no remaining blocker within those repairs. Runtime orchestration,
+production and physical-device behavior were outside that review's proof.
+
+**Next dependent operation:** connect isolated reference prepare/fetch/cache-consume
+runtime so cache misses recover through actual separate processes. Then complete
+quantity language/unit conversion, conservative rejection of legitimate nutrient-
+bearing food phrases, and separated runtime supervision. The nutrition daily-total
+owner's midpoint behavior for asymmetric intervals also remains open. Do not start
+unrelated work or call capture complete: all five acceptance gates above still
+require the remaining runtime and observed-device evidence. Root owns draft0083,
+engines/CLI/tests/CI and maintained docs; reviewer is read-only.
+
+The device sections below describe preceding checkpoints; their old next-action
+sentences are historical, superseded by the next dependent operation above.
 
 **Current checkpoint — device source packet verified locally:** actual Scriptable
 queue → actual combined Worker regression now preserves the original ID/time/bytes

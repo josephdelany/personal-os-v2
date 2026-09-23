@@ -239,3 +239,101 @@ def test_REQ_CAP_053_058_verbatim_name_can_have_surrounding_words_and_case():
 @pytest.mark.parametrize("evidence,offset", [("",0),("a",False),("a",True),(1,0),([],0),("a",0.0)])
 def test_REQ_CAP_053_invalid_or_empty_evidence_never_proves_a_value(evidence,offset):
     assert span_matches("a", evidence, offset) is False
+
+
+def test_REQ_CAP_050_051_055_request_schema_and_strict_food_validation_share_contract():
+    from pydantic import ValidationError
+    from tools.engines.capture_extraction import FoodItem, FoodResponse, build_payload
+    item={'name':'Big Mac','evidence':'a Big Mac','evidence_start':6,'quantity':1,
+          'quantity_unit':'each','quantity_evidence':'a','quantity_evidence_start':6}
+    payload=build_payload('I ate a Big Mac')
+    schema=payload['response_format']['json_schema']
+    assert tuple(schema['$defs']['FoodItem']['properties'])==FOOD_FIELDS
+    assert schema['$defs']['FoodItem']['additionalProperties'] is False
+    assert payload['max_tokens']==2048
+    assert FoodResponse.model_validate({'items':[item],'temporal_evidence':None,
+                                       'temporal_evidence_start':None}).items[0].name=='Big Mac'
+    for patch in ({'quantity':True},{'quantity':'1'},{'quantity':float('nan')},
+                  {'evidence_start':True},{'calories':500},{'name':1}):
+        with pytest.raises(ValidationError):FoodItem.model_validate({**item,**patch})
+
+
+def test_REQ_CAP_053_054_quantity_cannot_borrow_a_real_span_for_an_invented_number():
+    from tools.engines.capture_extraction import validated_fields
+    response={'success':True,'result':{'response':{'items':[{
+        'name':'bagels','evidence':'two bagels','evidence_start':0,'quantity':90,
+        'quantity_unit':'each','quantity_evidence':'two','quantity_evidence_start':0}],
+        'temporal_evidence':None,'temporal_evidence_start':None}}}
+    fields=validated_fields(response,'two bagels')
+    quantity=next(f for f in fields if f['name']=='quantity')
+    assert quantity['value'] is None and quantity['reason']=='value_not_in_span'
+    response['result']['response']['items'][0]['quantity']=2
+    quantity=next(f for f in validated_fields(response,'two bagels') if f['name']=='quantity')
+    assert quantity['value']==2 and quantity['provenance']=='extracted'
+
+
+@pytest.mark.parametrize('text',['500 kcal','11 grams of protein','protein: 11','25g fat',
+                               'protein is 11 g','20% fat','protein (11 g)'])
+def test_REQ_CAP_056_numeric_nutrition_in_string_fields_never_reaches_persistence(text):
+    from tools.engines.capture_extraction import validated_fields
+    response={'success':True,'result':{'response':{'items':[{
+        'name':text,'evidence':None,'evidence_start':None,'quantity':None,
+        'quantity_unit':None,'quantity_evidence':None,'quantity_evidence_start':None}],
+        'temporal_evidence':None,'temporal_evidence_start':None}}}
+    with pytest.raises(ValueError,match='^prohibited_nutrition$'):
+        validated_fields(response,'a bagel')
+
+
+def test_REQ_CAP_055_duplicate_json_keys_and_oversized_responses_refuse():
+    from tools.engines.capture_extraction import validated_fields, MAX_RESPONSE_BYTES
+    for body in ('{"items":[],"items":[]}', 'x'*MAX_RESPONSE_BYTES):
+        with pytest.raises(ValueError,match='^invalid_extraction$'):
+            validated_fields({'success':True,'result':{'response':body}},'a bagel')
+
+
+@pytest.mark.parametrize('evidence,value',[('-2',2),('1/2',2),('2,000',2),('one hundred',1),
+                                         ('twenty one grapes',1),('twenty-one grapes',1)])
+def test_REQ_CAP_053_quantity_tokens_do_not_misread_signs_fractions_or_compounds(evidence,value):
+    from tools.engines.capture_extraction import validated_fields
+    response={'success':True,'result':{'response':{'items':[{
+        'name':'bagel','evidence':None,'evidence_start':None,'quantity':value,
+        'quantity_unit':None,'quantity_evidence':evidence,'quantity_evidence_start':0}],
+        'temporal_evidence':None,'temporal_evidence_start':None}}}
+    fields=validated_fields(response,evidence)
+    assert next(f for f in fields if f['name']=='quantity')['value'] is None
+
+
+def test_REQ_CAP_053_054_unit_cannot_borrow_a_count_span_to_invent_weight():
+    from tools.engines.capture_extraction import validated_fields
+    response={'success':True,'result':{'response':{'items':[{
+        'name':'bagel','evidence':None,'evidence_start':None,'quantity':1,
+        'quantity_unit':'g','quantity_evidence':'one','quantity_evidence_start':0}],
+        'temporal_evidence':None,'temporal_evidence_start':None}}}
+    fields=validated_fields(response,'one bagel')
+    unit=next(f for f in fields if f['name']=='quantity_unit')
+    assert unit['value'] is None and unit['reason']=='value_not_in_span'
+
+
+@pytest.mark.parametrize('name',['protein','total fat','dietary fiber','grams of carbohydrate',
+                               'estimated protein','protein estimate'])
+def test_REQ_CAP_056_split_nutrient_quantity_never_persists_as_inferred(name):
+    from tools.engines.capture_extraction import validated_fields
+    response={'success':True,'result':{'response':{'items':[{
+        'name':name,'evidence':None,'evidence_start':None,'quantity':11,
+        'quantity_unit':'g','quantity_evidence':None,'quantity_evidence_start':None}],
+        'temporal_evidence':None,'temporal_evidence_start':None}}}
+    with pytest.raises(ValueError,match='^prohibited_nutrition$'):
+        validated_fields(response,'a bagel')
+    response['result']['response']['items'][0].update(
+        name='protein bar',quantity=1,quantity_unit='each',evidence='protein bar',evidence_start=2,
+        quantity_evidence='a',quantity_evidence_start=0)
+    fields=validated_fields(response,'a protein bar')
+    assert next(f for f in fields if f['name']=='name')['value']=='protein bar'
+
+
+@pytest.mark.parametrize('household',['1 1/2 cookies','1 or 2 cookies','one or two cookies','1 package (3 cookies)'])
+def test_REQ_NUT_050_incomplete_household_parse_never_converts_a_count(household):
+    from tools.engines.nutrition import _counted_servings, Unresolved
+    with pytest.raises(Unresolved):
+        _counted_servings('cookies',2,'usda_branded',{'serving_g':30,
+                          'raw':{'usda_food':{'householdServingFullText':household}}})

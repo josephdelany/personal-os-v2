@@ -160,8 +160,8 @@ def daily_total(items):
     unresolved = len(items) - len(resolved)
     low = sum(float(i["kcal_low"]) for i in resolved)
     high = sum(float(i["kcal_high"]) for i in resolved)
-    return {"kcal_low": round(low, 1), "kcal_high": round(high, 1),
-            "kcal_point": round((low + high) / 2.0, 1),
+    return {"kcal_low": round(low, 1) if resolved else None, "kcal_high": round(high, 1) if resolved else None,
+            "kcal_point": round((low + high) / 2.0, 1) if resolved else None,
             "n_items": len(resolved),
             # REQ-NUT-026. Every total that includes an unresolved item's meal says how many.
             "unresolved_items": unresolved,
@@ -225,6 +225,8 @@ def deficit_statement(total, target):
     A day logged by voice routinely has a 500 kcal width. Reporting a 300 kcal deficit against it
     is reporting a difference the data cannot see, and the number would be believed.
     """
+    if any(total.get(k) is None for k in ('kcal_low','kcal_point','kcal_high')):
+        return {'resolvable':False,'text':"This day's logging has no usable nutrient total to compare."}
     width = float(total["kcal_high"]) - float(total["kcal_low"])
     diff = float(total["kcal_point"]) - float(target)
     if abs(diff) < width:
@@ -277,6 +279,11 @@ def unresolved_is_not_an_error(item):
     Shown as a failure it reads as something Joe did wrong; shown as a normal outcome it reads as
     a question he can answer, which is what it is.
     """
+    if item.get('reason') in ('defaulted_event_time_excluded','defaulted_quantity_excluded'):
+        field='event time' if item['reason']=='defaulted_event_time_excluded' else 'quantity'
+        return {'status':UNRESOLVED,'is_error':False,'severity':'normal','item':item.get('name'),
+                'label':'excluded: defaulted '+field,
+                'text':'Excluded from this total because its '+field+' was supplied by a system default.'}
     return {"status": UNRESOLVED, "is_error": False, "severity": "normal",
             "text": "Not resolved yet — tell me what this was and it will be.",
             "item": item.get("name")}

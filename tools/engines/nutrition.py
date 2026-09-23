@@ -34,6 +34,8 @@ key is a recorded outcome and never a plausible number (RULE-06).
 import datetime as dt
 import json
 import os
+import re
+import math
 
 from tools.engines import nutrition_cascade
 from tools.engines import nutrition_off
@@ -170,19 +172,21 @@ def lookup_cached(cur, name, schema="core", brand=None):
     so a rejected generic row does not hide a usable branded one beneath it.
     """
     cur.execute(
-        f"""select c.canonical_name, c.source, c.nutrients_per_100g, c.serving_g, c.brand
+        f"""select c.canonical_name, c.source, c.nutrients_per_100g, c.serving_g, c.brand,
+                   c.food_id,c.source_id,c.raw
               from {schema}.foods_cache c
              where lower(c.canonical_name) = lower(%s)
                 or c.food_id in (select a.food_id from {schema}.food_aliases a
                                   where lower(a.alias) = lower(%s))
              order by array_position(%s::text[], c.source)""",
         (name, name, list(SOURCE_PRECEDENCE)))
-    for canonical, source, nutrients, serving_g, row_brand in cur.fetchall():
+    for canonical, source, nutrients, serving_g, row_brand, food_id, source_id, raw in cur.fetchall():
         if brand and not cached_row_answers_brand(source, row_brand, brand):
             continue
         nutrients = nutrients if isinstance(nutrients, dict) else json.loads(nutrients)
         return {"canonical_name": canonical, "source": source,
                 "nutrients_per_100g": nutrients, "brand": row_brand,
+                "food_id":str(food_id),"source_id":source_id,"raw":raw,
                 "serving_g": None if serving_g is None else float(serving_g)}, source
     return None, None
 
@@ -343,7 +347,8 @@ class UsdaLeg:
                "estimate_method": self.source,
                "cached": {"canonical_name": row["canonical_name"], "source": row["source"],
                           "nutrients_per_100g": row["nutrients_per_100g"],
-                          "serving_g": row["serving_g"], "brand": row["brand"]}}
+                          "serving_g": row["serving_g"], "brand": row["brand"],
+                          "source_id":row.get('source_id'),"raw":row.get('raw')}}
         if self.source == nutrition_usda.BRANDED:
             # REQ-NUT-014. `nutrition_cascade.resolve` REQUIRES this key on a `usda_branded`
             # match and raises without it; `nutrition_usda.parse_food` has already refused a
@@ -410,7 +415,8 @@ class OffLeg:
                 "estimate_method": self.source,
                 "cached": {"canonical_name": row["canonical_name"], "source": row["source"],
                            "nutrients_per_100g": row["nutrients_per_100g"],
-                           "serving_g": row["serving_g"], "brand": row["brand"]}}
+                           "serving_g": row["serving_g"], "brand": row["brand"],
+                           "source_id":row.get('source_id'),"raw":row.get('raw')}}
 
 
 def live_transport_permitted(env=None):
@@ -548,7 +554,36 @@ def remember_alias(cur, phrase, row, *, food_id=None, schema="core"):
     return found[0] if found else None
 
 
-def resolve_item(cur, item_text, *, grams=None, servings=None, brand=None, sources=None,
+def _counted_servings(item_text, count, source, cached):
+    """Use the label's household count, never equate an item with a serving."""
+    raw = cached.get('raw') or {}
+    household = (raw.get('usda_food') or {}).get('householdServingFullText')
+    if source != 'usda_branded' or not cached.get('serving_g') or not isinstance(household,str):
+        raise Unresolved(item_text,[],reason='no_branded_serving',review_reason='no_branded_serving',brand=cached.get('brand'))
+    match = re.fullmatch(r'\s*(one|\d+(?:\.\d+)?)\s+([a-z][a-z -]*?)'
+                         r'(?:\s*\((\d+(?:\.\d+)?\s*(?:g|grams?|oz|ounces?))\))?\s*',household,re.I)
+    if match is None:
+        raise Unresolved(item_text,[],reason='no_branded_serving',review_reason='no_branded_serving',brand=cached.get('brand'))
+    per_serving = 1.0 if match[1].lower()=='one' else float(match[1])
+    unit_words = set(re.findall(r'[a-z]+',match[2].lower()))
+    # A cup, gram or slice fraction is not proof of one complete menu item.
+    forbidden = {'g','gram','grams','kg','ml','cup','cups','tbsp','tsp','oz','ounce','ounces','pound','pounds','slice','slices',
+                 'or','to','about','half','quarter','third','two','three','four','five','six','seven','eight','nine','ten'}
+    counted = {'item','items','piece','pieces','bar','bars','burger','burgers','sandwich','sandwiches',
+               'cookie','cookies','cracker','crackers','egg','eggs'}
+    if per_serving<=0 or unit_words & forbidden or not unit_words & counted:
+        raise Unresolved(item_text,[],reason='no_branded_serving',review_reason='no_branded_serving',brand=cached.get('brand'))
+    if per_serving != 1:
+        # Multiple pieces are usable only when their stated noun also names
+        # the requested food; do not turn a multi-piece package into one item.
+        food_words = {word.rstrip('s') for word in re.findall(r'[a-z]+',item_text.lower())}
+        label_words = {word.rstrip('s') for word in unit_words & counted} - {'item','piece','packet'}
+        if not food_words & label_words:
+            raise Unresolved(item_text,[],reason='no_branded_serving',review_reason='no_branded_serving',brand=cached.get('brand'))
+    return float(count)/per_serving
+
+
+def resolve_item(cur, item_text, *, grams=None, servings=None, item_count=None, brand=None, sources=None,
                  cooldowns=None, learn_alias=True, schema="core", config="config", ops="ops",
                  **source_kw):
     """One food item -> {metric_key: (low, point, high)} plus the method that produced it.
@@ -560,6 +595,11 @@ def resolve_item(cur, item_text, *, grams=None, servings=None, brand=None, sourc
     Raises `Unresolved` rather than returning zeros. A zero is a claim that the item had no
     calories; an absence is the truth (RULE-06).
     """
+    if sum(value is not None for value in (grams,servings,item_count))>1:
+        raise ValueError('one quantity representation required')
+    for value in (grams,servings,item_count):
+        if value is not None and (isinstance(value,bool) or not math.isfinite(float(value)) or float(value)<=0):
+            raise ValueError('positive finite quantity required')
     widths = interval_widths(cur, config)
     if sources is None:
         sources = build_sources(cur, schema=schema, ops=ops, config=config, **source_kw)
@@ -584,12 +624,14 @@ def resolve_item(cur, item_text, *, grams=None, servings=None, brand=None, sourc
 
     tried = list(outcome["tried"]) + notes
     cached, source = outcome["cached"], outcome["resolved_source"]
+    if item_count is not None:
+        servings = _counted_servings(item_text,item_count,source,cached)
 
     # REQ-NUT-003 / REQ-NUT-004. A food resolved from a network source becomes a `foods_cache`
     # row and an alias, before anything else can fail: the composition IS resolved at this
     # point even if the quantity turns out not to be, and re-asking Open Food Facts tomorrow
     # for an answer already in hand spends a request REQ-NUT-011 rations.
-    food_id = alias_id = None
+    food_id, alias_id = cached.get('food_id'), None
     if not outcome.get("from_cache") and outcome.get("cache_row") is not None:
         food_id = nutrition_off.insert_cache_row(cur, outcome["cache_row"], schema=schema)
         if learn_alias:
@@ -623,22 +665,46 @@ def resolve_item(cur, item_text, *, grams=None, servings=None, brand=None, sourc
 
     factor = float(grams) / 100.0
     out = {}
+    components = []
+    stated_count = item_count if item_count is not None else servings
+    if source=='usda_branded' and not grams_stated and stated_count is not None and float(stated_count)%1:
+        whole = math.floor(float(stated_count))
+        fraction = float(stated_count)-whole
+        unit_grams = float(grams)/float(stated_count)
+        for label,part,width,provenance in (('whole',whole,'labelled','extracted'),
+                                            ('fraction',fraction,'portion_table','defaulted')):
+            if part:
+                nutrients={key:apply_width(float(value)*part*unit_grams/100,width,widths)
+                           for key,value in cached['nutrients_per_100g'].items()
+                           if key in NUTRIENT_KEYS and value is not None}
+                components.append({'component':label,'count':part,'grams':part*unit_grams,
+                                   'stored_method':width,'method':width,'quantity_provenance':provenance,
+                                   'nutrients':nutrients})
     for key in NUTRIENT_KEYS:
         per100 = cached["nutrients_per_100g"].get(key)
         if per100 is None:
             continue                                   # absent nutrient stays absent
-        out[key] = apply_width(float(per100) * factor, method, widths)
+        out[key] = (tuple(round(sum(part['nutrients'][key][i] for part in components),4) for i in range(3))
+                    if components else apply_width(float(per100) * factor, method, widths))
     if not out:
         raise Unresolved(item_text, tried, reason="no_usable_nutrient",
                          review_reason="no_usable_nutrient", brand=brand)
+    source_raw = cached.get('raw') or {}
+    usda_food = source_raw.get('usda_food') or {}
     return {"method": method, "grams": round(float(grams), 2), "source": source,
+            "components":components,
+            "quantity_provenance":"defaulted" if components else ("extracted" if grams_stated or stated_count is not None else "defaulted"),
+            "source_id":cached.get('source_id'),
+            "serving_definition":{'grams':cached.get('serving_g'),
+                                  'household_measure':usda_food.get('householdServingFullText'),
+                                  'brand_owner':usda_food.get('brandOwner') or cached.get('brand')},
             # `method` is the width that was APPLIED; `estimate_method` is what the source
             # CLAIMED. A weighed portion of an Open Food Facts product is `weighed` by width
             # and `off_product` by provenance, and collapsing the two would lose one of them.
             "estimate_method": outcome.get("estimate_method"),
             # REQ-NUT-032's value, which is a THIRD fact and not either of the two above: the
             # width applied, the source's claim, and the method the requirement enumerates.
-            "stored_method": stored_estimate_method(
+            "stored_method": 'portion_table' if components else stored_estimate_method(
                 source_claim=outcome.get("estimate_method"), grams_stated=grams_stated,
                 resolved_source=source),
             "leg": outcome["source"], "from_cache": bool(outcome.get("from_cache")),
@@ -766,13 +832,10 @@ def stored_estimate_method(*, source_claim, grams_stated, resolved_source=None):
     `resolve_from_cache`'s REQ-NUT-014 guard exists to stop. Widening the requirement to cover a
     source it does not name would be this function inventing a rule (RULE-09).
 
-    **KNOWN GAP, recorded not silently handled.** REQ-NUT-052 requires the FRACTIONAL part of a
-    count — "2.5 servings" — to take `portion_table` and REQ-NUT-037's wider interval, because a
-    stated fraction of a serving is an estimated portion. `resolve_item` multiplies a single
-    `servings` float and does not split whole from fractional, so a fractional Branded count
-    currently takes the whole count's `labelled` width. Narrower than the requirement asks for,
-    which is the wrong direction, and it needs the split in `resolve_item` rather than a change
-    here.
+    REQ-NUT-052 fractional Branded counts are split by resolve_item into labelled
+    whole and portion_table fractional components, each with its own width.
+    Capture persistence requires per-item/component identity for that split;
+    callers without it refuse instead of collapsing the fractional uncertainty.
     """
     if source_claim == "labelled" or resolved_source == "usda_branded":
         return "labelled"                       # REQ-NUT-014 / REQ-NUT-050; see branches 1 & 2
@@ -791,7 +854,7 @@ def _registry_units(cur, keys, schema="core"):
     return {k: (u, s) for k, u, s in cur.fetchall()}
 
 
-def _already_stored(cur, raw_capture_id, metric_key, subject_day, evidence_span, schema="core"):
+def _already_stored(cur, raw_capture_id, metric_key, subject_day, evidence_span, schema="core", capture_item_id=None, capture_component='total'):
     """Has this item's nutrient already been written and not superseded?
 
     Resolution is re-run: a nightly pass sweeps the same days, and REQ-NUT-008 re-fetches a
@@ -799,6 +862,12 @@ def _already_stored(cur, raw_capture_id, metric_key, subject_day, evidence_span,
     total is not obviously wrong on inspection, which is what makes it dangerous. Keyed on the
     capture rather than the day, so two genuinely separate coffees on one day both survive.
     """
+    if capture_item_id is not None:
+        cur.execute(f'''SELECT 1 FROM {schema}.atoms a
+            WHERE a.capture_item_id=%s AND a.raw_capture_id=%s AND a.metric_key=%s AND a.capture_component=%s
+              AND NOT EXISTS (SELECT 1 FROM {schema}.atoms b WHERE b.supersedes=a.id) LIMIT 1''',
+            (capture_item_id,raw_capture_id,metric_key,capture_component))
+        return cur.fetchone() is not None
     cur.execute(f"""select 1 from {schema}.atoms a
                      where a.raw_capture_id = %s and a.metric_key = %s
                        and a.subject_day = %s and a.evidence_span = %s
@@ -810,7 +879,8 @@ def _already_stored(cur, raw_capture_id, metric_key, subject_day, evidence_span,
 
 def persist_resolution(cur, resolved, *, raw_capture_id, occurred_at, subject_day,
                        evidence_span, schema="core", trust_level="trusted",
-                       code_version=CODE_VERSION):
+                       code_version=CODE_VERSION, time_precision="hour", capture_item_id=None,
+                       capture_component='total'):
     """A resolved item's intervals -> one `consume` atom per nutrient. Returns the keys written.
 
     **Why `inferred` and never `extracted`.** The capture contains a phrase, not a calorie. Every
@@ -822,7 +892,20 @@ def persist_resolution(cur, resolved, *, raw_capture_id, occurred_at, subject_da
 
     INV-1 holds by construction — every atom points at the capture the item was uttered in.
     """
+    if resolved.get('components'):
+        if capture_item_id is None:
+            raise ValueError('fractional resolution requires persistent item identity')
+        written=[]
+        for component in resolved['components']:
+            written.extend(persist_resolution(cur,{**resolved,**component,'components':[]},
+                raw_capture_id=raw_capture_id,occurred_at=occurred_at,subject_day=subject_day,
+                evidence_span=evidence_span,schema=schema,trust_level=trust_level,code_version=code_version,
+                time_precision=time_precision,capture_item_id=capture_item_id,
+                capture_component=component['component']))
+        return written
     units = _registry_units(cur, resolved["nutrients"], schema)
+    if time_precision not in ('exact','minute','hour','day','unknown'):
+        raise ValueError('invalid nutrient event time precision')
     # REQ-NUT-032, ENFORCED rather than assumed. Until this line the column held the source's
     # claim (`usda_foundation`, `off_product`) for every non-branded resolution — outside the
     # five values the requirement enumerates, and outside the vocabulary `nutrition_display`
@@ -840,25 +923,28 @@ def persist_resolution(cur, resolved, *, raw_capture_id, occurred_at, subject_da
         if key not in units:
             # An unregistered metric is a schema question, not something to invent a unit for.
             raise LookupError(f"{key!r} is not in {schema}.metric_registry")
-        if _already_stored(cur, raw_capture_id, key, subject_day, evidence_span, schema):
+        if _already_stored(cur, raw_capture_id, key, subject_day, evidence_span, schema, capture_item_id, capture_component):
             continue
         unit, state_class = units[key]
+        item_column = ', capture_item_id, capture_component' if capture_item_id is not None else ''
+        item_value = ', %s, %s' if capture_item_id is not None else ''
         cur.execute(
             f"""insert into {schema}.atoms
                   (raw_capture_id, kind, metric_key, occurred_at, time_precision,
                    subject_day, subject_day_rule_version, presence,
                    value_low, value_point, value_high, estimate_method, unit, state_class,
-                   trust_level, provenance, evidence_span, code_version)
-                values (%s, 'consume', %s, %s, 'hour', %s, %s, 'observed',
-                        %s, %s, %s, %s, %s, %s, %s, 'inferred', %s, %s)""",
-            (raw_capture_id, key, occurred_at, subject_day, SUBJECT_DAY_RULE_VERSION,
+                   trust_level, provenance, evidence_span, code_version{item_column})
+                values (%s, 'consume', %s, %s, %s, %s, %s, 'observed',
+                        %s, %s, %s, %s, %s, %s, %s, 'inferred', %s, %s{item_value})""",
+            (raw_capture_id, key, occurred_at, time_precision, subject_day, SUBJECT_DAY_RULE_VERSION,
              low, point, high, method, unit, state_class,
-             trust_level, evidence_span, code_version))
+             trust_level, evidence_span, code_version) + ((capture_item_id,capture_component) if capture_item_id is not None else ()))
         written.append(key)
     return written
 
 
-def record_unresolved(cur, unresolved, *, raw_capture_id, subject_day, schema="core"):
+def record_unresolved(cur, unresolved, *, raw_capture_id, subject_day, schema="core",
+                      extraction_request_id=None, item_index=None):
     """An item nothing resolved -> one `unresolved_items` row (REQ-NUT-024, REQ-NUT-040).
 
     Returns the `item_id`, or None when the item is already open — a nightly re-run must not
@@ -869,22 +955,36 @@ def record_unresolved(cur, unresolved, *, raw_capture_id, subject_day, schema="c
     is recorded with that reason so the history is complete, but `tried` says plainly that no
     source was consulted. REQ-NUT-027: unresolved is a normal outcome, never an error state.
     """
+    if (extraction_request_id is None) != (item_index is None):
+        raise ValueError('complete extracted-item identity required')
+    identity = ' AND extraction_request_id=%s AND capture_item_index=%s' if extraction_request_id is not None else ''
+    identity_args = (extraction_request_id,item_index) if extraction_request_id is not None else ()
     cur.execute(f"""select item_id from {schema}.unresolved_items
                      where item_text = %s and subject_day = %s and resolved_at is null
                        and raw_capture_id is not distinct from %s
-                     limit 1""", (unresolved.item_text, subject_day, raw_capture_id))
+                       {identity}
+                     limit 1""", (unresolved.item_text, subject_day, raw_capture_id)+identity_args)
     existing = cur.fetchone()
     if existing:
         return None
     tried = json.dumps({"reason": unresolved.reason, "review_reason": unresolved.review_reason,
                         "brand": unresolved.brand, "tried": list(unresolved.tried)},
                        default=str)
+    columns = ',extraction_request_id,capture_item_index' if identity_args else ''
+    placeholders = ',%s,%s' if identity_args else ''
     cur.execute(
         f"""insert into {schema}.unresolved_items
-              (raw_capture_id, item_text, subject_day, tried)
-            values (%s, %s, %s, %s::jsonb) returning item_id""",
-        (raw_capture_id, unresolved.item_text, subject_day, tried))
+              (raw_capture_id, item_text, subject_day, tried{columns})
+            values (%s, %s, %s, %s::jsonb{placeholders}) returning item_id""",
+        (raw_capture_id, unresolved.item_text, subject_day, tried)+identity_args)
     return cur.fetchone()[0]
+
+
+def close_capture_unresolved(cur, *, capture_id, extraction_request_id, item_index, schema='core'):
+    """A later reference resolves this exact item, not every equal food phrase."""
+    cur.execute(f'''UPDATE {schema}.unresolved_items SET resolved_at=clock_timestamp(),resolved_by='later_source'
+        WHERE raw_capture_id=%s AND extraction_request_id=%s AND capture_item_index=%s AND resolved_at IS NULL''',
+        (capture_id,extraction_request_id,item_index))
 
 # ---------------------------------------------------------------- the review list closes (§D.3)
 

@@ -54,8 +54,11 @@ def read_day(cur, day, schema="core"):
     """
     cur.execute(
         f"""select evidence_span, value_low, value_point, value_high, estimate_method, unit
-              from {schema}.atoms_current
+              from {schema}.atoms_current a
              where kind = 'consume' and metric_key = %s and subject_day = %s
+               and (to_jsonb(a)->>'event_time_provenance') IS DISTINCT FROM 'defaulted'
+               and (to_jsonb(a)->>'quantity_provenance') IS DISTINCT FROM 'defaulted'
+               and provenance<>'defaulted'
              order by occurred_at, evidence_span""",
         (ENERGY, day))
     items = []
@@ -74,6 +77,15 @@ def read_day(cur, day, schema="core"):
              order by seen_at, item_text""",
         (day,))
     unresolved = [{"name": text, "reason": reason} for text, reason in cur.fetchall()]
+    cur.execute(f'''SELECT min(evidence_span),
+        CASE WHEN bool_or(to_jsonb(a)->>'event_time_provenance'='defaulted')
+             THEN 'defaulted_event_time_excluded' ELSE 'defaulted_quantity_excluded' END
+        FROM {schema}.atoms_current a
+        WHERE kind='consume' AND metric_key=%s AND subject_day=%s
+          AND (to_jsonb(a)->>'event_time_provenance'='defaulted'
+               OR to_jsonb(a)->>'quantity_provenance'='defaulted' OR provenance='defaulted')
+        GROUP BY to_jsonb(a)->>'capture_item_id' ''',(ENERGY,day))
+    unresolved.extend({'name':row[0],'reason':row[1]} for row in cur.fetchall())
     return items, unresolved
 
 
@@ -92,7 +104,8 @@ def build_report(items, unresolved, *, target=None, analysis_mode=None):
         "unresolved_note": total["unresolved_note"],
         # REQ-NUT-044/063: the day's figure is an interval, rendered by the engine.
         "total": display.render_value(total["kcal_point"], total["kcal_low"],
-                                      total["kcal_high"], estimate_method="mixed"),
+                                      total["kcal_high"], estimate_method="mixed",
+                                      status=display.UNRESOLVED if not total['n_items'] else None),
         # REQ-NUT-042: a day whose items resolved under several methods is reported as the
         # widest claim any of them makes, never as the tightest.
         "methods": sorted({i["estimate_method"] for i in items if i["estimate_method"]}),
@@ -125,7 +138,7 @@ def render(report, day):
         lines.append(f"    {item['text']:<28} {item['weight']:<7} {item['name'] or ''}")
     for item in report["unresolved"]:
         # REQ-NUT-062: the words, not a number, not a zero, not a dash.
-        lines.append(f"    {'not resolved':<28} {'light':<7} {item['item'] or ''}")
+        lines.append(f"    {item.get('label','not resolved'):<28} {'light':<7} {item['item'] or ''}")
     if report["unresolved_note"]:
         lines.append(f"  {report['unresolved_note']}")
     if "deficit" in report:

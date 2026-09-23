@@ -114,3 +114,24 @@ Root also owns forward repair0082, workers/capture-media/, shared ingress auth e
 Root owns device/scriptable/, ADR0153, tests/capture_device_queue.test.cjs, HTTP harness, extraction verifier/tests and maintained checkpoint/decision/runbook docs. Reviewer is read-only. Joe approved the free Scriptable helper; no device installation or production action has occurred.
 
 Device packet ownership includes PersonalOSSetup, tools/package_capture_device.py, DOCUMENTATION_MAP and COMPLETION_AUDIT. Source-only artifact is under ignored .local/device/. No separate worker edits these files.
+
+## 2026-09-23 — extraction consumer connection
+
+Root owns draft0083/ADR0154, capture_extraction engine, capture_transcription CLI branch, extraction/transcription tests, CI Pydantic dependency and maintained docs. Preparation, consumption and cache-backed atom resolution are locally integrated in the same voice-path unit. No parallel file writer.
+
+Root's draft0083 ownership includes immutable extraction outcomes/fields, actual
+consume-extraction/fail-extraction CLI, transcription engine readback/resolve queue,
+quarantine owner RPC amendment and their targeted tests. Reviewer was read-only
+and completed scoped follow-up; no other writer owns these files.
+
+Root now owns `tools/engines/capture_resolution.py`, nutrition persistence's optional
+capture-item identity/time-precision arguments, resolution CLI/readback/queue,
+draft0083 resolution tables/atom FK, and their SQL tests. Same voice-to-atoms gate:
+REQ-CAP-053–060/063–066, REQ-NUT-001/014/034/036/050 and RULE-02/05/08/12.
+Acceptance: saved verified count -> reference-backed atoms/readback, duplicate and
+repeated-phrase identity, unknown-time fallback, invalid fields/no-source behavior,
+atomic rollback and scoped role access. No independent writer assigned.
+
+Root also owns nutrition_day/nutrition_display missingness and provenance filtering,
+draft0083 statistics views/triggers, and associated tests. Final read-only reviewer
+follow-up completed; no remaining scoped blocker. No concurrent file writer.

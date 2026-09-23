@@ -7854,3 +7854,110 @@ atomicity/deadline/locked replay proof, live request or production write. Source
 bundle is .local/device/PersonalOSCapture.zip. Joe received the requested production
 secret reminder at this activation boundary. Continue same M3 outcome with saved
 transcript→receipt-bound extraction→atomic items/atoms; device acceptance remains open.
+
+
+### 2026-09-23 — Saved transcription to persisted extraction request
+
+Added draft0083 and private prepare-extraction CLI branch. The actual saved food
+transcript, processing predecessor, schema/model/version, exact payload/digest and
+estimate are persisted before export. Capture lock and unique(capture,head) avoid
+minting another request while the previous one is unresolved. Strict Pydantic2
+schema uses exactly REQ-CAP-051's fields; local validation rejects extras, coercion,
+boolean offsets/quantities and nonfinite values. ADR0154 documents dependency and
+published rate-based planning estimate; CI declares the local validator.
+
+Evidence at dca0ac4 plus draft: pure schema34 passed2.28s; scoped SQL first19 passed,
+then21 passed12.17s after stable-head and actual CLI uncertain-commit regressions.
+Fixtures rolled back; server stopped. Independent review found no material defect
+in preparation, role scope or commit-before-export. No preparation spends budget,
+creates an atom or marks enrichment complete. SQL logs/XML /tmp/capture-extraction-prepare.*.
+
+WHAT I DID NOT DO: result consumption, nutrient/span validation at persistence,
+validation retry/quarantine, atomic item/atom writes and runtime dispatch are still
+open. No full integration/chain run, live model or production action for0083. The
+next step remains those consumers in the same M3 voice-to-atoms path, not a new unit.
+
+### 2026-09-23 — M3 voice-to-atoms: persisted extraction consumer draft
+
+REQ-CAP-050–059: connected actual consume-extraction CLI to strict private
+validation and receipt-bound immutable outcomes/fields. Duplicate/stale handling,
+NULL provenance for failed spans, numeric quantity support checks, prohibited
+nutrient refusal, three-invalid quarantine/review, readback and next_stage=resolve.
+One savepoint protects event/outcome/fields/review. No raw-row update or model
+nutrient atom. Current draft0083/ADR0154 remains root-owned and uncommitted.
+
+Evidence: dca0ac4 + dirty/untracked draft; targeted SQL28 passed19.78s with terminal
+server shutdown, `/tmp/capture-extraction-prepare.log`/XML. Pure44 passed2.47s.
+Two initial row-container assertions corrected; subsequent new rollback-probe
+adapter corrected to preserve cursor execute signature. Final tests exercise real
+SQL, scoped roles and actual CLI; commit probes remain rollback-only, not durability
+or concurrency proof. Independent reviewer reviewing consumption; pending disposition.
+
+WHAT I DID NOT DO: no deterministic nutrition atoms/time resolution, complete
+quantity language coverage, dispatch failure recovery, runtime supervisor,
+full integration/chain/ledger run, deployment or physical iPhone capture. Retain
+same active outcome and complete these dependent gates; no milestone closure.
+
+Self-review also refused model-invented units borrowed from a real count span
+(e.g. one → g); deterministic unit conversion remains downstream. Latest pure45
+passed2.41s; layout43 passed; diff check clean. SQL28-pass evidence predates this
+unit guard; its SQL fixture uses NULL unit and consumer unchanged. Full integration
+is still owed at the connected atom boundary.
+
+Review/repair continuation: reviewer identified owner quarantine RPC hiding its
+stored reviews, prose and split-field nutrient leaks, partial tens as quantities,
+and old extraction selected after a newer transcript. Repaired with exact-event
+review selection plus dismissal coverage, strict numeric nutrient checks across
+fields, compound refusal and current-transcript join. Adjective nutrient names
+needed a second repair: evidence/count-unit gating rather than treating leftover
+words as product proof. Reviewer rechecking final guard. These were real defects,
+not optional suggestions; earlier passing checks did not cover them.
+
+Connected fail-extraction private CLI for budget/transport recovery; these failures
+preserve the three schema-invalid retry budget and usable transcript. Latest SQL31
+passed21.54s (terminal/server stopped) before final stricter nutrient-name guard;
+latest pure run covers that change. No full integration milestone/commit claimed.
+Remaining functional limitations include conservative rejection of some legitimate
+nutrient-bearing product phrases and incomplete compound quantities; these are
+work in the same resolution path, not authorized requirement deferrals.
+
+Final scoped re-review verified nutrient-label repairs and evidenced protein-bar
+count, with no new material finding. Pure56 passed2.42s, all processes terminal.
+Keep the functional language gaps open and continue the atom connection.
+
+
+## 2026-09-23 — saved extraction reaches reference-backed atoms locally
+
+Same M3-B16 voice-to-atoms unit, dca0ac4 plus root-owned draft0083/ADR0154.
+REQ-CAP-050–060/063–066 and REQ-NUT-014/034/036/050–052: actual private resolve CLI
+now consumes verified extraction through the existing nutrition owner. Immutable
+item/component identity protects equal repeated food phrases and retries; cached
+reference source/serving evidence reaches atom readback. Missing references remain
+pending and resume without another model call. Exact-item unresolved closure and
+all outputs share the resolution savepoint. Fractional Branded counts split whole
+and portion components; defaulted time/quantity remains visible but excluded from
+statistics. Missing totals never become zero or an invented deficit.
+
+Final independent review accepted repaired household-label refusal/mapping,
+cache-only private resolution, quantity/time provenance preservation and exact-item
+recovery. Earlier review found substantive defects in these paths and extraction;
+repairs and regression evidence are retained. No remaining blocker in scoped final
+follow-up; separate process orchestration and deployment were outside its proof.
+
+Integration evidence: full disposable SQL929 passed/1 skipped256.76s; noDB sanctioned
+ledger writer1149 passed/762 skipped162.92s; chain82 migrations/815 statements;
+layout43 passed; diff check clean. All handles terminal and server stopped. SQL
+skip is production-only shape check. noDB guarded DB/live checks and two existing
+NumPyro dependency cases remain skips. Full SQL executes spine invariant queries;
+generic RULE04 remains pending. Ledger14/15 unchanged; F006's noDB guarded-test
+message is not a SQL failure. Merged evidence index673/685 named requirements with
+passes does not establish full requirement fidelity or backend completion.
+Archive `.local/evidence/capture-resolution/` includes reports/logs/source manifest.
+Only a nutrition docstring and maintained documents changed after final suites.
+
+WHAT I DID NOT DO: no live/private source API calls, provider/storage requests,
+production writes, device installation or physical observations. Isolated reference
+prepare/fetch/cache-consume runtime, full quantity language/unit conversion,
+separated supervisor and observed deployment remain open. CLI commit-order probes
+are not durable/concurrent fixture commits. The same voice outcome remains active;
+M0–M6 scope and all reserved decisions are unchanged. Scriptable approval persists.

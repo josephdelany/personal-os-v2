@@ -200,8 +200,33 @@ def readback(cur, *, capture_id, schema='core'):
     row = cur.fetchone()
     if row is None:
         raise ValueError('unknown capture')
+    cur.execute(f'''SELECT request_id,event_id,processor_version FROM {schema}.capture_extraction_current
+        WHERE capture_id=%s''',(str(row[0]),))
+    extracted=cur.fetchone()
+    extraction=None
+    if extracted is not None:
+        cur.execute(f'''SELECT item_index,name,value,provenance,reason,evidence,evidence_start
+            FROM {schema}.capture_extraction_fields WHERE request_id=%s ORDER BY item_index,name''',
+            (extracted[0],))
+        extraction={'request_id':str(extracted[0]),'event_id':extracted[1],'processor_version':extracted[2],
+                    'fields':[dict(zip(('item_index','name','value','provenance','reason','evidence','evidence_start'),f))
+                              for f in cur.fetchall()]}
+        cur.execute(f'''SELECT i.item_id,i.item_index,i.occurred_at,i.subject_day,i.time_precision,
+            i.time_provenance,i.time_reason,i.resolution FROM {schema}.capture_resolved_items i
+            WHERE i.extraction_request_id=%s ORDER BY i.item_index''',(extracted[0],))
+        resolved=[]
+        for item in cur.fetchall():
+            cur.execute(f'''SELECT id,metric_key,value_low,value_point,value_high,unit,estimate_method,
+                provenance,code_version,capture_component,event_time_provenance,quantity_provenance FROM {schema}.atoms a WHERE capture_item_id=%s
+                AND NOT EXISTS(SELECT 1 FROM {schema}.atoms b WHERE b.supersedes=a.id)
+                ORDER BY metric_key''',(item[0],))
+            atoms=[dict(zip(('atom_id','metric_key','value_low','value_point','value_high','unit',
+                             'estimate_method','provenance','code_version','component','time_provenance','quantity_provenance'),a)) for a in cur.fetchall()]
+            resolved.append({**dict(zip(('item_id','item_index','occurred_at','subject_day','time_precision',
+                                         'time_provenance','time_reason','resolution'),item)), 'atoms':atoms})
+        extraction['resolved_items']=resolved
     return {'capture_id':str(row[0]),'processing_status':row[1],'last_error':row[2],
-            'processing_event_id':row[3], 'transcription': None if row[4] is None else {
+            'processing_event_id':row[3], 'extraction':extraction, 'transcription': None if row[4] is None else {
                 'request_id':str(row[4]),'event_id':row[5],'text':row[6],
                 'segments':row[7],'model_id':row[8],'processor_version':row[9]}}
 
@@ -227,12 +252,13 @@ def work_queue(cur, *, limit=100, cursor=None, schema='core'):
         after_id=str(uuid.UUID(cursor['capture_id']))
         if through.utcoffset() is None or after_time.utcoffset() is None:
             raise ValueError('queue cursor timezone required')
-    cur.execute(f'''SELECT c.capture_id,c.event_id,c.processing_status,t.request_id,c.captured_at
+    cur.execute(f'''SELECT c.capture_id,c.event_id,c.processing_status,t.request_id,c.captured_at,x.request_id
         FROM {schema}.capture_processing_current c
         JOIN {schema}.raw_captures r USING(capture_id)
         LEFT JOIN {schema}.capture_transcription_current t USING(capture_id)
+        LEFT JOIN {schema}.capture_extraction_current x USING(capture_id)
         WHERE c.source='shortcut_voice' AND r.recorded_at <= %s
-          AND c.processing_status IN ('received','pending_enrichment','deferred_budget','transcribed')
+          AND c.processing_status IN ('received','pending_enrichment','deferred_budget','transcribed','extracted')
           AND (%s::timestamptz IS NULL OR (c.captured_at,c.capture_id) > (%s::timestamptz,%s::uuid))
         ORDER BY c.captured_at,c.capture_id LIMIT %s''',
         (through,after_time,after_time,after_id,limit+1))
@@ -243,8 +269,9 @@ def work_queue(cur, *, limit=100, cursor=None, schema='core'):
         last=selected[-1]
         next_cursor={'through':through.isoformat(),'captured_at':last[4].isoformat(),'capture_id':str(last[0])}
     return {'items':[{'capture_id':str(cid),'event_id':event,'processing_status':status,
-                     'next_stage':'extract' if transcript is not None else 'transcribe'}
-                    for cid,event,status,transcript,captured_at in selected],
+                     'next_stage':'resolve' if extraction is not None else ('extract' if transcript is not None else 'transcribe'),
+                     'extraction_request_id':str(extraction) if extraction is not None else None}
+                    for cid,event,status,transcript,captured_at,extraction in selected],
             'next_cursor':next_cursor}
 
 

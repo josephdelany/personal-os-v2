@@ -22,13 +22,25 @@ def main(argv=None):
     media=commands.add_parser('prepare-media')
     media.add_argument('request_id')
     media.add_argument('capture_id')
+    extraction=commands.add_parser('prepare-extraction')
+    extraction.add_argument('request_id')
+    extraction.add_argument('capture_id')
     commands.add_parser('consume')
+    commands.add_parser('consume-extraction')
+    resolve=commands.add_parser('resolve')
+    resolve.add_argument('request_id')
+    resolve.add_argument('capture_id')
+    resolve.add_argument('extraction_request_id')
     reconcile=commands.add_parser('reconcile-media')
     reconcile.add_argument('capture_id')
     failed=commands.add_parser('fail')
     failed.add_argument('request_id')
     failed.add_argument('error_type')
     failed.add_argument('--provider-status',type=int)
+    extraction_failed=commands.add_parser('fail-extraction')
+    extraction_failed.add_argument('request_id')
+    extraction_failed.add_argument('error_type')
+    extraction_failed.add_argument('--provider-status',type=int)
     read=commands.add_parser('readback')
     read.add_argument('capture_id')
     queue=commands.add_parser('queue')
@@ -41,22 +53,36 @@ def main(argv=None):
         conn=db.connect()
         cur=conn.cursor()
         owner_context(cur)
-        if args.command in {'prepare','consume'}:
+        if args.command in {'prepare','consume','consume-extraction'}:
             message=json.load(sys.stdin)
             required=({'request_id','capture_id','payload'} if args.command=='prepare' else {'request_id','result'})
             if not isinstance(message,dict) or set(message)!=required:
                 raise ValueError('invalid correlated message')
             if args.command=='prepare':
                 result=engine.prepare(cur,**message)
+            elif args.command=='consume-extraction':
+                from tools.engines import capture_extraction
+                result=capture_extraction.consume(cur,request_id=message['request_id'],response=message['result'])
             else:
                 result=engine.consume(cur,request_id=message['request_id'],response=message['result'])
         elif args.command=='prepare-media':
             result=engine.prepare_media(cur,request_id=args.request_id,capture_id=args.capture_id)
+        elif args.command=='prepare-extraction':
+            from tools.engines import capture_extraction
+            result=capture_extraction.prepare(cur,request_id=args.request_id,capture_id=args.capture_id)
+        elif args.command=='resolve':
+            from tools.engines import capture_resolution
+            result=capture_resolution.resolve(cur,request_id=args.request_id,capture_id=args.capture_id,
+                                              extraction_request_id=args.extraction_request_id)
         elif args.command=='reconcile-media':
             result=engine.reconcile_media(cur,capture_id=args.capture_id)
         elif args.command=='fail':
             result=engine.fail(cur,request_id=args.request_id,error_type=args.error_type,
                                provider_status=args.provider_status)
+        elif args.command=='fail-extraction':
+            from tools.engines import capture_extraction
+            result=capture_extraction.fail(cur,request_id=args.request_id,error_type=args.error_type,
+                                          provider_status=args.provider_status)
         elif args.command=='readback':
             result=engine.readback(cur,capture_id=args.capture_id)
         else:

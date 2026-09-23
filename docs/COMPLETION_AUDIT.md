@@ -2,6 +2,29 @@
 
 ## Current quality review — 2026-09-22
 
+### Latest unit: saved extraction to reference-backed atoms — 2026-09-23
+
+Local evidence at dca0ac4 plus draft0083/ADR0154, archived under
+`.local/evidence/capture-resolution/`. This advances the same voice-to-atoms outcome.
+
+| Review lens | Result and limits |
+|---|---|
+| Contract fidelity | PARTIAL: strict receipt-bound extraction, household counts and fractional components exercised; complex quantity/unit language and other profiles remain open |
+| Complete user paths | PARTIAL: actual private CLI/service role reaches persisted extraction, cached-reference atoms and readback; isolated reference runtime and complete device/provider path remain open |
+| Failure behavior | PASS for tested malformed/nutrient output, quarantine, stale/duplicate delivery, missing references, exact-item recovery and atomic rollback; real concurrency/durability unverified |
+| Data integrity | PASS scoped immutable items/components, distinct repeated phrases, time/quantity provenance and default exclusions; generic RULE04 and correction/retranscription lifecycle remain open |
+| Access/privacy | PASS tested cache-only private resolution, role denial of private reads for reference egress, model receipt binding and sanitized errors; process launch/production ACLs unverified |
+| Runtime/deployment | NOT VERIFIED: hand-run CLI connected; no live provider, deployment, separated supervisor or observed schedule |
+| Operations/recovery | PARTIAL: persisted next-stage queue and saved-stage recovery; unattended source refresh/supervisor/device recovery remain required |
+| Evidence/reproducibility | PASS local scope:929 SQL/1 production-only skip;1149 noDB/762 skips;82 migrations/815 statements;43 layout checks; full SQL includes invariant queries, generic RULE04 still pending |
+
+Independent review found and repaired hidden quarantine reviews, nutrient leakage,
+stale transcription selection, count/serving confusion, private source egress and
+lost defaulted provenance. Final follow-up found no remaining scoped repair blocker.
+Rollback fixtures and commit-order probes do not establish real commit survival.
+Two noDB NumPyro dependency cases remain skipped; feature ledger14/15 is unchanged.
+Merged report's673 named requirements with passes is an index, not full coverage.
+
 ### Latest unit: private media retrieval (locally verified)
 
 At936f5cd plus dirty sources. This covers the download/preparation boundary, not upload

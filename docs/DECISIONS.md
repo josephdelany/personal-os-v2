@@ -128,3 +128,5 @@ rule for branded items (REQ-NUT-050/051).
 | ADR-0152 | Locally verified; platform activation open | 2026-09-23 | [Upload identities and receipts](adr/0152-capture-upload-receipts.md): immutable expected hashes, recoverable completion, narrow roles and restrictive Storage policy artifact |
 
 | ADR-0153 | Joe approved helper; device verification open | 2026-09-22 | [Local capture transport](adr/0153-device-capture-transport.md): free Scriptable helper for Shortcut-owned recording, local persistence and bounded-wait replay; no installation or physical acceptance claimed |
+
+| ADR-0154 | Implemented/tested locally; runtime open | 2026-09-23 | [Persisted extraction and resolution](adr/0154-persisted-capture-extraction.md): receipt-bound strict fields, cache-only reference resolution, immutable item/component atoms and provenance filtering; isolated reference runtime and deployment open |
