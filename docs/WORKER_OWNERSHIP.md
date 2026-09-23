@@ -228,3 +228,12 @@ regressions plus ADR0157/checkpoint evidence. REQ-NUT013/016,CAP053: a possessiv
 qualifier inside verified evidence but outside the extracted food name must not be
 dropped to generic lookup. Preserve offsets; refuse ambiguous/narrowed evidence.
 No model-schema, measurement definition, dependency or production change.
+
+2026-09-23 root continuation after bc5c92c: next same M3-B16 source-backed supplier
+recognition; root owns capture_food_context, capture_reference, source brand-token
+helpers, related pure/reference SQL tests and checkpoint/ADR/audit. Reviewer remains
+read-only. Current code clean at commit; acceptance/replay safeguards in NEXT_SESSION.
+
+Source-context v3 review repair: root additionally owns tools/engines/nutrition.py,
+capture_runtime.py, capture_mailbox.py and tools/capture_private_worker.py for
+source identity and late terminal receipt cleanup; associated existing tests.

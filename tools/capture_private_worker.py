@@ -11,7 +11,7 @@ import sys
 from lib import capture_mailbox as mailbox,db
 from tools.ask_jobs import owner_context
 from tools.engines import capture_transcription, capture_runtime
-from tools.engines.capture_mailbox import consumed,consume_control
+from tools.engines.capture_mailbox import consumed,consume_control,consume_reference_receipt
 
 
 def advance(conn,capture_id,*,model_outbox,model_results,reference_outbox,retry=False,
@@ -54,7 +54,7 @@ def advance(conn,capture_id,*,model_outbox,model_results,reference_outbox,retry=
     return result
 
 
-def _retire_saved(conn,state,binding,*,model_outbox,reference_outbox,schema):
+def _retire_saved(conn,state,binding,*,model_outbox,reference_outbox,schema,ops='ops'):
     """Check one mailbox entry independently of active capture status."""
     name='retirement.json'
     try:saved,_=mailbox._read(state,name)
@@ -78,6 +78,9 @@ def _retire_saved(conn,state,binding,*,model_outbox,reference_outbox,schema):
     stage='reference' if role=='reference' else request.get('call_kind')
     cur=conn.cursor();owner_context(cur)
     ready=consumed(cur,request,stage=stage,schema=schema)
+    if not ready and stage=='reference':
+        consume_reference_receipt(cur,request,schema=schema,ops=ops)
+        ready=consumed(cur,request,stage=stage,schema=schema)
     conn.commit()
     if not ready:return {'status':'awaiting_consumption'}
     try:mailbox.retire(directory,request)
@@ -108,7 +111,7 @@ def poll(conn,*,state_directory,model_outbox,model_results,reference_outbox,retr
         today=cur.fetchone()[0].isoformat()
         try:
             cleanup=_retire_saved(conn,state,binding,model_outbox=model_outbox,
-                reference_outbox=reference_outbox,schema=schema)
+                reference_outbox=reference_outbox,schema=schema,ops=ops)
         except Exception:
             conn.rollback()
             cleanup={'status':'error','error_type':'MailboxRetirementUnavailable'}

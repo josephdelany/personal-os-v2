@@ -9,15 +9,45 @@ Joe's `/goal` is active. Do not start backend execution from the monitor.
 {
   "version": 1,
   "status": "running",
-  "updated_at": "2026-09-23T19:45:46.263253+00:00",
-  "last_progress_at": "2026-09-23T19:45:46.263253+00:00",
+  "updated_at": "2026-09-23T21:46:48.052612+00:00",
+  "last_progress_at": "2026-09-23T21:46:48.052612+00:00",
   "unit": "M3-B16-voice-capture-to-atoms",
-  "next_action": "Same M3-B16 after5ea1cd8: possessive v2 repair integrated/reviewed. Full noDB1295passed834skipped174.24s; fullSQL1001passed1production-onlyskip339.62s terminal97269/server stopped; layout43pass; ledger14/15 unchanged/F006 diagnostic. Source hashes match, logs/JUnit archived .local/evidence/capture-possessive. GenericRULE04 pending. Scoped commit now; then next acceptance contract for nonpossessive verified qualifier loss (name burger/evidence Examplo burger currently brandNone/queryburger). Preserve exact schema, source-backed supplier identity and no generic substitution; full-name disambiguation also open. FullM0-M6/activation/device/provider holds unchanged."
+  "next_action": "Same M3-B16 source contextv3 locally integrated afterbc5c92c: final fullnoDB1310passed852skipped168.74s; fullSQL1023passed1production-onlyskip335.88s terminal3988/server stopped; layout43. Final source/test hashes match .local/evidence/capture-supplier/final. Ledger14/15 unchanged/F006 warning; genericRULE04 pending. Scoped commit now, then stated-mass connection: verified150 grams currently quantity_unit_unresolved; preserve extraction evidence, reuse deterministic conversion/nutrient owner and weighed intervals without volume-density guessing. No live processes. FullM0-M6 and unseen-brand/post-enrichment correction/deployment/device holds remain open."
 }
 ```
 <!-- backend-control:end -->
 
 ## Current active unit — M3 / B16 voice capture to persisted atoms
+
+**Next bounded acceptance after bc5c92c — source-backed supplier recognition:**
+REQ-NUT013/016, CAP053 and ADR0157. Root owns shared food context, reference
+preparation/consumption, source-brand token helpers and related pure/reference SQL
+tests. No other implementation writer. Preserve exact seven-field extraction schema.
+Positive: a unique supplier token established by retained source brand fields is
+recognized in verified leading evidence, including when the extracted name contains
+the whole supplier/food phrase; keep verbatim supplier/offset and food query, branded
+source and atom readback. Negative: unknown qualifier cannot silently disappear;
+ambiguous/overlapping suppliers, category-only metadata, personal/negated/shared
+context and fabricated spans cannot authorize generic fallback or arbitrary identity.
+Full food names such as shepherd's pie must stay intact without supplier evidence.
+Replay: vocabulary changes must not reuse an incompatible queued query or apply its
+outcome to the newly recognized item; cover recovery rather than permanent refusal.
+No new dependency/production call. Source-backed coverage alone does not establish
+arbitrary unseen-brand recognition; that remains an explicit remaining case.
+Implementation reviewed: source-backed contextv3 and changed-context recovery
+are connected. Final legacy category-cache repair prevents an unbranded query from
+labelling a category as its manufacturer. Pure74 passed35 guarded SQL skips0.89s;
+final targeted SQL134 passed48.70s, terminal36174/server stopped. Earlier fullnoDB
+1309/851skip and SQL1021/1skip passed before this final repair, archived separately
+under .local/evidence/capture-supplier/pre-cache-identity-repair. FINAL fullnoDB1310 passed852 skipped168.74s, terminal28111; ledger14/15 unchanged
+with pre-existing F006 warning. Final SQL1023 passed1 production-only skip335.88s, terminal3988/server stopped.
+Layout43 passes; final code/test hashes match. Invariant suite passes within fullSQL;
+genericRULE04 remains pending. All handles terminal. Scoped commit next. Source manifest/targeted evidence
+in .local/evidence/capture-supplier/final. Full gates pending; no migration change.
+Root also owns nutrition.py, capture_resolution.py, capture_runtime.py, capture_mailbox.py and private
+worker cleanup for these same acceptance cases. Tests use disposable rollback
+fixtures, env -u SUPABASE_DB_URL. Prior integration evidence below is for bc5c92c.
+
 
 **Current bounded acceptance after5ea1cd8:** preserve a possessive supplier qualifier
 inside the verified item evidence but outside its extracted food name. Reproduction:

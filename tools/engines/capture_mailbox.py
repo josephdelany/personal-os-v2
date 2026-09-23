@@ -18,6 +18,22 @@ def consumed(cur,request,*,stage,schema='core'):
     return True
 
 
+def consume_reference_receipt(cur,request,*,schema='core',ops='ops'):
+    """Consume a bound durable receipt even after its capture left the active queue."""
+    from tools.engines import capture_reference
+    schema,ops=capture_transcription._private(schema),capture_transcription._private(ops)
+    cur.execute(f'''SELECT a.payload_sha256 FROM {schema}.capture_reference_attempts a
+        JOIN {ops}.reference_results r USING(request_id)
+        WHERE a.request_id=%s AND (r.outcome='uncertain' OR EXISTS (
+            SELECT 1 FROM {ops}.reference_response_bodies b WHERE b.request_id=a.request_id))''',
+        (request['request_id'],))
+    row=cur.fetchone()
+    if row is None:return None
+    if row[0]!=capture_transcription._digest(request):
+        raise ValueError('queued payload does not match saved attempt')
+    return capture_reference.consume(cur,request_id=request['request_id'],response=None,schema=schema,ops=ops)
+
+
 def consume_control(cur,request,control,*,stage,schema='core'):
     """SQL receipts outrank transport metadata; only budget refusal is actionable."""
     from tools.engines import capture_model_recovery,capture_extraction

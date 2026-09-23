@@ -547,7 +547,7 @@ def test_REQ_NUT_013_016_REQ_CAP_053_possessive_supplier_survives_reference_and_
     item=read['extraction']['resolved_items'][0]
     context=item['resolution']['food_context']
     assert context['brand_evidence']==supplier and context['brand_evidence_start']==4
-    assert context['context_version']=='capture-food-context-v2'
+    assert context['context_version']=='capture-food-context-v3'
     kcal=next(a for a in item['atoms'] if a['metric_key']=='kcal')
     assert float(kcal['value_point'])==180 and count(cur,'raw_captures')==1
 
@@ -568,4 +568,205 @@ def test_REQ_NUT_013_015_016_branded_misses_never_fall_back_to_generic_and_keep_
     review=cur.fetchone()[0]
     assert review['brand']=='Examplo' and review['review_reason']=='no_source_match'
     assert [row['source'] for row in review['tried']]==['usda_branded','off_search']
+    assert count(cur,'atoms')==0
+
+
+def seed_supplier(cur, supplier='Examplo', *, category_only=False):
+    raw={'usda_food':{'brandOwner':None if category_only else supplier,
+                     'brandedFoodCategory':supplier}}
+    cur.execute('''INSERT INTO core_pytest.foods_cache
+        (canonical_name,source,source_id,brand,nutrients_per_100g,raw)
+        VALUES ('Vocabulary fixture','usda_branded','fixture-vocabulary',%s,'{}',%s)''',
+        (supplier,json.dumps(raw)))
+
+
+@pytest.mark.parametrize('embedded',[False,True])
+def test_REQ_NUT_013_016_REQ_CAP_053_source_backed_prefix_reaches_branded_atoms(cur,embedded):
+    seed_supplier(cur)
+    extraction=saved_food_extraction(cur,food_name='Examplo '+NAME if embedded else NAME,
+                                    prefix='' if embedded else 'Examplo ')
+    cur.execute('''INSERT INTO core_pytest.foods_cache
+        (canonical_name,source,source_id,nutrients_per_100g,serving_g)
+        VALUES (%s,'usda_foundation','fixture-generic',%s,40)''',(NAME,json.dumps({'kcal':100})))
+    request=next_source(cur,extraction)
+    assert (request['source'],request['query'],request['brand'])==('usda_branded',NAME,'Examplo')
+    response=source_result();settled(cur,request,response);consume(cur,request,response)
+    result=capture_resolution.resolve(cur,request_id=uuid.uuid4(),capture_id=CID,
+        extraction_request_id=extraction['request_id'],schema='core_pytest',ops='ops_pytest')
+    assert result['items'][0]['status']=='resolved'
+    item=transcription.readback(cur,capture_id=CID,schema='core_pytest')['extraction']['resolved_items'][0]
+    context=item['resolution']['food_context']
+    assert context['brand_evidence']=='Examplo' and context['brand_evidence_start']==4
+    assert next(a for a in item['atoms'] if a['metric_key']=='kcal')['value_point']==180
+    assert count(cur,'raw_captures')==1
+
+
+@pytest.mark.parametrize('category_only',[False,True])
+def test_REQ_NUT_016_unknown_or_category_qualifier_cannot_resolve_generic_atoms(cur,category_only):
+    from tools.engines.capture_food_context import ContextUnresolved
+    if category_only:seed_supplier(cur,category_only=True)
+    extraction=saved_food_extraction(cur,food_name=NAME,prefix='Examplo ')
+    with pytest.raises(ContextUnresolved,match='unrecognized_supplier_context'):
+        next_source(cur,extraction)
+    result=capture_resolution.resolve(cur,request_id=uuid.uuid4(),capture_id=CID,
+        extraction_request_id=extraction['request_id'],schema='core_pytest',ops='ops_pytest')
+    assert result['items'][0]['reason']=='unrecognized_supplier_context' and count(cur,'atoms')==0
+
+
+def test_REQ_NUT_013_016_supplier_discovery_replaces_pending_query_and_rejects_old_receipt(cur):
+    extraction=saved_food_extraction(cur,food_name='Examplo '+NAME)
+    old=next_source(cur,extraction)
+    assert old['brand'] is None and old['query']=='Examplo '+NAME
+    # A completed old generic miss must not skip this source for a changed query.
+    settled(cur,old,{'status':'unresolved','reason':'no_exact_name_match'})
+    seed_supplier(cur)
+    new=next_source(cur,extraction)
+    assert new['request_id']!=old['request_id'] and new['query']==NAME and new['brand']=='Examplo'
+    obsolete=consume(cur,old,{'status':'unresolved','reason':'no_exact_name_match'})
+    assert obsolete['status']=='stale' and not obsolete['applied']
+    assert obsolete['reason']=='supplier_context_changed'
+    response=source_result();settled(cur,new,response);consume(cur,new,response)
+    assert next_source(cur,extraction)['status']=='cached'
+
+
+def test_REQ_NUT_016_runtime_consumes_obsolete_receipt_then_dispatches_current_context(cur):
+    from tools.engines import capture_runtime
+    extraction=saved_food_extraction(cur,food_name='Examplo '+NAME)
+    old=next_source(cur,extraction)
+    refusal={'status':'unresolved','reason':'no_exact_name_match'}
+    cur.execute('SELECT public.reserve_reference_call(%s,%s,%s,%s)',
+        (old['request_id'],old['source'],hashlib.sha256(request_bytes(old)).hexdigest(),len(request_bytes(old))))
+    assert cur.fetchone()[0]['allowed']
+    cur.execute('SELECT public.settle_reference_response(%s,%s,NULL)',
+                (old['request_id'],request_bytes(refusal).decode('utf-8')))
+    seed_supplier(cur)
+    recovered=capture_runtime.advance(cur,capture_id=CID,schema='core_pytest',ops='ops_pytest')
+    assert recovered['status']=='progress' and recovered['outcome']=='stale'
+    assert count(cur,'capture_reference_outcomes')==1 and count(cur,'food_aliases')==0
+    resumed=capture_runtime.advance(cur,capture_id=CID,schema='core_pytest',ops='ops_pytest')
+    assert resumed['status']=='dispatch' and resumed['request']['brand']=='Examplo'
+    assert resumed['request']['query']==NAME and resumed['request']['request_id']!=old['request_id']
+    assert count(cur,'raw_captures')==1 and count(cur,'atoms')==0
+
+
+def test_REQ_CAP_026_REQ_NUT_016_private_cleanup_consumes_late_receipt_after_enrichment(cur,tmp_path):
+    from lib import capture_mailbox as mailbox
+    from tools import capture_private_worker as worker
+    extraction=saved_food_extraction(cur,food_name='Examplo '+NAME)
+    old=next_source(cur,extraction)
+    seed_supplier(cur)
+    new=next_source(cur,extraction)
+    response=source_result();settled(cur,new,response);consume(cur,new,response)
+    complete=capture_resolution.resolve(cur,request_id=uuid.uuid4(),capture_id=CID,
+        extraction_request_id=extraction['request_id'],schema='core_pytest',ops='ops_pytest')
+    assert complete['processing_status']=='enriched'
+    before=count(cur,'atoms')
+    # The old provider settles only after the capture has left the active queue.
+    cur.execute('SELECT public.reserve_reference_call(%s,%s,%s,%s)',
+        (old['request_id'],old['source'],hashlib.sha256(request_bytes(old)).hexdigest(),len(request_bytes(old))))
+    assert cur.fetchone()[0]['allowed']
+    cur.execute('SELECT public.settle_reference_response(%s,%s,NULL)',
+        (old['request_id'],request_bytes({'status':'unresolved','reason':'no_exact_name_match'}).decode()))
+    paths={name:tmp_path/name for name in ('state_directory','model_outbox','model_results','reference_outbox')}
+    for path in paths.values():path.mkdir(mode=0o750)
+    mailbox.publish(paths['reference_outbox'],old)
+    class Connection:
+        def cursor(self):return cur
+        def commit(self):pass  # outer SQL fixture always rolls back
+        def rollback(self):raise AssertionError('unexpected receipt cleanup rollback')
+    cur.execute('SET SESSION AUTHORIZATION service_role')
+    try:
+        result=worker.poll(Connection(),**paths,schema='core_pytest',ops='ops_pytest')
+        assert result['result']['status']=='idle' and result['cleanup']['status']=='retired'
+        assert mailbox.pending(paths['reference_outbox'])==[]
+    finally:cur.execute('RESET SESSION AUTHORIZATION')
+    cur.execute('SELECT status,applied FROM core_pytest.capture_reference_outcomes WHERE request_id=%s',
+                (old['request_id'],))
+    assert tuple(cur.fetchone())==('stale',False)
+    assert count(cur,'atoms')==before and count(cur,'raw_captures')==1
+
+
+@pytest.mark.parametrize('source,brand,raw',[
+    ('usda_branded','Different owner',{'usda_food':{'brandName':'Examplo'}}),
+    ('off_product','Different owner',{'off_product':{'brands':'Other, Examplo'}}),
+    ('joe','Examplo',{}),
+])
+def test_REQ_NUT_013_supplier_vocabulary_uses_source_brand_fields_and_owner_corrections(cur,source,brand,raw):
+    cur.execute('''INSERT INTO core_pytest.foods_cache
+        (canonical_name,source,source_id,brand,nutrients_per_100g,raw)
+        VALUES ('Vocabulary fixture',%s,'fixture-vocabulary',%s,'{}',%s)''',(source,brand,json.dumps(raw)))
+    extraction=saved_food_extraction(cur,food_name=NAME,prefix='Examplo ')
+    request=next_source(cur,extraction)
+    assert request['brand']=='Examplo' and request['query']==NAME and request['source']=='usda_branded'
+
+
+def test_REQ_NUT_016_catalogued_food_brand_collision_remains_unresolved_in_private_consumer(cur):
+    from tools.engines.capture_food_context import ContextUnresolved
+    seed_supplier(cur,'Apple')
+    cur.execute('''INSERT INTO core_pytest.foods_cache
+        (canonical_name,source,source_id,nutrients_per_100g)
+        VALUES ('Apple','usda_foundation','fixture-apple','{}')''')
+    extraction=saved_food_extraction(cur,food_name='Apple pie')
+    with pytest.raises(ContextUnresolved,match='supplier_food_name_collision'):
+        next_source(cur,extraction)
+    assert count(cur,'capture_reference_attempts')==0 and count(cur,'atoms')==0
+
+
+@pytest.mark.parametrize('form',['whole_prefix','whole_clause','unrecognized_evidence','alias'])
+def test_RULE_10_REQ_NUT_017_original_phrase_correction_outranks_normalized_provider(cur,form):
+    from tools.engines import nutrition_off as off
+    row=source_result()['row']
+    off.insert_cache_row(cur,row,schema='core_pytest')
+    phrase=(NAME+' from Examplo' if form=='whole_clause' else
+            ('Unknown ' if form=='unrecognized_evidence' else 'Examplo ')+NAME)
+    extraction=saved_food_extraction(cur,food_name=NAME if form=='unrecognized_evidence' else phrase,
+                                    prefix='Unknown ' if form=='unrecognized_evidence' else '',
+                                    quantity_text='one serving',quantity_unit='serving')
+    canonical='Owner fixture recipe' if form=='alias' else phrase
+    cur.execute('''INSERT INTO core_pytest.foods_cache
+        (canonical_name,source,source_id,nutrients_per_100g,serving_g)
+        VALUES (%s,'joe','fixture-correction',%s,40) RETURNING food_id''',
+        (canonical,json.dumps({'kcal':1000})))
+    owner_id=cur.fetchone()[0]
+    if form=='alias':
+        cur.execute('''INSERT INTO core_pytest.food_aliases(alias,verbatim,food_id,source)
+            VALUES (%s,%s,%s,'joe')''',(phrase.lower(),phrase,owner_id))
+    assert next_source(cur,extraction)=={'status':'cached','food_id':str(owner_id)}
+    result=capture_resolution.resolve(cur,request_id=uuid.uuid4(),capture_id=CID,
+        extraction_request_id=extraction['request_id'],schema='core_pytest',ops='ops_pytest')
+    assert result['items'][0]['status']=='resolved'
+    item=transcription.readback(cur,capture_id=CID,schema='core_pytest')['extraction']['resolved_items'][0]
+    assert item['resolution']['source']=='joe' and item['resolution']['food_id']==str(owner_id)
+    assert float(next(a for a in item['atoms'] if a['metric_key']=='kcal')['value_point'])==400
+    cur.execute("SELECT count(*) FROM core_pytest.food_aliases WHERE source='joe' AND alias=%s",(NAME.lower(),))
+    assert cur.fetchone()[0]==0
+    assert count(cur,'capture_reference_attempts')==0
+
+
+@pytest.mark.parametrize('suffix',[False,True])
+def test_RULE_10_REQ_NUT_016_generic_owner_correction_does_not_override_supplier_scoped_item(cur,suffix):
+    from tools.engines import nutrition_off as off
+    provider_id=off.insert_cache_row(cur,source_result()['row'],schema='core_pytest')
+    cur.execute('''INSERT INTO core_pytest.foods_cache
+        (canonical_name,source,source_id,nutrients_per_100g,serving_g)
+        VALUES (%s,'joe','fixture-generic-owner',%s,40)''',(NAME,json.dumps({'kcal':1000})))
+    extraction=saved_food_extraction(cur,food_name=NAME,prefix='' if suffix else 'Examplo ',
+                                    suffix=' from Examplo' if suffix else '')
+    assert next_source(cur,extraction)=={'status':'cached','food_id':str(provider_id)}
+    result=capture_resolution.resolve(cur,request_id=uuid.uuid4(),capture_id=CID,
+        extraction_request_id=extraction['request_id'],schema='core_pytest',ops='ops_pytest')
+    assert result['items'][0]['status']=='resolved'
+    item=transcription.readback(cur,capture_id=CID,schema='core_pytest')['extraction']['resolved_items'][0]
+    assert item['resolution']['source']=='usda_branded'
+    assert float(next(a for a in item['atoms'] if a['metric_key']=='kcal')['value_point'])==180
+
+
+def test_REQ_NUT_014_legacy_category_cache_row_does_not_short_circuit_reference_lookup(cur):
+    cur.execute('''INSERT INTO core_pytest.foods_cache
+        (canonical_name,source,source_id,brand,nutrients_per_100g,serving_g,raw)
+        VALUES (%s,'usda_branded','fixture-category','Snack Bars',%s,40,%s)''',
+        (NAME,json.dumps({'kcal':450}),json.dumps({'usda_food':{'brandedFoodCategory':'Snack Bars'}})))
+    extraction=saved_food_extraction(cur,food_name=NAME)
+    request=next_source(cur,extraction)
+    assert 'request_id' in request and request['query']==NAME
     assert count(cur,'atoms')==0

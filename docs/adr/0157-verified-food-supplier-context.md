@@ -49,3 +49,47 @@ skipped174.24s; full SQL1001 passed1 production-only skip339.62s; layout43.
 Ledger14/15 unchanged/F006 existing diagnostic; genericRULE04 pending. No migration.
 Source hashes and JUnit/logs archived .local/evidence/capture-possessive/. Review
 accepted the scoped repair with conservative multi-item refusals noted.
+
+Version3 source-backed extension (after bc5c92c; integration pending): the private
+context owner recognizes unique leading supplier tokens from retained USDA
+brandOwner/brandName, OFF brands and explicit owner brand fields. Food categories
+never establish supplier identity; retained provider identity also overrules a
+misparsed cached brand. Matching remains verbatim and bounded, not capitalization
+or arbitrary possessive stripping. Catalogued food/brand collisions refuse; this
+does not prove arbitrary semantic disambiguation or unseen-brand recognition.
+Articles and separately verified quantities are not unexplained supplier prefixes.
+
+An exact owner correction for the complete supplier-bearing phrase wins before
+provider lookup, including an exact alias and explicit supplier outside the selected
+evidence. It keeps its narrow phrase; it is never attached to the stripped generic
+name. Normalized named-item lookup excludes unbranded generic owner corrections.
+Owner-only resolution cannot fall through to provider data if that correction is
+unavailable. Unknown qualifiers inside complete evidence and known food-name
+collisions may be settled by an exact owner correction; invalid/shared outside
+evidence and negated context do not gain this exception.
+
+Vocabulary changes invalidate incompatible query/brand attempts for current source
+selection. Settled obsolete responses are recorded stale without publishing cache
+or aliases. Runtime handles active captures; independent mailbox cleanup consumes
+late durable receipts even after a capture leaves the active queue, confirms commit,
+and only then retires the bound transient request. Hash-only historical receipts
+without saved bodies remain unrecoverable through this path. No authoritative data
+is removed, no new model schema/dependency/migration/permission is introduced.
+
+Final cache-identity review repair: a legacy nonempty USDA brand copied from a
+category is treated as a cache miss when retained raw has no genuine supplier
+identity, including unbranded queries. It cannot become a labelled manufacturer
+claim; existing null-brand refusal remains. Pure74 and targeted SQL134 pass after
+this repair. Earlier full-suite results precede it; final integration pending.
+Owner-correction tests cover existing exact cache/alias corrections at resolution,
+not the complete post-enrichment correction/reprocessing lifecycle.
+
+Source-context final integration: fullnoDB1310 passed852 skipped168.74s, terminal28111;
+fullSQL1023 passed1 production-only skip335.88s, terminal3988/server stopped. Layout43
+passes. Source/test hashes match final launch manifest; JUnit/logs/skip reasons in
+.local/evidence/capture-supplier/final. Ledger14/15 unchanged with existing F006
+evidence-name warning. NoDB skips are guarded SQL/live checks and two existing
+NumPyro cases. Invariant suite passes within fullSQL; genericRULE04 remains pending.
+No migration changed. Independent review accepted final cache-identity repair.
+This closes the scoped local integration, not unseen-brand semantics, post-enrichment
+correction lifecycle, observed device/provider execution, M3 or M6.

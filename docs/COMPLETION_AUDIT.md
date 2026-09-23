@@ -571,3 +571,41 @@ Invariant suite passes within fullSQL; genericRULE04 remains pending. Source/tes
 hashes match archived launch manifest; logs/JUnit .local/evidence/capture-possessive/.
 No migration changed. This closes the scoped parser repair, not general supplier
 recognition, real capture observation, M3 or M6.
+
+
+## 2026-09-23 — Source-backed supplier context v3 after bc5c92c (integration pending)
+
+| Lens | Evidence and remaining gate |
+|---|---|
+| Contract fidelity | PARTIAL: NUT013/016/CAP053 known supplier prefix/full-name spans preserved; unseen suppliers and arbitrary lexical ambiguity remain open. Source categories are excluded. |
+| Complete user paths | Targeted SQL covers saved extraction/reference/cache/atoms and exact owner corrections vs provider values; final targeted SQL134passed48.70s; final full integration running. Real device/provider path not observed. |
+| Failure behavior | Pure74 passes with35 guarded SQL skips; unknown/narrowed/shared/negated context, overlapping suppliers, known food collisions and metadata substitution refuse. Articles and verified quantities retained. |
+| Data integrity | Exact full-scope owner corrections win; generic unbranded correction cannot override named item. Current query/brand filters old requests; stale receipts publish no aliases/cache. Raw/atoms unchanged by cleanup. |
+| Access/privacy | Existing private owner reads source metadata; only prepared food query/supplier egress. Existing SQL receipt/hash checks gate cleanup; no new credential or destination. |
+| Runtime/deployment | Actual private poll consumes a late receipt after enrichment and retires after commit; no daemon deployment or real provider evidence. |
+| Operations/recovery | Active runtime and independent cleanup cover changed-context receipts; ambiguous commit retains mailbox file. Historical hash-only receipts without response bodies remain a limitation. |
+| Evidence/reproducibility | Final targetedSQL134passed48.70s; fullnoDB28111 and SQL3988 running, manifest .local/evidence/capture-supplier/final. Earlier fullnoDB1309/851skip and SQL1021/1skip precede final cache-identity repair. No migration change; genericRULE04 pending. |
+
+Independent review repaired article/count regression, late-terminal receipt lifecycle,
+whole-phrase correction hiding and generic-owner scope bypass. Reviewer accepted
+the final scope repair, with unseen-brand interpretation explicitly incomplete.
+One late cleanup assertion compared list/tuple; corrected assertion shape. Four
+owner comparison fixtures lacked explicit serving evidence; kept the quantity guard
+and supplied stated serving units rather than assuming item count equals a serving.
+
+Final review also reproduced a legacy category-only cache row acquiring a labelled
+manufacturer claim for an unbranded query. Repaired by treating invalid retained
+identity as a cache miss, preserving the existing null-brand refusal. Reviewer
+accepted this repair. Full prior checks are archived separately; they do not prove
+the final sources. Exact owner cache/alias precedence tests do not close the broader
+post-enrichment correction/reprocessing lifecycle.
+
+Source-context final integration: fullnoDB1310 passed852 skipped168.74s, terminal28111;
+fullSQL1023 passed1 production-only skip335.88s, terminal3988/server stopped. Layout43
+passes. Source/test hashes match final launch manifest; JUnit/logs/skip reasons in
+.local/evidence/capture-supplier/final. Ledger14/15 unchanged with existing F006
+evidence-name warning. NoDB skips are guarded SQL/live checks and two existing
+NumPyro cases. Invariant suite passes within fullSQL; genericRULE04 remains pending.
+No migration changed. Independent review accepted final cache-identity repair.
+This closes the scoped local integration, not unseen-brand semantics, post-enrichment
+correction lifecycle, observed device/provider execution, M3 or M6.

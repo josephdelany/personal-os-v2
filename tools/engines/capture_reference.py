@@ -34,11 +34,18 @@ def _current(cur, capture_id, schema):
 
 def source_outcomes(cur, *, capture_id, extraction_request_id, item_index, schema='core'):
     schema = _private(schema)
+    try:
+        context=capture_food_context.load(cur,extraction_request_id=extraction_request_id,
+                                         item_index=item_index,schema=schema)
+    except capture_food_context.ContextUnresolved:
+        return {}  # no prior source answer can settle an unresolved current context
     cur.execute(f'''SELECT DISTINCT ON (a.source) a.source,a.request_id,o.status,o.reason
         FROM {schema}.capture_reference_attempts a
         LEFT JOIN {schema}.capture_reference_outcomes o USING(request_id)
         WHERE a.capture_id=%s AND a.extraction_request_id=%s AND a.item_index=%s
-        ORDER BY a.source,a.attempt_no DESC''',(capture_id,extraction_request_id,item_index))
+          AND a.payload->>'query'=%s AND a.payload->>'brand' IS NOT DISTINCT FROM %s
+        ORDER BY a.source,a.attempt_no DESC''',
+        (capture_id,extraction_request_id,item_index,context['query'],context['brand']))
     return {source:{'request_id':str(rid),'status':status,'reason':reason}
             for source,rid,status,reason in cur.fetchall()}
 
@@ -75,9 +82,13 @@ def prepare(cur, *, request_id, capture_id, extraction_request_id, item_index, s
     if name is None or name[1]!='extracted' or not isinstance(name[0],str) or not name[0].strip():
         raise ValueError('verified saved food name required')
     context=capture_food_context.load(cur,extraction_request_id=extraction_request_id,item_index=item_index,schema=schema)
-    cached,_ = nutrition.lookup_cached(cur,context['query'],schema,brand=context['brand'])
+    cached,_ = nutrition.lookup_cached(cur,context['query'],schema,brand=context['brand'],
+                                      owner_only=context.get('owner_correction',False),
+                                      allow_unbranded_owner=context.get('owner_correction',False))
     if cached is not None:
         return {'status':'cached','food_id':cached['food_id']}
+    if context.get('owner_correction'):
+        raise capture_food_context.ContextUnresolved('owner_correction_changed')
     if source=='auto':
         outcomes=source_outcomes(cur,capture_id=capture_id,extraction_request_id=extraction_request_id,
                                  item_index=item_index,schema=schema)
@@ -102,9 +113,10 @@ def prepare(cur, *, request_id, capture_id, extraction_request_id, item_index, s
     cur.execute(f'''SELECT a.request_id,a.payload FROM {schema}.capture_reference_attempts a
         LEFT JOIN {schema}.capture_reference_outcomes o USING(request_id)
         WHERE a.capture_id=%s AND a.extraction_request_id=%s AND a.item_index=%s AND a.source=%s
+          AND a.payload->>'query'=%s AND a.payload->>'brand' IS NOT DISTINCT FROM %s
           AND (o.request_id IS NULL OR (a.expected_event_id=%s AND o.status='unresolved'))
         ORDER BY a.recorded_at DESC,a.request_id LIMIT 1''',
-        (capture_id,extraction_request_id,item_index,source,current[1]))
+        (capture_id,extraction_request_id,item_index,source,context['query'],context['brand'],current[1]))
     pending = cur.fetchone()
     if pending is not None:
         return _prepared_or_done(cur,str(pending[0]),pending[1],schema)
@@ -222,11 +234,19 @@ def consume(cur, *, request_id, response, schema='core', ops='ops'):
             reason = response['reason']
     current = _current(cur,capture,schema)
     applied = current is not None and str(current[0])==str(extraction) and current[2] in ACTIVE
+    stale_reason='extraction_changed'
+    if applied:
+        try:
+            context=capture_food_context.load(cur,extraction_request_id=extraction,item_index=item_index,schema=schema)
+            applied=(payload['query']==context['query'] and payload['brand']==context['brand'])
+        except capture_food_context.ContextUnresolved:
+            applied=False
+        stale_reason='supplier_context_changed'
     food_id = None
     cur.execute('SAVEPOINT capture_reference')
     try:
         if not applied:
-            status,reason = 'stale','extraction_changed'
+            status,reason = 'stale',stale_reason
         elif row is not None:
             food_id = off.insert_cache_row(cur,row,schema=schema,refresh=True)
             if food_id is None:
@@ -269,3 +289,37 @@ def readback(cur, *, capture_id, schema='core'):
              'source':source,'status':status or 'awaiting_result','applied':applied,
              'food_id':str(food) if food is not None else None,'reason':reason}
             for rid,extraction,index,source,status,applied,food,reason in cur.fetchall()]
+
+
+def consume_obsolete(cur, *, capture_id, extraction_request_id, schema='core', ops='ops'):
+    """Retire one durable obsolete receipt without publishing its cache or alias.
+
+    Context discovery can change the query while an older request is in flight.
+    Current-source selection intentionally ignores that request; this separate
+    recovery path ensures its eventual durable receipt is still consumed.
+    """
+    schema,ops=_private(schema),_private(ops)
+    cur.execute(f'''SELECT a.request_id,a.extraction_request_id,a.item_index,a.payload
+        FROM {schema}.capture_reference_attempts a
+        JOIN {ops}.reference_results r USING(request_id)
+        LEFT JOIN {schema}.capture_reference_outcomes o USING(request_id)
+        WHERE a.capture_id=%s AND o.request_id IS NULL
+          AND (r.outcome='uncertain' OR EXISTS (
+              SELECT 1 FROM {ops}.reference_response_bodies b WHERE b.request_id=a.request_id))
+        ORDER BY a.recorded_at,a.request_id''',(capture_id,))
+    attempts=cur.fetchall()
+    contexts={}
+    for request_id,extraction,index,payload in attempts:
+        obsolete=str(extraction)!=str(extraction_request_id)
+        if not obsolete:
+            if index not in contexts:
+                try:
+                    contexts[index]=capture_food_context.load(cur,extraction_request_id=extraction,
+                                                             item_index=index,schema=schema)
+                except capture_food_context.ContextUnresolved:
+                    contexts[index]=None
+            context=contexts[index]
+            obsolete=(context is None or context['query']!=payload['query'] or context['brand']!=payload['brand'])
+        if obsolete:
+            return consume(cur,request_id=request_id,response=None,schema=schema,ops=ops)
+    return None

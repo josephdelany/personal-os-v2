@@ -8241,3 +8241,52 @@ device testing, deployment, independent SQL crash proof or M3/M6 release. Generi
 RULE04 remains pending. Reproduced next gap: evidence Examplo burger with name burger
 drops the qualifier. Source-backed supplier recognition needs its own acceptance
 cases; unknown modifiers must not silently disappear into a generic match.
+
+
+## 2026-09-23 — Source-backed supplier context after bc5c92c (full integration running)
+
+REQ-NUT013/014/016/017, CAP026/053, RULE10: retained supplier fields now support
+leading qualifiers and whole-name phrases through the shared private context owner.
+Categories and contradictory retained metadata cannot establish source identity.
+Unknown qualifiers and catalogued food-name collisions refuse; exact full-scope
+owner corrections remain usable without widening their aliases to generic foods.
+A generic unbranded owner correction cannot override a named restaurant item.
+
+Current-context source selection ignores obsolete queries. Durable stale receipts
+are consumed without publishing cache/aliases; independent mailbox cleanup covers
+late arrival after enrichment and confirms commit before transient-file retirement.
+No raw evidence or atom changes, model-schema change, dependency or migration.
+
+Review found article/count regression, late-terminal receipt gap, hidden full-phrase
+corrections and generic correction scope bypass; each has a repair/regression, and
+reviewer accepted final scoped behavior. Fixture failures: list/tuple assertion
+shape fixed; owner value comparisons now state serving units rather than assuming
+an item equals a serving. The quantity guard was retained.
+
+Final pure73 passed35 guarded SQL skips1.12s; targetedSQL132 passed66.97s, server
+stopped. Full noDB70097 and SQL50180 running; logs under /tmp/capture-supplier-*.
+Launch source hashes and targeted JUnit/logs in .local/evidence/capture-supplier/.
+
+WHAT I DID NOT DO: general unseen-brand/semantic disambiguation, real device/provider
+observation, deployment, SQL crash durability or M3/M6 release. Historical hash-only
+reference receipts without saved bodies cannot be recovered here. GenericRULE04
+remains pending. Full integration and ledger reconciliation remain in progress.
+
+Source-context final review repair: legacy USDA category-as-brand could still become
+a labelled result for an unbranded query. Now it is a cache miss if retained source
+identity is invalid. Pure74 passed35 SQL skips0.89s; final targetedSQL134 passed48.70s.
+Reviewer accepted repair. Prior fullnoDB1309/851skip185.58s and fullSQL1021/1skip
+342.60s (server stopped) are archived in pre-cache-identity-repair, not claimed for
+final sources. Final noDB28111 and SQL3988 running; final launch hashes and targeted
+archive .local/evidence/capture-supplier/final. No code changed after this launch.
+Broader post-enrichment correction lifecycle and unseen-brand semantics remain open.
+
+Source-context final integration: fullnoDB1310 passed852 skipped168.74s, terminal28111;
+fullSQL1023 passed1 production-only skip335.88s, terminal3988/server stopped. Layout43
+passes. Source/test hashes match final launch manifest; JUnit/logs/skip reasons in
+.local/evidence/capture-supplier/final. Ledger14/15 unchanged with existing F006
+evidence-name warning. NoDB skips are guarded SQL/live checks and two existing
+NumPyro cases. Invariant suite passes within fullSQL; genericRULE04 remains pending.
+No migration changed. Independent review accepted final cache-identity repair.
+This closes the scoped local integration, not unseen-brand semantics, post-enrichment
+correction lifecycle, observed device/provider execution, M3 or M6.

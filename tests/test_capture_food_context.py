@@ -76,3 +76,47 @@ def test_REQ_NUT_016_shared_possessive_does_not_make_later_item_generic():
     text="Examplo's burger and fries"
     with pytest.raises(ContextUnresolved,match='shared_supplier_context'):
         explicit_supplier(text,name='fries',evidence='fries',evidence_start=text.index('fries'))
+
+
+@pytest.mark.parametrize('name',['burger','Examplo burger'])
+def test_REQ_NUT_013_known_supplier_prefix_keeps_verbatim_context(name):
+    result=explicit_supplier('one Examplo burger',name=name,evidence='Examplo burger',
+                             evidence_start=4,known_suppliers=('Examplo',))
+    assert result['query']=='burger' and result['brand']=='Examplo'
+    assert result['brand_evidence_start']==4 and result['brand_evidence']=='Examplo'
+
+
+def test_REQ_NUT_016_unknown_qualifier_cannot_be_dropped_for_generic_lookup():
+    with pytest.raises(ContextUnresolved,match='unrecognized_supplier_context'):
+        explicit_supplier('one Examplo burger',name='burger',evidence='Examplo burger',evidence_start=4)
+
+
+@pytest.mark.parametrize('text,name,evidence,tokens',[
+    ('Examplo Foods burger','burger','Examplo Foods burger',('Examplo','Examplo Foods')),
+    ('my Examplo burger','burger','Examplo burger',('Examplo',)),
+    ('not Examplo burger','burger','Examplo burger',('Examplo',)),
+    ('Examplo burger','burger','burger',('Examplo',)),
+    ('Examplo burger and fries','fries','fries',('Examplo',)),
+])
+def test_REQ_NUT_016_known_supplier_ambiguity_and_narrowed_evidence_refuse(text,name,evidence,tokens):
+    with pytest.raises(ContextUnresolved):
+        explicit_supplier(text,name=name,evidence=evidence,evidence_start=text.index(evidence),
+                          known_suppliers=tokens)
+
+
+def test_REQ_CAP_053_acceptance_article_and_verified_quantity_are_not_suppliers():
+    result=explicit_supplier('I ate a Big Mac',name='Big Mac',evidence='a Big Mac',evidence_start=6)
+    assert result['query']=='Big Mac' and result['brand'] is None
+    result=explicit_supplier('one burger',name='burger',evidence='one burger',evidence_start=0,
+                             quantity_spans=((0,'one'),))
+    assert result['query']=='burger' and result['brand'] is None
+    result=explicit_supplier('two Examplo burgers',name='burgers',evidence='two Examplo burgers',
+                             evidence_start=0,quantity_spans=((0,'two'),),known_suppliers=('Examplo',))
+    assert result['brand']=='Examplo' and result['brand_evidence_start']==4
+
+
+@pytest.mark.parametrize('foods',[('apple',),('apple pie',)])
+def test_REQ_NUT_016_catalogued_food_and_brand_collision_requires_review(foods):
+    with pytest.raises(ContextUnresolved,match='supplier_food_name_collision'):
+        explicit_supplier('apple pie',name='apple pie',evidence='apple pie',evidence_start=0,
+                          known_suppliers=('Apple',),known_foods=foods)

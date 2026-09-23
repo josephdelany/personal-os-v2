@@ -118,8 +118,11 @@ def resolve(cur, *, request_id, capture_id, extraction_request_id, schema='core'
                 except capture_food_context.ContextUnresolved as error:
                     raise nutrition.Unresolved(name['value'],[],reason=str(error),review_reason=str(error)) from None
                 quantity=_quantity(fields,index,name['value'])
+                selected_sources=({'joe':nutrition.CacheLeg(cur,schema,owner_only=True)}
+                                  if context.get('owner_correction') else
+                                  {**sources,'joe':nutrition.CacheLeg(cur,schema,allow_unbranded_owner=False)})
                 resolved=nutrition.resolve_item(cur,context['query'],schema=schema,config=config,ops=ops,
-                                                sources=sources,brand=context['brand'],**quantity)
+                                                sources=selected_sources,brand=context['brand'],**quantity)
                 resolved['food_context']=context
             except nutrition.Unresolved as missing:
                 if missing.reason=='no_source_available':

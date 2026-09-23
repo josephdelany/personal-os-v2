@@ -54,6 +54,10 @@ def advance(cur, *, capture_id, retry=False, schema='core', ops='ops', config='c
         if status=='pending_enrichment' and saved['last_error']!='resolution_incomplete' and not retry:
             return {'status':'retry_pending','capture_id':capture_id}
         extraction=saved['extraction']
+        obsolete=capture_reference.consume_obsolete(cur,capture_id=capture_id,
+            extraction_request_id=extraction['request_id'],schema=schema,ops=ops)
+        if obsolete is not None:
+            return {'status':'progress','capture_id':capture_id,'stage':'reference','outcome':obsolete['status']}
         waiting=None
         for field in extraction['fields']:
             if field['name']!='name' or field['provenance']!='extracted' or field['value'] is None:

@@ -288,7 +288,8 @@ def _brand_tokens(food):
     """Every string that could be this food's brand. `brandOwner` is the legal manufacturer and
     `brandName` the marketing name; they differ often enough that matching only one loses
     products ("Frito-Lay" owns "Doritos")."""
-    return [food.get("brandOwner"), food.get("brandName"), food.get("brandedFoodCategory")]
+    return [food[key] for key in ("brandOwner", "brandName")
+            if isinstance(food.get(key), str) and food[key].strip()]
 
 
 def select_exact_match(query, foods, source, *, brand=None):

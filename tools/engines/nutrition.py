@@ -151,9 +151,13 @@ def cached_row_answers_brand(source, row_brand, brand, raw=None):
     raw=raw if isinstance(raw,dict) else {}
     tokens=[row_brand]
     if source=='usda_branded':
-        tokens.extend(nutrition_usda._brand_tokens(raw.get('usda_food') or {}))
+        if isinstance(raw.get('usda_food'),dict):
+            # Retained provider fields outrank a previously misparsed cache
+            # brand (older adapters also treated food categories as suppliers).
+            tokens=nutrition_usda._brand_tokens(raw['usda_food'])
     elif source=='off_product':
-        tokens.extend(nutrition_off._brand_tokens(raw.get('off_product') or {}))
+        if isinstance(raw.get('off_product'),dict):
+            tokens=nutrition_off._brand_tokens(raw['off_product'])
     if any(nutrition_off.normalise_name(token)==nutrition_off.normalise_name(brand)
            for token in tokens if token):
         return True
@@ -162,7 +166,7 @@ def cached_row_answers_brand(source, row_brand, brand, raw=None):
     return source == "joe"
 
 
-def lookup_cached(cur, name, schema="core", brand=None):
+def lookup_cached(cur, name, schema="core", brand=None, *, owner_only=False,allow_unbranded_owner=True):
     """The cache, in precedence order. Returns (row, method) or (None, None).
 
     Two ways in, and REQ-NUT-001 names both: step (1) is a `food_aliases` exact match on the
@@ -199,11 +203,21 @@ def lookup_cached(cur, name, schema="core", brand=None):
                       and original.source_id is not distinct from c.source_id))
                and (c.source not in ('usda_branded','off_product')
                     or c.fetched_at >= clock_timestamp()-interval '365 days')
+               and (NOT %s OR c.source='joe')
              order by array_position(%s::text[], c.source),aliased desc,c.fetched_at desc,c.food_id""",
-        (name, name, name, list(SOURCE_PRECEDENCE)))
+        (name, name, name, owner_only, list(SOURCE_PRECEDENCE)))
     matches={}
     priority=None
     for canonical, source, nutrients, serving_g, row_brand, food_id, source_id, raw, aliased in cur.fetchall():
+        # Old adapters could persist a category as the owner. Treat that row as
+        # a miss even for an unbranded query; it must not acquire a labelled
+        # claim merely because its misparsed brand string is nonempty. Keep the
+        # existing null-brand guard in CacheLeg for rows lacking that field.
+        if (source=='usda_branded' and row_brand and isinstance(raw,dict) and 'usda_food' in raw
+            and (not isinstance(raw['usda_food'],dict) or not nutrition_usda._brand_tokens(raw['usda_food']))):
+            continue
+        if brand and source=='joe' and not row_brand and not allow_unbranded_owner:
+            continue
         if brand and not cached_row_answers_brand(source, row_brand, brand,raw):
             continue
         if priority is not None and priority!=(source,aliased):
@@ -254,14 +268,17 @@ class CacheLeg:
 
     counts_as_asked = False
 
-    def __init__(self, cur, schema="core", notes=None):
+    def __init__(self, cur, schema="core", notes=None, *, owner_only=False,allow_unbranded_owner=True):
         self.cur, self.schema = cur, schema
+        self.owner_only=owner_only
+        self.allow_unbranded_owner=allow_unbranded_owner
         self.notes = [] if notes is None else notes
         self.calls = 0
 
     def __call__(self, item_text, brand):
         self.calls += 1
-        cached, source = lookup_cached(self.cur, item_text, self.schema, brand=brand)
+        cached, source = lookup_cached(self.cur, item_text, self.schema, brand=brand,owner_only=self.owner_only,
+                                      allow_unbranded_owner=self.allow_unbranded_owner)
         # The shape the pre-cascade `resolve_item` recorded, kept verbatim so an existing
         # reader of `tried` — and the test that pins it — still finds what it looks for.
         self.notes.append({"source": "foods_cache", "hit": cached is not None})

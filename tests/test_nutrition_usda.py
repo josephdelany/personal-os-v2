@@ -1406,3 +1406,40 @@ def test_RULE_01_a_disposable_server_run_does_not_get_a_live_usda_transport(sql_
         assert isinstance(sources[name], nutrition.UnconfiguredLeg)
         assert sources[name].detail == nutrition.USDA_TRANSPORT_REFUSED
     assert nutrition_cascade.resolvable_sources(sources) == ("joe",)
+
+
+def test_REQ_NUT_013_014_food_category_does_not_establish_supplier_identity():
+    food=branded_food(brand_owner='Examplo Foods',brandedFoodCategory='Snack Bars')
+    with pytest.raises(usda.UsdaNotFound):
+        usda.select_exact_match(food['description'],[food],BRANDED,brand='Snack Bars')
+    food['brandOwner']=None
+    food['brandName']=None
+    with pytest.raises(usda.UsdaMalformed,match='branded_without_brand_owner'):
+        usda.parse_food(food,BRANDED)
+
+
+def test_REQ_NUT_016_retained_source_identity_overrules_misparsed_cache_brand():
+    assert not nutrition.cached_row_answers_brand('usda_branded','Snack Bars','Snack Bars',
+        {'usda_food':{'brandedFoodCategory':'Snack Bars'}})
+    assert not nutrition.cached_row_answers_brand('usda_branded','Wrong','Wrong',
+        {'usda_food':{'brandOwner':'Examplo'}})
+    assert nutrition.cached_row_answers_brand('usda_branded','Wrong','Examplo',
+        {'usda_food':{'brandOwner':'Examplo'}})
+    assert not nutrition.cached_row_answers_brand('off_product','Wrong','Wrong',
+        {'off_product':{'brands':'Examplo, Other'}})
+    assert nutrition.cached_row_answers_brand('off_product','Wrong','Other',
+        {'off_product':{'brands':'Examplo, Other'}})
+
+
+def test_REQ_NUT_014_nontext_supplier_fields_do_not_create_manufacturer_identity():
+    with pytest.raises(usda.UsdaMalformed,match='branded_without_brand_owner'):
+        usda.parse_food(branded_food(brand_owner=None,brandName=True,brandedFoodCategory='Snack Bars'),BRANDED)
+
+
+def test_REQ_NUT_014_unbranded_cache_query_cannot_label_a_category_as_manufacturer():
+    class Cursor:
+        def execute(self,*args):pass
+        def fetchall(self):
+            return [('Fixture bar','usda_branded',{'kcal':450},40,'Snack Bars',
+                     uuid.uuid4(),'fixture-category',{'usda_food':{'brandedFoodCategory':'Snack Bars'}},False)]
+    assert nutrition.CacheLeg(Cursor())('Fixture bar',None) is None
