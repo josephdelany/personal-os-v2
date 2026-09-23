@@ -41,7 +41,7 @@ from tools.engines import nutrition_cascade
 from tools.engines import nutrition_off
 from tools.engines import nutrition_usda
 
-CODE_VERSION = "nutrition-v2"
+CODE_VERSION = "nutrition-v3"
 
 # The order sources are consulted. Joe's own corrections outrank everything, permanently
 # (RULE-10, §D.4) — once he has said what a portion is, nothing re-guesses it.
@@ -132,7 +132,7 @@ def widest_method(methods, widths):
 
 # ---------------------------------------------------------------- lookup
 
-def cached_row_answers_brand(source, row_brand, brand):
+def cached_row_answers_brand(source, row_brand, brand, raw=None):
     """REQ-NUT-016 at the cache, where it is easiest to break.
 
     The substitution REQ-NUT-016 forbids does not only happen over the network. Once a generic
@@ -148,8 +148,17 @@ def cached_row_answers_brand(source, row_brand, brand):
     """
     if source not in nutrition_cascade.BRANDED_SOURCES:
         return False
+    raw=raw if isinstance(raw,dict) else {}
+    tokens=[row_brand]
+    if source=='usda_branded':
+        tokens.extend(nutrition_usda._brand_tokens(raw.get('usda_food') or {}))
+    elif source=='off_product':
+        tokens.extend(nutrition_off._brand_tokens(raw.get('off_product') or {}))
+    if any(nutrition_off.normalise_name(token)==nutrition_off.normalise_name(brand)
+           for token in tokens if token):
+        return True
     if row_brand:
-        return nutrition_off.normalise_name(row_brand) == nutrition_off.normalise_name(brand)
+        return False
     return source == "joe"
 
 
@@ -173,7 +182,13 @@ def lookup_cached(cur, name, schema="core", brand=None):
     """
     cur.execute(
         f"""select c.canonical_name, c.source, c.nutrients_per_100g, c.serving_g, c.brand,
-                   c.food_id,c.source_id,c.raw
+                   c.food_id,c.source_id,c.raw,
+                   exists (select 1 from {schema}.food_aliases a
+                    join {schema}.foods_cache original on original.food_id=a.food_id
+                    where lower(a.alias)=lower(%s)
+                      and original.canonical_name=c.canonical_name
+                      and original.source=c.source
+                      and original.source_id is not distinct from c.source_id) as aliased
               from {schema}.foods_cache c
              where (lower(c.canonical_name) = lower(%s)
                 or exists (select 1 from {schema}.food_aliases a
@@ -184,16 +199,25 @@ def lookup_cached(cur, name, schema="core", brand=None):
                       and original.source_id is not distinct from c.source_id))
                and (c.source not in ('usda_branded','off_product')
                     or c.fetched_at >= clock_timestamp()-interval '365 days')
-             order by array_position(%s::text[], c.source),c.fetched_at desc,c.food_id""",
-        (name, name, list(SOURCE_PRECEDENCE)))
-    for canonical, source, nutrients, serving_g, row_brand, food_id, source_id, raw in cur.fetchall():
-        if brand and not cached_row_answers_brand(source, row_brand, brand):
+             order by array_position(%s::text[], c.source),aliased desc,c.fetched_at desc,c.food_id""",
+        (name, name, name, list(SOURCE_PRECEDENCE)))
+    matches={}
+    priority=None
+    for canonical, source, nutrients, serving_g, row_brand, food_id, source_id, raw, aliased in cur.fetchall():
+        if brand and not cached_row_answers_brand(source, row_brand, brand,raw):
             continue
+        if priority is not None and priority!=(source,aliased):
+            break
+        priority=(source,aliased)
         nutrients = nutrients if isinstance(nutrients, dict) else json.loads(nutrients)
-        return {"canonical_name": canonical, "source": source,
+        matches.setdefault((canonical,source,source_id),{"canonical_name": canonical, "source": source,
                 "nutrients_per_100g": nutrients, "brand": row_brand,
                 "food_id":str(food_id),"source_id":source_id,"raw":raw,
-                "serving_g": None if serving_g is None else float(serving_g)}, source
+                "serving_g": None if serving_g is None else float(serving_g)})
+    if len(matches)>1:
+        raise Unresolved(name,[],reason='ambiguous_cached_match',review_reason='ambiguous_cached_match',brand=brand)
+    if matches:
+        return next(iter(matches.values())),priority[0]
     return None, None
 
 

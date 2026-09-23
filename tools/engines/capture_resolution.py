@@ -7,13 +7,13 @@ import json
 import re
 import uuid
 
-from tools.engines import nutrition
+from tools.engines import nutrition, capture_food_context
 from tools.engines.capture_transcription import _private, _lock
 from tools.engines.capture_processing import record_outcome
 from tools.engines.extraction import resolve_time
 from tools.importers.common import ET, subject_day
 
-VERSION = 'capture-food-resolution-v1'
+VERSION = 'capture-food-resolution-v2'
 COUNT_UNITS = {'each','item','items','serving','servings','piece','pieces'}
 
 
@@ -112,19 +112,25 @@ def resolve(cur, *, request_id, capture_id, extraction_request_id, schema='core'
                 items.append({'item_index':index,'item_id':str(old[0]),'status':'resolved'})
                 continue
             try:
+                try:
+                    context=capture_food_context.load(cur,extraction_request_id=extraction_request_id,
+                                                     item_index=index,schema=schema)
+                except capture_food_context.ContextUnresolved as error:
+                    raise nutrition.Unresolved(name['value'],[],reason=str(error),review_reason=str(error)) from None
                 quantity=_quantity(fields,index,name['value'])
-                resolved=nutrition.resolve_item(cur,name['value'],schema=schema,config=config,ops=ops,
-                                                sources=sources,**quantity)
+                resolved=nutrition.resolve_item(cur,context['query'],schema=schema,config=config,ops=ops,
+                                                sources=sources,brand=context['brand'],**quantity)
+                resolved['food_context']=context
             except nutrition.Unresolved as missing:
                 if missing.reason=='no_source_available':
                     from tools.engines import capture_reference
                     attempts=capture_reference.source_outcomes(cur,capture_id=capture_id,
                         extraction_request_id=extraction_request_id,item_index=index,schema=schema)
                     if all(attempts.get(source,{}).get('status')=='unresolved'
-                           for source in capture_reference.SOURCE_ORDER):
+                           for source in capture_reference.source_order(context['brand'])):
                         missing=nutrition.Unresolved(name['value'],
-                            [{'source':source,**attempts[source]} for source in capture_reference.SOURCE_ORDER],
-                            reason='no_source_match',review_reason='no_source_match')
+                            [{'source':source,**attempts[source]} for source in capture_reference.source_order(context['brand'])],
+                            reason='no_source_match',review_reason='no_source_match',brand=context['brand'])
                 nutrition.record_unresolved(cur,missing,raw_capture_id=capture_id,subject_day=day,schema=schema,
                                              extraction_request_id=extraction_request_id,item_index=index)
                 items.append({'item_index':index,'status':'unresolved','reason':missing.reason})

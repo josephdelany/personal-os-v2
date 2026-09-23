@@ -174,3 +174,11 @@ Root extends the same0086 unit to `tools/capture_transcription.py` and
 `tools/engines/capture_resolution.py`: automatic name-source preparation and
 persisted no-match review transitions. Migration0086 also preserves review-reason
 history before updating the current unresolved-item projection.
+
+## 2026-09-23 brand context within M3 capture
+Root owns `tools/engines/capture_food_context.py`, capture_reference.py,
+capture_resolution.py, nutrition.py, tests/test_capture_reference.py,
+tests/test_capture_transcription.py, new context tests and maintained docs/ADR0157.
+REQ-NUT-013/016/025, REQ-CAP-053: preserve explicit verified supplier context in
+both reference query and private cache resolution; refuse ambiguous cache identities.
+No model schema field addition, external request or production mutation is authorized.

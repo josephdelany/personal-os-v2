@@ -8089,3 +8089,24 @@ noDB skips cover DB/live guards and two NumPyro dependency cases.
 WHAT I DID NOT DO: brand/restaurant evidence or barcode fidelity (brand is next),
 full quantity language, daily-total point repair, independent-process crash/concurrency
 proof, supervisor/deployment/device observations, frontend or backend release.
+
+
+## 2026-09-23 — M3 supplier-context local integration
+
+REQ-NUT-013/016/025 and REQ-CAP-051/053; ADR0157. Supported explicit supplier
+clauses now share verified context across saved extraction, reference preparation
+and private cache resolution. Generic/wrong-brand substitution and ambiguous cache
+identity selection refuse. The existing seven-field model schema stays intact.
+Review repaired normalized-query cache reuse and retained the full spoken alias.
+
+Evidence at d70923a plus root-owned changes: targeted SQL152 passed40.75s, pure12
+passed0.10s; full noDB1194 passed809 skipped146.63s, ledger14/15 unchanged and F006
+unmatched-ID diagnostic unchanged; staged layout43 passed. Full SQL976 passed/1 production-only skip365.32s, including invariant checks;
+session44382 terminal exit0 and server stopped. Generic RULE04 remains pending.
+Archive `.local/evidence/capture-brand/` records tested source hashes. No SQL
+migration change, so previous85/865 migration-chain evidence remains applicable.
+
+WHAT I DID NOT DO: general supplier language, barcode, quantity-language and daily
+sum gaps; runtime supervision, independent-process durability/concurrency,
+production deployment or physical device verification. Scriptable remains approved;
+its device gate remains open. Same M3-B16 unit and full M0–M6 objective continue.

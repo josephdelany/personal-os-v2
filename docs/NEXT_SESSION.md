@@ -9,10 +9,10 @@ Joe's `/goal` is active. Do not start backend execution from the monitor.
 {
   "version": 1,
   "status": "running",
-  "updated_at": "2026-09-23T14:22:26.794160+00:00",
-  "last_progress_at": "2026-09-23T14:22:26.794160+00:00",
+  "updated_at": "2026-09-23T15:37:55.617599+00:00",
+  "last_progress_at": "2026-09-23T15:37:55.617599+00:00",
   "unit": "M3-B16-voice-capture-to-atoms",
-  "next_action": "Same M3 voice-to-atoms unit:0086 ordered name lookup, append-only cache refresh and review-reason history locally integrated. FullSQL972/1skip340.26s, noDB1182/805skip180.64s, chain85/865,layout43; all handles terminal, servers stopped. Scoped review accepted snapshot and stale-review repairs. NEXT preserve verified brand/restaurant context across saved extraction, ordered source preparation and private cache resolution (including ambiguous-cache behavior), then supervisor/process/device proof. Quantity language, barcode and daily-total gaps remain open; full M0\u2013M6 unchanged."
+  "next_action": "Same M3-B16 voice-to-atoms unit: ADR0157 supported explicit supplier context and ambiguous-cache refusal locally integrated. SQL976 passed1skip365.32s; noDB1194 passed809 skipped146.63s; targeted152 and pure12; staged layout43. All handles terminal, disposable server stopped; ledger14/15 unchanged, generic RULE04 pending. NEXT connect separated runtime supervision through existing private/model/reference stages with bounded deadlines and recovery from saved state. General supplier language, barcode, quantity and daily totals remain open, as do independent-process durability, deployment and physical-device evidence. Scriptable approval persists; full M0\u2013M6 goal unchanged."
 }
 ```
 <!-- backend-control:end -->
@@ -64,6 +64,28 @@ hold or urgent integrity issue, as EXECUTION_PLAN requires. Report the gate clos
 what the user can exercise, and the next missing gate; test counts are evidence,
 not milestone completion. Apply the plan's existing eight review lenses at the
 integration boundary rather than creating another checklist.
+
+**Current local integration checkpoint — verified supplier context / ADR0157:** supported explicit
+`food from supplier` clauses now retain a verified supplier span through source
+preparation and private resolution. Generic and wrong-brand cache rows cannot answer
+that item. Ambiguous product identities refuse; exact aliases select their identity.
+Successful publication preserves both the normalized food query and original spoken
+name. Two branded-source misses retain supplier evidence in review without Foundation
+fallback. The exact seven-field model schema remains unchanged.
+
+Targeted SQL152 passed40.75s and pure12 passed. Full noDB1194 passed/809 skipped
+146.63s; ledger14/15 unchanged, existing F006 unmatched-ID diagnostic remains.
+Staged layout43 passed. Full SQL976 passed/1 production-only skip365.32s;
+session44382 terminal exit0 and disposable server stopped. Invariant suite passed
+within full SQL; generic RULE04 remains pending. Evidence archive:
+`.local/evidence/capture-brand/` (base d70923a plus recorded source hashes).
+No migration changed; previous85/865 chain evidence applies to unchanged SQL.
+Independent scoped review accepted the normalized-query repeat-cache repair.
+General brand prefixes/possessives, complex clauses and barcode remain open.
+No deployment or physical-device observation occurred. This closes the supported
+explicit-clause implementation slice, not general supplier recognition or M3.
+Next connect the separated runtime supervisor to these existing stage interfaces;
+exercise saved-stage recovery and total deadlines without mixing credentials.
 
 **Current integration checkpoint — ordered name lookup and freshness0086/ADR0156:**
 the existing prepare-reference CLI defaults to automatic name-source selection:

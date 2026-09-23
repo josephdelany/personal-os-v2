@@ -596,9 +596,9 @@ def test_REQ_CAP_034_053_current_extraction_must_match_current_transcript(cur):
     assert transcription.work_queue(cur,schema='core_pytest')['items'][0]['next_stage']=='extract'
 
 
-def saved_food_extraction(cur, *, repeated=False, quantity=1, quantity_text='one',food_name='fixture food',temporal=None):
+def saved_food_extraction(cur, *, repeated=False, quantity=1, quantity_text='one',food_name='fixture food',temporal=None,suffix=''):
     from tools.engines import capture_extraction as extraction
-    text=quantity_text+' '+food_name + (' and '+quantity_text+' '+food_name if repeated else '')
+    text=quantity_text+' '+food_name+suffix + (' and '+quantity_text+' '+food_name+suffix if repeated else '')
     starts=[0,text.rindex(quantity_text)] if repeated else [0]
     if temporal:text+=' '+temporal
     transcript={'success':True,'result':{'text':text,'segments':[]}}

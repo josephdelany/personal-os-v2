@@ -436,3 +436,24 @@ stale persisted review reasons after outage→three misses→terminal no-match. 
 owner check refuses fresh conflicting reference data and supplies the existing food_id
 for an identical concurrent publication. Full release, brand/barcode fidelity and
 historical consumer coverage are not inferred from these scoped passes.
+
+## 2026-09-23 — Explicit supplier context in the M3 voice path (ADR0157)
+
+Scope: d70923a plus root-owned context, capture and shared nutrition changes.
+
+| Lens | Evidence and remaining gate |
+|---|---|
+| Contract fidelity | PARTIAL: supported explicit food-from-supplier clauses preserve a verified transcript span without extending the seven-field extraction schema. General brand prefixes, possessives, complex clauses and barcode remain open. |
+| Complete user paths | PASS locally for this slice: saved extraction prepares a branded query, consumes a receipt-bound source result, persists atoms and reads back source owner and supplier evidence. No live voice-to-atom proof. |
+| Failure behavior | PASS in targeted tests: generic/wrong-brand cache entries cannot satisfy a branded item; ambiguous top-priority identities refuse; two branded-source misses persist brand-preserving review without Foundation fallback. |
+| Data integrity | PASS in tested scope: immutable transcript anchors supplier offsets; resolution stores context version; original spoken alias and normalized query survive publication. Exact alias selects identity and correction precedence remains. |
+| Access/privacy | PASS in scoped review: context derivation stays private; outbound query carries food and supplier only, not the transcript or evidence offsets. No additional credentials, services or model fields. |
+| Runtime/deployment | PARTIAL: private/source interfaces and SQL roles exercised locally. Runtime supervisor, process crash durability, deployment and physical iPhone tests remain open. |
+| Operations/recovery | PARTIAL: repeated preparation uses normalized query and reuses successful cache; terminal misses retain context for review. Broader supplier-language support and legacy pending-attempt context compatibility remain unproven. |
+| Evidence/reproducibility | Targeted SQL152 passed40.75s; pure12 passed0.10s. Full noDB1194 passed/809 skipped146.63s; ledger14/15 unchanged, existing F006 diagnostic unchanged; staged layout43 passed. Full SQL976 passed/1 production-only skip365.32s, including invariant checks; session44382 terminal exit0, server stopped. No migration changes; prior chain85/865 remains applicable to unchanged SQL. |
+
+Independent scoped review caught a repeat-lookup mismatch when the extracted name
+included the supplier clause. Preparation now uses the same normalized food query
+as publication/resolution, and regression coverage verifies both cache reuse and
+original spoken alias retention. Review accepted the repair and strengthened
+wrong-brand/no-match cases. Generic RULE04 remains pending; no production action.

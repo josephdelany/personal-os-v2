@@ -466,3 +466,78 @@ def test_REQ_NUT_012_ordered_lookup_reconciles_reserved_attempt_and_retries_defe
     assert retry['source']=='usda_foundation' and retry['request_id']!=first['request_id']
     assert 'status' not in retry
     assert count(cur,'capture_reference_attempts')==2
+
+
+@pytest.mark.parametrize('embedded',[False,True])
+def test_REQ_NUT_013_016_supplier_context_blocks_generic_cache_and_reaches_branded_atoms(cur,embedded):
+    extraction=saved_food_extraction(cur,food_name=NAME+(' from Examplo' if embedded else ''),
+                                    suffix='' if embedded else ' from Examplo')
+    cur.execute('''INSERT INTO core_pytest.foods_cache
+        (canonical_name,source,source_id,nutrients_per_100g,serving_g)
+        VALUES (%s,'usda_foundation','fixture-generic',%s,40)''',(NAME,json.dumps({'kcal':100})))
+    from tools.engines import nutrition_off as off
+    wrong=usda.cache_row(branded_food(fdc_id=999002,brand_owner='Other Foods',brandName='Other',
+                                    householdServingFullText='1 bar'),'usda_branded')
+    off.insert_cache_row(cur,wrong,schema='core_pytest')
+    before=capture_resolution.resolve(cur,request_id=uuid.uuid4(),capture_id=CID,
+        extraction_request_id=extraction['request_id'],schema='core_pytest',ops='ops_pytest')
+    assert before['items'][0]['status']=='unresolved'
+    assert count(cur,'atoms')==0
+    request=next_source(cur,extraction)
+    assert request['source']=='usda_branded'
+    assert request['query']==NAME and request['brand']=='Examplo'
+    with pytest.raises(ValueError,match='generic source'):
+        reference.prepare(cur,request_id=uuid.uuid4(),capture_id=CID,
+            extraction_request_id=extraction['request_id'],item_index=0,source='usda_foundation',schema='core_pytest')
+    response=source_result()  # brandName Examplo, recorded brandOwner Examplo Foods
+    settled(cur,request,response)
+    applied=consume(cur,request,response)
+    assert next_source(cur,extraction)=={'status':'cached','food_id':applied['food_id']}
+    if embedded:
+        cur.execute('SELECT verbatim FROM core_pytest.food_aliases WHERE alias=%s',
+                    ((NAME+' from Examplo').lower(),))
+        assert cur.fetchone()[0]==NAME+' from Examplo'
+    done=capture_resolution.resolve(cur,request_id=uuid.uuid4(),capture_id=CID,
+        extraction_request_id=extraction['request_id'],schema='core_pytest',ops='ops_pytest')
+    assert done['items'][0]['status']=='resolved'
+    read=transcription.readback(cur,capture_id=CID,schema='core_pytest')
+    item=read['extraction']['resolved_items'][0]
+    assert item['resolution']['brand']=='Examplo Foods'
+    assert item['resolution']['food_context']['brand_evidence']=='Examplo'
+    kcal=next(a for a in item['atoms'] if a['metric_key']=='kcal')
+    assert float(kcal['value_point'])==180
+
+
+def test_REQ_NUT_016_025_ambiguous_cache_ids_refuse_but_exact_alias_selects_identity(cur):
+    import datetime as dt
+    from tools.engines import nutrition_off as off
+    foods=[]
+    for source_id in ('fixture-a','fixture-b'):
+        row=source_result()['row']
+        row.update(source_id=source_id,fetched_at=dt.datetime.now(dt.timezone.utc))
+        foods.append((off.insert_cache_row(cur,row,schema='core_pytest'),row))
+    with pytest.raises(nutrition.Unresolved,match='ambiguous_cached_match'):
+        nutrition.lookup_cached(cur,NAME,'core_pytest',brand='Examplo')
+    selected,row=foods[0]
+    nutrition.remember_alias(cur,NAME,row,food_id=selected,schema='core_pytest')
+    cached,_=nutrition.lookup_cached(cur,NAME,'core_pytest',brand='Examplo')
+    assert cached['food_id']==str(selected)
+
+
+def test_REQ_NUT_013_015_016_branded_misses_never_fall_back_to_generic_and_keep_brand_in_review(cur):
+    extraction=saved_food_extraction(cur,food_name=NAME,suffix=' from Examplo')
+    for source in ('usda_branded','off_search'):
+        request=next_source(cur,extraction)
+        assert request['source']==source and request['brand']=='Examplo'
+        response={'status':'unresolved','reason':'no_source_match'}
+        settled(cur,request,response)
+        consume(cur,request,response)
+    assert next_source(cur,extraction)['reason']=='no_source_match'
+    done=capture_resolution.resolve(cur,request_id=uuid.uuid4(),capture_id=CID,
+        extraction_request_id=extraction['request_id'],schema='core_pytest',ops='ops_pytest')
+    assert done['items'][0]['reason']=='no_source_match'
+    cur.execute('SELECT tried FROM core_pytest.unresolved_items WHERE resolved_at IS NULL')
+    review=cur.fetchone()[0]
+    assert review['brand']=='Examplo' and review['review_reason']=='no_source_match'
+    assert [row['source'] for row in review['tried']]==['usda_branded','off_search']
+    assert count(cur,'atoms')==0

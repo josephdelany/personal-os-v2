@@ -13,6 +13,7 @@ from lib.model_contract import request_bytes
 from tools.engines import nutrition, nutrition_off as off, nutrition_usda as usda
 from tools.engines.reference_dispatch import validate
 from tools.engines.capture_transcription import _private, _lock
+from tools.engines import capture_food_context
 
 SOURCE_ORDER = ('usda_foundation','usda_branded','off_search')
 SOURCES = set(SOURCE_ORDER)
@@ -59,6 +60,9 @@ def prepare(cur, *, request_id, capture_id, extraction_request_id, item_index, s
         if ((str(old[0]),str(old[1]),old[2]) != (capture_id,extraction_request_id,item_index)
             or (source!='auto' and old[3]!=source)):
             raise ValueError('reference request identity reused')
+        context=capture_food_context.load(cur,extraction_request_id=extraction_request_id,item_index=item_index,schema=schema)
+        if old[4]['query']!=context['query'] or old[4]['brand']!=context['brand']:
+            raise ValueError('reference context contract changed')
         result=_prepared_or_done(cur,request_id,old[4],schema)
         if source=='auto' and 'status' not in result:
             cur.execute(f'SELECT 1 FROM {ops}.reference_requests WHERE request_id=%s',(request_id,))
@@ -70,13 +74,14 @@ def prepare(cur, *, request_id, capture_id, extraction_request_id, item_index, s
     name = cur.fetchone()
     if name is None or name[1]!='extracted' or not isinstance(name[0],str) or not name[0].strip():
         raise ValueError('verified saved food name required')
-    cached,_ = nutrition.lookup_cached(cur,name[0],schema)
+    context=capture_food_context.load(cur,extraction_request_id=extraction_request_id,item_index=item_index,schema=schema)
+    cached,_ = nutrition.lookup_cached(cur,context['query'],schema,brand=context['brand'])
     if cached is not None:
         return {'status':'cached','food_id':cached['food_id']}
     if source=='auto':
         outcomes=source_outcomes(cur,capture_id=capture_id,extraction_request_id=extraction_request_id,
                                  item_index=item_index,schema=schema)
-        for candidate in SOURCE_ORDER:
+        for candidate in source_order(context['brand']):
             outcome=outcomes.get(candidate)
             if outcome is not None and outcome['status']=='unresolved':
                 continue
@@ -89,7 +94,9 @@ def prepare(cur, *, request_id, capture_id, extraction_request_id, item_index, s
             break
         else:
             return {'status':'unresolved','reason':'no_source_match',
-                    'sources':[{'source':name,**outcomes[name]} for name in SOURCE_ORDER]}
+                    'sources':[{'source':name,**outcomes[name]} for name in source_order(context['brand'])]}
+    if context['brand'] and source=='usda_foundation':
+        raise ValueError('generic source cannot answer a branded item')
     # Reuse a pending request even when another processing event advanced the
     # head; source polling must not create multiple billable requests per item.
     cur.execute(f'''SELECT a.request_id,a.payload FROM {schema}.capture_reference_attempts a
@@ -105,13 +112,17 @@ def prepare(cur, *, request_id, capture_id, extraction_request_id, item_index, s
         WHERE capture_id=%s AND extraction_request_id=%s AND item_index=%s AND source=%s''',
         (capture_id,extraction_request_id,item_index,source))
     number = cur.fetchone()[0]
-    payload = {'request_id':request_id,'source':source,'query':name[0],'brand':None,'barcode':None}
+    payload = {'request_id':request_id,'source':source,'query':context['query'],'brand':context['brand'],'barcode':None}
     validate(payload)
     cur.execute(f'''INSERT INTO {schema}.capture_reference_attempts
         (request_id,capture_id,extraction_request_id,item_index,source,expected_event_id,attempt_no,payload,payload_sha256)
         VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)''',
         (request_id,capture_id,extraction_request_id,item_index,source,current[1],number,json.dumps(payload),_digest(payload)))
     return payload
+
+
+def source_order(brand):
+    return tuple(source for source in SOURCE_ORDER if not brand or source!='usda_foundation')
 
 
 def _prepared_or_done(cur,request_id,payload,schema):
@@ -159,12 +170,12 @@ def consume(cur, *, request_id, response, schema='core', ops='ops'):
         raise ValueError('reference result too large')
     digest = hashlib.sha256(body).hexdigest() if body is not None else None
     receipt_kind = 'settled' if body is not None else 'uncertain'
-    cur.execute(f'''SELECT capture_id,extraction_request_id,source,payload,payload_sha256
+    cur.execute(f'''SELECT capture_id,extraction_request_id,source,payload,payload_sha256,item_index
         FROM {schema}.capture_reference_attempts WHERE request_id=%s''',(request_id,))
     attempt = cur.fetchone()
     if attempt is None:
         raise ValueError('unknown private reference request')
-    capture,extraction,source,payload,payload_hash = attempt
+    capture,extraction,source,payload,payload_hash,item_index = attempt
     _lock(cur,capture)
     if response is None:
         cur.execute('SELECT public.reconcile_reference_call(%s)',(request_id,))
@@ -232,6 +243,11 @@ def consume(cur, *, request_id, response, schema='core', ops='ops'):
             if food_id is None:
                 raise ValueError('cache publication did not persist')
             nutrition.remember_alias(cur,payload['query'],row,food_id=food_id,schema=schema)
+            cur.execute(f'''SELECT value FROM {schema}.capture_extraction_fields
+                WHERE request_id=%s AND item_index=%s AND name='name' ''',(extraction,item_index))
+            spoken=cur.fetchone()[0]
+            if spoken!=payload['query']:
+                nutrition.remember_alias(cur,spoken,row,food_id=food_id,schema=schema)
         cur.execute(f'''INSERT INTO {schema}.capture_reference_outcomes
             (request_id,response_sha256,receipt_outcome,status,applied,food_id,reason) VALUES (%s,%s,%s,%s,%s,%s,%s)''',
             (request_id,digest,receipt_kind,status,applied,food_id,reason))
