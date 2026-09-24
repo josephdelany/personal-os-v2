@@ -15,7 +15,7 @@ export function createClient() {
       getSession: async () => ({data:{session:null}}),
       onAuthStateChange: fn => { listener=fn; window.signInFixture=()=>fn('SIGNED_IN',{}); },
       signOut: async () => listener('SIGNED_OUT',null),
-      signInWithOtp: async () => ({error:null})
+      signInWithOtp: async args => {window.signInRequest=args; return {error:null};}
     },
     rpc: async (name,args) => {
       if(name==='get_day') return {data:{day:'fixture day'}};
@@ -52,6 +52,11 @@ def main():
         page.goto('https://fixture.invalid/')
         page.wait_for_function('typeof window.signInFixture === "function"')
         assert not page.locator('#ask-panel').is_visible()
+        page.locator('#email').fill('owner@example.invalid')
+        page.locator('#sendlink').click()
+        page.get_by_text('Check your inbox for the sign-in link.',exact=False).wait_for()
+        assert page.evaluate('window.signInRequest.options.shouldCreateUser') is False
+        assert page.locator('#sendlink').is_enabled()
         page.evaluate('window.signInFixture()')
         page.locator('#question').fill('how is my sleep')
         page.locator('#ask-submit').click()

@@ -8398,3 +8398,17 @@ fixtures; layout43pass. Independent reviewer found no scoped blocker, noted miss
 request deadline (now repaired) and unverified live auth/RPC. No production write,
 question submission, push or deployment. Capture correction files remain untouched
 by this release scope. Real owner acceptance and isolated publication remain pending.
+
+## 2026-09-23 — isolated app publication prepared, authorization pending
+
+Release a74355c in .local/usable-app-release contains only six app/test/workflow/guide
+files on remote main b606c64. Root app and test hashes match the tested release.
+Final guided sign-in test passes offline without sending mail. Public auth settings
+respond200 with email enabled; anon OpenAPI401 is service-role restriction, not
+evidence of broken sign-in. Live owner/RPC acceptance remains unknown.
+Publication audit withdrew the proposed main push: that branch's legacy tests use
+production DB credentials and unsafe migration fixtures. APP_PUBLICATION proposes
+an isolated branch push, exact Pages branch-policy addition and manual Pages dispatch.
+No policy/remote/DB change occurred. Approval is pending; goal continuation is not
+approval. Isolated layout41pass/1existing local-settings warning, guard26pass; Node5
+and Chrome smoke evidence remain applicable because release files match exactly.

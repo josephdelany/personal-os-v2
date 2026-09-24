@@ -32,10 +32,14 @@
 <body>
 <h1>Personal OS</h1>
 <div id="auth">
-  <p class="muted">Sign in to read your data. (Reads are owner-only; this page holds no secrets.)</p>
-  <input id="email" type="email" placeholder="you@example.com" autocomplete="email">
-  <button id="sendlink">Send magic link</button>
-  <p id="authmsg" class="muted"></p>
+  <p>Sign in to explore your records and ask questions about them.</p>
+  <form id="signin-form">
+    <label for="email">Your owner email</label><br>
+    <input id="email" type="email" placeholder="you@example.com" autocomplete="email" required>
+    <button id="sendlink" type="submit">Email me a sign-in link</button>
+  </form>
+  <p class="muted">Open the email link in this browser. No password needed.</p>
+  <p id="authmsg" class="muted" role="status"></p>
 </div>
 <div id="picker" style="display:none">
   <button id="tab-today">Today</button> <button id="tab-timeline">Timeline</button> <button id="tab-day">Day</button> <button id="tab-patterns">Patterns</button> <button id="tab-trust">Trust</button> <button id="tab-insights">Insights</button><br><br>
@@ -122,9 +126,20 @@ if (new URLSearchParams(location.search).get("demo")) {
     // Leave the auth callback before requesting an authenticated RPC.
     if (session) setTimeout(() => load(), 0);
   });
-  $("sendlink").onclick = async () => {
-    const { error } = await sb.auth.signInWithOtp({ email: $("email").value, options: { emailRedirectTo: location.href.split("?")[0] } });
-    $("authmsg").textContent = error ? ("error: " + error.message) : "Link sent — check your email.";
+  $("signin-form").onsubmit = async event => {
+    event.preventDefault();
+    if ($("sendlink").disabled) return;
+    $("sendlink").disabled = true;
+    $("authmsg").textContent = 'Requesting your sign-in link…';
+    try {
+      const { error } = await sb.auth.signInWithOtp({ email: $("email").value.trim(), options: {
+        shouldCreateUser: false, emailRedirectTo: location.href.split("?")[0].split('#')[0] } });
+      $("authmsg").textContent = error
+        ? 'Could not send the link. Check your owner email and connection, then try again.'
+        : 'Check your inbox for the sign-in link. Open it in this browser; check spam if it does not arrive.';
+    } catch {
+      $("authmsg").textContent = 'Could not reach sign-in. Check your connection and try again.';
+    } finally { $("sendlink").disabled = false; }
   };
   $("signout").onclick = () => sb.auth.signOut();
   $("load").onclick = () => load();
