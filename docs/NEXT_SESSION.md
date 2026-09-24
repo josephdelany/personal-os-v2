@@ -10,15 +10,40 @@ Joe's `/goal` is active. Do not start backend execution from the monitor.
 {
   "version": 1,
   "status": "running",
-  "updated_at": "2026-09-24T19:08:00.731311+00:00",
-  "last_progress_at": "2026-09-24T19:08:00.731311+00:00",
+  "updated_at": "2026-09-24T19:59:08.739106+00:00",
+  "last_progress_at": "2026-09-24T19:59:08.739106+00:00",
   "unit": "V0-backend-chase-credit-import",
-  "next_action": "Day0094 local integration complete:SQL1177pass1skip377.83s,writer1451pass1004skip165.97s,chain93/974,layout43pass,review accepted. No live checks. Commit scoped day files then implement ADR0171 actual Chase credit import/readback. Preserve external AGENTS/CLAUDE/APP_PUBLICATION; nextADR0171 excluded from day commit."
+  "next_action": "Card local unit complete: fullSQL1206pass1skip492.70s; writer1473pass1033skip202.57s. Final metadata-only delta targeted29pass1.18s/review accepted, chain94/1004, layout43. All processes terminal. Commit root-owned card files/docs only; preserve external AGENTS/CLAUDE/APP_PUBLICATION. Then V0 visits+daily composition; no production/frontend."
 }
 ```
 <!-- backend-control:end -->
 
-## Current unit — integrate day/health, then Chase credit import/readback
+## Current unit — V0 Chase credit local integration complete
+
+0095 immutable files/rows/decisions/stored reads, trusted private writer/CLI,
+owner review_v0_card_row/get_v0_card_activity and actual credit mapping are locally
+verified. FullSQL1206pass1production-skip492.70s; writer1473pass1033skip202.57s;
+ledger14/15 unchanged. Final four-constant subtotal metadata delta has29targeted
+SQLpass1.18s and independent review acceptance; no arithmetic/filter/access change.
+Full artifacts preserve pre-delta hashes; final hashes record the reviewed delta.
+Chain94migrations1004statements, layout43pass, four scoped invariants pass.
+Generic RULE04 pending; merged43unverified (41production,2NumPyro). Actual109-row
+export validates via CLI without database access. All test processes terminal.
+
+Source/evidence .local/evidence/v0-card/. Root owns migration/parser/store/CLI,
+mapping/tests/runner registration, ADR0171/V0_CARD_IMPORT and maintained docs.
+External AGENTS/CLAUDE/APP_PUBLICATION are not root work; never stage/overwrite.
+Commit the verified local card unit, then select V0 recent-visit collection/readback
+and compose spending/visits into get_v0_day. Preserve current decision semantics:
+source subtotals are not canonical finance or income; ambiguous overlaps require
+owner link/distinct review, decisions append and survive retries. No FIN044 change.
+
+WHAT REMAINS: production activation, actual-account import/read/recovery, day
+composition, visits and owner caller/activation packet. Independent committed
+concurrency/crash proof remains limited by rollback-only fixture policy. No
+production or frontend change; V0 backend handoff is not yet complete.
+
+## Historical day/health integration
 
 Day0094/ADR0170 local integration complete. FullSQL85826 terminal/server stopped:
 1177passed1production-skip377.83s; writer90208 terminal1451passed1004skipped165.97s;
@@ -2109,3 +2134,13 @@ No active mappings or database changed. Independent review recommends account-sc
 source file/row ledger, explicit overlapping-observation links and ambiguous-review
 state where identity/coverage insufficient; file hash/row ordinal are not cross-file
 transaction identity. Exact-file retry must be no-op. OQ59/61 remain unresolved.
+
+Day/health integrated3486c1c; tested hashes match committed sources. No live jobs.
+Begin next bounded V0 spending implementation from ADR0171; do not repeat completed
+day gates unchanged. Preserve source duplicate multiplicity and disclose ambiguous
+CSV identity, retain Type/Category/Memo, no OQ59/61 inference.
+
+Parser review accepted; additional quoted multiline/comma/BOM/reordered-column
+and byte/row/field-boundary cases added. Final parser73883 terminal; log copied
+.local/evidence/v0-card/parser.log. No DB implementation yet; continue persistence
+and review/read contract, not another parser-only checkpoint.

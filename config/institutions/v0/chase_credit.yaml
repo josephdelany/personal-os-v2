@@ -1,0 +1,14 @@
+institution: chase_credit_us
+mapping_version: chase-credit-v0-1
+currency: USD
+amount_sign: negative_is_outflow
+date_format: "%m/%d/%Y"
+# Separate V0 source ledger; the generic bank importer must not consume this mapping.
+columns:
+  occurred_on: Transaction Date
+  posted_on: Post Date
+  description: Description
+  source_category: Category
+  source_type: Type
+  amount: Amount
+  memo: Memo

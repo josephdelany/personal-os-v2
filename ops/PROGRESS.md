@@ -8615,3 +8615,34 @@ Final tested source hashes match .local/evidence/v0-day/. All jobs terminal.
 WHAT I DID NOT DO: production activation, actual aggregate configuration validation,
 real-account proof, spending/visit integration or frontend. Next actual Chase credit
 source-row import/dedup/readback, scoped by ADR0171 and private preflight evidence.
+
+2026-09-24 — V0 Chase parser/mapping implemented in separate versioned path.
+16purepass0.18s; actual-source readonly reconciliation preserves109rows, everyfield,
+everyamount/signedtotal and duplicate multiplicity. No DB import. Independent
+architecture review accepted dedicated source-staging/owner-review boundary without
+amending canonical FIN044. Parser review requested. Next persistence/receipt/review/
+activity read; this is not a usable finance or full V0 completion claim.
+
+2026-09-24 — V0 Chase source storage/read/review and private CLI implemented.
+0095 append-only source ledgers, exact receipts, multiset aliases retaining
+multiplicity, explicit partial-overlap review, owner link/distinct corrections,
+and stored signed source-type subtotals. Focused29SQLpass2.49s,22purepass0.80s;
+actual109-row export validates via CLI without DB access. Independent review
+found/fixed stale-snapshot transaction gap: READ COMMITTED and nonautocommit
+required. General writer1473pass1033skip202.57s, ledger14/15 unchanged; chain94/1004
+and layout43 passed. Full SQL14168 remains live; no repeated launch. Final review
+requires explicit subtotal lane/provenance/method metadata before integration.
+WHAT I DID NOT DO: full-gate completion/commit, real import/production activation,
+daily composition, visits or frontend. Exact source hashes/private artifacts in
+.local/evidence/v0-card; external AGENTS/CLAUDE/APP_PUBLICATION preserved.
+
+2026-09-24 — V0 Chase local integration complete. FullSQL1206pass1production-skip
+492.70s; sanctioned writer1473pass1033skip202.57s, ledger14/15 unchanged. Final
+metadata-only subtotal lane/provenance/method/version delta:29targetedpass1.18s,
+review accepted; full artifacts preserved against pre-delta hashes, final hashes
+against narrow reviewed delta. Final chain94/1004, layout43; four spine invariants
+pass, generic RULE04 pending. Merged43unverified (41production,2NumPyro). Actual
+109-row export validates via private CLI without DB access; documentation added.
+All jobs terminal. WHAT I DID NOT DO: production activation/actual import, day
+composition, visits, committed-concurrency/crash proof or frontend. Next visits
+and daily backend integration; no canonical finance completion claim.

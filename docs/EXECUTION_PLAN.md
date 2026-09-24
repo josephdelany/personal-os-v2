@@ -63,7 +63,7 @@ unless the daily path actually depends on them.
 | Meals | 0092 save_v0_meal/get_v0_meals; integrated92d2e08, local acceptance passed | Activation, real-account text/photo save and private Storage delivery; shared daily read integration |
 | Workouts | 0093 save_v0_workout/get_v0_workouts; full local acceptance passed | Activation and real-account caller; shared daily read integration |
 | Health/activity | 0094 get_v0_day, local acceptance passed; import_drop/apple_health | Real-account import/read, actual registered aggregate configuration and source freshness |
-| Spending | import_drop/bank, timeline; local2026-09-24 preflight found3Chase exports unsupported by current mappings | Add verified actual-format mapping, prove deduplication/reconciliation and explicit date/amount/unit readback; then activation |
+| Spending | 0095 owner card activity/review and private import_v0_card CLI; actual Chase credit format validated, local acceptance passed | Activation/actual-account import and day composition; unresolved overlaps require owner review, canonical finance remains deferred |
 | Visits | location-ingest, get_movements/get_places | Working collection and owner-safe recent-visit readback; no interpretation |
 | Day history | 0094 get_v0_day composes current V0 IDs and health, local acceptance passed | Connect spending/visits; activation and real-account read/correction |
 | Owner access/operations | Authenticated RPCs and existing deployment paths | Auth/access tests; exact reviewed activation; real-account backend smoke and recovery instructions |
