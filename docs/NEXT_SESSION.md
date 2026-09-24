@@ -10,15 +10,35 @@ Joe's `/goal` is active. Do not start backend execution from the monitor.
 {
   "version": 1,
   "status": "running",
-  "updated_at": "2026-09-24T19:59:08.739106+00:00",
-  "last_progress_at": "2026-09-24T19:59:08.739106+00:00",
-  "unit": "V0-backend-chase-credit-import",
-  "next_action": "Card local unit complete: fullSQL1206pass1skip492.70s; writer1473pass1033skip202.57s. Final metadata-only delta targeted29pass1.18s/review accepted, chain94/1004, layout43. All processes terminal. Commit root-owned card files/docs only; preserve external AGENTS/CLAUDE/APP_PUBLICATION. Then V0 visits+daily composition; no production/frontend."
+  "updated_at": "2026-09-24T20:40:43.293983+00:00",
+  "last_progress_at": "2026-09-24T20:40:43.293983+00:00",
+  "unit": "V0-backend-owner-activation",
+  "next_action": "Integrate verified0096 location/day unit with scoped commit, then audit executable owner callers and prepare exact V0 activation packet. All tests terminal; production credential hold remains. Preserve external AGENTS/CLAUDE/APP_PUBLICATION."
 }
 ```
 <!-- backend-control:end -->
 
-## Current unit — V0 Chase credit local integration complete
+## Current unit — V0 owner caller and activation handoff
+
+0096 location/day implementation locally verified. FullSQL1242passed1production
+skip415.41s; feature writer1473passed1069skipped182.08s; chain95migrations1037
+statements; layout43passed; targeted73passed1skip10.07s. Four scoped invariant
+cases pass; generic RULE04 pending. Merged43 unverified skips remain. All test
+processes terminal; evidence report53317 finished successfully. Runtime/test hashes
+match .local/evidence/v0-location/source-sha256.json. Independent review accepted
+bootstrap, timestamp, human-conflict and server-clock repairs. No production or
+real-device proof, no independent committed-concurrency/crash proof.
+
+Commit root-owned0096, tests, runner, extract workflow, ADR0172/V0_LOCATION and
+maintained plan/checkpoint/progress; preserve external AGENTS/CLAUDE/APP_PUBLICATION.
+Then audit executable owner callers and prepare exact activation/recovery packet
+for all V0 flows. Existing credential failure28P01 remains held; do not retry an
+unchanged credential or expose secrets. Verify actual health aggregate configuration
+and actual-account card import only through authorized activation. No frontend or
+advanced backend expansion. Goal remains incomplete until backend contracts are
+usable with real-account evidence.
+
+## Historical card integration —9e6d030
 
 0095 immutable files/rows/decisions/stored reads, trusted private writer/CLI,
 owner review_v0_card_row/get_v0_card_activity and actual credit mapping are locally

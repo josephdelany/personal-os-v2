@@ -8646,3 +8646,20 @@ pass, generic RULE04 pending. Merged43unverified (41production,2NumPyro). Actual
 All jobs terminal. WHAT I DID NOT DO: production activation/actual import, day
 composition, visits, committed-concurrency/crash proof or frontend. Next visits
 and daily backend integration; no canonical finance completion claim.
+
+## 2026-09-24 — V0 visits and daily composition (ADR0172)
+
+Implemented CAP017, LOC001/002/004/006/009/012/013/015/018 under
+RULE02/03/05/06/10/12/14/29: restricted immutable retry receipts, service-only
+collection, lineage-bearing visits and late refresh, owner read with freshness,
+and card/visit composition in the V0 day. Review findings repaired: initial
+historical bootstrap, timestamp normalization, conflicting human assignments,
+and server-clock ordering. Original two failing regressions retained as evidence.
+
+Final local gates: SQL1242pass1skip415.41s; feature writer1473pass1069skip182.08s;
+chain95/1037; layout43pass; targeted73pass1skip10.07s. Four scoped invariants pass;
+generic RULE04 pending;43 unverified merged skips, ledger14/15 unchanged. Evidence
+and verified source hashes: .local/evidence/v0-location/. All processes terminal.
+WHAT I DID NOT DO: production activation, real-device/account validation, source
+archive import, frontend work, advanced mobility or independent committed-race proof.
+Next: executable owner callers and concrete activation/recovery handoff.
