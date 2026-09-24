@@ -8516,3 +8516,21 @@ V0 scope/regression review accepted after adding explicit legacy0–10 versus ne
 1–10 version separation. Existing app read paths:get_today/get_day/get_timeline/
 get_trust; Add is missing. Next unit connects durable owner entry and three-screen
 experience. No inference/advanced backend expansion.
+
+2026-09-24 — Latest goal clarified V0 backend first, frontend second, remaining
+project third. Draft0091/ADR0166 adds owner-only structured1–10 check-in save/read
+with immutable corrections and exact retry identity. Initial21SQLpassed0.96s after
+fixing SQL CASE syntax and fixture JWT setup. Tests registered in disposable runner.
+No frontend/production change; expanded acceptance/review/full integration pending.
+
+2026-09-24 — V0 check-in expanded28SQLpassed1.07s. Added evening extremes,04:00/DST
+boundary, anon denial, ledger-insert failure rolls back raw capture and retry saves,
+and cross-capture UUID refusal. Session65518 terminal. Runbook describes actual
+save/read contract; reviewer pending. No deployment/full integration yet.
+
+2026-09-24 — V0 check-in local integration complete:30targeted,1105SQL/1live skip
+436.84s,1441noDB/932skip176.09s,90migrations946statements,43layout. Four scoped
+invariants pass; generic RULE04 pending; merged43unverified checks. Reviewer accepted
+clock-range fix, no scoped blocker. Evidence .local/evidence/v0-checkins/, hashes
+unchanged, all jobs terminal. No production activation, real-account/concurrent
+commit proof or frontend change. Next V0 meal saved/history contract.

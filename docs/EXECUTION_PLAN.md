@@ -14,6 +14,11 @@ control and explicit production authorization remain binding. Finish the current
 correction change, then work exclusively on this daily-use path. Do not expand
 capture corrections or advanced analysis merely to close the eventual backend.
 
+Latest sequencing: Joe’s new goal is a usable **V0 backend first**, then its
+frontend, then the remaining project. Implement and verify the backend contracts
+for the screens below before frontend construction. The real-phone/day bar remains
+the complete V0 release criterion; do not claim it from backend tests alone.
+
 ### Product and flow scope
 
 Three screens, mobile first, with calm, attractive design and everyday actions easy
@@ -43,6 +48,29 @@ needed. Do not silently bypass existing capture policy.
 
 New 1–10 check-ins require distinct versioned measurement definitions; historical
 0–10 observations must not be relabeled or silently combined with them.
+
+### V0 backend handoff checklist
+
+The current goal closes the backend handoff, not the later phone-interface release.
+For each row, require an executable caller, owner access checks, saved/read-back
+behavior, failure/retry evidence and an activation procedure. Existing file names
+are starting points, not completion claims. Exclude advanced M0–M6 requirements
+unless the daily path actually depends on them.
+
+| Contract | Existing starting point | Remaining V0 acceptance |
+|---|---|---|
+| Morning/evening | Draft0091 save_v0_checkin/get_v0_checkins | Integration/activation;1–10 identity, corrections, missing-day and retry proof |
+| Meals | Raw ingress, media receipts, correction engine | Owner phone-compatible text/photo save, saved-versus-processing receipt, history including unresolved meals |
+| Workouts | extract_workouts, workout capture/import | Owner entry/save/read/correction, units, no coaching dependency |
+| Health/activity | import_drop/apple_health, get_day | Available measurements with units, event and received freshness, no double-count/missing-zero |
+| Spending | import_drop/bank, timeline | Actual supported export, deduplication/reconciliation, explicit date/amount/unit readback |
+| Visits | location-ingest, get_movements/get_places | Working collection and owner-safe recent-visit readback; no interpretation |
+| Day history | get_day/get_timeline and version chains | Consistent current day entries and correction target IDs across V0 entry types |
+| Owner access/operations | Authenticated RPCs and existing deployment paths | Auth/access tests; exact reviewed activation; real-account backend smoke and recovery instructions |
+
+After these backend contracts are usable, begin frontend work. Keep the complete
+real-phone day checklist below for frontend/release acceptance; neither gate proves
+the advanced project complete. Preserve the explicit production authorization gate.
 
 ### Work order and release bar
 

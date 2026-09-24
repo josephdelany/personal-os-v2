@@ -6,6 +6,32 @@ the individual interfaces; NEXT_SESSION records current evidence and remaining g
 This is a runbook under construction, not an activated capture service.
 Production authentication is held per NEXT_SESSION; do not retry the unchanged secret.
 
+## V0 structured check-ins — local implementation, not activated
+
+Migration0091/ADR0166 adds owner-JWT-only `save_v0_checkin(p_request)` and
+`get_v0_checkins(p_day)`. Provision/deploy the reviewed migration before connecting
+a frontend; these names are not claimed live. Nonowner and anonymous access refuse.
+
+Save accepts exactly `entry_id` (client UUIDv7), `supersedes` (null for a new entry,
+current predecessor UUID for a correction), `occurred_at` (ISO timestamp with
+offset), `period` (`morning`/`evening`), `ratings` and `note` (empty string allowed,
+maximum4000 characters). Morning ratings require `sleep_quality` and `energy`;
+evening requires `mood` and `energy`. Each must be an integer1–10. Nothing is
+pre-filled or inferred. `v0_checkin_v1` is separate from legacy0–10 measurements.
+
+Keep the same complete request and entry UUID until save is acknowledged. Retry
+uncertain transport failures with that exact request; changed content under the
+same UUID refuses. A stale correction must reload its predecessor before the owner
+makes a fresh correction. The receipt returns `status=saved`, entry ID, received
+time, personal day and definition version. This confirms a structured saved entry,
+not a model result. Do not display success before the RPC transaction succeeds.
+
+Day reads return `entries:[]` for a missing day, never invented zero ratings.
+Entries include event/received timestamps, explicit scale/version, predecessor,
+period, ratings and note. Current versions use the existing04:00 ET day boundary;
+corrections preserve raw evidence. These APIs do not compute clinical meaning or
+mix subjective scales. Meal/workout/photo paths are separate V0 obligations.
+
 ## Owner corrections — local implementation, not activated
 
 ADR0161/0089 adds `python3 -m tools.capture_correct`. It reads one JSON

@@ -10,13 +10,27 @@ Joe's `/goal` is active. Do not start backend execution from the monitor.
 {
   "version": 1,
   "status": "running",
-  "updated_at": "2026-09-24T16:54:15.049847+00:00",
-  "last_progress_at": "2026-09-24T16:54:15.049847+00:00",
-  "unit": "V0-daily-use-path",
-  "next_action": "Joe changed scope to daily-use V0 (ADR0165). Finish name-regression evidence94pass, then map Today/Add/History to real APIs and implement daily flow only. Check-in fields approved with1–10 scales. No live tests. Full backend deferred, not completed."
+  "updated_at": "2026-09-24T17:14:49.083432+00:00",
+  "last_progress_at": "2026-09-24T17:14:49.083432+00:00",
+  "unit": "V0-backend-checkin-save-history",
+  "next_action": "0091 V0 checkin all local gates/review pass; commit scoped unit excluding APP_PUBLICATION. Next V0 owner meal save/history independent of nutrition. No live jobs/deployment."
 }
 ```
 <!-- backend-control:end -->
+
+## Current unit — integrate V0 check-ins, then meal save/history
+
+0091/ADR0166 owner save/read/correction locally complete. Targeted30pass1.12s;
+fullSQL1105pass1production-skip436.84s terminal60726/server stopped; feature writer
+1441pass932skip176.09s terminal95953; chain90/946; layout43pass. Four scoped spine
+invariants pass, generic RULE04 pending; merged43 unverified (41production,2NumPyro),
+ledger14/15 unchanged. Reviewed strict timestamp normalization fix; no scoped blocker.
+Evidence .local/evidence/v0-checkins/; source hashes unchanged. No live processes.
+Concurrent independent-commit retry and real-account acceptance remain unproven.
+Stage/commit only root-owned0091,ADR0166,tests/runner/runbook and maintained docs;
+exclude APP_PUBLICATION. Then V0 meal save/history API: reuse private media receipts,
+show saved/unresolved entries independent of nutrition, owner access and corrections.
+Do not resume advanced nutrition/inference or start frontend before V0 backend handoff.
 
 ## Active scope — usable V0, superseding backend-first (2026-09-24)
 
