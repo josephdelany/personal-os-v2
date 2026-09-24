@@ -1,7 +1,8 @@
 # Autonomous backend control — 2026-09-22
 
 This is the single active instruction sheet. Follow EXECUTION_PLAN's autonomous
-loop and M0–M6; older checkpoints below are evidence, not competing task orders.
+loop under the restored complete-backend goal through M6; older checkpoints below
+are evidence, not competing task orders.
 Joe's `/goal` is active. Do not start backend execution from the monitor.
 
 <!-- backend-control:start -->
@@ -9,15 +10,241 @@ Joe's `/goal` is active. Do not start backend execution from the monitor.
 {
   "version": 1,
   "status": "running",
-  "updated_at": "2026-09-23T23:30:48.732510+00:00",
-  "last_progress_at": "2026-09-23T23:30:48.732510+00:00",
-  "unit": "M3-B16-voice-capture-to-atoms",
-  "next_action": "Wordquantity unit final verified on962747f dirty/staged: noDB1396/881skip168.74s,SQL1054/1production-onlyskip386s,layout43; allhandles terminal/server stopped, source hashes match .local/evidence/capture-word-quantity. Commit scoped unit then sameM3-B16 explicit append-only corrections after enrichment; current resolve returns oldoutcome. Read actual item/atom/schema and correction consumers, write bounded contract before edits. No new migration/deployment/fullrelease yet."
+  "updated_at": "2026-09-24T16:15:16.970270+00:00",
+  "last_progress_at": "2026-09-24T16:15:16.970270+00:00",
+  "unit": "M3-owner-corrections",
+  "next_action": "Final integration checks passed; make scoped correction/ADR0163 commit excluding APP_PUBLICATION. All handles terminal: SQL36144=1065pass1live-skip374.88s, writer2306=1427pass892skip159.51s, chain88/932, layout43. Final artifact directory .local/evidence/capture-corrections/final/. Then continue remaining CAP014 owner name/time/unresolved-field correction acceptance under full M0-M6 plan; do not redo completed quantity grammar or claim M3/M6 complete."
 }
 ```
 <!-- backend-control:end -->
 
-## Current active unit — M3 / B16 voice capture to persisted atoms
+## Current active unit — finish backend / owner corrections (2026-09-24)
+
+Root owns draft0089, capture_corrections engine and capture_correct CLI, nutrition
+persistence, capture_transcription/readback and capture_resolution consumers, and
+both correction/transcription tests. Requirements CAP014, RULE02/03/10/12,
+NUT032/050–053; ADR0161. Full backend M0–M6 remains the stopping scope.
+
+Implemented locally, uncommitted: private owner ledger and immutable outcome;
+single item-version chain; replacement atoms and explicit nonnumeric retractions;
+transaction/savepoint, payload-bound replay and stale-target refusal; pinned source
+and quantity; current readback; automatic new-request reads preserve owner versions;
+CLI commits before emitting success. No production change or provisioning.
+
+Local reference/quantity/removal path is ready for scoped integration commit.
+Root owns correction migration0089/ADR0161, engine/CLI, nutrition persistence,
+capture extraction/resolution/readback, tests, runbook and evidence docs. Root also
+owns ADR0163 offline browser guard repair and its harness/tests. Reviewer read-only.
+Exclude paused APP_PUBLICATION from staging; preserve isolated274f01e UI release.
+
+Final evidence: targeted84pass58.55s; full SQL1065pass1production-skip374.88s
+(session36144 terminal/server stopped); sanctioned writer1427pass892skip159.51s
+(session2306 terminal). Chain88files932statements terminal47213; layout43pass.
+Four scoped spine invariant cases passed; generic RULE04 remains pending. Ledger
+14/15 unchanged; F006 noDB diagnostic matched passing SQL taxonomy. Merged43 unique
+unverified skips:41 production-guarded plus2 NumPyro. Named-test index673/685 does not
+prove full contracts;293 tests-only/22 no-entry-point classifications remain.
+Final evidence/manifest/reconciliation at .local/evidence/capture-corrections/final/;
+runtime/test hashes in parent verified unchanged across final runs. No live handles.
+
+Reader/recovery repair: model retries on partially resolved captures cannot replace
+current transcription/extraction and hide owner results. New extraction preparation
+refuses; legacy model outcomes are appended as unapplied history and can retire from
+mailboxes. Both stages' replay/current readback tested. Reviewer accepted after
+initial consume-throw approach was found to strand retirement. Initial fixture-only
+ambiguous processor_version error fixed; failure history retained in PROGRESS.
+
+ADR0163 explicitly supersedes ADR0109 blanket browser-import scope ONLY for reviewed
+offline own-app harness exact path/hash. Fixed fixture routes at context level,
+offline/service-workers block; Chrome exercised refused external fetch/navigation/
+popup plus existing journey. Scanner27pass1.56s covers mutation/copy/symlink refusal
+and retained other guards. Reviewer accepted. Earlier noDB failure remains separate.
+No hidden import, test omission, requirement amendment, new cost or production action.
+
+Next after scoped commit: continue CAP014's remaining owner name/event-time and
+unresolved extracted-field corrections, derive the exact bounded acceptance contract
+from specs and existing schema before editing. Name/time and other capture profiles
+are NOT closed by this reference/quantity/removal path. Full M0–M6, production
+activation, real device/data proof and outstanding measurement decisions remain.
+OQ82 independent commit/crash fixture exception ungranted. No repeated secret probe.
+
+Watchdog previously rejected checkpoint because last_progress_at was microseconds
+later than updated_at. This checkpoint uses one timestamp for both; no monitor
+threshold was changed. Preserve paused UI commits and isolated274f01e release at
+/tmp/personal-os-usable-app-release. UI publication is not a blocker to backend work.
+
+## Historical usability goal — paused by latest instruction
+
+## Current active unit — stronger first-use usability (2026-09-24)
+
+Integrated root21faf12; isolated release274f01e now replaces a74355c. Release tree
+/tmp/personal-os-usable-app-release; app/module/test hashes match tested root.
+Node7pass both trees, root layout43pass, unchanged Chrome journey/visual evidence
+reused because hashes match. Reviewer accepted fixes, no scoped blocker. No live
+process, push, policy mutation, migration or deployment. Next dependent step is
+explicit approval of refreshed APP_PUBLICATION packet, then external revalidation
+and isolated app publication. Live owner sign-in/real-data acceptance remain unproven.
+Do not treat local completion as goal completion. Paused backend edits preserved.
+
+
+History/visual/review checkpoint: real Chrome offline journey passed, terminal77292.
+Covers successful and empty history, selected date, stale status/outage/retry,
+late-response suppression, unknown counts versus true0, auth refresh preserves tab.
+Reviewer caught missing-count zero and token-refresh reset; repaired and accepted.
+Phone preview showed Ask burying other views; separate Ask/default screen now hides
+when viewing history/status. Absent forecast/hypothesis objects no longer yield
+unavailable pseudo-statistics. Screenshot inspected /tmp/personal-os-usability-mobile.png,
+explicitly labelled offline fixtures. Not real-data/deployment evidence. Root app
+changes still uncommitted; final Node/layout integration and release refresh next.
+
+
+Navigation checkpoint: all read views use loading/deadline/error-retry handling and
+request generations; sign-out invalidates in-flight reads. Overview empty deviations
+no longer imply normal/complete data. Data status no longer repeats stale warnings.
+Node7pass; offline Chrome mobile test passed status consumer, outage/retry, selected
+history date and late timeline isolation. Initial assertion failure was uppercase
+CSS innerText vs semantic heading; accessible heading check now verifies same view.
+Layout initially scanned nested historical worktree (five failures); moved it with
+git worktree move to /tmp/personal-os-usable-app-release. Unchanged gate43pass.
+No weakening/ignores added. All test processes terminal. Still uncommitted UI work;
+successful timeline content/missing-state/visual and independent review remain.
+
+
+Joe explicitly requested strengthening usability and started a new goal to achieve
+it. Prior narrow Ask publication readiness is not the current acceptance target.
+Owner: root; app/index.html, app/ask.mjs, app/data-status.mjs, UI/browser tests and
+usability documentation. No capture expansion. No new dependency or backend schema.
+Acceptance: open app, find available/stale/missing data, choose/edit a useful question,
+understand answer dates/units/evidence/source limitations, browse history, recover
+from failure and comfortably use phone navigation without agent help. Live auth/data
+and publication remain necessary but independent UI work is now actionable again.
+Current partial implementation: clearer navigation/touch targets/focus; editable
+question suggestions (no automatic submission); readable evidence descriptions,
+period/unit/count/limitations; Data status distinguishes stale observations from
+successful jobs and warns that an empty warning list is not complete coverage.
+Node7pass. Existing root/publication commits preserved. Release a74355c is stale for
+this broader goal; do not publish it or call the goal complete from previous tests.
+Next: Data status actual consumer browser test, remove duplicated legacy status,
+fix missing-state claims and navigation error/loading/race behavior; review full
+first-use journey and prepare updated isolated release. No deployment approval given.
+
+## Historical publication hold — superseded by broader local usability work
+
+## Current active unit — usable browser program (ADR0162)
+
+**Held: publication authorization.** Third consecutive occurrence verified; release
+worktree remains clean at a74355c. No independent release preparation remains and
+no process is running. Goal marked blocked, not complete. Resume on explicit approval
+of APP_PUBLICATION, recheck external state, publish isolated app and verify usability.
+No permission inferred from automatic goal continuation. No production change made.
+
+
+Latest handoff60450b6 records guided sign-in and APP_PUBLICATION. Isolated release
+remains a74355c, clean; app/module/tests/workflow byte hashes match root. No testing
+or deployment process is running. Publication permission still has no user answer;
+automatic goal continuation is not approval. Second consecutive hold audit; all
+concrete local publication preparation finished. Keep goal incomplete and do not
+invent capture work to fill the approval wait. Root paused backend edits preserved.
+
+
+**Superseding publication safety finding:** docs/APP_PUBLICATION.md withdraws the
+previous proposed main push. Old main tests use production DB URL with migration
+fixtures lacking modern guards. Publish isolated release branch only, add its exact
+name to Pages environment branch allowlist (currently main only), dispatch Pages
+manually after explicit approval. No main push, policy change or deployment occurred.
+Isolated release layout41pass/1existing local-settings warning; guard26pass.
+
+Historical initial publication packet (main push WITHDRAWN): isolated worktree /tmp/personal-os-usable-app-release, branch
+release/usable-ask at a74355c based on verified remote main b606c64. Six-file
+release contains app/index.html, app/ask.mjs, both UI/browser tests, Pages workflow,
+and FIRST_USE only. Never push root backend branch. Intended approval action:
+`git push origin release/usable-ask:main`, followed by Pages observation and served
+file verification. Remote movement requires refresh/review, no force push.
+Public live page bytes equal remote main app. Auth settings read returned200 and
+email enabled; anon OpenAPI returned401 requiring service key, not invalid login.
+No live RPC/owner sign-in proven. Joe replied not sure; do not claim he logged in.
+Final sign-in form validates email, suppresses duplicates, provides clear feedback,
+and disables account creation. Offline browser smoke verifies it without sending
+email; Node5pass. Root followup app/browser changes remain uncommitted while isolated
+release is committed. Publication authorization is pending; no push has occurred.
+
+
+Local app commit804030b includes app files, UI/browser tests, Pages workflow,
+FIRST_USE, ADR0162 and progress evidence. Node5pass, offline Chrome mobile smoke
+passed, layout43pass. Reviewer found no scoped blocker; its stalled-request concern
+is repaired with a waiting deadline, late-result refusal and no automatic retries.
+All test processes terminal. No push/deploy/live Ask. Pending publication must
+exclude unrelated backend commits: prepare isolated branch or file-only patch on
+current remote head, inspect exact workflow implications before approval.
+
+
+Joe replaced the backend-completion goal with a usable program, prioritizing usability
+and deferring complicated capture. This supersedes backend-before-frontend sequencing
+for this goal. Existing app/index.html has owner sign-in and daily/timeline surfaces;
+prior statement that only a CLI existed was incorrect. Root now owns app/ask.mjs,
+app/index.html, tests/ask_ui.test.mjs, Pages workflow and first-use documentation.
+Ask form calls existing owner-only public.ask; backend owns calculation/persistence.
+Shows stored answer, evidence tier, as-of, missing-data guidance and full source envelope.
+Local Node tests4pass; duplicate submit and late Ask response after sign-out covered.
+No real browser/auth or production Ask acceptance yet. Ask RPC persists questions;
+do not call it as though it were a read-only production diagnostic.
+Read-only GitHub API verified default branch v2-day1 and configured Pages URL
+https://josephdelany.github.io/personal-os-v2/ . Pages trigger was main-only; local
+workflow now also accepts v2-day1 and runs Ask tests before publishing. No push/deploy.
+Next: actual browser validation and deployed API/revision inventory, required fixes,
+usage guide and exact publication action. Production DB secret hold still unchanged.
+Full backend requirements remain unfinished, not renamed complete.
+
+Correction checkpoint preserved: 123 pure tests passed1.27s; SQL74 passed47.52s,
+session72979 terminal/server stopped. /tmp/capture-correction-pure.log and
+/tmp/capture-correction-source-sql.log/.xml; original test-schema failure retained
+/tmp/capture-correction-source-initial-failure.log. New validator and pinned cache
+leg are uncommitted, not integrated; no migration0089/persistence/owner-role exists.
+
+Browser verification checkpoint: tests/ask_browser_smoke.py passed in installed
+Chrome using intercepted offline fixtures at390px. Node tests4pass. Public page
+fetched successfully /tmp/personal-os-live-page.html and lacks Ask. Latest GitHub
+Pages success33582668335 main@c697efb; default branch v2-day1 verified. FIRST_USE.md
+contains current URL and activation limits. Asked Joe asynchronously what happens
+on normal sign-in; do not send magic links or inspect his browser credentials.
+No live Ask request (it writes saved questions), deployment or production migration.
+Do not push the full backend branch for this UI: isolate publication scope first.
+
+## Paused unit — M3 / B16 owner corrections
+
+
+**Current bounded acceptance afterc01672d — owner correction after enrichment:**
+CAP014,RULE02/03/10/12,NUT032/050-053; B12/B16. Existing resolve returns the old
+completed outcome; accept_correction changes the reference cache/review queue but
+does not replace saved capture results. Implement an explicit private owner path,
+not an automated model-input route. Preserve raw capture/extraction and old atoms.
+Positive: corrected stated quantity/reference produces a new item/result and atoms,
+current capture/day reads show only replacement values, historical knowledge reads
+retain old results, retries are idempotent and later automatic retries cannot erase
+Joe's correction. Cover whole/fraction-to-total transitions and removed nutrients/
+components without fake zeros or double counting. Negative: stale predecessor,
+conflicting request identity, invalid quantity/source, untrusted owner origin,
+partial failure and attempts to update/delete immutable evidence refuse/rollback.
+Root reserves migration0089 and ADR0161 after inspecting current filenames; owns
+correction engine/CLI, item/readback/runtime adapters, nutrition persistence, SQL
+harness/fixtures/tests and affected current/as-of readers. One implementation writer.
+ADR0161 records the accepted implementation design following read-only critique:
+immutable correction ledger, versioned resolved items, existing atom supersedes
+plus explicit retraction markers for removed components, excluded by current readers.
+Implementation is partial, not integrated. `capture_corrections.validate_request`
+now validates exact request/predecessor/source-version identity, one positive finite
+quantity dimension or explicit removal. Actor metadata does not authorize a write.
+`nutrition.PinnedCacheLeg` selects an exact cache version and reuses existing source
+provenance/brand checks. No correction persistence or migration0089 exists yet.
+Current consumer inventory: capture_transcription.readback reads base atoms and all
+resolved items; nutrition_day reads atoms_current; analysis.f_atom_rows in0083
+already cuts off superseding rows by knowledge time. These need correction acceptance.
+Unlike the historical comment in0005, atom kinds ARE constrained by0014/ADR0023;
+retractions must preserve the predecessor kind and cannot invent a new taxonomy.
+No new measurement definition, dependency or production write. Test disposable
+rollback-only schemas; independent commit/crash proof still requires OQ82 approval.
+Previous quantity unit is committed. Reviewer finished correction design critique,
+no edits. Full backend M0-M6 remains the stopping scope.
 
 
 Word-quantity final integration: fullnoDB1396passed881skipped168.74s, terminal72395;

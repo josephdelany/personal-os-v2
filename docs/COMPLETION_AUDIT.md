@@ -1,5 +1,56 @@
 # Project completion audit
 
+## Owner correction integration checkpoint — 2026-09-24
+
+Local integration evidence on dirty root21faf12 plus0089/ADR0161 and ADR0163.
+Reference/quantity replacement and removal are locally verified; full CAP014 and
+backend release remain incomplete.
+
+| Review lens | Evidence and limits |
+|---|---|
+| Contract fidelity | PARTIAL CAP014: reference/quantity replacement and removal implemented; name/time edits and full capture profile scope remain open |
+| Complete user paths | PASS scoped owner-role engine → ledger/item/atoms/outcome → current capture, nutrition-day and historical analysis readers; CLI commit/output boundary unit-tested; actual production command not run |
+| Failure behavior | PASS targeted identical/conflicting replay, stale predecessor, unauthorized actor role, omitted nutrient, missing serving mass and injected failure after nutrient insertion; real independent-session crash/concurrency unverified |
+| Data integrity | PASS targeted immutable originals, single successors, nonnumeric retractions, whole/fraction→total, removal, current/as-of separation and stale automatic writer refusal; generic RULE04 remains pending |
+| Access/privacy | PASS targeted private capture_owner writes, automated-role denial, private process provider guard, sanitized CLI errors; owner login provisioning and deployed privileges unverified |
+| Runtime/deployment | NOT VERIFIED: local correction CLI and runtime adapters only; no production migration, login or execution |
+| Operations/recovery | PARTIAL: atomic savepoint and saved replay verified; commit-error output refuses success; fixture rollback is not actual crash durability (OQ82 remains ungranted) |
+| Evidence/reproducibility | PASS local integration: final targeted84pass58.55s; full SQL1065pass/1production skip374.88s; sanctioned noDB1427pass/892skip159.51s; chain88/932; layout43. Four scoped spine invariant cases pass; generic RULE04 pending. Ledger14/15 unchanged; all run handles terminal |
+
+Independent reviewer review_capture_ingress found no concrete scoped blocker in two
+passes; it retained broader consumer and integration evidence requirements. Direct
+reader inventory: capture readback now chooses current items and excludes retractions;
+nutrition_day uses atoms_current; analysis.f_atom_rows uses observed presence and
+knowledge-cutoff supersession (exercised before/after corrections and removal).
+Merchant linking filters transaction kinds. Source inventory and old coverage totals
+count stored rows/metric identities, not current nutrient values; do not reinterpret
+these as measured nutrient coverage. Full domain-status regression passed in the final SQL suite.
+
+Final skip reconciliation leaves43 unique unverified cases:41 production-guarded
+cases and2 missing NumPyro dependency cases. Guarding a test does not authorize
+deferring its requirement. F006 noDB ledger diagnostic is explained by its passing
+SQL taxonomy test; F005 remains failing in the narrow ledger. The generated index
+shows673/685 requirements with a named passing test, not673 completed contracts;
+reachability still reports293 tests-only and22 with no entry point.
+
+Review found obsolete model-result retirement risk in the initial refusal repair.
+The final database trigger retains unapplied extraction/transcription outcomes,
+preserves current owner results and permits mailbox retirement. Both lanes passed
+through actual consumers; reviewer accepted the repair. ADR0163 explicitly corrects
+ADR0109's blanket browser-import scope for one exact path/hash offline harness.
+Real Chrome refusal/journey checks and27 finance guard tests passed; the earlier
+1422pass/890skip/1fail run remains recorded as failed. No requirement was removed.
+
+Final artifacts, merged manifest, requirement index and skip/invariant reconciliation:
+`.local/evidence/capture-corrections/final/`; runtime/test hashes in its parent.
+Old pre-model-guard evidence is retained separately. No production authorization
+or independent commit/crash fixture exception was inferred.
+
+Artifacts: /tmp/capture-correction-persistence.log/.xml,
+/tmp/capture-correction-unit-full.log/.xml, /tmp/capture-correction-full-sql.log/.xml,
+/tmp/correction-version-chain.log, /tmp/capture-correction-layout.log.
+Full backend M0–M6 is not complete. No production/SQL permission exception inferred.
+
 ## Current quality review — 2026-09-22
 
 ### Latest unit: isolated reference dispatch — 2026-09-23 (locally integrated)

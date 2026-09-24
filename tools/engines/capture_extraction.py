@@ -208,6 +208,10 @@ def prepare(cur, *, request_id, capture_id, schema='core'):
     transcript_id, transcript, head, status, raw = saved
     if status not in ('transcribed','pending_enrichment','deferred_budget'):
         raise ValueError('capture is not awaiting extraction')
+    cur.execute(f'SELECT 1 FROM {schema}.capture_resolved_items WHERE capture_id=%s LIMIT 1',
+                (capture_id,))
+    if cur.fetchone() is not None:
+        raise ValueError('resolved capture requires owner correction, not re-extraction')
     if not isinstance(raw,dict) or raw.get('kind') != 'food':
         raise ValueError('food profile required; other profiles remain unimplemented')
     # Stable work identity for a processing head: repeated polling must not

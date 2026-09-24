@@ -32,6 +32,7 @@ from __future__ import annotations
 
 import pathlib
 import re
+import hashlib
 from dataclasses import dataclass
 
 
@@ -67,6 +68,27 @@ PAYMENT_INITIATION = (
     r"\bpayments?\.create\b",
 )
 BROWSER_DRIVERS = (r"selenium", r"playwright", r"puppeteer", r"webdriver")
+
+# ADR-0163 explicitly corrects ADR-0109's blanket browser-import scope for
+# this reviewed offline own-app harness only. All other findings still apply.
+OFFLINE_HARNESS_PATH = pathlib.Path('tests/ask_browser_smoke.py')
+OFFLINE_HARNESS_SHA256 = '139070901c1c8d593a618158deb21ec27238fb7b8474778346bbd384d34e1d41'
+
+
+def _reviewed_offline_harness(path, root, contents):
+    root = pathlib.Path(root)
+    try:
+        relative = path.relative_to(root)
+    except ValueError:
+        return False
+    if relative != OFFLINE_HARNESS_PATH:
+        return False
+    candidate = root
+    for part in relative.parts:
+        candidate = candidate / part
+        if candidate.is_symlink():
+            return False
+    return hashlib.sha256(contents).hexdigest() == OFFLINE_HARNESS_SHA256
 
 # REQ-FIN-244. The raw tables are append-only; a destructive statement against them is the
 # violation. The verb is assembled, not spelled -- see the module docstring.
@@ -108,7 +130,8 @@ def scan_repository(root="."):
     """
     out = []
     for path in _sources(root):
-        raw = path.read_text(errors="ignore")
+        contents = path.read_bytes()
+        raw = contents.decode(errors="ignore")
         code = _strip_comments(raw, path.suffix)
         rel = str(path)
         for pattern in CREDENTIAL_IDENTIFIERS:
@@ -120,7 +143,8 @@ def scan_repository(root="."):
                 out.append(NeverViolation("REQ-FIN-251",
                                           f"payment/state-change call {m.group(0)!r}", rel))
         for driver in BROWSER_DRIVERS:
-            if re.search(rf"(?:import|require|from)\s+\S*{driver}", code, re.I):
+            if (re.search(rf"(?:import|require|from)\s+\S*{driver}", code, re.I)
+                    and not _reviewed_offline_harness(path, root, contents)):
                 out.append(NeverViolation("REQ-FIN-255",
                                           f"browser automation dependency {driver!r}", rel))
         for table in RAW_TABLES:

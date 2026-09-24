@@ -8425,3 +8425,54 @@ missingness, outages/retry, stale responses, sign-in and auth refresh. Screensho
 inspected. Independent review accepted both repairs and found no scoped blocker.
 No live auth/data proof, production schema change, push or deployment. Isolated
 release is being refreshed; old a74355c is not the new acceptance target.
+
+
+## 2026-09-24 — owner correction transaction checkpoint (not integrated)
+
+Dirty root21faf12, draft0089/ADR0161. CAP014/RULE02/03/10/12 and NUT032/050–053:
+owner ledger, item versions, replacement/retraction atoms and replay result are
+transaction-bound; current capture/automatic reads preserve owner corrections.
+Pinned source/quantity, stale and unauthorized refusal, mid-write rollback, omitted
+nutrients, whole/fraction→total, repeated removal, nutrition-day and historical
+analysis acceptance exercised. Added owner CLI with commit-before-success and
+sanitary error output. Targeted SQL82pass82.97s; pure/CLI27pass0.28s; chain88/929;
+layout43pass. Independent reviewer found no scoped blocker in two passes.
+Full noDB1422pass890skip1fail210.35s: existing offline UI browser dependency conflicts
+with finance scanner's blanket ADR0109 scope. Reviewer supports an explicit RULE00
+gate-correction ADR with exact path/hash and offline adversarial proof; not yet
+implemented. No gate weakened or test skipped. FullSQL39192 remains live.
+WHAT I DID NOT DO: complete full integration/ledger/commit, CAP014 name/time editing,
+production provisioning/migration, real-device acceptance, or M0–M6 release. OQ82
+fixture exception ungranted; rollback tests do not prove independent crash durability.
+
+
+## 2026-09-24 — owner correction local integration (ADR0161/0163)
+
+Reference/quantity replacements and item removals now execute through an owner-only
+CLI/transaction and append immutable versions, nutrient replacements/retractions and
+a saved retry outcome. Current capture/day and historical analysis reads agree.
+Late model transcription/extraction on partially resolved captures cannot hide
+corrections: outcomes remain unapplied and transport requests can retire. Reviewer
+caught retirement loss in the initial throw-only repair; the final trigger/consumer
+path passed both model lanes and independent review. CAP014/RULE02/03/10/12,
+NUT032/050–053 covered within this explicit scope.
+
+Final dirty21faf12 evidence: targetedSQL84pass58.55s; fullSQL1065pass1production-skip
+374.88s; sanctioned writer1427pass892skip159.51s; chain88migrations932statements;
+layout43pass; four scoped spine invariants pass, generic RULE04 pending. Ledger14/15
+unchanged; F006 noDB diagnostic reconciled to passing SQL taxonomy. Merged43 unresolved
+skips:41 production-guarded and2 NumPyro. Named-test index673/685 is not contract
+completion. All processes terminal/server stopped. Artifacts and manifest archived
+under .local/evidence/capture-corrections/final/; hashes show no runtime/test edits
+during final runs.
+
+ADR0163 records the explicit RULE00 correction to ADR0109's overbroad browser gate:
+only exact reviewed offline own-app harness path/hash is recognized; changed/copied/
+symlinked scripts and other forbidden constructs still fail. Chrome verified context
+offline/service-worker block and refused fetch/navigation/popup plus app journey;
+finance guard27pass1.56s. Reviewer accepted. Prior failing noDB run remains recorded.
+Owner operation/retry instructions added to CAPTURE_RUNTIME; no new deployment.
+WHAT I DID NOT DO: name/time/unresolved extracted-field corrections, non-food capture
+profiles, production provisioning/migration, real-device acceptance, independent
+commit/crash durability (OQ82 ungranted), or full M0–M6 release. These remain work,
+not implicitly authorized deferrals.

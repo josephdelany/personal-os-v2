@@ -213,12 +213,13 @@ def readback(cur, *, capture_id, schema='core'):
                     'fields':[dict(zip(('item_index','name','value','provenance','reason','evidence','evidence_start'),f))
                               for f in cur.fetchall()]}
         cur.execute(f'''SELECT i.item_id,i.item_index,i.occurred_at,i.subject_day,i.time_precision,
-            i.time_provenance,i.time_reason,i.resolution FROM {schema}.capture_resolved_items i
+            i.time_provenance,i.time_reason,i.resolution FROM {schema}.capture_resolved_items_current i
             WHERE i.extraction_request_id=%s ORDER BY i.item_index''',(extracted[0],))
         resolved=[]
         for item in cur.fetchall():
             cur.execute(f'''SELECT id,metric_key,value_low,value_point,value_high,unit,estimate_method,
                 provenance,code_version,capture_component,event_time_provenance,quantity_provenance FROM {schema}.atoms a WHERE capture_item_id=%s
+                AND NOT a.is_retraction
                 AND NOT EXISTS(SELECT 1 FROM {schema}.atoms b WHERE b.supersedes=a.id)
                 ORDER BY metric_key''',(item[0],))
             atoms=[dict(zip(('atom_id','metric_key','value_low','value_point','value_high','unit',

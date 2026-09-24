@@ -277,8 +277,7 @@ class CacheLeg:
 
     def __call__(self, item_text, brand):
         self.calls += 1
-        cached, source = lookup_cached(self.cur, item_text, self.schema, brand=brand,owner_only=self.owner_only,
-                                      allow_unbranded_owner=self.allow_unbranded_owner)
+        cached, source = self._lookup(item_text, brand)
         # The shape the pre-cascade `resolve_item` recorded, kept verbatim so an existing
         # reader of `tried` — and the test that pins it — still finds what it looks for.
         self.notes.append({"source": "foods_cache", "hit": cached is not None})
@@ -305,6 +304,41 @@ class CacheLeg:
             out["estimate_method"] = "labelled"
             out["brand_owner"] = cached["brand"]
         return out
+
+    def _lookup(self, item_text, brand):
+        return lookup_cached(self.cur, item_text, self.schema, brand=brand,owner_only=self.owner_only,
+                             allow_unbranded_owner=self.allow_unbranded_owner)
+
+
+class PinnedCacheLeg(CacheLeg):
+    """An explicit owner selection of one stored source version, with no fallback.
+
+This selects composition; it does not confer owner authority or change source
+provenance. The caller must authorize and persist the correction separately.
+"""
+
+    def __init__(self, cur, food_id, schema="core"):
+        import uuid
+        super().__init__(cur, schema)
+        self.food_id = str(uuid.UUID(str(food_id)))
+
+    def _lookup(self, item_text, brand):
+        self.cur.execute(f'''SELECT canonical_name,source,nutrients_per_100g,
+            serving_g,brand,food_id,source_id,raw FROM {self.schema}.foods_cache
+            WHERE food_id=%s''', (self.food_id,))
+        row = self.cur.fetchone()
+        if row is None:
+            raise ValueError('selected food reference version does not exist')
+        canonical, source, nutrients, serving_g, row_brand, food_id, source_id, raw = row
+        if source not in SOURCE_PRECEDENCE:
+            raise ValueError('unsupported selected reference source')
+        if brand and not cached_row_answers_brand(source, row_brand, brand, raw):
+            raise ValueError('selected reference does not match the stated brand')
+        return {'canonical_name': canonical, 'source': source,
+                'nutrients_per_100g': nutrients,
+                'serving_g': None if serving_g is None else float(serving_g),
+                'brand': row_brand, 'food_id': str(food_id),
+                'source_id': source_id, 'raw': raw}, source
 
 
 class UnconfiguredLeg:
@@ -930,7 +964,8 @@ def _already_stored(cur, raw_capture_id, metric_key, subject_day, evidence_span,
 def persist_resolution(cur, resolved, *, raw_capture_id, occurred_at, subject_day,
                        evidence_span, schema="core", trust_level="trusted",
                        code_version=CODE_VERSION, time_precision="hour", capture_item_id=None,
-                       capture_component='total'):
+                       capture_component='total', correction_request_id=None,
+                       supersedes_by_component=None):
     """A resolved item's intervals -> one `consume` atom per nutrient. Returns the keys written.
 
     **Why `inferred` and never `extracted`.** The capture contains a phrase, not a calorie. Every
@@ -942,6 +977,10 @@ def persist_resolution(cur, resolved, *, raw_capture_id, occurred_at, subject_da
 
     INV-1 holds by construction — every atom points at the capture the item was uttered in.
     """
+    if correction_request_id is not None and capture_item_id is None:
+        raise ValueError('correction requires persistent item identity')
+    if supersedes_by_component and correction_request_id is None:
+        raise ValueError('supersession requires a correction request')
     if resolved.get('components'):
         if capture_item_id is None:
             raise ValueError('fractional resolution requires persistent item identity')
@@ -951,7 +990,8 @@ def persist_resolution(cur, resolved, *, raw_capture_id, occurred_at, subject_da
                 raw_capture_id=raw_capture_id,occurred_at=occurred_at,subject_day=subject_day,
                 evidence_span=evidence_span,schema=schema,trust_level=trust_level,code_version=code_version,
                 time_precision=time_precision,capture_item_id=capture_item_id,
-                capture_component=component['component']))
+                capture_component=component['component'], correction_request_id=correction_request_id,
+                supersedes_by_component=supersedes_by_component))
         return written
     units = _registry_units(cur, resolved["nutrients"], schema)
     if time_precision not in ('exact','minute','hour','day','unknown'):
@@ -978,17 +1018,22 @@ def persist_resolution(cur, resolved, *, raw_capture_id, occurred_at, subject_da
         unit, state_class = units[key]
         item_column = ', capture_item_id, capture_component' if capture_item_id is not None else ''
         item_value = ', %s, %s' if capture_item_id is not None else ''
+        correction_columns = ', correction_request_id, supersedes' if correction_request_id is not None else ''
+        correction_values = ', %s, %s' if correction_request_id is not None else ''
+        correction_args = ((correction_request_id,
+            (supersedes_by_component or {}).get((key, capture_component)))
+            if correction_request_id is not None else ())
         cur.execute(
             f"""insert into {schema}.atoms
                   (raw_capture_id, kind, metric_key, occurred_at, time_precision,
                    subject_day, subject_day_rule_version, presence,
                    value_low, value_point, value_high, estimate_method, unit, state_class,
-                   trust_level, provenance, evidence_span, code_version{item_column})
+                   trust_level, provenance, evidence_span, code_version{item_column}{correction_columns})
                 values (%s, 'consume', %s, %s, %s, %s, %s, 'observed',
-                        %s, %s, %s, %s, %s, %s, %s, 'inferred', %s, %s{item_value})""",
+                        %s, %s, %s, %s, %s, %s, %s, 'inferred', %s, %s{item_value}{correction_values})""",
             (raw_capture_id, key, occurred_at, time_precision, subject_day, SUBJECT_DAY_RULE_VERSION,
              low, point, high, method, unit, state_class,
-             trust_level, evidence_span, code_version) + ((capture_item_id,capture_component) if capture_item_id is not None else ()))
+             trust_level, evidence_span, code_version) + ((capture_item_id,capture_component) if capture_item_id is not None else ()) + correction_args)
         written.append(key)
     return written
 

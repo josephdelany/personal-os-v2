@@ -5,6 +5,7 @@ taste", and forbids three things about their implementation: no configuration to
 documentation-only, and no soft enforcement. Each is tested.
 """
 import datetime as dt
+from pathlib import Path
 
 import pytest
 
@@ -70,6 +71,37 @@ def test_REQ_FIN_244_a_destructive_statement_against_a_raw_table_is_a_violation(
 def test_REQ_FIN_241_244_251_255_the_live_repository_is_clean():
     """The scan that matters. Zero is only meaningful because the tests above prove it bites."""
     assert scan_repository(".") == ()
+
+
+def test_REQ_FIN_255_RULE_00_only_exact_reviewed_offline_harness_is_recognized(tmp_path):
+    source=Path(__file__).parent/'ask_browser_smoke.py'
+    target=tmp_path/'tests'/'ask_browser_smoke.py'
+    target.parent.mkdir()
+    target.write_bytes(source.read_bytes())
+    assert scan_repository(tmp_path)==()
+    target.write_bytes(source.read_bytes()+b'\n# unreviewed edit\n')
+    assert codes(scan_repository(tmp_path))==['REQ-FIN-255']
+    target.unlink()
+    target.symlink_to(source.resolve())
+    assert codes(scan_repository(tmp_path))==['REQ-FIN-255']
+    target.unlink()
+    copy=tmp_path/'copied_harness.py'
+    copy.write_bytes(source.read_bytes())
+    assert codes(scan_repository(tmp_path))==['REQ-FIN-255']
+
+
+@pytest.mark.parametrize('addition,expected',[
+    (f'\n{CRED} = None\n','REQ-FIN-241'),
+    (f'\n{PAYMENT}(1)\n','REQ-FIN-251'),
+    (f'\nimport {DRIVER}\n','REQ-FIN-255'),
+])
+def test_REQ_FIN_241_251_255_RULE_00_harness_has_no_exemption_from_other_checks(tmp_path,addition,expected):
+    target=tmp_path/'tests'/'ask_browser_smoke.py'
+    target.parent.mkdir()
+    target.write_bytes((Path(__file__).parent/'ask_browser_smoke.py').read_bytes()+addition.encode())
+    found=codes(scan_repository(tmp_path))
+    assert expected in found
+    assert 'REQ-FIN-255' in found
 
 
 # ---------------------------------------------------------------- copy and inference

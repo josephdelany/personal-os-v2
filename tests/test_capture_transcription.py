@@ -56,6 +56,32 @@ def count(cur,table):
     return cur.fetchone()[0]
 
 
+def test_REQ_CAP_014_RULE_10_correction_source_version_cannot_drift_to_newer_cache(cur):
+    from tools.engines import nutrition
+    old, new = str(uuid.uuid4()), str(uuid.uuid4())
+    for food_id, kcal, date in ((old,100,'2026-09-01'),(new,200,'2026-09-02')):
+        cur.execute('''INSERT INTO core_pytest.foods_cache
+            (food_id,canonical_name,source,source_id,nutrients_per_100g,fetched_at)
+            VALUES (%s,'fixture pinned food','usda_foundation','fixture-pinned',%s::jsonb,%s)''',
+            (food_id,json.dumps({'kcal':kcal}),date))
+    def resolve(food_id):
+        return nutrition.resolve_item(cur,'fixture pinned food',grams=150,
+            sources={'joe':nutrition.PinnedCacheLeg(cur,food_id,schema='core_pytest')},
+            schema='core_pytest',config='config',ops='ops_pytest')
+    previous, latest = resolve(old), resolve(new)
+    assert previous['food_id']==old and latest['food_id']==new
+    assert previous['nutrients']['kcal']==(135,150,165)
+    assert latest['nutrients']['kcal']==(270,300,330)
+    assert previous['source']=='usda_foundation' and previous['from_cache']
+    assert previous['alias_id'] is None
+    with pytest.raises(ValueError,match='does not exist'):
+        resolve(str(uuid.uuid4()))
+    with pytest.raises(ValueError,match='stated brand'):
+        nutrition.resolve_item(cur,'fixture pinned food',grams=150,brand='fixture brand',
+            sources={'joe':nutrition.PinnedCacheLeg(cur,old,schema='core_pytest')},
+            schema='core_pytest',config='config',ops='ops_pytest')
+
+
 def test_REQ_CAP_034_persisted_transcript_has_timings_and_immutable_raw(cur):
     cur.execute('SELECT to_jsonb(r) FROM core_pytest.raw_captures r WHERE capture_id=%s',(CID,))
     before = cur.fetchone()[0]
@@ -622,6 +648,373 @@ def cache_resolution_food(cur, *, name='fixture food',serving_g=250,household='o
         VALUES (%s,%s,'fixture-fdc-id','Fixture Brand',%s,%s,%s)''',
         (name,source,json.dumps({'kcal':200,'protein_g':10}),serving_g,json.dumps({'usda_food':{
             'householdServingFullText':household,'brandOwner':'Fixture Brand'}})))
+
+
+def test_REQ_CAP_014_RULE_02_RULE_10_owner_correction_ledger_requires_private_authority(cur):
+    from tools.engines import capture_resolution
+    req=saved_food_extraction(cur)
+    cache_resolution_food(cur)
+    result=capture_resolution.resolve(cur,request_id=uuid.uuid4(),capture_id=CID,
+        extraction_request_id=req['request_id'],schema='core_pytest',ops='ops_pytest')
+    item=result['items'][0]['item_id']
+    rid=str(uuid.uuid4())
+    statement='''INSERT INTO core_pytest.capture_owner_corrections
+        (request_id,capture_id,expected_item_id,actor,operation,recorded_at)
+        VALUES (%s,%s,%s,'joe','remove','2000-01-01') RETURNING recorded_at'''
+    for role in ('service_role','model_egress','reference_egress','authenticated','anon'):
+        cur.execute('SAVEPOINT denied_correction')
+        cur.execute(f'SET LOCAL ROLE {role}')
+        with pytest.raises(Exception) as error:
+            cur.execute(statement,(rid,CID,item))
+        assert error.value.args[0]['C']=='42501'
+        cur.execute('ROLLBACK TO SAVEPOINT denied_correction')
+        cur.execute('RELEASE SAVEPOINT denied_correction')
+    cur.execute('SET LOCAL ROLE capture_owner')
+    cur.execute(statement,(rid,CID,item))
+    assert cur.fetchone()[0].year>2000  # server knowledge time cannot be backdated
+    cur.execute('RESET ROLE')
+    for verb in ('UPDATE core_pytest.capture_owner_corrections SET actor=actor',
+                 'DELETE FROM core_pytest.capture_owner_corrections',
+                 'TRUNCATE core_pytest.capture_owner_corrections'):
+        cur.execute('SAVEPOINT immutable_correction')
+        with pytest.raises(Exception):
+            cur.execute(verb)
+        cur.execute('ROLLBACK TO SAVEPOINT immutable_correction')
+        cur.execute('RELEASE SAVEPOINT immutable_correction')
+    assert count(cur,'capture_owner_corrections')==1
+    # Creating the audit record alone must not mutate the original observation.
+    assert transcription.readback(cur,capture_id=CID,schema='core_pytest')['extraction']['resolved_items'][0]['item_id']==uuid.UUID(item)
+
+
+def test_REQ_CAP_014_RULE_03_RULE_10_corrected_item_versions_reject_forks_and_automated_writers(cur):
+    from tools.engines import capture_resolution
+    req=saved_food_extraction(cur)
+    cache_resolution_food(cur)
+    result=capture_resolution.resolve(cur,request_id=uuid.uuid4(),capture_id=CID,
+        extraction_request_id=req['request_id'],schema='core_pytest',ops='ops_pytest')
+    original=result['items'][0]['item_id']
+    request_ids=[str(uuid.uuid4()),str(uuid.uuid4())]
+    cur.execute('SELECT clock_timestamp()')
+    before=cur.fetchone()[0]
+    for rid in request_ids:
+        cur.execute('''INSERT INTO core_pytest.capture_owner_corrections
+            (request_id,capture_id,expected_item_id,actor,operation)
+            VALUES (%s,%s,%s,'joe','remove')''',(rid,CID,original))
+    sql='''INSERT INTO core_pytest.capture_resolved_items
+        (item_id,capture_id,extraction_request_id,item_index,occurred_at,subject_day,
+         time_precision,time_provenance,time_reason,resolution,supersedes_item_id,correction_request_id,recorded_at)
+        SELECT %s,capture_id,extraction_request_id,item_index,occurred_at,subject_day,
+          time_precision,time_provenance,time_reason,%s::jsonb,item_id,%s,'2000-01-01'
+        FROM core_pytest.capture_resolved_items WHERE item_id=%s'''
+    replacement=str(uuid.uuid4())
+    args=(replacement,json.dumps({'status':'removed'}),request_ids[0],original)
+    cur.execute('SAVEPOINT automated_version')
+    cur.execute('SET LOCAL ROLE service_role')
+    with pytest.raises(Exception) as denied:
+        cur.execute(sql,args)
+    assert denied.value.args[0]['C']=='42501'
+    cur.execute('ROLLBACK TO SAVEPOINT automated_version')
+    cur.execute('RELEASE SAVEPOINT automated_version')
+    cur.execute('SET LOCAL ROLE capture_owner')
+    cur.execute(sql,args)
+    cur.execute('SELECT item_id FROM core_pytest.capture_resolved_items_current WHERE capture_id=%s',(CID,))
+    assert [str(row[0]) for row in cur.fetchall()]==[replacement]
+    cur.execute('''SELECT i.item_id FROM core_pytest.capture_resolved_items i
+        WHERE i.recorded_at<=%s AND NOT EXISTS(SELECT 1 FROM core_pytest.capture_resolved_items s
+        WHERE s.supersedes_item_id=i.item_id AND s.recorded_at<=%s)''',(before,before))
+    assert [str(row[0]) for row in cur.fetchall()]==[original]
+    cur.execute('SAVEPOINT stale_version')
+    with pytest.raises(Exception,match='stale correction predecessor'):
+        cur.execute(sql,(str(uuid.uuid4()),json.dumps({'status':'removed'}),request_ids[1],original))
+    cur.execute('ROLLBACK TO SAVEPOINT stale_version')
+    cur.execute('RELEASE SAVEPOINT stale_version')
+    assert count(cur,'capture_resolved_items')==2
+    # Retiring a missing nutrient appends an unknown/no-value marker, not zero.
+    cur.execute('SELECT id FROM core_pytest.atoms WHERE capture_item_id=%s AND metric_key=\'kcal\'',(original,))
+    old_atom=cur.fetchone()[0]
+    retract='''INSERT INTO core_pytest.atoms
+        (raw_capture_id,kind,metric_key,occurred_at,subject_day,subject_day_rule_version,
+         presence,trust_level,provenance,code_version,capture_item_id,capture_component,
+         supersedes,correction_request_id,is_retraction,value_point)
+        SELECT raw_capture_id,kind,metric_key,occurred_at,subject_day,subject_day_rule_version,
+         'unknown',trust_level,provenance,'fixture-owner-correction',capture_item_id,capture_component,
+         id,%s,true,%s FROM core_pytest.atoms WHERE id=%s'''
+    cur.execute('SAVEPOINT bad_retraction')
+    with pytest.raises(Exception):
+        cur.execute(retract,(request_ids[0],0,old_atom))
+    cur.execute('ROLLBACK TO SAVEPOINT bad_retraction')
+    cur.execute('RELEASE SAVEPOINT bad_retraction')
+    cur.execute(retract,(request_ids[0],None,old_atom))
+    cur.execute('SELECT count(*) FROM core_pytest.atoms_current WHERE metric_key=\'kcal\'')
+    assert cur.fetchone()[0]==0
+    cur.execute('''SELECT value_point FROM core_pytest.atoms a WHERE a.id=%s
+        AND a.recorded_at<=%s AND NOT EXISTS(SELECT 1 FROM core_pytest.atoms s
+        WHERE s.supersedes=a.id AND s.recorded_at<=%s)''',(old_atom,before,before))
+    assert cur.fetchone()[0]==500
+
+
+@pytest.mark.parametrize('operation',['replace','remove'])
+def test_REQ_CAP_014_RULE_02_RULE_10_correction_transaction_replay_stale_and_readback(cur,operation):
+    from tools.engines import capture_resolution, capture_corrections
+    req=saved_food_extraction(cur)
+    cache_resolution_food(cur)
+    initial=capture_resolution.resolve(cur,request_id=uuid.uuid4(),capture_id=CID,
+        extraction_request_id=req['request_id'],schema='core_pytest',ops='ops_pytest')
+    original=initial['items'][0]['item_id']
+    cur.execute('SELECT resolution FROM core_pytest.capture_resolved_items WHERE item_id=%s',(original,))
+    food_id=cur.fetchone()[0]['food_id']
+    payload=dict(request_id=str(uuid.uuid4()),capture_id=CID,expected_item_id=original,
+                 actor='joe',operation=operation)
+    if operation=='replace':
+        payload.update(food_id=food_id,quantity={'grams':150})
+    cur.execute('SET LOCAL ROLE service_role')
+    with pytest.raises(PermissionError):
+        capture_corrections.apply(cur,payload,schema='core_pytest',ops='ops_pytest')
+    cur.execute('SET LOCAL ROLE capture_owner')
+    result=capture_corrections.apply(cur,payload,schema='core_pytest',ops='ops_pytest')
+    assert capture_corrections.apply(cur,payload,schema='core_pytest',ops='ops_pytest')==result
+    with pytest.raises(ValueError,match='stale'):
+        capture_corrections.apply(cur,{**payload,'request_id':str(uuid.uuid4())},
+            schema='core_pytest',ops='ops_pytest')
+    with pytest.raises(ValueError,match='identity reused'):
+        capture_corrections.apply(cur,{**payload,'expected_item_id':result['item_id']},
+            schema='core_pytest',ops='ops_pytest')
+    cur.execute('SET LOCAL ROLE service_role')
+    readback=transcription.readback(cur,capture_id=CID,schema='core_pytest')
+    items=readback['extraction']['resolved_items']
+    assert len(items)==1 and str(items[0]['item_id'])==result['item_id']
+    assert items[0]['resolution']['owner_correction']==payload
+    if operation=='remove':
+        assert items[0]['atoms']==[]
+    else:
+        kcal=[a for a in items[0]['atoms'] if a['metric_key']=='kcal']
+        assert len(kcal)==1
+        assert float(kcal[0]['value_point'])==items[0]['resolution']['nutrients']['kcal'][1]
+    assert count(cur,'capture_owner_corrections')==1
+    assert count(cur,'capture_correction_outcomes')==1
+    assert count(cur,'capture_resolved_items')==2
+
+
+def test_REQ_CAP_014_RULE_02_correction_rolls_back_partial_nutrient_writes(cur,monkeypatch):
+    from tools.engines import capture_resolution, capture_corrections, nutrition
+    req=saved_food_extraction(cur)
+    cache_resolution_food(cur)
+    initial=capture_resolution.resolve(cur,request_id=uuid.uuid4(),capture_id=CID,
+        extraction_request_id=req['request_id'],schema='core_pytest',ops='ops_pytest')
+    original=initial['items'][0]['item_id']
+    cur.execute('SELECT resolution FROM core_pytest.capture_resolved_items WHERE item_id=%s',(original,))
+    payload=dict(request_id=str(uuid.uuid4()),capture_id=CID,expected_item_id=original,
+        actor='joe',operation='replace',food_id=cur.fetchone()[0]['food_id'],quantity={'grams':150})
+    before_atoms=count(cur,'atoms')
+    persist=nutrition.persist_resolution
+    def fail_after_atoms(*args,**kwargs):
+        persist(*args,**kwargs)
+        raise RuntimeError('injected after nutrient insertion')
+    monkeypatch.setattr(nutrition,'persist_resolution',fail_after_atoms)
+    cur.execute('SET LOCAL ROLE capture_owner')
+    with pytest.raises(RuntimeError,match='injected'):
+        capture_corrections.apply(cur,payload,schema='core_pytest',ops='ops_pytest')
+    assert count(cur,'capture_owner_corrections')==0
+    assert count(cur,'capture_correction_outcomes')==0
+    assert count(cur,'capture_resolved_items')==1
+    assert count(cur,'atoms')==before_atoms
+    monkeypatch.setattr(nutrition,'persist_resolution',persist)
+    assert capture_corrections.apply(cur,payload,schema='core_pytest',ops='ops_pytest')['status']=='resolved'
+
+
+def test_REQ_CAP_014_RULE_03_REQ_NUT_052_correction_components_current_day_and_historical_reads(cur):
+    from tools.engines import capture_resolution, capture_corrections
+    from tools import nutrition_day
+    req=saved_food_extraction(cur,quantity=2.5,quantity_text='2.5',temporal='today at 2am')
+    cache_resolution_food(cur)
+    initial=capture_resolution.resolve(cur,request_id=uuid.uuid4(),capture_id=CID,
+        extraction_request_id=req['request_id'],schema='core_pytest',ops='ops_pytest')
+    original=initial['items'][0]['item_id']
+    cur.execute('SELECT resolution FROM core_pytest.capture_resolved_items WHERE item_id=%s',(original,))
+    food_id=cur.fetchone()[0]['food_id']
+    cur.execute('SELECT clock_timestamp()')
+    before=cur.fetchone()[0]
+    cur.execute('SET LOCAL ROLE capture_owner')
+    replaced=capture_corrections.apply(cur,dict(request_id=str(uuid.uuid4()),capture_id=CID,
+        expected_item_id=original,actor='joe',operation='replace',food_id=food_id,quantity={'grams':150}),
+        schema='core_pytest',ops='ops_pytest')
+    cur.execute('SELECT clock_timestamp()')
+    after_replace=cur.fetchone()[0]
+    cur.execute('SELECT count(*) FROM core_pytest.atoms WHERE is_retraction')
+    assert cur.fetchone()[0]==4  # kcal/protein for both old components
+    cur.execute('SET LOCAL ROLE service_role')
+    retry=capture_resolution.resolve(cur,request_id=uuid.uuid4(),capture_id=CID,
+        extraction_request_id=req['request_id'],schema='core_pytest',ops='ops_pytest')
+    assert retry['items'][0]['item_id']==replaced['item_id']
+    cur.execute('RESET ROLE')
+    items,missing=nutrition_day.read_day(cur,'2026-09-21',schema='core_pytest')
+    assert len(items)==1 and not missing and items[0]['kcal_point']==300
+    for cutoff,expected in ((before,1000),(after_replace,300)):
+        cur.execute("SELECT value FROM analysis_pytest.f_atom_rows('2026-09-23',%s) WHERE metric='kcal'",(cutoff,))
+        assert [float(row[0]) for row in cur.fetchall()]==[expected]
+    cur.execute('SET LOCAL ROLE capture_owner')
+    removed=capture_corrections.apply(cur,dict(request_id=str(uuid.uuid4()),capture_id=CID,
+        expected_item_id=replaced['item_id'],actor='joe',operation='remove'),
+        schema='core_pytest',ops='ops_pytest')
+    cur.execute('SET LOCAL ROLE service_role')
+    retry=capture_resolution.resolve(cur,request_id=uuid.uuid4(),capture_id=CID,
+        extraction_request_id=req['request_id'],schema='core_pytest',ops='ops_pytest')
+    assert retry['items'][0]['item_id']==removed['item_id'] and retry['items'][0]['status']=='removed'
+    cur.execute('RESET ROLE')
+    assert nutrition_day.read_day(cur,'2026-09-21',schema='core_pytest')==([],[])
+    cur.execute("SELECT value FROM analysis_pytest.f_atom_rows('2026-09-23',clock_timestamp()) WHERE metric='kcal'")
+    assert not cur.fetchall()
+    cur.execute("SELECT value FROM analysis_pytest.f_atom_rows('2026-09-23',%s) WHERE metric='kcal'",(after_replace,))
+    assert [float(row[0]) for row in cur.fetchall()]==[300]
+
+
+@pytest.mark.parametrize('stage',['extract','transcribe'])
+def test_REQ_CAP_014_RULE_10_partial_capture_cannot_reextract_over_owner_correction(cur,stage):
+    from tools.engines import capture_extraction, capture_resolution, capture_corrections
+    text='one fixture food and one unknown food'
+    transcript={'success':True,'result':{'text':text,'segments':[]}}
+    voice=prepare(cur);settle(cur,voice,transcript);consume(cur,voice,transcript)
+    req=capture_extraction.prepare(cur,request_id=uuid.uuid4(),capture_id=CID,schema='core_pytest')
+    response={'success':True,'result':{'response':{'items':[
+        dict(name=name,evidence=name,evidence_start=text.index(name),quantity=1,
+             quantity_unit=None,quantity_evidence='one',quantity_evidence_start=text.index(name)-4)
+        for name in ('fixture food','unknown food')],
+        'temporal_evidence':None,'temporal_evidence_start':None}}}
+    settle(cur,req,response)
+    capture_extraction.consume(cur,request_id=req['request_id'],response=response,schema='core_pytest')
+    cache_resolution_food(cur)
+    initial=capture_resolution.resolve(cur,request_id=uuid.uuid4(),capture_id=CID,
+        extraction_request_id=req['request_id'],schema='core_pytest',ops='ops_pytest')
+    assert initial['processing_status']=='pending_enrichment'
+    original=initial['items'][0]['item_id']
+    # Model a request already prepared by the older implementation at this head.
+    # No fixture commits: the entire historical state is rolled back by cur.
+    legacy_id=str(uuid.uuid4())
+    if stage=='extract':
+        cur.execute('''INSERT INTO core_pytest.capture_extraction_attempts
+            (request_id,capture_id,transcription_request_id,expected_event_id,model_id,
+             profile,payload,payload_sha256,estimated_neurons,processor_version)
+            SELECT %s,a.capture_id,transcription_request_id,c.event_id,model_id,
+              profile,payload,payload_sha256,estimated_neurons,a.processor_version
+            FROM core_pytest.capture_extraction_attempts a
+            JOIN core_pytest.capture_processing_current c USING(capture_id)
+            WHERE a.request_id=%s''',(legacy_id,req['request_id']))
+        legacy_request={**req,'request_id':legacy_id}
+        model_consumer=capture_extraction
+    else:
+        cur.execute('''INSERT INTO core_pytest.capture_transcription_attempts
+            (request_id,capture_id,expected_event_id,model_id,call_kind,payload_sha256,
+             duration_seconds,estimated_neurons,processor_version)
+            SELECT %s,a.capture_id,c.event_id,model_id,call_kind,payload_sha256,
+              duration_seconds,estimated_neurons,a.processor_version
+            FROM core_pytest.capture_transcription_attempts a
+            JOIN core_pytest.capture_processing_current c USING(capture_id)
+            WHERE a.request_id=%s''',(legacy_id,voice['request_id']))
+        legacy_request={**voice,'request_id':legacy_id}
+        response={'success':True,'result':{'text':'replacement fixture transcript','segments':[]}}
+        model_consumer=transcription
+    settle(cur,legacy_request,response)
+    cur.execute('SET LOCAL ROLE capture_owner')
+    corrected=capture_corrections.apply(cur,dict(request_id=str(uuid.uuid4()),capture_id=CID,
+        expected_item_id=original,actor='joe',operation='remove'),schema='core_pytest',ops='ops_pytest')
+    cur.execute('SET LOCAL ROLE service_role')
+    with pytest.raises(ValueError,match='owner correction'):
+        capture_extraction.prepare(cur,request_id=uuid.uuid4(),capture_id=CID,schema='core_pytest')
+    with pytest.raises(ValueError,match='usable transcript'):
+        transcription.prepare(cur,request_id=uuid.uuid4(),capture_id=CID,payload=PAYLOAD,schema='core_pytest')
+    obsolete=model_consumer.consume(cur,request_id=legacy_id,response=response,schema='core_pytest')
+    assert obsolete['applied'] is False
+    assert model_consumer.consume(cur,request_id=legacy_id,response=response,schema='core_pytest')==obsolete
+    from tools.engines.capture_mailbox import consumed
+    assert consumed(cur,legacy_request,stage=stage,schema='core_pytest')
+    saved=transcription.readback(cur,capture_id=CID,schema='core_pytest')
+    assert saved['extraction']['request_id']==req['request_id']
+    assert saved['transcription']['request_id']==voice['request_id']
+    assert str(saved['extraction']['resolved_items'][0]['item_id'])==corrected['item_id']
+    assert saved['extraction']['resolved_items'][0]['resolution']['status']=='removed'
+
+
+def test_REQ_CAP_014_RULE_06_correction_omitted_nutrient_is_retracted_and_serving_fallback_refused(cur):
+    from tools.engines import capture_resolution, capture_corrections
+    req=saved_food_extraction(cur)
+    cache_resolution_food(cur)
+    initial=capture_resolution.resolve(cur,request_id=uuid.uuid4(),capture_id=CID,
+        extraction_request_id=req['request_id'],schema='core_pytest',ops='ops_pytest')
+    original=initial['items'][0]['item_id']
+    food_id=str(uuid.uuid4())
+    cur.execute('''INSERT INTO core_pytest.foods_cache
+        (food_id,canonical_name,source,source_id,nutrients_per_100g)
+        VALUES (%s,'fixture corrected source','usda_foundation','fixture-corrected','{"kcal":100}')''',(food_id,))
+    payload=dict(request_id=str(uuid.uuid4()),capture_id=CID,expected_item_id=original,
+        actor='joe',operation='replace',food_id=food_id,quantity={'servings':2})
+    cur.execute('SET LOCAL ROLE capture_owner')
+    with pytest.raises(ValueError,match='pinned serving mass'):
+        capture_corrections.apply(cur,payload,schema='core_pytest',ops='ops_pytest')
+    assert count(cur,'capture_owner_corrections')==0
+    result=capture_corrections.apply(cur,{**payload,'quantity':{'grams':150}},schema='core_pytest',ops='ops_pytest')
+    cur.execute('SELECT metric_key,value_point FROM core_pytest.atoms_current')
+    assert [tuple(row) for row in cur.fetchall()]==[('kcal',150)]
+    cur.execute('SELECT metric_key,value_point FROM core_pytest.atoms WHERE is_retraction')
+    assert [tuple(row) for row in cur.fetchall()]==[('protein_g',None)]
+    cur.execute('SET LOCAL ROLE service_role')
+    # A stale worker may not append fresh nutrients to the old original item.
+    cur.execute('SAVEPOINT stale_atom_writer')
+    with pytest.raises(Exception,match='superseded item'):
+        cur.execute('''INSERT INTO core_pytest.atoms
+            (raw_capture_id,kind,metric_key,occurred_at,subject_day,subject_day_rule_version,
+             presence,value_point,trust_level,provenance,code_version,capture_item_id,capture_component)
+            SELECT raw_capture_id,kind,metric_key,occurred_at,subject_day,subject_day_rule_version,
+                presence,value_point,trust_level,provenance,code_version,capture_item_id,capture_component
+            FROM core_pytest.atoms WHERE capture_item_id=%s AND metric_key='kcal' ''',(original,))
+    cur.execute('ROLLBACK TO SAVEPOINT stale_atom_writer')
+    cur.execute('RELEASE SAVEPOINT stale_atom_writer')
+    assert str(transcription.readback(cur,capture_id=CID,schema='core_pytest')['extraction']['resolved_items'][0]['item_id'])==result['item_id']
+
+
+def test_REQ_CAP_014_RULE_03_REQ_NUT_032_replacement_persistence_supersedes_without_rewriting(cur):
+    from tools.engines import capture_resolution, nutrition
+    req=saved_food_extraction(cur)
+    cache_resolution_food(cur)
+    result=capture_resolution.resolve(cur,request_id=uuid.uuid4(),capture_id=CID,
+        extraction_request_id=req['request_id'],schema='core_pytest',ops='ops_pytest')
+    original=result['items'][0]['item_id']
+    cur.execute('''SELECT resolution,occurred_at,subject_day,time_precision
+        FROM core_pytest.capture_resolved_items WHERE item_id=%s''',(original,))
+    resolved,when,day,precision=cur.fetchone()
+    food_id=resolved['food_id']
+    corrected=nutrition.resolve_item(cur,'fixture food',grams=150,
+        sources={'joe':nutrition.PinnedCacheLeg(cur,food_id,schema='core_pytest')},
+        schema='core_pytest',config='config',ops='ops_pytest')
+    cur.execute('''SELECT metric_key,capture_component,id FROM core_pytest.atoms
+        WHERE capture_item_id=%s''',(original,))
+    predecessors={(key,component):atom for key,component,atom in cur.fetchall()}
+    rid,new_item=str(uuid.uuid4()),str(uuid.uuid4())
+    cur.execute('SET LOCAL ROLE capture_owner')
+    cur.execute('''INSERT INTO core_pytest.capture_owner_corrections
+        (request_id,capture_id,expected_item_id,actor,operation,food_id,quantity_kind,quantity)
+        VALUES (%s,%s,%s,'joe','replace',%s,'grams',150)''',(rid,CID,original,food_id))
+    cur.execute('''INSERT INTO core_pytest.capture_resolved_items
+        (item_id,capture_id,extraction_request_id,item_index,occurred_at,subject_day,
+         time_precision,time_provenance,time_reason,resolution,supersedes_item_id,correction_request_id)
+        SELECT %s,capture_id,extraction_request_id,item_index,occurred_at,subject_day,
+          time_precision,time_provenance,time_reason,%s::jsonb,item_id,%s
+        FROM core_pytest.capture_resolved_items WHERE item_id=%s''',
+        (new_item,json.dumps(corrected,default=str),rid,original))
+    args=dict(raw_capture_id=CID,occurred_at=when,subject_day=day,time_precision=precision,
+        evidence_span='fixture food',schema='core_pytest',capture_item_id=new_item,
+        correction_request_id=rid,supersedes_by_component=predecessors)
+    assert nutrition.persist_resolution(cur,corrected,**args)
+    assert nutrition.persist_resolution(cur,corrected,**args)==[]
+    cur.execute('''SELECT value_low,value_point,value_high,supersedes,correction_request_id
+        FROM core_pytest.atoms_current WHERE metric_key='kcal' ''')
+    rows=cur.fetchall()
+    assert len(rows)==1
+    assert tuple(float(v) for v in rows[0][:3])==tuple(corrected['nutrients']['kcal'])
+    assert rows[0][3]==predecessors[('kcal','total')]
+    assert str(rows[0][4])==rid
+    cur.execute('''SELECT value_point FROM core_pytest.atoms
+        WHERE id=%s''',(predecessors[('kcal','total')],))
+    assert cur.fetchone()[0]==500
 
 
 @pytest.mark.parametrize('repeated',[False,True])

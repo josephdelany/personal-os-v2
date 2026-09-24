@@ -6,6 +6,43 @@ the individual interfaces; NEXT_SESSION records current evidence and remaining g
 This is a runbook under construction, not an activated capture service.
 Production authentication is held per NEXT_SESSION; do not retry the unchanged secret.
 
+## Owner corrections — local implementation, not activated
+
+ADR0161/draft0089 adds `python3 -m tools.capture_correct`. It reads one JSON
+request from stdin and prints a private result only after the transaction commits.
+Run it in the separately provisioned owner environment: `SUPABASE_DB_URL` must
+identify a login with `capture_owner` capability. Do not give that capability to
+the private service, model, reference or ingress identities. Actor text is not
+authorization. No owner login has been provisioned by this local work.
+
+| Field | Contract |
+|---|---|
+| `request_id` | New UUID for a new correction; keep the same UUID for an exact retry |
+| `capture_id` | Existing immutable capture UUID |
+| `expected_item_id` | Current resolved-item UUID returned by capture readback |
+| `actor` | `joe` |
+| `operation` | `replace` or `remove` |
+| `food_id` | Required only for replacement; exact saved reference-cache version UUID |
+| `quantity` | Required only for replacement; one positive finite numeric `grams`, `servings` or `item_count` value |
+
+Removal omits both source and quantity; zero does not mean removal. Serving counts
+require the pinned reference's serving mass. Item counts use the existing nutrition
+owner's household definition. Missing nutrient values are retired explicitly rather
+than converted to zero. Time and extraction-field editing are not implemented by
+this command.
+
+Read the current item before preparing a correction. On a stale-target refusal,
+read it again and make a new deliberate correction; do not automatically substitute
+the latest item ID into an old request. If success delivery is uncertain, retry the
+exact request and UUID. Changed contents under an existing UUID are refused.
+The saved outcome identifies both predecessor and replacement item. Capture readback
+and current nutrient totals select the replacement; as-of reads preserve the older
+answer. Late model results remain unapplied history and can be retired normally.
+
+Production use still requires reviewed migration/login activation and real-data
+verification. Local rollback tests and mocked commit failures do not prove host-crash
+durability. Keep request/result files private; never publish them in service logs.
+
 ## Connected worker invocation packet — not installed
 
 Provision three OS identities: private, model and reference. The service manager

@@ -105,7 +105,18 @@ def resolve(cur, *, request_id, capture_id, extraction_request_id, schema='core'
             (capture_id,extraction_request_id,head))
         completed=cur.fetchone()
         if completed is not None:
-            return completed[0]
+            # A new automatic request observes owner versions. Exact request-ID
+            # replay above still returns its immutable historical outcome.
+            result=dict(completed[0])
+            cur.execute(f'''SELECT item_index,item_id,resolution
+                FROM {schema}.capture_resolved_items_current
+                WHERE capture_id=%s AND extraction_request_id=%s''',
+                (capture_id,extraction_request_id))
+            current_items={index:{'item_index':index,'item_id':str(item_id),
+                'status':'removed' if saved.get('status')=='removed' else 'resolved'}
+                for index,item_id,saved in cur.fetchall()}
+            result['items']=[current_items.get(item['item_index'],item) for item in result['items']]
+            return result
     if status not in ('extracted','pending_enrichment','deferred_budget'):
         raise ValueError('capture is not awaiting resolution')
     cur.execute(f'''SELECT 1 FROM {schema}.capture_resolved_items
@@ -131,11 +142,12 @@ def resolve(cur, *, request_id, capture_id, extraction_request_id, schema='core'
                 items.append({'item_index':index,'status':'rejected','reason':'unverified_name'})
                 pending=True
                 continue
-            cur.execute(f'''SELECT item_id,resolution FROM {schema}.capture_resolved_items
+            cur.execute(f'''SELECT item_id,resolution FROM {schema}.capture_resolved_items_current
                 WHERE extraction_request_id=%s AND item_index=%s''',(extraction_request_id,index))
             old=cur.fetchone()
             if old is not None:
-                items.append({'item_index':index,'item_id':str(old[0]),'status':'resolved'})
+                items.append({'item_index':index,'item_id':str(old[0]),
+                              'status':'removed' if old[1].get('status')=='removed' else 'resolved'})
                 continue
             try:
                 try:

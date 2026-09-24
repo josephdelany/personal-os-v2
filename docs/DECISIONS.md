@@ -134,3 +134,12 @@ rule for branded items (REQ-NUT-050/051).
 
 | ADR-0159 | Local implementation; integration/activation open | 2026-09-23 | [Capture worker mailboxes](adr/0159-capture-worker-mailboxes.md): separate role handoff, SQL-gated retirement, bounded reference supervision and durable queue cursors |
 | ADR-0160 | Locally integrated; deployment unverified | 2026-09-23 | [Pint quantity conversion](adr/0160-pint-quantity-conversion.md): NUT019 local pinned dependency, bounded unit parsing and no density inference; $0 recurring |
+| ADR-0161 | Reference/quantity/removal locally verified; full CAP014/deployment open | 2026-09-23 | [Append-only capture corrections](adr/0161-append-only-capture-corrections.md): owner capability, versioned results, explicit retractions and current/as-of consistency; no production action |
+
+- ADR-0162: usable program first; current user goal supersedes backend-first sequencing. See [decision](adr/0162-usable-program-first.md).
+
+- 2026-09-24 user goal supersedes ADR0162 delivery order: finish the complete backend
+  through M6. Preserve frontend work, pause its redesign/publication, and resume the
+  unfinished ADR0161 correction unit. No new production or measurement authorization.
+
+| ADR-0163 | Accepted; integration checks passed | 2026-09-24 | [Offline browser acceptance guard](adr/0163-offline-browser-acceptance-guard.md): explicit RULE00 gate correction superseding ADR0109 only for exact reviewed offline own-app harness; financial browser automation remains forbidden |

@@ -254,3 +254,14 @@ Reviewer read-only; no second implementation writer. No migration reserved.
 lib/mass_units.py, capture_extraction/resolution, nutrition_display fraction constants
 if moved, pure quantity tests and registered transcription SQL tests, maintained docs.
 No other writer; reviewer remains read-only. No new migration/dependency.
+
+
+2026-09-23 afterc01672d: root reserves0089/ADR0161 for CAP014 owner capture
+corrections. Owns correction engine/CLI, capture item/current readback/runtime,
+nutrition persistence and necessary atom current/as-of consumers, migration test
+harness/fixtures/registeredSQL tests, maintained docs. Reviewer read-only design
+critique; no parallel implementation writer. ADR0161 implementation design accepted;
+production migration/provisioning remains unauthorized. On 2026-09-24 root added
+capture_correct CLI, transactional correction engine and current/as-of consumer
+tests. Independent reviewer completed two read-only passes. Integration checks
+remain active; root owns COMPLETION_AUDIT and checkpoint updates as well.

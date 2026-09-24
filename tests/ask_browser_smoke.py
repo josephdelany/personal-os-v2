@@ -4,7 +4,6 @@ Uses an installed Playwright and Chrome. Fixtures remain in intercepted browser
 responses and never touch a database. This does not prove production auth or RPCs.
 """
 from pathlib import Path
-from playwright.sync_api import sync_playwright
 
 ROOT = Path(__file__).resolve().parents[1]
 STUB = '''
@@ -43,11 +42,15 @@ export function createClient() {
 
 
 def main():
+    from playwright.sync_api import sync_playwright, Error
+
     with sync_playwright() as p:
         browser = p.chromium.launch(channel='chrome', headless=True)
-        page = browser.new_page(viewport={'width':390,'height':844})
+        context = browser.new_context(viewport={'width':390,'height':844},
+                                      offline=True, service_workers='block')
+        assert context.cookies()==[]
+        blocked=[]
         errors=[]
-        page.on('pageerror', lambda error: errors.append(str(error)))
         def route(request):
             url=request.request.url
             if url=='https://fixture.invalid/':
@@ -56,13 +59,37 @@ def main():
                 request.fulfill(body=(ROOT/'app/ask.mjs').read_text(),content_type='text/javascript')
             elif url=='https://fixture.invalid/data-status.mjs':
                 request.fulfill(body=(ROOT/'app/data-status.mjs').read_text(),content_type='text/javascript')
-            elif url.startswith('https://esm.sh/'):
+            elif url=='https://esm.sh/@supabase/supabase-js@2':
                 request.fulfill(body=STUB,content_type='text/javascript')
             else:
+                blocked.append(url)
                 request.abort()
-        page.route('**/*',route)
+        context.route('**/*',route)
+        page = context.new_page()
+        page.on('pageerror', lambda error: errors.append(str(error)))
         page.goto('https://fixture.invalid/')
         page.wait_for_function('typeof window.signInFixture === "function"')
+        # Exercise refusals through the real browser, including a popup's first
+        # request (page-only routing would miss it). Reserved invalid hosts only.
+        assert page.evaluate("fetch('https://blocked.invalid/resource').then(()=>false,()=>true)")
+        probe=context.new_page()
+        try:
+            probe.goto('https://blocked.invalid/navigation')
+        except Error:
+            pass
+        else:
+            raise AssertionError('unexpected external navigation')
+        probe.close()
+        with context.expect_page() as popup_event:
+            page.evaluate("window.open('https://blocked.invalid/popup')")
+        popup=popup_event.value
+        try:
+            popup.wait_for_load_state()
+        except Error:
+            pass
+        popup.close()
+        assert set(blocked)=={'https://blocked.invalid/resource',
+                              'https://blocked.invalid/navigation','https://blocked.invalid/popup'}
         assert not page.locator('#ask-panel').is_visible()
         page.locator('#email').fill('owner@example.invalid')
         page.locator('#sendlink').click()
@@ -135,6 +162,7 @@ def main():
         assert not page.locator('#app').is_visible()
         assert page.locator('#question').input_value()==''
         assert not errors,errors
+        context.close()
         browser.close()
     print('PASS: mobile browser sign-in state, Ask, evidence, failure recovery, sign-out; offline fixtures only')
 

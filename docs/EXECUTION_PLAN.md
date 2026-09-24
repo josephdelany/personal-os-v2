@@ -5,6 +5,17 @@ frontend construction and consolidation of conflicting instructions. This plan
 supersedes historical phase scheduling and the strict numeric order in build briefs.
 It preserves requirements, acceptance gates, privacy, cost limits and reserved decisions.
 
+## Current goal — finish the backend (Joe, 2026-09-24)
+
+Joe explicitly replaced the usability goal with finishing the backend. Restore
+M0–M6 as the stopping scope below. Preserve the local UI/release work, but pause
+frontend redesign/publication while completing required backend behavior, integration,
+deployment and real-data acceptance. ADR0162 remains historical sequencing, not the
+current work selector. Existing production permissions and reserved decisions remain.
+Resume the unfinished owner-correction contract (ADR0161/CAP014/RULE02/03/10) without
+restarting quantity grammar work. Close that coherent path, then select the earliest
+actionable remaining milestone. Do not infer backend completion from test counts.
+
 ## Goal contract
 
 A `/goal` to finish the project executes this plan. It does not select a new scope on
