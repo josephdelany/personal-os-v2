@@ -42,8 +42,9 @@ evidence, not zero activity. History uses current corrections and current knowle
 not a claim to replay the exact screen originally shown on that day.
 
 After reviewed activation, verify owner/anonymous/nonowner behavior and these
-responses using the real account/imported data. The endpoint currently composes
-entries and health; spending and visits remain explicit V0 contracts to connect.
+responses using the real account/imported data. Migration0096 now composes
+entries, health, spending and visits locally; see V0_BACKEND_ACTIVATION.md for
+the remaining deployment and real-account acceptance.
 No production availability is claimed from disposable tests.
 
 ## V0 workout set save/history — locally verified, not activated

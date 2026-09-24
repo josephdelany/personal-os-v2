@@ -10,33 +10,35 @@ Joe's `/goal` is active. Do not start backend execution from the monitor.
 {
   "version": 1,
   "status": "running",
-  "updated_at": "2026-09-24T20:40:43.293983+00:00",
-  "last_progress_at": "2026-09-24T20:40:43.293983+00:00",
-  "unit": "V0-backend-owner-activation",
-  "next_action": "Integrate verified0096 location/day unit with scoped commit, then audit executable owner callers and prepare exact V0 activation packet. All tests terminal; production credential hold remains. Preserve external AGENTS/CLAUDE/APP_PUBLICATION."
+  "updated_at": "2026-09-24T21:31:55.578191+00:00",
+  "last_progress_at": "2026-09-24T21:31:55.578303+00:00",
+  "unit": "V0-live-activation-inventory",
+  "next_action": "Caller accepted; SQL1242pass1skip385.90s, writer1474pass1069skip, layout43pass, eight Node cases. All test jobs terminal. Evidence report86263 terminal; four scoped invariant cases pass,43 unverified skips. Commit scoped caller/preflight/docs; then live inventory awaits credential refresh response. No unchanged production retry; GitHub escalation interrupted. Preserve external AGENTS/CLAUDE/APP_PUBLICATION."
 }
 ```
 <!-- backend-control:end -->
 
-## Current unit — V0 owner caller and activation handoff
+## Current unit — V0 live activation inventory
 
-0096 location/day implementation locally verified. FullSQL1242passed1production
-skip415.41s; feature writer1473passed1069skipped182.08s; chain95migrations1037
-statements; layout43passed; targeted73passed1skip10.07s. Four scoped invariant
-cases pass; generic RULE04 pending. Merged43 unverified skips remain. All test
-processes terminal; evidence report53317 finished successfully. Runtime/test hashes
-match .local/evidence/v0-location/source-sha256.json. Independent review accepted
-bootstrap, timestamp, human-conflict and server-clock repairs. No production or
-real-device proof, no independent committed-concurrency/crash proof.
+Caller implementation and independent review complete. Eight Node behavior cases,
+fullSQL1242pass1production-skip385.90s, writer1474pass1069skip, layout43pass.
+All test jobs terminal. Tested source hashes unchanged; artifacts in
+.local/evidence/v0-caller/. Generic RULE04 remains pending; local tests do not
+prove deployment or actual-account acceptance. Existing feature ledger14/15.
 
-Commit root-owned0096, tests, runner, extract workflow, ADR0172/V0_LOCATION and
-maintained plan/checkpoint/progress; preserve external AGENTS/CLAUDE/APP_PUBLICATION.
-Then audit executable owner callers and prepare exact activation/recovery packet
-for all V0 flows. Existing credential failure28P01 remains held; do not retry an
-unchanged credential or expose secrets. Verify actual health aggregate configuration
-and actual-account card import only through authorized activation. No frontend or
-advanced backend expansion. Goal remains incomplete until backend contracts are
-usable with real-account evidence.
+Root owns caller/tests/runbook, preflight/activation packet, CAPTURE_RUNTIME,
+EXECUTION_PLAN/checkpoint/progress. Commit only these; preserve external AGENTS,
+CLAUDE and APP_PUBLICATION. Earlier incorrect-Python writer failure retained;
+corrected PATH rerun passed without runtime changes or weakened gates.
+
+Next restore live inventory after user confirms secret configuration updated.
+Async credential-refresh question pending; never paste or retry unchanged secret.
+Read-only GitHub metadata request was interrupted, so no live branch evidence.
+Activation packet remains conditional until actual target inventory supplies the
+exact missing migration list, policies, transports and source imports. Then obtain
+applicable authorization and verify real owner save/read/retry/correction, private
+photo delivery, health config/freshness, card import and device visits. No frontend
+or advanced-backend expansion. V0 handoff is not complete.
 
 ## Historical card integration —9e6d030
 
@@ -2164,3 +2166,6 @@ Parser review accepted; additional quoted multiline/comma/BOM/reordered-column
 and byte/row/field-boundary cases added. Final parser73883 terminal; log copied
 .local/evidence/v0-card/parser.log. No DB implementation yet; continue persistence
 and review/read contract, not another parser-only checkpoint.
+
+Caller integration: layout43passed. Reviewer accepted all scoped fixes. FullSQL29624
+still live; do not restart. Writer environment corrected, no gate weakened.

@@ -8663,3 +8663,37 @@ and verified source hashes: .local/evidence/v0-location/. All processes terminal
 WHAT I DID NOT DO: production activation, real-device/account validation, source
 archive import, frontend work, advanced mobility or independent committed-race proof.
 Next: executable owner callers and concrete activation/recovery handoff.
+
+## 2026-09-24 — V0 activation inventory
+
+Prepared read-only catalog preflight and current V0 activation/real-account checklist.
+Executed seven statements against empty and fully migrated disposable PostgreSQL17:
+required API presence0/12 then12/12, both successful; server stopped. No personal
+rows read or owner RPC invoked. Migration runner lacks an applied ledger; do not
+blindly replay historical deployment instructions. Existing app has no V0 callers;
+transport-injected owner caller remains a concrete handoff gap. Independent review
+pending. WHAT I DID NOT DO: production connection retry, activation or account test.
+
+Review repaired inventory omissions: capability-role grants, private core day
+helper, and Storage policy conditions/mode now included. Repeated empty/full
+catalog verification passed; session94926 terminal, disposable server stopped.
+
+V0 caller implementation: retained request snapshots, matching save receipts,
+coalesced sends, independent read recovery and correction identity. Seven Node
+cases pass. Reviewer findings repaired: reject nonfinite/unsupported JSON inputs
+and distinguish known SQL refusals from delivery uncertainty. Pytest bridge makes
+Node cases reachable from normal suite. Full integration and repaired review remain.
+No production call, offline persistence or frontend delivery claimed.
+
+Caller integration update: independent reviewer accepted final prior-uncertainty
+repair; eight Node cases pass. Sanctioned writer1474pass1069skip, exit0; ledger14/15
+unchanged. Layout43pass. Initial writer used system Python without Pint;41fail
+evidence preserved before correcting PATH to existing project environment. No code
+or gate weakened. Full SQL29624 still live. Source hashes unchanged.
+
+Final caller integration: SQL1242pass1production-skip385.90s, writer1474pass1069skip,
+layout43pass, eight Node behavior cases. Independent reviewer accepted uncertainty
+repair. All jobs terminal, source hashes unchanged. Merged unverified skip count: 43.
+Evidence .local/evidence/v0-caller/. WHAT I DID NOT DO: deployment, actual-account
+HTTP proof, consumer durable draft storage or frontend. Next live target inventory
+after credential refresh; interrupted GitHub read supplied no deployment evidence.
