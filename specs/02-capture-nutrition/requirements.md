@@ -54,9 +54,9 @@ byte that reaches `raw_captures`.
 SHALL acquire it using `<input type="file" accept="image/*" capture="environment">` and SHALL NOT
 acquire it by any other mechanism.
 
-**REQ-CAP-005** (Ubiquitous) The PWA SHALL accept written input only into the morning check-in
-fields and the evening reflection field, and SHALL write every other row as a read-only rendering of
-data captured elsewhere.
+**REQ-CAP-005** (Ubiquitous) The PWA SHALL accept owner-authenticated written input for morning
+and evening check-ins, meal text, workout entries and explicit corrections in the approved daily-use
+V0 (ADR-0165/0167), and SHALL render imported source evidence read-only.
 
 ### A.2 The Shortcuts → endpoint contract
 

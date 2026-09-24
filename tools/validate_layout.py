@@ -14,6 +14,8 @@ Exit 0 = pass. Exit 1 = at least one FAIL. Warnings never fail the build.
 import json, re, sys, pathlib
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT))
+from tools.layout_sources import active_code_text
 fails, warns, passes = [], [], []
 def ok(m): passes.append(m)
 def fail(m): fails.append(m)
@@ -279,19 +281,7 @@ LOC_ALLOW = {
 }
 SKIP_DIRS = (".git", "_legacy_snapshot", "__pycache__", ".venv", "node_modules", ".pytest_cache")
 def _walk_code():
-    for p in ROOT.rglob("*"):
-        if not p.is_file():
-            continue
-        rel = p.relative_to(ROOT)
-        if any(part in SKIP_DIRS for part in rel.parts):
-            continue
-        rels = str(rel)
-        if rels == SELF or not rels.lower().endswith(CODE_EXT):
-            continue
-        try:
-            yield rels, p.read_text(errors="ignore")
-        except Exception:
-            continue
+    yield from active_code_text(ROOT, suffixes=CODE_EXT, skip_dirs=SKIP_DIRS, exclude=(SELF,))
 try:
     loc_offenders = []
     for rels, txt in _walk_code():
@@ -307,7 +297,7 @@ try:
     else:
         ok("no code outside migrations/ names the location store (REQ-LOC-005 / ADR-0044; 2 allowlisted call sites)")
 except Exception as e:
-    warn(f"could not run the location-store reference lint: {e}")
+    fail(f"could not run the location-store reference lint: {e}")
 
 # ---------- 13. REQ-LOC-005: a coordinate literal on a lat/lon line, or a literal home flag ----------
 # Complements check 10 (which looks for key:value / pair / WKT shapes): any 4+-decimal number on a line
@@ -328,7 +318,7 @@ try:
     else:
         ok("no coordinate literal on a lat/lon line and no literal home flag anywhere in code (REQ-LOC-005)")
 except Exception as e:
-    warn(f"could not run the coordinate-line lint: {e}")
+    fail(f"could not run the coordinate-line lint: {e}")
 
 # ---------- report ----------
 for m in passes: print(f"PASS  {m}")

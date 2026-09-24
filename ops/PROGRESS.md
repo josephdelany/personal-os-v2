@@ -8534,3 +8534,36 @@ invariants pass; generic RULE04 pending; merged43unverified checks. Reviewer acc
 clock-range fix, no scoped blocker. Evidence .local/evidence/v0-checkins/, hashes
 unchanged, all jobs terminal. No production activation, real-account/concurrent
 commit proof or frontend change. Next V0 meal saved/history contract.
+
+2026-09-24 — Check-ins committed65796bd, committed source hashes match evidence.
+Started V0 meal save/history0092/ADR0167. Owner text/photo-reference saves, pending
+nutrition readback, immutable corrections and exact retry. Photo requires original
+Shortcut capture and verified matching receipt. CAP005 scope updated per Joe's
+explicit V0 text/workout request; image-origin/access rules retained. Initial19SQL
+passed1.03s terminal75029. Owner preview transport, further acceptance, review and
+integration remain. No production/frontend changes or automatic nutrition claim.
+
+2026-09-24 — Meal storage policies exposed SQL helper ACL evaluation on inactive
+branches; fixed with callable boolean guard requiring authenticated invoker role
+and owner JWT. Expanded25SQLpassed1.01s includes owner linked-photo read, anon/
+nonowner refusal, unrelated bucket preservation, no writes, rollback, stale/day
+correction and mismatched photo binding. No live Storage delivery claim. Reviewer
+requested positive nutrition-result/no-copy case; still pending. Preserve external
+AGENTS/CLAUDE project-library edits. No live jobs or deployment.
+
+2026-09-24 V0 meal integration repairs: full SQL found two real gate failures
+(1130 passed,2 failed,1 skipped). Narrowed photo helper execute grants to explicit
+Storage roles, preserving ingress isolation. Egress scan uses reviewed active-code
+boundary; archives remain reference only. Targeted62passed2.55s; reviewer accepted.
+Writer1451passed959skipped181.35s. Final SQL49120 running. No deployment or real-account claim.
+
+2026-09-24 — V0 meals locally integrated (CAP005/006/014/016/017, RULE02/03/06/10/29).
+Owner meal text/photo-reference save, exact retry, immutable corrections and day
+history work without nutrition. Private photo policy activation artifact reviewed.
+Final SQL1132pass1skip389.81s, writer1451pass959skip172.02s, chain91/960,
+layout43pass, targeted repair62pass; four spine invariants pass. Generic RULE04
+pending; merged43unverified (41production,2NumPyro), ledger14/15 unchanged.
+Reviewer accepted explicit helper-role grants and narrow reference archive boundary.
+Final source hashes verified, evidence .local/evidence/v0-meals/final/. No live jobs.
+WHAT I DID NOT DO: production activation, live image delivery, real-account use,
+automatic text/photo enrichment, frontend or full-project completion. Next workout API.

@@ -10,13 +10,39 @@ Joe's `/goal` is active. Do not start backend execution from the monitor.
 {
   "version": 1,
   "status": "running",
-  "updated_at": "2026-09-24T17:14:49.083432+00:00",
-  "last_progress_at": "2026-09-24T17:14:49.083432+00:00",
-  "unit": "V0-backend-checkin-save-history",
-  "next_action": "0091 V0 checkin all local gates/review pass; commit scoped unit excluding APP_PUBLICATION. Next V0 owner meal save/history independent of nutrition. No live jobs/deployment."
+  "updated_at": "2026-09-24T18:25:42.129361+00:00",
+  "last_progress_at": "2026-09-24T18:25:42.129361+00:00",
+  "unit": "V0-backend-workout-save-history",
+  "next_action": "Meal local integration complete: SQL1132pass1skip, writer1451pass959skip, chain91/960, layout43pass, review accepted. Scoped meal commit then implement workout contract ADR0169. No live checks. Preserve external AGENTS/CLAUDE/APP_PUBLICATION."
 }
 ```
 <!-- backend-control:end -->
+
+## Current unit — integrate meals, then V0 workout save/history
+
+Meal0092/ADR0167 local implementation verified. FinalSQL49120 terminal/server
+stopped:1132passed1production-skip389.81s. Writer60899 terminal1451passed959skipped
+172.02s; chain86745 terminal91migrations960statements; layout43pass; scoped repair
+62pass2.55s. Reviewer accepted final permissions and archive scan boundary. Four
+spine invariant cases pass; generic RULE04 remains pending. Merged43 unverified
+skips (41production,2NumPyro), feature ledger14/15 unchanged. Final runtime/test
+hashes match .local/evidence/v0-meals/final/source-sha256.json. No live processes.
+
+Original SQL failure evidence retained:1130pass2fail1skip. Fixed PUBLIC helper
+execute exposure to capture_ingest with explicit Storage-facing role grants;
+fixed egress/layout/finance reference-archive traversal with ADR0168's reviewed
+narrow boundary. Active ignored/untracked code remains scanned. No gate patterns,
+thresholds or offline browser harness exceptions weakened.
+
+Commit root-owned meal/gate files and maintained docs, excluding external AGENTS,
+CLAUDE, APP_PUBLICATION and the next-unit draftADR0169. Next implement workout
+owner save/read/correction under ADR0169; preserve stated kg/lb and explicit
+bodyweight/assisted modes, existing0–10 half-step RPE and typed predecessor identity.
+Do not feed new mode-aware inputs through the legacy weight_lb-only extractor.
+No advanced nutrition/coaching/inference or frontend yet. Production activation,
+real-account acceptance and actual Storage delivery remain unverified/held.
+
+## Historical integrated check-in unit
 
 ## Current unit — integrate V0 check-ins, then meal save/history
 
@@ -1947,3 +1973,43 @@ D.1 the link object 7, C.1 necessity-is-a-tier 7.
 - Legacy `sleep_deep_min` is in HOURS despite the `_min` suffix. Lanes are never blended.
 - Both devices count the whole day: summing steps across them doubles them (measured, 1.98x).
 - A question's date is not its knowledge horizon. Two clocks, two parameters.
+
+Meta Muse research: user explicitly requested subagent investigation of product
+and possible integration. research_meta_muse is read-only, browsing official
+capabilities/cost/privacy/fit. No installation or scope expansion authorized.
+
+Meta Muse research complete (read-only, no setup). Official Meta consumer Muse,
+Spark developer API, Muse Code and local Glimmer are distinct. Recommendation:
+defer hosted integration beyond V0 due $0/privacy constraints; optional later
+read-only assistant/local model evaluation, not backend replacement. Report sent
+to parent with official source links. No change to V0 scope/permissions.
+
+2026-09-24 gate-repair checkpoint: user confirmed collection expansion; index19904
+entries, local reconciliation report says originals retained/no missing identified
+targets (not data admission). External AGENTS/CLAUDE edits remain untouched.
+ADR0168/tools/layout_sources.py bounds only exact archive plus exact untracked
+Collected Files navigation portal; tracked/other aliases/errors fail. Active code
+elsewhere remains scanned. Shared with finance_never: old noDB32822 terminal
+1440pass1fail959skip242.02s due archived browser code, not runtime. Targeted combined
+37pass2.13s, layout43pass, reviewer re-review pending. FullSQL90785 still running,
+contains same now-fixed finance failure; await terminal before rerun. Need rerun
+full gates after reviewer acceptance. No deployment. Preserve failure evidence.
+
+2026-09-24 integration repair: original SQL90785 terminal1130pass2fail1skip486.89s.
+Failures: PUBLIC helper grant exposed capture_ingest RPC, and egress scan traversed
+reference archives. Explicit Storage-role grants remove ingress access; egress now
+shares reviewed narrow archive boundary with unchanged patterns. Repair62pass2.55s
+terminal50324; independent reviewer accepted. Writer35701 terminal1451pass959skip
+181.35s. Final SQL49120 live at /tmp/v0-meals-final-sql.log/.xml; do not restart.
+Chain/layout must cover final changes before integration. No activation.
+
+Final layout26928 terminal43pass. Final migration chain86745 live at
+/tmp/v0-meals-chain.log; poll same handle. Full SQL49120 also confirmed live.
+
+Continuation checkpoint: previous turn progressed (permission/scan repairs),
+current final SQL49120 and writer60899 each polled and confirmed live. Migration
+chain86745 terminal91/960; layout43pass. Final source hashes verified unchanged.
+Added meal RPC caller/retry/correction example to CAPTURE_RUNTIME. Next-unit design
+ADR0169 is draft only and must not enter the meal integration commit. Reviewer
+assessed workout gaps: explicit lb/kg/movement mode, typed correction, legacy
+isolation, existing0–10 half-step RPE (not check-in1–10). No runtime workout edits.

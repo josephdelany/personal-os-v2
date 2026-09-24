@@ -6,6 +6,57 @@ the individual interfaces; NEXT_SESSION records current evidence and remaining g
 This is a runbook under construction, not an activated capture service.
 Production authentication is held per NEXT_SESSION; do not retry the unchanged secret.
 
+## V0 meal save/history — local implementation, not activated
+
+Migration0092/ADR0167 adds owner-JWT `save_v0_meal(p_request)` and
+`get_v0_meals(p_day)`. Save requires exactly `entry_id` (UUIDv7), `supersedes`
+(null or current entry UUID), `occurred_at` (timestamp with offset), `text`
+(string, maximum10000 characters) and `photo_capture_id` (null or existing UUID).
+Nonblank text or a completed photo is required. Reuse the exact request/UUID after
+uncertain delivery; changed contents refuse. Corrections append a new version;
+stale predecessors require rereading before an owner makes another correction.
+
+A photo must already exist as a Shortcut photo capture with matching upload and
+completion receipt. Day readback provides bucket/path/content-type metadata for
+that image. After approved activation of `capture_storage_policies.sql`, apply
+`v0_meal_photo_policies.sql` transactionally. Download with the owner's authenticated
+Storage client into a local object URL; do not make the bucket public or embed a
+service credential. Only linked completed photos are readable; owner photo writes
+remain denied. Local policy tests are not evidence of live Storage delivery.
+
+Save receipts confirm evidence storage. Day reads show `save_status=saved` and a
+separate nutrition object: `pending`, `results_available`, or `removed`. Available
+results retain their stored provenance/intervals and are not automatically verified
+measurements; a removed item is not a nutrient value. Missing results yield an empty
+items list, never zero calories. Correcting a meal does not reuse predecessor
+nutrition. Existing voice workers do not automatically process these V0 text/photo
+entries; this interface does not claim processing has started. Saving/history and
+photo review remain useful independently of enrichment.
+
+Example caller after activation, using the app's existing authenticated Supabase
+client (no service credential). Generate and retain a fresh UUIDv7 once for each
+new entry; reuse the whole request on retry:
+
+```javascript
+const request = {
+  entry_id: entryId, supersedes: null,
+  occurred_at: new Date().toISOString(),
+  text: mealText, photo_capture_id: null
+};
+const {data: receipt, error} = await supabase.rpc('save_v0_meal', {p_request: request});
+if (error) throw error; // Keep request for a visible retry; do not display saved.
+const {data: history, error: readError} = await supabase.rpc('get_v0_meals', {
+  p_day: receipt.subject_day
+});
+// receipt.status === 'saved' is durable-save acknowledgement even if readError occurs.
+// Nutrition readiness comes from history.entries, never from the save receipt.
+```
+
+For a correction, supply a fresh entry UUID and the current entry's UUID as
+`supersedes`, with the full replacement text/photo/time. A stale-predecessor error
+requires reloading the day and showing the current entry before correcting again.
+This example is a caller contract, not evidence of deployed RPC availability.
+
 ## V0 structured check-ins — local implementation, not activated
 
 Migration0091/ADR0166 adds owner-JWT-only `save_v0_checkin(p_request)` and

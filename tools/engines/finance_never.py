@@ -99,12 +99,11 @@ SKIP_DIRS = {".git", "__pycache__", "node_modules", "_legacy_snapshot", ".venv"}
 
 
 def _sources(root):
+    from tools.layout_sources import active_code_paths
     root = pathlib.Path(root)
-    for path in root.rglob("*"):
-        if path.is_dir() or any(p in SKIP_DIRS for p in path.parts):
-            continue
-        if path.suffix in (".py", ".sql", ".ts", ".tsx", ".js", ".yml", ".yaml", ".toml"):
-            yield path
+    for relative, _ in active_code_paths(root, suffixes=(".py", ".sql", ".ts", ".tsx", ".js", ".yml", ".yaml", ".toml"),
+                                         skip_dirs=SKIP_DIRS):
+        yield root / relative
 
 
 def _strip_comments(text, suffix):

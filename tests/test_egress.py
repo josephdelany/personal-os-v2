@@ -263,11 +263,11 @@ def test_RULE_29_every_outbound_request_in_the_repository_is_in_this_module():
     skip = {"lib/egress.py", "tests/test_egress.py", "tools/validate_layout.py"}
 
     offenders = []
-    for path in sorted(root.rglob("*.py")):
-        rel = str(path.relative_to(root))
-        if rel in skip or rel.startswith((".venv", "node_modules")) or "/__pycache__/" in rel:
-            continue
-        if callers.search(path.read_text()):
+    from tools.layout_sources import active_code_text
+    for rel, body in active_code_text(root, suffixes=(".py",),
+                                      skip_dirs={".git", ".venv", "node_modules", "__pycache__"},
+                                      exclude=skip):
+        if callers.search(body):
             offenders.append(rel)
     assert offenders == [], f"outbound request outside lib/egress.py: {offenders}"
 
