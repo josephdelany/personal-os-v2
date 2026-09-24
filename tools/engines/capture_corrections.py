@@ -6,13 +6,16 @@ the private owner database capability; actor metadata grants no permission.
 import json
 import math
 import uuid
+import datetime as dt
+import re
 from decimal import Decimal
 
 from tools.engines import nutrition
 from tools.engines.capture_transcription import _private, _lock
+from tools.importers.common import subject_day
 
 
-VERSION = 'capture-owner-correction-v1'
+VERSION = 'capture-owner-correction-v2'
 _IDENTITY = {'request_id', 'capture_id', 'expected_item_id', 'actor', 'operation'}
 
 
@@ -26,12 +29,28 @@ Removal is explicit: zero is neither deletion nor a missing observation.
     if not isinstance(payload, dict):
         raise ValueError('correction request must be an object')
     operation = payload.get('operation')
-    required = _IDENTITY | ({'food_id', 'quantity'} if operation == 'replace' else set())
-    if operation not in ('replace', 'remove') or set(payload) != required:
+    extra = {'replace': {'food_id', 'quantity'}, 'remove': set(),
+             'retime': {'occurred_at', 'time_precision'}}
+    if not isinstance(operation, str) or operation not in extra:
+        raise ValueError('invalid correction request fields')
+    required = _IDENTITY | extra[operation]
+    if set(payload) != required:
         raise ValueError('invalid correction request fields')
     if payload['actor'] != 'joe':
         raise ValueError('owner actor required; database authorization is also required')
     result = dict(payload)
+    if operation == 'retime':
+        value = payload['occurred_at']
+        if (not isinstance(value, str) or not re.fullmatch(
+            r'\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?(?:Z|[+-](?:[01]\d|2[0-3]):[0-5]\d)', value)):
+            raise ValueError('explicit offset event timestamp required')
+        try:
+            instant = dt.datetime.fromisoformat(value.replace('Z', '+00:00'))
+            result['occurred_at'] = instant.astimezone(dt.timezone.utc).isoformat()
+        except (ValueError, OverflowError):
+            raise ValueError('invalid event timestamp') from None
+        if payload['time_precision'] not in ('exact', 'minute', 'hour', 'day', 'unknown'):
+            raise ValueError('explicit event time precision required')
     for key in ('request_id', 'capture_id', 'expected_item_id', *(['food_id'] if operation == 'replace' else [])):
         try:
             result[key] = str(uuid.UUID(str(payload[key])))
@@ -70,10 +89,15 @@ def apply(cur, payload, *, schema='core', config='config', ops='ops'):
     _lock(cur, request['capture_id'])
     quantity = request.get('quantity', {})
     dimension, amount = next(iter(quantity.items())) if quantity else (None, None)
+    corrected_time = (dt.datetime.fromisoformat(request['occurred_at'])
+                      if request['operation'] == 'retime' else None)
+    corrected_day = subject_day(corrected_time) if corrected_time is not None else None
     identity = (request['capture_id'], request['expected_item_id'], request['actor'],
                 request['operation'], request.get('food_id'), dimension,
-                Decimal(str(amount)) if amount is not None else None)
-    cur.execute(f'''SELECT capture_id,expected_item_id,actor,operation,food_id,quantity_kind,quantity
+                Decimal(str(amount)) if amount is not None else None,
+                corrected_time, request.get('time_precision'), corrected_day)
+    cur.execute(f'''SELECT capture_id,expected_item_id,actor,operation,food_id,quantity_kind,quantity,
+        corrected_occurred_at,corrected_time_precision,corrected_subject_day
         FROM {schema}.capture_owner_corrections WHERE request_id=%s''', (request['request_id'],))
     previous = cur.fetchone()
     if previous is not None:
@@ -88,7 +112,7 @@ def apply(cur, payload, *, schema='core', config='config', ops='ops'):
             raise ValueError('incomplete correction request')
         return saved[0]
     cur.execute(f'''SELECT i.extraction_request_id,i.item_index,i.occurred_at,i.subject_day,
-        i.time_precision,i.time_provenance,i.time_reason,r.trust_level
+        i.time_precision,i.time_provenance,i.time_reason,r.trust_level,i.resolution
         FROM {schema}.capture_resolved_items_current i
         JOIN {schema}.raw_captures r USING(capture_id)
         JOIN {schema}.capture_extraction_current x ON x.capture_id=i.capture_id
@@ -98,13 +122,17 @@ def apply(cur, payload, *, schema='core', config='config', ops='ops'):
     prior = cur.fetchone()
     if prior is None:
         raise ValueError('stale or unknown correction predecessor')
-    extraction_id, index, when, day, precision, time_source, time_reason, trust = prior
+    extraction_id, index, when, day, precision, time_source, time_reason, trust, prior_resolution = prior
     cur.execute(f'''SELECT metric_key,capture_component,id FROM {schema}.atoms_current
         WHERE capture_item_id=%s''', (request['expected_item_id'],))
     predecessors = {(key, component): atom for key, component, atom in cur.fetchall()}
     cur.execute('SAVEPOINT capture_owner_correction')
     try:
         resolved = {'status': 'removed'}
+        if request['operation'] == 'retime':
+            resolved = dict(prior_resolution)
+            when, day, precision = corrected_time, corrected_day, request['time_precision']
+            time_source, time_reason = 'extracted', 'owner_correction'
         if request['operation'] == 'replace':
             cur.execute(f'SELECT canonical_name,brand,serving_g FROM {schema}.foods_cache WHERE food_id=%s',
                         (request['food_id'],))
@@ -119,8 +147,9 @@ def apply(cur, payload, *, schema='core', config='config', ops='ops'):
         resolved['owner_correction'] = request
         item_id = str(uuid.uuid5(uuid.UUID(request['request_id']), 'corrected-item'))
         cur.execute(f'''INSERT INTO {schema}.capture_owner_corrections
-            (request_id,capture_id,expected_item_id,actor,operation,food_id,quantity_kind,quantity)
-            VALUES (%s,%s,%s,%s,%s,%s,%s,%s)''', (request['request_id'], *identity))
+            (request_id,capture_id,expected_item_id,actor,operation,food_id,quantity_kind,quantity,
+             corrected_occurred_at,corrected_time_precision,corrected_subject_day)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)''', (request['request_id'], *identity))
         cur.execute(f'''INSERT INTO {schema}.capture_resolved_items
             (item_id,capture_id,extraction_request_id,item_index,occurred_at,subject_day,
              time_precision,time_provenance,time_reason,resolution,supersedes_item_id,correction_request_id)
@@ -134,6 +163,21 @@ def apply(cur, payload, *, schema='core', config='config', ops='ops'):
                 evidence_span='owner correction ' + request['request_id'], schema=schema,
                 code_version=VERSION, capture_item_id=item_id,
                 correction_request_id=request['request_id'], supersedes_by_component=predecessors)
+        elif request['operation'] == 'retime':
+            # Copy stored values; this operation does not invoke the nutrition
+            # calculator or consult a possibly changed source/configuration.
+            cur.execute(f'''INSERT INTO {schema}.atoms
+                (raw_capture_id,kind,metric_key,occurred_at,time_precision,valid_interval,
+                 subject_day,subject_day_rule_version,supersedes,presence,
+                 value_low,value_point,value_high,estimate_method,unit,state_class,value_type,
+                 trust_level,provenance,evidence_span,confidence,code_version,confirmed_at,corrected_at,
+                 capture_item_id,capture_component,correction_request_id)
+                SELECT raw_capture_id,kind,metric_key,%s,%s,valid_interval,
+                  %s,subject_day_rule_version,id,presence,
+                  value_low,value_point,value_high,estimate_method,unit,state_class,value_type,
+                  trust_level,provenance,evidence_span,confidence,code_version,confirmed_at,corrected_at,
+                  %s,capture_component,%s FROM {schema}.atoms_current WHERE capture_item_id=%s''',
+                (when, precision, day, item_id, request['request_id'], request['expected_item_id']))
         # Anything left current on the predecessor was omitted or changed shape.
         # Retire it explicitly without inventing a nutrient measurement.
         cur.execute(f'''INSERT INTO {schema}.atoms
@@ -146,7 +190,7 @@ def apply(cur, payload, *, schema='core', config='config', ops='ops'):
             (VERSION, request['request_id'], request['expected_item_id']))
         result = {'request_id': request['request_id'], 'capture_id': request['capture_id'],
                   'previous_item_id': request['expected_item_id'], 'item_id': item_id,
-                  'status': 'removed' if request['operation'] == 'remove' else 'resolved'}
+                  'status': 'removed' if resolved.get('status') == 'removed' else 'resolved'}
         cur.execute(f'''INSERT INTO {schema}.capture_correction_outcomes(request_id,result)
             VALUES (%s,%s::jsonb)''', (request['request_id'], json.dumps(result)))
     except Exception:

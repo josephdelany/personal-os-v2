@@ -10,13 +10,35 @@ Joe's `/goal` is active. Do not start backend execution from the monitor.
 {
   "version": 1,
   "status": "running",
-  "updated_at": "2026-09-24T16:15:16.970270+00:00",
-  "last_progress_at": "2026-09-24T16:15:16.970270+00:00",
-  "unit": "M3-owner-corrections",
-  "next_action": "Final integration checks passed; make scoped correction/ADR0163 commit excluding APP_PUBLICATION. All handles terminal: SQL36144=1065pass1live-skip374.88s, writer2306=1427pass892skip159.51s, chain88/932, layout43. Final artifact directory .local/evidence/capture-corrections/final/. Then continue remaining CAP014 owner name/time/unresolved-field correction acceptance under full M0-M6 plan; do not redo completed quantity grammar or claim M3/M6 complete."
+  "updated_at": "2026-09-24T16:49:07.833134+00:00",
+  "last_progress_at": "2026-09-24T16:49:07.833134+00:00",
+  "unit": "M3-owner-event-time-corrections",
+  "next_action": "ADR0164 all local gates passed, reviewer accepted. Scoped commit excluding APP_PUBLICATION, then CAP014 remaining name/unresolved corrections; full M0-M6 remains. No live process/deployment."
 }
 ```
 <!-- backend-control:end -->
+
+## Current bounded acceptance — owner event-time correction
+
+Local acceptance complete, 2026-09-24. Targeted93pass73.46s; pure41pass;
+chain89files935statements; layout43pass. Full SQL1074pass1production-skip483.03s,
+session60825 terminal/server stopped. Sanctioned feature writer1441pass901skip
+214.57s, session37508 terminal. Four scoped spine invariant cases pass; generic
+RULE04 remains pending. Merged43 unverified skips:41production and2NumPyro.
+Feature ledger14/15 unchanged. Reviewer accepted final fixes; SQL day binding
+uses the ledger calculated by the existing engine owner. Evidence and hashes at
+.local/evidence/capture-retime/; tested runtime/test hashes unchanged. No live checks.
+Commit this scoped unit excluding APP_PUBLICATION; then implement CAP014 remaining
+name/unresolved-field corrections. Full backend M0–M6 and production remain open.
+
+ADR0164, CAP014/066, RULE02/03/05/06/10/12. Root owns migration0090,
+capture_corrections engine, correction/transcription tests and maintained docs.
+Outcome: explicit owner timestamp/precision moves current resolved item/atoms to the
+correct personal day without recalculating values, changing quantity provenance,
+erasing past reads or restoring removed items. Require positive cross-day/defaulted
+cases, invalid/stale/replay/role refusal, SQL payload binding and atomic rollback.
+Use existing subject_day owner; do not settle OQ53 or rewrite automatic dateparser.
+No provider, production write or new fixture exception. Local acceptance complete.
 
 ## Current active unit — finish backend / owner corrections (2026-09-24)
 
@@ -25,13 +47,14 @@ persistence, capture_transcription/readback and capture_resolution consumers, an
 both correction/transcription tests. Requirements CAP014, RULE02/03/10/12,
 NUT032/050–053; ADR0161. Full backend M0–M6 remains the stopping scope.
 
-Implemented locally, uncommitted: private owner ledger and immutable outcome;
+Integrated799d243: private owner ledger and immutable outcome;
 single item-version chain; replacement atoms and explicit nonnumeric retractions;
 transaction/savepoint, payload-bound replay and stale-target refusal; pinned source
 and quantity; current readback; automatic new-request reads preserve owner versions;
 CLI commits before emitting success. No production change or provisioning.
 
-Local reference/quantity/removal path is ready for scoped integration commit.
+Local reference/quantity/removal path integrated at799d243. All tested runtime/test
+hashes match the commit; only paused APP_PUBLICATION was excluded. No push/deploy.
 Root owns correction migration0089/ADR0161, engine/CLI, nutrition persistence,
 capture extraction/resolution/readback, tests, runbook and evidence docs. Root also
 owns ADR0163 offline browser guard repair and its harness/tests. Reviewer read-only.
@@ -61,7 +84,7 @@ popup plus existing journey. Scanner27pass1.56s covers mutation/copy/symlink ref
 and retained other guards. Reviewer accepted. Earlier noDB failure remains separate.
 No hidden import, test omission, requirement amendment, new cost or production action.
 
-Next after scoped commit: continue CAP014's remaining owner name/event-time and
+Next active contract: continue CAP014's remaining owner name/event-time and
 unresolved extracted-field corrections, derive the exact bounded acceptance contract
 from specs and existing schema before editing. Name/time and other capture profiles
 are NOT closed by this reference/quantity/removal path. Full M0–M6, production

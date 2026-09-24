@@ -200,7 +200,7 @@ def test_REQ_CAP_034_persistence_failure_cannot_leave_orphan_success(cur,monkeyp
         def execute(self,sql,args=None):
             if 'INSERT INTO core_pytest.capture_transcription_outcomes' in sql:
                 raise RuntimeError('fixture insertion failure')
-            return cur.execute(sql,args) if args is not None else cur.execute(sql)
+            return cur.execute(sql,() if args is None else args) if args is not None else cur.execute(sql)
         def fetchone(self): return cur.fetchone()
     with pytest.raises(RuntimeError,match='fixture'):
         consume(Fault(),request)
@@ -866,6 +866,163 @@ def test_REQ_CAP_014_RULE_03_REQ_NUT_052_correction_components_current_day_and_h
     assert not cur.fetchall()
     cur.execute("SELECT value FROM analysis_pytest.f_atom_rows('2026-09-23',%s) WHERE metric='kcal'",(after_replace,))
     assert [float(row[0]) for row in cur.fetchall()]==[300]
+
+
+@pytest.mark.parametrize('temporal',[None,'today at 8am'])
+@pytest.mark.parametrize('quantity',[1,2.5])
+def test_REQ_CAP_014_066_RULE_03_06_owner_time_moves_current_day_without_changing_values(cur,monkeypatch,temporal,quantity):
+    import datetime as dt
+    from tools.engines import capture_resolution, capture_corrections, nutrition
+    from tools import nutrition_day
+    req=saved_food_extraction(cur,quantity=quantity,quantity_text=str(quantity),temporal=temporal)
+    cache_resolution_food(cur)
+    initial=capture_resolution.resolve(cur,request_id=uuid.uuid4(),capture_id=CID,
+        extraction_request_id=req['request_id'],schema='core_pytest',ops='ops_pytest')
+    original=initial['items'][0]['item_id']
+    values_sql='''SELECT metric_key,capture_component,value_low,value_point,value_high,
+        quantity_provenance,provenance,estimate_method,code_version FROM core_pytest.atoms_current
+        ORDER BY metric_key,capture_component'''
+    cur.execute(values_sql)
+    before_values=cur.fetchall()
+    cur.execute('SELECT to_jsonb(r) FROM core_pytest.raw_captures r WHERE capture_id=%s',(CID,))
+    raw=cur.fetchone()[0]
+    cur.execute('SELECT clock_timestamp()')
+    before=cur.fetchone()[0]
+    def no_recalculation(*args,**kwargs):
+        raise AssertionError('time-only correction must not resolve nutrition')
+    monkeypatch.setattr(nutrition,'resolve_item',no_recalculation)
+    payload=dict(request_id=str(uuid.uuid4()),capture_id=CID,expected_item_id=original,
+        actor='joe',operation='retime',occurred_at='2026-09-22T02:00:00-04:00',time_precision='minute')
+    cur.execute('SET LOCAL ROLE service_role')
+    with pytest.raises(PermissionError):
+        capture_corrections.apply(cur,payload,schema='core_pytest',ops='ops_pytest')
+    cur.execute('SET LOCAL ROLE capture_owner')
+    corrected=capture_corrections.apply(cur,payload,schema='core_pytest',ops='ops_pytest')
+    assert capture_corrections.apply(cur,payload,schema='core_pytest',ops='ops_pytest')==corrected
+    with pytest.raises(ValueError,match='identity reused'):
+        capture_corrections.apply(cur,{**payload,'time_precision':'hour'},schema='core_pytest',ops='ops_pytest')
+    with pytest.raises(ValueError,match='stale'):
+        capture_corrections.apply(cur,{**payload,'request_id':str(uuid.uuid4())},schema='core_pytest',ops='ops_pytest')
+    cur.execute(values_sql)
+    assert cur.fetchall()==before_values
+    cur.execute('SET LOCAL ROLE service_role')
+    current=transcription.readback(cur,capture_id=CID,schema='core_pytest')['extraction']['resolved_items'][0]
+    assert str(current['item_id'])==corrected['item_id']
+    assert current['subject_day']==dt.date(2026,9,21)
+    assert current['time_precision']=='minute' and current['time_provenance']=='extracted'
+    assert current['time_reason']=='owner_correction'
+    assert current['occurred_at']==dt.datetime(2026,9,22,6,tzinfo=dt.timezone.utc)
+    cur.execute('SELECT to_jsonb(r) FROM core_pytest.raw_captures r WHERE capture_id=%s',(CID,))
+    assert cur.fetchone()[0]==raw
+    cur.execute('RESET ROLE')
+    assert nutrition_day.read_day(cur,'2026-09-22',schema='core_pytest')==([],[])
+    items,missing=nutrition_day.read_day(cur,'2026-09-21',schema='core_pytest')
+    assert len(items)==1 and items[0]['kcal_point']==(500 if quantity==1 else 1000)
+    assert len(missing)==(0 if quantity==1 else 1)
+    for cutoff,expected in ((before,[] if temporal is None else [(dt.date(2026,9,22),500 if quantity==1 else 1000)]),
+                            (None,[(dt.date(2026,9,21),500 if quantity==1 else 1000)])):
+        cur.execute("SELECT subject_day,value FROM analysis_pytest.f_atom_rows('2026-09-23',coalesce(%s,clock_timestamp())) WHERE metric='kcal'",(cutoff,))
+        assert [(day,float(value)) for day,value in cur.fetchall()]==expected
+
+
+@pytest.mark.parametrize('remove_first',[False,True])
+def test_REQ_CAP_014_066_RULE_02_03_retime_composes_with_quantity_and_removal(cur,remove_first):
+    import datetime as dt
+    from tools.engines import capture_resolution, capture_corrections
+    req=saved_food_extraction(cur)
+    cache_resolution_food(cur)
+    initial=capture_resolution.resolve(cur,request_id=uuid.uuid4(),capture_id=CID,
+        extraction_request_id=req['request_id'],schema='core_pytest',ops='ops_pytest')
+    item=initial['items'][0]['item_id']
+    cur.execute('SELECT resolution FROM core_pytest.capture_resolved_items WHERE item_id=%s',(item,))
+    food=cur.fetchone()[0]['food_id']
+    cur.execute('SET LOCAL ROLE capture_owner')
+    def correct(operation,**fields):
+        nonlocal item
+        result=capture_corrections.apply(cur,dict(request_id=str(uuid.uuid4()),capture_id=CID,
+            expected_item_id=item,actor='joe',operation=operation,**fields),
+            schema='core_pytest',ops='ops_pytest')
+        item=result['item_id']
+        return result
+    if remove_first:
+        correct('remove')
+    result=correct('retime',occurred_at='2026-09-22T04:00:00-04:00',time_precision='exact')
+    assert result['status']==('removed' if remove_first else 'resolved')
+    if not remove_first:
+        correct('replace',food_id=food,quantity={'grams':150})
+    cur.execute('SELECT occurred_at,subject_day,time_precision FROM core_pytest.capture_resolved_items_current')
+    assert tuple(cur.fetchone())==(dt.datetime(2026,9,22,8,tzinfo=dt.timezone.utc),dt.date(2026,9,22),'exact')
+    cur.execute('SELECT value_point FROM core_pytest.atoms_current WHERE metric_key=\'kcal\'')
+    assert [float(row[0]) for row in cur.fetchall()]==([] if remove_first else [300])
+    result=correct('retime',occurred_at='2026-09-22T03:59:59-04:00',time_precision='exact')
+    assert result['status']==('removed' if remove_first else 'resolved')
+    cur.execute('SELECT subject_day FROM core_pytest.capture_resolved_items_current')
+    assert cur.fetchone()[0]==dt.date(2026,9,21)
+    cur.execute('SELECT value_point FROM core_pytest.atoms_current WHERE metric_key=\'kcal\'')
+    assert [float(row[0]) for row in cur.fetchall()]==([] if remove_first else [300])
+
+
+def test_REQ_CAP_014_066_RULE_02_retime_rolls_back_before_outcome_and_can_retry(cur):
+    from tools.engines import capture_resolution, capture_corrections
+    req=saved_food_extraction(cur)
+    cache_resolution_food(cur)
+    initial=capture_resolution.resolve(cur,request_id=uuid.uuid4(),capture_id=CID,
+        extraction_request_id=req['request_id'],schema='core_pytest',ops='ops_pytest')
+    original=initial['items'][0]['item_id']
+    payload=dict(request_id=str(uuid.uuid4()),capture_id=CID,expected_item_id=original,
+        actor='joe',operation='retime',occurred_at='2026-09-22T02:00:00-04:00',time_precision='minute')
+    before_atoms=count(cur,'atoms')
+    class FailOutcome:
+        def __getattr__(self,name):
+            return getattr(cur,name)
+        def execute(self,sql,args=None):
+            if 'INSERT INTO core_pytest.capture_correction_outcomes' in sql:
+                assert count(cur,'atoms')>before_atoms
+                raise RuntimeError('injected after copied atoms')
+            return cur.execute(sql,() if args is None else args)
+    cur.execute('SET LOCAL ROLE capture_owner')
+    with pytest.raises(RuntimeError,match='injected'):
+        capture_corrections.apply(FailOutcome(),payload,schema='core_pytest',ops='ops_pytest')
+    assert count(cur,'capture_owner_corrections')==0
+    assert count(cur,'capture_correction_outcomes')==0
+    assert count(cur,'capture_resolved_items')==1
+    assert count(cur,'atoms')==before_atoms
+    result=capture_corrections.apply(cur,payload,schema='core_pytest',ops='ops_pytest')
+    assert result['status']=='resolved'
+    with pytest.raises(ValueError,match='identity reused'):
+        capture_corrections.apply(cur,{**payload,'occurred_at':'2026-09-23T02:00:00-04:00'},
+            schema='core_pytest',ops='ops_pytest')
+
+
+@pytest.mark.parametrize('corrupt',['day','nutrient'])
+def test_REQ_CAP_014_066_RULE_03_10_retime_database_rejects_mismatched_payload(cur,corrupt):
+    import datetime as dt
+    from tools.engines import capture_resolution, capture_corrections
+    req=saved_food_extraction(cur)
+    cache_resolution_food(cur)
+    initial=capture_resolution.resolve(cur,request_id=uuid.uuid4(),capture_id=CID,
+        extraction_request_id=req['request_id'],schema='core_pytest',ops='ops_pytest')
+    payload=dict(request_id=str(uuid.uuid4()),capture_id=CID,
+        expected_item_id=initial['items'][0]['item_id'],actor='joe',operation='retime',
+        occurred_at='2026-09-22T02:00:00-04:00',time_precision='minute')
+    before_atoms=count(cur,'atoms')
+    class CorruptWrite:
+        def __getattr__(self,name):
+            return getattr(cur,name)
+        def execute(self,sql,args=None):
+            if corrupt=='day' and 'INSERT INTO core_pytest.capture_resolved_items' in sql:
+                args=list(args)
+                args[5]=dt.date(2026,9,22)
+            if corrupt=='nutrient' and 'INSERT INTO core_pytest.atoms' in sql and 'SELECT raw_capture_id,kind,metric_key,%s' in sql:
+                head,body=sql.split('SELECT ',1)
+                sql=head+'SELECT '+body.replace('value_low,value_point,value_high','value_low,value_point+1,value_high')
+            return cur.execute(sql,() if args is None else args)
+    cur.execute('SET LOCAL ROLE capture_owner')
+    with pytest.raises(Exception,match='time correction must'):
+        capture_corrections.apply(CorruptWrite(),payload,schema='core_pytest',ops='ops_pytest')
+    assert count(cur,'capture_owner_corrections')==0
+    assert count(cur,'capture_resolved_items')==1
+    assert count(cur,'atoms')==before_atoms
 
 
 @pytest.mark.parametrize('stage',['extract','transcribe'])

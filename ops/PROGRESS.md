@@ -8476,3 +8476,29 @@ WHAT I DID NOT DO: name/time/unresolved extracted-field corrections, non-food ca
 profiles, production provisioning/migration, real-device acceptance, independent
 commit/crash durability (OQ82 ungranted), or full M0–M6 release. These remain work,
 not implicitly authorized deferrals.
+
+Integrated as `799d243`; runtime/test hashes verified byte-for-byte against the
+committed blobs. No deployment or push. Next active unit is CAP014 owner field/time
+correction; the larger backend goal remains active.
+
+
+2026-09-24 — ADR0164 retime acceptance in progress. Initial SQL88passed; expanded
+mixed-operation run88passed2failed (test row list/tuple comparison, repaired).
+Independent reviewer caught malformed offset normalization (+01:99); strict offset
+ranges and two refusal regressions now pass with pure suite41/41. Added atomic
+rollback after copied atoms, retry and timestamp identity refusal. SQL session67533
+running. Not integrated/deployed; direct SQL mismatch and full gates remain.
+
+2026-09-24 — ADR0164 targeted acceptance complete:93SQLpassed73.46s,41purepassed,
+chain89files935statements, layout43passed. Reviewer rechecked malformed-offset fix
+and final cases, no remaining scoped blocker. SQL day validation binds to the
+ledger; the existing engine calculates it. FullSQL60825 and writer37508 live;
+no deployment or commit yet. Backend M0–M6 remains open.
+
+2026-09-24 — ADR0164 local integration passed:1074SQL/1production-skip483.03s;
+feature writer1441pass901skip214.57s; targeted93, pure41, layout43, chain89/935.
+Four scoped invariant cases pass; generic RULE04 pending. Merged43 unverified skips
+(41production,2NumPyro), ledger14/15 unchanged. Reviewer accepted; source hashes
+unchanged, evidence .local/evidence/capture-retime/. All jobs terminal. No production
+write, provisioning, deployment or full backend-completion claim. CAP014 remaining
+name/unresolved-field corrections next; paused APP_PUBLICATION excluded.

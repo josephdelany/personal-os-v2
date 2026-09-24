@@ -41,6 +41,34 @@ def test_REQ_CAP_014_RULE_06_removal_is_explicit_without_fabricated_quantity():
         validate_request({**payload, 'quantity': {'grams': 0}})
 
 
+def retime_request(**changes):
+    payload=request(operation='retime',occurred_at='2026-09-22T02:00:00-04:00',time_precision='minute')
+    del payload['food_id'],payload['quantity']
+    return {**payload,**changes}
+
+
+def test_REQ_CAP_014_RULE_03_time_correction_canonicalizes_instant_not_precision():
+    payload=retime_request()
+    saved=validate_request(payload)
+    assert saved['occurred_at']=='2026-09-22T06:00:00+00:00'
+    assert saved['time_precision']=='minute'
+    assert validate_request({**payload,'occurred_at':'2026-09-22T06:00:00Z'})==saved
+
+
+@pytest.mark.parametrize('changes',[
+    {'occurred_at':'yesterday'}, {'occurred_at':'2026-09-22'},
+    {'occurred_at':'2026-09-22T02:00:00'}, {'occurred_at':'2026-02-30T02:00:00Z'},
+    {'occurred_at':'2026-09-22T02:00:00+24:00'},
+    {'occurred_at':'2026-01-01T12:00:00+01:99'},
+    {'occurred_at':'2026-01-01T12:00:00-00:60'}, {'occurred_at':None},
+    {'time_precision':None}, {'time_precision':'guessed'}, {'subject_day':'2026-09-21'},
+    {'quantity':{'grams':150}}, {'food_id':str(uuid.uuid4())},
+])
+def test_REQ_CAP_014_RULE_06_time_correction_requires_explicit_time_without_other_edits(changes):
+    with pytest.raises(ValueError):
+        validate_request(retime_request(**changes))
+
+
 @pytest.mark.parametrize('changes', [{'actor': 'model'}, {'food_id': None},
     {'expected_item_id': 'latest'}, {'request_id': 'retry'}, {'capture_id': ''},
     {'operation': 'update'}, {'nutrients': {'energy_kcal': 10}}, {'approved': True}])

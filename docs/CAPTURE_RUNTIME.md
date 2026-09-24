@@ -8,7 +8,7 @@ Production authentication is held per NEXT_SESSION; do not retry the unchanged s
 
 ## Owner corrections — local implementation, not activated
 
-ADR0161/draft0089 adds `python3 -m tools.capture_correct`. It reads one JSON
+ADR0161/0089 adds `python3 -m tools.capture_correct`. It reads one JSON
 request from stdin and prints a private result only after the transaction commits.
 Run it in the separately provisioned owner environment: `SUPABASE_DB_URL` must
 identify a login with `capture_owner` capability. Do not give that capability to
@@ -21,15 +21,17 @@ authorization. No owner login has been provisioned by this local work.
 | `capture_id` | Existing immutable capture UUID |
 | `expected_item_id` | Current resolved-item UUID returned by capture readback |
 | `actor` | `joe` |
-| `operation` | `replace` or `remove` |
+| `operation` | `replace`, `remove`, or `retime` (ADR0164/0090, locally verified) |
 | `food_id` | Required only for replacement; exact saved reference-cache version UUID |
 | `quantity` | Required only for replacement; one positive finite numeric `grams`, `servings` or `item_count` value |
 
 Removal omits both source and quantity; zero does not mean removal. Serving counts
 require the pinned reference's serving mass. Item counts use the existing nutrition
 owner's household definition. Missing nutrient values are retired explicitly rather
-than converted to zero. Time and extraction-field editing are not implemented by
-this command.
+than converted to zero. `retime` requires `occurred_at` as an ISO-8601 timestamp
+with explicit offset and `time_precision` (`exact`, `minute`, `hour`, `day`, or
+`unknown`), omitting source and quantity. It preserves stored nutrient values and
+uses the existing personal-day boundary. Extraction-field editing remains unfinished.
 
 Read the current item before preparing a correction. On a stale-target refusal,
 read it again and make a new deliberate correction; do not automatically substitute
