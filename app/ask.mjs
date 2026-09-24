@@ -2,15 +2,34 @@
 const escape = value => String(value).replace(/[&<>"']/g, c =>
   ({'&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'}[c]));
 
+const evidenceLabels = {
+  DESCRIPTIVE: 'A description of your recorded data, not an explanation of its cause.',
+  INSUFFICIENT: 'There is not enough evidence to answer reliably.',
+  CANDIDATE: 'An exploratory association. It has not been confirmed.',
+  PROMOTED: 'A promising association that still needs confirmation.',
+  CONFIRMED_OBSERVATIONAL: 'Supported by observational evidence; this does not establish cause.',
+  EXPERIMENTAL: 'Evidence from an experiment; see the study details and limitations.'
+};
+
 export function renderAnswer(envelope) {
   const env = typeof envelope === 'string' ? JSON.parse(envelope) : envelope;
   if (!env || typeof env !== 'object' || Array.isArray(env)) throw new Error('Invalid answer');
   const answer = env.answer_text || env.refusal;
   if (typeof answer !== 'string' || !answer.trim()) throw new Error('Missing answer');
   let html = `<p>${escape(answer)}</p>`;
-  if (env.tier) html += `<p class="muted">Evidence: ${escape(env.tier)}</p>`;
+  if (env.tier) html += `<p class="evidence"><strong>${escape(env.tier)}</strong><br>${escape(evidenceLabels[env.tier] || 'Review the source details before interpreting this answer.')}</p>`;
+  if (Array.isArray(env.range) && env.range.length===2)
+    html += `<p class="muted">Records from ${escape(env.range[0])} to ${escape(env.range[1])}</p>`;
   if (env.as_of) html += `<p class="muted">As of ${escape(env.as_of)}</p>`;
   if (env.would_raise_it) html += `<p>${escape(env.would_raise_it)}</p>`;
+  const result=env.result;
+  if (result && typeof result==='object' && !Array.isArray(result)) {
+    const labels={unit:'Unit',n:'Observations used',n_days:'Days in the requested period',
+      last_day:'Latest recorded day',source:'Source',caveat:'Limitations',note:'About this result'};
+    const fields=Object.entries(labels).filter(([key]) => result[key] !== undefined && result[key] !== null
+      && ['string','number'].includes(typeof result[key]));
+    if (fields.length) html+=`<dl>${fields.map(([key,label]) => `<dt>${label}</dt><dd>${escape(result[key])}</dd>`).join('')}</dl>`;
+  }
   // Preserve units, coverage, source IDs and uncertainty from the stored envelope.
   html += `<details><summary>Data and sources behind this answer</summary><pre>${escape(JSON.stringify(env, null, 2))}</pre></details>`;
   return html;

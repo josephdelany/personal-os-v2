@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {mountAsk, renderAnswer} from '../app/ask.mjs';
+import {renderDataStatus} from '../app/data-status.mjs';
 
 function harness(rpc, timeoutMs) {
   let submit;
@@ -19,6 +20,26 @@ test('REQ-ASK-010 RULE-14 renders stored answers and escapes source text', () =>
   assert.ok(html.includes('DESCRIPTIVE'));
   assert.ok(html.includes('&quot;coverage&quot;: null'));
   assert.throws(() => renderAnswer({result:{value:7}}), /Missing answer/);
+});
+
+test('RULE-06 data status distinguishes missing coverage from current observations', () => {
+  const empty=renderDataStatus({});
+  assert.ok(empty.includes('does not establish that every source'));
+  assert.ok(empty.includes('No processing activity'));
+  const stale=renderDataStatus({coverage_blindspots:[{metric:'steps',last_day:'2026-08-21'}],
+    job_heartbeats:[{job:'import',status:'success',last:'2026-09-24'}]});
+  assert.ok(stale.includes('2026-08-21'));
+  assert.ok(stale.includes('not proof that new observations arrived'));
+});
+
+test('REQ-ASK-010 answer exposes period, units and limitations without inventing missing values', () => {
+  const html=renderAnswer({answer_text:'Recorded result',tier:'DESCRIPTIVE',
+    range:['2026-08-01','2026-08-31'],result:{unit:'h',n:12,caveat:'Partial coverage'}});
+  assert.ok(html.includes('Records from 2026-08-01 to 2026-08-31'));
+  assert.ok(html.includes('<dt>Unit</dt><dd>h</dd>'));
+  assert.ok(html.includes('Partial coverage'));
+  assert.ok(html.includes('not an explanation of its cause'));
+  assert.ok(!html.includes('Latest recorded day'));
 });
 
 test('REQ-ASK-003 sends owner RPC parameters and renders insufficiency', async () => {

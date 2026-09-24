@@ -4,7 +4,7 @@ Open [Personal OS](https://josephdelany.github.io/personal-os-v2/) in your brows
 Enter your owner email, choose **Send magic link**, and open the email link in the
 same browser. Keep passwords, login links and tokens out of chat.
 
-The existing live app has daily records and a timeline. Choose a date with recorded
+The existing live app has daily records and a timeline. In the pending update, use **Daily records** or **Timeline** to view history and **Data status** to inspect older-record warnings. Each view has loading and retry states; selecting another view prevents a late response from overwriting it. Choose a date with recorded
 history and select **Day** or **Timeline**. Empty results for a recent date do not
 prove old records are missing; some sources have stopped updating. **Trust** exposes
 available coverage and job information. A successful page load is not proof that
@@ -12,7 +12,7 @@ these backend reads work; owner sign-in and real-data acceptance are still pendi
 
 ## Ask update — locally tested, not published
 
-The pending update adds **Ask about your records** after sign-in. Type a question
+The pending update opens **Ask** after sign-in. Suggested questions fill the question box so you can edit them before submitting. Type a question
 such as “how is my sleep” or “how many steps last week”. Leave **As of** empty for
 the backend's default date, or select a historical date. Answers show the stored
 evidence level and expand to their data/source envelope. Insufficient evidence is
@@ -31,7 +31,7 @@ deployment verification; never paste that credential in chat.
 - Latest reported successful Pages run: [33582668335](https://github.com/josephdelany/personal-os-v2/actions/runs/33582668335), revision c697efb8581dc854a8af2f2bf3127fbfceff40b9 on main.
 - Current default branch reported by GitHub: v2-day1. Pending workflow change adds
   that branch while preserving main and runs Ask interaction tests before upload.
-- Five Node interaction tests passed, including a stalled-request deadline. Offline real Chrome test at phone width
+- Seven Node interaction tests passed, including a stalled-request deadline and honest missing-data status. Offline real Chrome test at phone width
   passed sign-in visibility, question submission, evidence display, failure recovery
   and sign-out. Fixtures never reach a database. Live authentication remains unproven.
 - No production migration, question submission, push or deployment was performed.
@@ -42,3 +42,15 @@ action. Do not push the entire backend branch merely to publish these app files;
 it carries unrelated migrations and scheduled-job changes. Preserve paused capture
 work in the shared worktree. After publication verify the served revision, owner
 sign-in, one real-data answer and one honest missing-data/refusal result.
+
+## Usability verification limits
+
+Offline phone-width Chrome acceptance now covers successful and empty history,
+selected dates, Data status failures/retry, late responses, missing counts versus
+actual zero, and token refresh preserving your current screen. Independent review
+found the missing-count and token-refresh issues; both were repaired and rechecked.
+The test screenshot is labelled as fixtures, not your records. Data status covers
+selected metrics only; no warning does not mean all sources are connected.
+
+Publication must follow docs/APP_PUBLICATION.md's isolated branch procedure, not a
+main push. The wider backend is still unfinished and has not been rolled out here.

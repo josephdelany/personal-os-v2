@@ -13,7 +13,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Personal OS — day</title>
+<title>Personal OS</title>
 <style>
   :root { color-scheme: light dark; }
   body { font-family: -apple-system, system-ui, sans-serif; margin: 2rem auto; max-width: 40rem; padding: 0 1rem; line-height: 1.45; }
@@ -27,10 +27,24 @@
   .transition { transition: opacity 150ms ease-out; }
   #question { box-sizing:border-box; width:100%; margin:.5rem 0; }
   pre { white-space:pre-wrap; overflow-wrap:anywhere; font-size:.8rem; }
+  body { max-width:56rem; margin:1.5rem auto; }
+  h1 { font-size:1.65rem; margin-bottom:.3rem; }
+  input,button { min-height:44px; box-sizing:border-box; }
+  button:hover { background:color-mix(in srgb,currentColor 8%,transparent); }
+  :focus-visible { outline:3px solid #568bc4; outline-offset:3px; }
+  .muted { opacity:.8; }
+  .navigation,.suggestions { display:flex; gap:.5rem; flex-wrap:wrap; margin:1rem 0; }
+  .navigation button[aria-current="page"] { font-weight:700; border-width:2px; }
+  #ask-panel,#app:not(:empty) { border:1px solid color-mix(in srgb,currentColor 20%,transparent); border-radius:12px; padding:1rem; margin:1rem 0; }
+  #ask-answer { overflow-wrap:anywhere; }
+  .evidence { border-left:3px solid #568bc4; padding-left:.8rem; }
+  dt { font-weight:600; } dd { margin:0 0 .6rem; }
+  @media(max-width:480px) { body { margin:1rem auto; } #email { width:100%; margin:.5rem 0; } }
 </style>
 </head>
 <body>
 <h1>Personal OS</h1>
+<p class="muted">Explore your history. Understand what your records can tell you.</p>
 <div id="auth">
   <p>Sign in to explore your records and ask questions about them.</p>
   <form id="signin-form">
@@ -42,12 +56,21 @@
   <p id="authmsg" class="muted" role="status"></p>
 </div>
 <div id="picker" style="display:none">
-  <button id="tab-today">Today</button> <button id="tab-timeline">Timeline</button> <button id="tab-day">Day</button> <button id="tab-patterns">Patterns</button> <button id="tab-trust">Trust</button> <button id="tab-insights">Insights</button><br><br>
-  <input id="day" type="date"> <button id="load">Load</button> <button id="signout" class="muted">Sign out</button>
+  <nav class="navigation" aria-label="Explore your records">
+    <button id="tab-ask">Ask</button>
+    <button id="tab-today">Overview</button> <button id="tab-timeline">Timeline</button> <button id="tab-day">Daily records</button> <button id="tab-trust">Data status</button> <button id="tab-insights">Insights</button> <button id="tab-patterns">Exploratory patterns</button>
+  </nav>
+  <label for="day">Browse a recorded date</label><br>
+  <input id="day" type="date"> <button id="load">View day</button> <button id="signout" class="muted">Sign out</button>
 </div>
 <section id="ask-panel" hidden aria-labelledby="ask-title">
   <h2 id="ask-title">Ask about your records</h2>
-  <p class="muted">Try “how is my sleep” or “how many steps last week”. Answers use your saved data and explain when there is not enough evidence.</p>
+  <p class="muted">Start with a question below or write your own. Answers use saved records; missing records are never treated as zero.</p>
+  <div class="suggestions" aria-label="Suggested questions">
+    <button type="button" data-question="how is my sleep">How is my sleep?</button>
+    <button type="button" data-question="how many steps last week">Steps last week</button>
+    <button type="button" data-question="how is my screen time">My screen time</button>
+  </div>
   <form id="ask-form">
     <label for="question">Your question</label>
     <input id="question" required maxlength="2000" autocomplete="off" placeholder="What would you like to know?">
@@ -62,6 +85,7 @@
 <script type="module">
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { mountAsk } from './ask.mjs';
+import { renderDataStatus } from './data-status.mjs';
 const SUPABASE_URL = "https://cykviouklidnbsbgdgdo.supabase.co";
 // anon key: public-by-design (server grants make it write-only; reads need a session)
 // baked in: the anon key is public-by-design (write-only server-side; every
@@ -72,6 +96,14 @@ const sb = createClient(SUPABASE_URL, ANON);
 const $ = (id) => document.getElementById(id);
 const ask = mountAsk({form: $('ask-form'), input: $('question'), date: $('ask-date'),
   button: $('ask-submit'), output: $('ask-answer'), rpc: (name, args) => sb.rpc(name, args)});
+document.querySelectorAll('[data-question]').forEach(button => button.addEventListener('click', () => {
+  $('question').value=button.dataset.question;
+  $('question').focus();
+}));
+document.querySelectorAll('.navigation button').forEach(button => button.addEventListener('click', () => {
+  document.querySelectorAll('.navigation button').forEach(item => item.removeAttribute('aria-current'));
+  button.setAttribute('aria-current','page');
+}));
 const esc = (s) => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
 // deterministic renderer: emits ONLY what the envelope contains (RULE-14).
@@ -94,7 +126,7 @@ function render(env) {
     ? env.notes.map(n => `<p title="atom ${esc(n.atom_id||"")}">${esc(n.text)}</p>`).join("")
     : '<p class="muted">no note</p>';
   const c = env.coverage || {};
-  h += `<h2>Trust</h2><p class="muted num">${esc(c.captures ?? 0)} captured · ${esc(c.atoms ?? 0)} facts` +
+  h += `<h2>Record coverage</h2><p class="muted num">${esc(c.captures ?? 'Count unavailable')} captured · ${esc(c.atoms ?? 'Count unavailable')} facts` +
        (env.last_extract_run ? ` · last processed ${esc((env.last_extract_run.at||"").slice(0,16).replace("T"," "))} (${esc(env.last_extract_run.status)})` : "") + "</p>";
   if (c.unextracted > 0) h += `<p class="warn num">${esc(c.unextracted)} capture(s) awaiting processing</p>`;
   $("app").innerHTML = h;
@@ -113,18 +145,64 @@ if (new URLSearchParams(location.search).get("demo")) {
     last_extract_run:{at:"2026-07-22T15:00:00Z",status:"ok"} });
   $("app").insertAdjacentHTML("afterbegin","<p class='warn'>DEMO FIXTURE — not real data</p>");
 } else if (sb) {
+  let viewRequest = 0;
+  let signedIn = false;
+  function openAsk() {
+    viewRequest++;
+    $('app').hidden=true;
+    $('ask-panel').hidden=false;
+    document.querySelectorAll('.navigation button').forEach(button => {
+      if (button.id==='tab-ask') button.setAttribute('aria-current','page');
+      else button.removeAttribute('aria-current');
+    });
+  }
+  $('tab-ask').onclick=openAsk;
+  function beginView(retry) {
+    const id = ++viewRequest;
+    $('ask-panel').hidden=true;
+    $('app').hidden=false;
+    $('app').innerHTML = '<p role="status">Loading your records…</p>';
+    const selected = {load:'tab-day',loadBrief:'tab-today',loadToday:'tab-today',
+      loadTrust:'tab-trust',loadTimeline:'tab-timeline',loadPatterns:'tab-patterns',loadInsights:'tab-insights'}[retry.name];
+    document.querySelectorAll('.navigation button').forEach(button => {
+      if (button.id === selected) button.setAttribute('aria-current','page');
+      else button.removeAttribute('aria-current');
+    });
+    return id;
+  }
+  function unavailable(retry) {
+    $('app').innerHTML = '<p role="alert">These records could not be loaded. This does not mean they are empty.</p><button id="retry-view">Try again</button>';
+    $('retry-view').onclick = retry;
+  }
+  async function readRpc(name, args) {
+    let timer;
+    try {
+      const result = await Promise.race([sb.rpc(name,args),new Promise((_,reject) => {
+        timer=setTimeout(() => reject(new Error('timeout')),30000);
+      })]);
+      if (result.error) return result;
+      const data=typeof result.data==='string'?JSON.parse(result.data):result.data;
+      if (!data || typeof data!=='object' || Array.isArray(data)) throw new Error('invalid response');
+      return {data};
+    } catch { return {error:{message:'unavailable'}}; }
+    finally { clearTimeout(timer); }
+  }
   const show = (signed) => {
+    const changed = signedIn !== signed;
+    signedIn = signed;
+    if (signed && !changed) return false;
     $("auth").style.display = signed?"none":"block";
     $("picker").style.display = signed?"block":"none";
     $("ask-panel").hidden = !signed;
     $("app").hidden = !signed;
-    if (!signed) { ask.reset(); $("app").innerHTML = ''; }
+    if (!signed) { viewRequest++; ask.reset(); $("app").innerHTML = ''; }
+    return changed;
   };
-  sb.auth.getSession().then(({data:{session}}) => { show(!!session); if (session) load(); });
+  sb.auth.getSession().then(({data:{session}}) => { const changed=show(!!session); if (session && changed) openAsk(); });
   sb.auth.onAuthStateChange((_e, session) => {
-    show(!!session);
+    const changed=show(!!session);
     // Leave the auth callback before requesting an authenticated RPC.
-    if (session) setTimeout(() => load(), 0);
+    if (session && changed) openAsk();
   });
   $("signin-form").onsubmit = async event => {
     event.preventDefault();
@@ -147,15 +225,17 @@ if (new URLSearchParams(location.search).get("demo")) {
   $("tab-today").onclick = () => loadBrief();
   $("tab-trust").onclick = () => loadTrust();
   async function loadBrief() {
-    const { data, error } = await sb.rpc("get_today");
-    if (error) { return loadToday(); }   // pre-0032 fallback: state-only view
+    const request = beginView(loadBrief);
+    const { data, error } = await readRpc("get_today");
+    if (request !== viewRequest) return;
+    if (error) { unavailable(loadBrief); return; }
     const t = typeof data === "string" ? JSON.parse(data) : data;
     let h = `<h2>Today · for ${esc(t.for_day)} <span class="muted">(based on ${esc(t.based_on)})</span></h2>`;
     const s2 = t.state || {};
     const g = s2.guardian;
     if (g) h += `<p class="warn num">⚠ ${esc(g.signals_firing)} autonomic signals outside band together — this combination has occurred ${esc(g.fires_historically)}× in your history. Pattern match, not a diagnosis.</p>`;
     h += "<h2>State</h2>";
-    h += (s2.deviations||[]).slice(0,5).map(d => `<p class="num"><strong>${esc(d.metric)}</strong>: ${esc(d.value)} <span class="muted">(z ${esc(d.z)})</span></p>`).join("") || '<p class="muted">in your normal bands</p>';
+    h += (s2.deviations||[]).slice(0,5).map(d => `<p class="num"><strong>${esc(d.metric)}</strong>: ${esc(d.value)} <span class="muted">(z ${esc(d.z)})</span></p>`).join("") || '<p class="muted">No deviations were returned. Missing records or baselines can also cause this.</p>';
     (s2.streaks||[]).slice(0,3).forEach(x => h += `<p class="num muted">${esc(x.metric)}: ${esc(x.run_days)}d ${esc(x.direction)} band (record ${esc(x.historical_max_run)})</p>`);
     if (t.patterns_waiting) { h += `<h2>Patterns</h2><p class="num">${esc(t.patterns_waiting.count)} exploratory patterns are waiting — <a href="#" id="go-patterns">read them on the Patterns tab</a>. <span class="muted">(pull, never pushed: exploratory content stays on its own labeled surface)</span></p>`; }
     if ((s2.week_money||[]).length) {
@@ -177,29 +257,33 @@ if (new URLSearchParams(location.search).get("demo")) {
     if (gp) gp.onclick = (e) => { e.preventDefault(); loadPatterns(); };
   }
   async function loadTrust() {
-    const { data, error } = await sb.rpc("get_trust");
-    if (error) { $("app").innerHTML = `<p class="warn">trust unavailable: ${esc(error.message)}</p>`; return; }
+    const request = beginView(loadTrust);
+    const { data, error } = await readRpc("get_trust");
+    if (request !== viewRequest) return;
+    if (error) { unavailable(loadTrust); return; }
     const t = typeof data === "string" ? JSON.parse(data) : data;
-    let h = `<h2>Trust — the system grading itself</h2>`;
+    let h = renderDataStatus(t);
     const f = t.forecasts || {};
-    h += `<h2>Forecasts</h2><p class="num">${esc(f.inside_band??0)}/${esc(f.resolved??0)} inside band · claimed ${esc(f.claimed_coverage)} vs achieved ${esc(f.achieved_coverage??"—")} · mean Brier ${esc(f.mean_brier??"—")} · ${esc(f.pending??0)} pending</p>`;
+    if (t.forecasts) {
+    h += `<h2>Forecasts</h2><p class="num">${esc(f.inside_band??"not available")}/${esc(f.resolved??"not available")} inside band · claimed ${esc(f.claimed_coverage)} vs achieved ${esc(f.achieved_coverage??"—")} · mean Brier ${esc(f.mean_brier??"—")} · ${esc(f.pending??"not available")} pending</p>`;
+    }
     const hy = t.hypotheses || {};
-    h += `<h2>Hypotheses</h2><p class="num">${esc(hy.candidates??0)} exploratory · ${esc(hy.watching??0)} under watch · ${esc(hy.confirmed??0)} confirmed · ${esc(hy.refuted??0)} refuted</p>`;
+    if (t.hypotheses) {
+    h += `<h2>Hypotheses</h2><p class="num">${esc(hy.candidates??"not available")} exploratory · ${esc(hy.watching??"not available")} under watch · ${esc(hy.confirmed??"not available")} confirmed · ${esc(hy.refuted??"not available")} refuted</p>`;
+    }
+    if (t.scan_calibration?.length) {
     h += "<h2>Scan honesty (observed vs shuffled)</h2>";
     h += (t.scan_calibration||[]).map(c => `<p class="num">${esc(c.run)}: ${esc(c.observed_sig)} of ${esc(c.tested)} observed vs shuffled-null median ${esc(c.shuffled_null_sig)}${c.null_p95!=null?` (p95 ${esc(c.null_p95)})`:""}</p>`).join("") || '<p class="muted">no scans yet</p>';
-    h += "<h2>Job heartbeats</h2>";
-    h += (t.job_heartbeats||[]).map(j => `<p class="num muted">${esc(j.job)}: ${esc((j.last||"").slice(0,16).replace("T"," "))} (${esc(j.status)})</p>`).join("");
-    if ((t.coverage_blindspots||[]).length) {
-      h += "<h2>What I cannot currently see</h2>";
-      h += t.coverage_blindspots.map(b => `<p class="warn num">${esc(b.metric)} — no data since ${esc(b.last_day)}</p>`).join("");
     }
     $("app").innerHTML = h;
   }
   $("tab-timeline").onclick = () => loadTimeline();
   $("tab-patterns").onclick = () => loadPatterns();
   async function loadPatterns() {
-    const { data, error } = await sb.rpc("get_patterns");
-    if (error) { $("app").innerHTML = `<p class="warn">patterns unavailable: ${esc(error.message)}</p><p class="muted">(is migration 0031 applied and a scan run?)</p>`; return; }
+    const request = beginView(loadPatterns);
+    const { data, error } = await readRpc("get_patterns");
+    if (request !== viewRequest) return;
+    if (error) { unavailable(loadPatterns); return; }
     const env = typeof data === "string" ? JSON.parse(data) : data;
     let h = `<h2>Patterns · <span class="warn">${esc(env.tier)}</span></h2><p class="muted">${esc(env.disclaimer)}</p>`;
     const c = env.calibration;
@@ -224,14 +308,16 @@ if (new URLSearchParams(location.search).get("demo")) {
     document.querySelectorAll(".watchbtn").forEach(b => b.onclick = async () => {
       b.disabled = true; b.textContent = "registering…";
       const { error } = await sb.rpc("register_watch", { p_hypothesis_id: b.dataset.watch });
-      if (error) { b.textContent = "error"; return; }
+      if (error) { unavailable(loadPatterns); return; }
       loadPatterns();
     });
   }
   async function loadToday() {
+    const request = beginView(loadToday);
     const day = $("day").value || null;
-    const { data, error } = await sb.rpc("get_state", day ? { p_day: day } : {});
-    if (error) { $("app").innerHTML = `<p class="warn">state unavailable: ${esc(error.message)}</p><p class="muted">(are migrations 0026-0030 applied and the analysis engines run?)</p>`; return; }
+    const { data, error } = await readRpc("get_state", day ? { p_day: day } : {});
+    if (request !== viewRequest) return;
+    if (error) { unavailable(loadToday); return; }
     const s = typeof data === "string" ? JSON.parse(data) : data;
     let h = `<h2>${esc(s.day)} — vs. you</h2>`;
     const g = s.guardian;
@@ -239,7 +325,7 @@ if (new URLSearchParams(location.search).get("demo")) {
     h += "<h2>Deviations</h2>";
     h += (s.deviations||[]).length ? (s.deviations||[]).map(d =>
       `<p class="num"><strong>${esc(d.metric)}</strong>: ${esc(d.value)} <span class="muted">(z ${esc(d.z)}; your band ${esc(d.band?.[0])}–${esc(d.band?.[1])})</span></p>`).join("")
-      : '<p class="muted">nothing unusual vs your baselines</p>';
+      : '<p class="muted">No deviations were returned. This alone does not establish that your records are complete.</p>';
     if ((s.streaks||[]).length) {
       h += "<h2>Streaks</h2>";
       h += s.streaks.map(x => `<p class="num"><strong>${esc(x.metric)}</strong>: ${esc(x.run_days)} days ${esc(x.direction)} your band <span class="muted">(your record: ${esc(x.historical_max_run)})</span></p>`).join("");
@@ -252,10 +338,12 @@ if (new URLSearchParams(location.search).get("demo")) {
     $("app").innerHTML = h;
   }
   async function loadTimeline() {
+    const request = beginView(loadTimeline);
     const day = $("day").value;
-    if (!day) { $("app").innerHTML = '<p class="muted">pick a date above, then Timeline — any day back to 2019.</p>'; return; }
-    const { data, error } = await sb.rpc("get_timeline", { p_day: day });
-    if (error) { $("app").innerHTML = `<p class="warn">timeline unavailable: ${esc(error.message)}</p>`; return; }
+    if (!day) { $("app").innerHTML = '<p class="muted">Choose a date above, then select Timeline to browse its records.</p>'; return; }
+    const { data, error } = await readRpc("get_timeline", { p_day: day });
+    if (request !== viewRequest) return;
+    if (error) { unavailable(loadTimeline); return; }
     const t = typeof data === "string" ? JSON.parse(data) : data;
     let h = `<h2>${esc(t.day)} — ${esc(t.n)} moments</h2>`;
     if (t.sleep_text) h += `<p class="muted num">${esc(t.sleep_text)}</p>`;
@@ -265,9 +353,10 @@ if (new URLSearchParams(location.search).get("demo")) {
   }
   $("tab-insights").onclick = () => loadInsights();
   async function loadInsights() {
-    let { data, error } = await sb.rpc("get_insights_guarded");
-    if (error && /does not exist/.test(error.message)) ({ data, error } = await sb.rpc("get_insights"));
-    if (error) { $("app").innerHTML = `<p class="warn">insights unavailable: ${esc(error.message)}</p><p class="muted">(is migration 0023 applied?)</p>`; return; }
+    const request = beginView(loadInsights);
+    let { data, error } = await readRpc("get_insights_guarded");
+    if (request !== viewRequest) return;
+    if (error) { unavailable(loadInsights); return; }
     const env = typeof data === "string" ? JSON.parse(data) : data;
     let h = `<h2>Insights · ${esc(env.tier)}</h2><p class="muted">${esc(env.disclaimer)}</p>`;
     if (env.stream_count) h += `<p class="num"><strong>${esc(env.fact_count)}</strong> facts across <strong>${esc(env.stream_count)}</strong> metric streams, computed live.</p>`;
@@ -307,9 +396,11 @@ if (new URLSearchParams(location.search).get("demo")) {
     $("app").innerHTML = h;
   }
   async function load() {
+    const request = beginView(load);
     const day = $("day").value || null;
-    const { data, error } = await sb.rpc("get_day", day ? { p_day: day } : {});
-    if (error) { $("app").innerHTML = `<p class="warn">read unavailable: ${esc(error.message)}</p><p class="muted">(is migration 0021 applied, and are you signed in?)</p>`; return; }
+    const { data, error } = await readRpc("get_day", day ? { p_day: day } : {});
+    if (request !== viewRequest) return;
+    if (error) { unavailable(load); return; }
     render(typeof data === "string" ? JSON.parse(data) : data);
   }
 }

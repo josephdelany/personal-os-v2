@@ -8412,3 +8412,16 @@ an isolated branch push, exact Pages branch-policy addition and manual Pages dis
 No policy/remote/DB change occurred. Approval is pending; goal continuation is not
 approval. Isolated layout41pass/1existing local-settings warning, guard26pass; Node5
 and Chrome smoke evidence remain applicable because release files match exactly.
+
+## 2026-09-24 — stronger first-use browser experience
+
+Separated Ask from record views, added editable suggested questions and readable
+evidence/date/unit/limitation details. Data status exposes stale-record warnings
+separately from job success. Read views now load/retry with bounded waits and reject
+late responses after navigation or sign-out. Missing counts remain unknown; real
+zeros display as zero. Auth refresh preserves the selected view.
+Node7pass; root layout43pass; real Chrome phone-width offline journey passed history,
+missingness, outages/retry, stale responses, sign-in and auth refresh. Screenshot
+inspected. Independent review accepted both repairs and found no scoped blocker.
+No live auth/data proof, production schema change, push or deployment. Isolated
+release is being refreshed; old a74355c is not the new acceptance target.
