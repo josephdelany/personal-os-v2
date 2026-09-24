@@ -59,11 +59,11 @@ unless the daily path actually depends on them.
 
 | Contract | Existing starting point | Remaining V0 acceptance |
 |---|---|---|
-| Morning/evening | Draft0091 save_v0_checkin/get_v0_checkins | Integration/activation;1–10 identity, corrections, missing-day and retry proof |
-| Meals | Raw ingress, media receipts, correction engine | Owner phone-compatible text/photo save, saved-versus-processing receipt, history including unresolved meals |
-| Workouts | extract_workouts, workout capture/import | Owner entry/save/read/correction, units, no coaching dependency |
+| Morning/evening | 0091 save_v0_checkin/get_v0_checkins; integrated65796bd, local acceptance passed | Activation and real-account caller; shared daily read integration |
+| Meals | 0092 save_v0_meal/get_v0_meals; integrated92d2e08, local acceptance passed | Activation, real-account text/photo save and private Storage delivery; shared daily read integration |
+| Workouts | 0093 save_v0_workout/get_v0_workouts; full local acceptance passed | Activation and real-account caller; shared daily read integration |
 | Health/activity | import_drop/apple_health, get_day | Available measurements with units, event and received freshness, no double-count/missing-zero |
-| Spending | import_drop/bank, timeline | Actual supported export, deduplication/reconciliation, explicit date/amount/unit readback |
+| Spending | import_drop/bank, timeline; local2026-09-24 preflight found3Chase exports unsupported by current mappings | Add verified actual-format mapping, prove deduplication/reconciliation and explicit date/amount/unit readback; then activation |
 | Visits | location-ingest, get_movements/get_places | Working collection and owner-safe recent-visit readback; no interpretation |
 | Day history | get_day/get_timeline and version chains | Consistent current day entries and correction target IDs across V0 entry types |
 | Owner access/operations | Authenticated RPCs and existing deployment paths | Auth/access tests; exact reviewed activation; real-account backend smoke and recovery instructions |

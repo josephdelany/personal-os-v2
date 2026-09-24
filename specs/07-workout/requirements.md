@@ -23,7 +23,7 @@ into a requirement.
 
 **REQ-WKT-001** (Ubiquitous) The capture path SHALL record strength training at the granularity of the individual set — each set carrying its exercise, load, repetitions, and RPE — and SHALL NOT record only a session-level aggregate (REQ-ONT-017, ADR-0030), so that e1RM, per-exercise volume, and progression are computable per set.
 
-**REQ-WKT-002** (Ubiquitous) The capture path SHALL accept workout logs only through iOS Shortcuts or an interim manual logger and SHALL NOT capture in the PWA or call `getUserMedia` (RULE-30); the interim logger and its crude output are OQ-18.
+**REQ-WKT-002** (Ubiquitous) The capture path SHALL accept workout logs through iOS Shortcuts, an interim manual logger, or the owner-authenticated V0 workout text path explicitly approved by Joe (ADR-0165/0169). It SHALL NOT acquire browser microphone/camera media or call `getUserMedia` (RULE-30); the interim logger and its crude output are OQ-18.
 
 **REQ-WKT-003** (Ubiquitous) The extraction service SHALL emit only extracted values for a set — an exercise `name`, a numeric `load`, and a numeric `reps`, all measured, plus a numeric `RPE` marked as a subjective self-report distinct from the measured numerics (RULE-05), each with its verbatim evidence span — and SHALL NOT emit an e1RM, a volume, or any computed training measure (RULE-09).
 

@@ -6,6 +6,54 @@ the individual interfaces; NEXT_SESSION records current evidence and remaining g
 This is a runbook under construction, not an activated capture service.
 Production authentication is held per NEXT_SESSION; do not retry the unchanged secret.
 
+## V0 workout set save/history — locally verified, not activated
+
+Migration0093/ADR0169 exposes owner-only `save_v0_workout(p_request)` and
+`get_v0_workouts(p_day)`. Each entry is one strength set, not a session aggregate.
+The exact request fields are `entry_id` (UUIDv7), `supersedes` (null/current UUID),
+`occurred_at` (offset timestamp), `exercise` (nonblank text, maximum200 characters),
+`movement_mode`, `load`, `load_unit`, `reps`, `rpe`, and `note` (maximum4000 characters).
+
+- `external_load`: positive load in `lb` or `kg`; canonical external pounds stored.
+- `bodyweight`: load and unit must both be null; no assumed body mass or zero load.
+- `assisted`: positive assistance amount in `lb` or `kg`; canonical assistance
+  pounds stored separately, never treated as external load or effective resistance.
+
+Repetitions are positive integers within the registered strength repetition bounds.
+External loads obey the registered strength load bound. Optional RPE is null or
+0–10 in half-steps on the existing subjective scale; it is not a check-in rating.
+Exercise names remain explicitly unresolved. These saved sets do not claim atom
+normalization, canonical exercise resolution or derived strength calculations.
+
+Use the existing authenticated Supabase client after approved activation:
+
+```javascript
+const {data: receipt, error} = await supabase.rpc('save_v0_workout', {p_request: {
+  entry_id: entryId, supersedes: null, occurred_at: occurredAt,
+  exercise: exerciseText, movement_mode: movementMode,
+  load: statedLoad, load_unit: statedUnit, reps: repetitions, rpe: reportedRpe,
+  note: noteText
+}});
+// Preserve that exact request for retries. Only receipt.status === 'saved' confirms saving.
+if (error) throw error;
+const {data: day, error: readError} = await supabase.rpc('get_v0_workouts', {
+  p_day: receipt.subject_day
+});
+```
+
+Handle a save error before attempting readback. Retry with the original request;
+a saved receipt remains valid even if registry bounds later change. New entries
+still validate against current bounds. A correction uses a fresh UUID and the
+current entry UUID as `supersedes`; it replaces the full set, not selected fields.
+Stale corrections require rereading. Day entries include occurrence and received
+(recorded) timestamps; an empty list is missing logs, not zero exercise.
+
+Deploy the reviewed migration before connecting a caller. Verify anonymous and
+nonowner refusal, owner save/read/retry/correction and retained raw history on the
+real account after activation. Do not send this versioned capture kind through
+the legacy extractor; its weight_lb-only contract lacks these mode semantics.
+Local SQL tests do not establish production availability or real-account success.
+
 ## V0 meal save/history — local implementation, not activated
 
 Migration0092/ADR0167 adds owner-JWT `save_v0_meal(p_request)` and

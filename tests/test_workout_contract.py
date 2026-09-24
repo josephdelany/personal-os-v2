@@ -19,11 +19,11 @@ ALIASES = {"bench": "barbell_bench_press", "bench press": "barbell_bench_press",
            "barbell bench": "barbell_bench_press", "bb bench": "barbell_bench_press"}
 
 
-def test_REQ_WKT_002_the_pwa_never_captures_a_workout():
-    assert CAPTURE_PATHS == ("ios_shortcut", "manual_logger")
+def test_REQ_WKT_002_only_approved_workout_paths_accept():
+    assert CAPTURE_PATHS == ("ios_shortcut", "manual_logger", "v0_workout_text")
     for path in CAPTURE_PATHS:
         assert check_capture_path(path)
-    for bad in ("pwa", "PWA", "getUserMedia", "browser_microphone"):
+    for bad in ("pwa", "PWA", "getUserMedia", "browser_microphone", "v0_workout_text_getUserMedia", "v0_workout_text_camera"):
         with pytest.raises(CaptureRefused, match="REQ-WKT-002"):
             check_capture_path(bad)
 

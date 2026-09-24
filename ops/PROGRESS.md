@@ -8567,3 +8567,28 @@ Reviewer accepted explicit helper-role grants and narrow reference archive bound
 Final source hashes verified, evidence .local/evidence/v0-meals/final/. No live jobs.
 WHAT I DID NOT DO: production activation, live image delivery, real-account use,
 automatic text/photo enrichment, frontend or full-project completion. Next workout API.
+
+2026-09-24 — Meal committed92d2e08, tested source hashes match commit. Began V0
+workout per-set owner save/read/correction0093/ADR0169. Initial34SQLpass2.74s and
+19purepass0.25s. Reviewer identified mutable-registry validation before saved
+retry receipt; moved immutable retry lookup earlier and added regression plus
+mode correction/ledger safety cases. Targeted41779 running. No activation or
+full workout integration claim; derived analysis remains out of this V0 unit.
+
+Workout review fix accepted:40SQLpass1.97s and19purepass0.25s. FullSQL52167 and
+writer88195 running, final source manifest saved; runbook/caller added. No activation.
+
+V0 actual-data preflight:3indexed Chase CSV hashes match but no current bank
+mapping matches their headers. Read-only header check; no data writes/imports.
+Evidence .local/evidence/v0-bank-preflight/local-parse.json; spending gap recorded
+in execution checklist. Workout fullSQL52167 still confirmed live.
+
+2026-09-24 — V0 workout per-set save/history local acceptance complete.
+Owner RPC, typed corrections, units, bodyweight/assisted separation, optional
+subjective RPE and immutable retry proven. FullSQL1162pass1skip462.59s;
+writer1451pass989skip201.25s; chain92/971; layout43pass; targeted40SQL and19pure.
+Reviewer accepted final repair; four spine invariants pass; generic RULE04 pending.
+Merged43unverified (41production,2NumPyro), ledger14/15 unchanged. Final source
+hashes match .local/evidence/v0-workouts/. All jobs terminal, no active database.
+WHAT I DID NOT DO: deployment, real-account proof, canonical exercise/atom adapter,
+coaching, frontend, or full V0 handoff. Next current day/health integrationADR0170.

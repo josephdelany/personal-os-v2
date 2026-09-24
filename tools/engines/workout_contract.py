@@ -27,7 +27,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
-CAPTURE_PATHS = ("ios_shortcut", "manual_logger")          # REQ-WKT-002
+CAPTURE_PATHS = ("ios_shortcut", "manual_logger", "v0_workout_text")          # REQ-WKT-002
 FORBIDDEN_CAPTURE = ("pwa", "getusermedia", "browser_microphone")
 SET_FIELDS = ("exercise", "load", "reps", "rpe")           # REQ-WKT-001
 PRESENCE = ("observed", "observed_absent", "unknown")      # REQ-WKT-019
@@ -46,7 +46,7 @@ CAUSAL_TERMS = ("caused", "causes", "because", "led to", "leads to", "proves", "
 
 
 class CaptureRefused(Exception):
-    """REQ-WKT-002 / RULE-30. The PWA never captures workouts."""
+    """REQ-WKT-002 / RULE-30. Unapproved workout capture or browser media is refused."""
 
 
 class RenderViolation(Exception):
@@ -70,12 +70,12 @@ class SetRecord:
 
 
 def check_capture_path(path):
-    """REQ-WKT-002. Shortcuts or the interim logger; never the PWA, never getUserMedia."""
+    """REQ-WKT-002. Shortcuts, interim logger or approved V0 text; never browser media."""
     p = str(path).lower()
     if any(f in p for f in FORBIDDEN_CAPTURE):
         raise CaptureRefused(
             f"REQ-WKT-002 / RULE-30: {path!r} — workout capture is iOS Shortcuts or the interim "
-            f"manual logger, never the PWA and never getUserMedia")
+            f"manual logger or named V0 text path; never generic PWA/media capture")
     if p not in CAPTURE_PATHS:
         raise CaptureRefused(f"REQ-WKT-002: {path!r} is not one of {list(CAPTURE_PATHS)}")
     return True

@@ -10,15 +10,37 @@ Joe's `/goal` is active. Do not start backend execution from the monitor.
 {
   "version": 1,
   "status": "running",
-  "updated_at": "2026-09-24T18:25:42.129361+00:00",
-  "last_progress_at": "2026-09-24T18:25:42.129361+00:00",
-  "unit": "V0-backend-workout-save-history",
-  "next_action": "Meal local integration complete: SQL1132pass1skip, writer1451pass959skip, chain91/960, layout43pass, review accepted. Scoped meal commit then implement workout contract ADR0169. No live checks. Preserve external AGENTS/CLAUDE/APP_PUBLICATION."
+  "updated_at": "2026-09-24T18:47:41.332280+00:00",
+  "last_progress_at": "2026-09-24T18:47:41.332280+00:00",
+  "unit": "V0-backend-day-health-read",
+  "next_action": "Workout0093 locally verified:fullSQL1162pass1skip462.59s,writer1451pass989skip201.25s,chain92/971,layout43pass,review accepted. No live checks. Scoped workout commit then implement ADR0170 day/health read. Preserve external AGENTS/CLAUDE/APP_PUBLICATION; next draftADR0170 excluded from workout commit."
 }
 ```
 <!-- backend-control:end -->
 
-## Current unit — integrate meals, then V0 workout save/history
+## Current unit — integrate workouts, then V0 day/health read
+
+Workout0093/ADR0169 locally complete. FullSQL52167 terminal/server stopped:
+1162passed1production-skip462.59s; writer88195 terminal1451passed989skipped201.25s;
+chain92migrations971statements; layout43pass; targeted40SQLpass1.97s and19purepass
+0.25s. Reviewer accepted immutable retry before mutable registry validation and
+mode/ledger integrity. Four spine invariants pass; generic RULE04 remains pending.
+Merged43unverified skips (41production,2NumPyro), ledger14/15 unchanged. Final
+runtime/test hashes match .local/evidence/v0-workouts/source-sha256.json. No live jobs.
+
+Commit only root workout files, runbook, plan and evidence docs; preserve external
+AGENTS/CLAUDE/APP_PUBLICATION and exclude next-unit draftADR0170. Next implement
+owner-only day/health RPC composing current V0 entries, native-unit observations,
+selected-device daily activity and separate recorded workout sessions. Use existing
+f_atom_panel owner; no OQ48/51/53 alias/day-definition decisions or legacy fallback.
+Actual3Chase exports fail current bank mappings (read-only preflight, no import);
+spending format/dedup/readback remains the subsequent V0 obligation.
+
+Meal integrated92d2e08; check-ins65796bd. All three flows still need activation and
+real-account acceptance. Workout exercise resolution/atom adapter/derived analysis
+are not claimed complete. No production or frontend action in this unit.
+
+## Historical meal integration
 
 Meal0092/ADR0167 local implementation verified. FinalSQL49120 terminal/server
 stopped:1132passed1production-skip389.81s. Writer60899 terminal1451passed959skipped
@@ -2013,3 +2035,32 @@ Added meal RPC caller/retry/correction example to CAPTURE_RUNTIME. Next-unit des
 ADR0169 is draft only and must not enter the meal integration commit. Reviewer
 assessed workout gaps: explicit lb/kg/movement mode, typed correction, legacy
 isolation, existing0–10 half-step RPE (not check-in1–10). No runtime workout edits.
+
+Workout40SQLpass terminal41779; runbook/caller added. Reviewer re-review requested.
+No live tests; full integration gates next after accepted fix review.
+
+Workout integration processes: fullSQL52167, writer88195, chain83323, layout21181.
+Logs /tmp/v0-workouts-{full,features,chain,layout}.log. Poll same handles; missing
+handle means inspect terminal log, not assume a live lock. Reviewer accepted final
+retry fix and remaining scoped behavior; source manifest saved before full runs.
+
+Chain83323 and layout21181 now terminal0:92migrations971statements and43pass.
+Only fullSQL52167 and writer88195 remain live; no failed gates observed so far.
+
+Continuation: previous turn progressed; current turn verified SQL52167 live and
+writer88195 terminal0. Saved writer XML/logs under .local/evidence/v0-workouts.
+Final runtime/test hashes unchanged. EXECUTION_PLAN now reflects integrated V0
+check-in/meal contracts and workout draft. Root owns this plan update. DraftADR0170
+records reviewed next day/health-read gaps only; do not include it in workout commit.
+Legacy get_day/timeline omit current V0 entries and complete event/received/unit
+metadata. Reuse f_atom_panel device precedence, current native metric observations
+and workout_session_min separate active duration/span. No OQ48/51/53 decisions.
+
+2026-09-24 read-only bank preflight while workout SQL runs:3actual Chase CSVs
+in indexed collection hash-match their entries, none match current institution
+mappings. Credit header has Transaction Date/Post Date/Description/Category/Type/
+Amount/Memo; checking header has Details/Posting Date/Description/Amount/Type/
+Balance/Check or Slip #. No parser call on unmatched files, quarantine side effect
+or database import. Evidence .local/evidence/v0-bank-preflight/local-parse.json.
+Spending remains real V0 gap; add actual-format mapping with verified sign/date
+semantics and dedup/reconciliation before claiming usable finance. Plan updated.
