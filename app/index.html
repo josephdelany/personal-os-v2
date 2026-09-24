@@ -25,6 +25,8 @@
   button { cursor:pointer; }
   #app { margin-top:1rem; }
   .transition { transition: opacity 150ms ease-out; }
+  #question { box-sizing:border-box; width:100%; margin:.5rem 0; }
+  pre { white-space:pre-wrap; overflow-wrap:anywhere; font-size:.8rem; }
 </style>
 </head>
 <body>
@@ -39,10 +41,23 @@
   <button id="tab-today">Today</button> <button id="tab-timeline">Timeline</button> <button id="tab-day">Day</button> <button id="tab-patterns">Patterns</button> <button id="tab-trust">Trust</button> <button id="tab-insights">Insights</button><br><br>
   <input id="day" type="date"> <button id="load">Load</button> <button id="signout" class="muted">Sign out</button>
 </div>
+<section id="ask-panel" hidden aria-labelledby="ask-title">
+  <h2 id="ask-title">Ask about your records</h2>
+  <p class="muted">Try “how is my sleep” or “how many steps last week”. Answers use your saved data and explain when there is not enough evidence.</p>
+  <form id="ask-form">
+    <label for="question">Your question</label>
+    <input id="question" required maxlength="2000" autocomplete="off" placeholder="What would you like to know?">
+    <label for="ask-date">As of (optional)</label>
+    <input id="ask-date" type="date">
+    <button id="ask-submit" type="submit">Ask</button>
+  </form>
+  <div id="ask-answer" aria-live="polite"></div>
+</section>
 <div id="app" class="transition"></div>
 
 <script type="module">
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { mountAsk } from './ask.mjs';
 const SUPABASE_URL = "https://cykviouklidnbsbgdgdo.supabase.co";
 // anon key: public-by-design (server grants make it write-only; reads need a session)
 // baked in: the anon key is public-by-design (write-only server-side; every
@@ -51,6 +66,8 @@ const ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZ
 const sb = createClient(SUPABASE_URL, ANON);
 
 const $ = (id) => document.getElementById(id);
+const ask = mountAsk({form: $('ask-form'), input: $('question'), date: $('ask-date'),
+  button: $('ask-submit'), output: $('ask-answer'), rpc: (name, args) => sb.rpc(name, args)});
 const esc = (s) => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
 // deterministic renderer: emits ONLY what the envelope contains (RULE-14).
@@ -92,9 +109,19 @@ if (new URLSearchParams(location.search).get("demo")) {
     last_extract_run:{at:"2026-07-22T15:00:00Z",status:"ok"} });
   $("app").insertAdjacentHTML("afterbegin","<p class='warn'>DEMO FIXTURE — not real data</p>");
 } else if (sb) {
-  const show = (signed) => { $("auth").style.display = signed?"none":"block"; $("picker").style.display = signed?"block":"none"; };
+  const show = (signed) => {
+    $("auth").style.display = signed?"none":"block";
+    $("picker").style.display = signed?"block":"none";
+    $("ask-panel").hidden = !signed;
+    $("app").hidden = !signed;
+    if (!signed) { ask.reset(); $("app").innerHTML = ''; }
+  };
   sb.auth.getSession().then(({data:{session}}) => { show(!!session); if (session) load(); });
-  sb.auth.onAuthStateChange((_e, session) => { show(!!session); if (session) load(); });
+  sb.auth.onAuthStateChange((_e, session) => {
+    show(!!session);
+    // Leave the auth callback before requesting an authenticated RPC.
+    if (session) setTimeout(() => load(), 0);
+  });
   $("sendlink").onclick = async () => {
     const { error } = await sb.auth.signInWithOtp({ email: $("email").value, options: { emailRedirectTo: location.href.split("?")[0] } });
     $("authmsg").textContent = error ? ("error: " + error.message) : "Link sent — check your email.";

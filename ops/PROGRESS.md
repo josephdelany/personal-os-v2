@@ -8386,3 +8386,15 @@ pre-existing F006 diagnostic. Four spine invariants pass; genericRULE04 pending.
 Independent review accepted scoped grammar, exact binding and vague refusal.
 No migration, dependency or deployment change. Unsupported language still refuses;
 post-enrichment correction, device/provider observation and M3/M6 remain open.
+
+## 2026-09-23 — usable browser Ask, local acceptance
+
+ADR0162 follows Joe's replacement usable-program goal. Added owner-session Ask form
+to existing app, stored-answer/evidence/source rendering, explicit failure states,
+duplicate-submit protection, bounded waiting with no automatic replay, and sign-out
+invalidation. Pages workflow includes current default branch and Node acceptance.
+Five Node tests pass; real Chrome mobile-width smoke passed with intercepted offline
+fixtures; layout43pass. Independent reviewer found no scoped blocker, noted missing
+request deadline (now repaired) and unverified live auth/RPC. No production write,
+question submission, push or deployment. Capture correction files remain untouched
+by this release scope. Real owner acceptance and isolated publication remain pending.

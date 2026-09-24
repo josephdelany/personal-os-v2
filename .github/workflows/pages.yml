@@ -5,7 +5,7 @@
 name: pages
 on:
   push:
-    branches: [main]
+    branches: [main, v2-day1]
     paths: ['app/**', '.github/workflows/pages.yml']
   workflow_dispatch: {}
 
@@ -26,6 +26,10 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '24'}
+      - name: Verify Ask interaction before publishing
+        run: node --test tests/ask_ui.test.mjs
       - uses: actions/upload-pages-artifact@v3
         with: { path: app }
       - id: deployment
