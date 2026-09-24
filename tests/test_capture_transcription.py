@@ -753,6 +753,37 @@ def test_REQ_CAP_014_RULE_03_RULE_10_corrected_item_versions_reject_forks_and_au
     assert cur.fetchone()[0]==500
 
 
+def test_REQ_CAP_014_RULE_02_10_owner_reference_changes_resolved_name_preserving_extraction(cur):
+    from tools.engines import capture_resolution, capture_corrections
+    req=saved_food_extraction(cur)
+    cache_resolution_food(cur)
+    initial=capture_resolution.resolve(cur,request_id=uuid.uuid4(),capture_id=CID,
+        extraction_request_id=req['request_id'],schema='core_pytest',ops='ops_pytest')
+    original=initial['items'][0]['item_id']
+    cache_resolution_food(cur,name='owner selected different food')
+    cur.execute("SELECT food_id FROM core_pytest.foods_cache WHERE canonical_name='owner selected different food'")
+    food=str(cur.fetchone()[0])
+    cur.execute('SELECT to_jsonb(f) FROM core_pytest.capture_extraction_fields f ORDER BY item_index,name')
+    extraction_before=cur.fetchall()
+    cur.execute('SET LOCAL ROLE capture_owner')
+    result=capture_corrections.apply(cur,dict(request_id=str(uuid.uuid4()),capture_id=CID,
+        expected_item_id=original,actor='joe',operation='replace',food_id=food,quantity={'grams':150}),
+        schema='core_pytest',ops='ops_pytest')
+    cur.execute('SET LOCAL ROLE service_role')
+    readback=transcription.readback(cur,capture_id=CID,schema='core_pytest')
+    item=readback['extraction']['resolved_items'][0]
+    assert str(item['item_id'])==result['item_id']
+    assert item['resolution']['canonical_name']=='owner selected different food'
+    assert str(item['resolution']['food_id'])==food
+    cur.execute('SELECT to_jsonb(f) FROM core_pytest.capture_extraction_fields f ORDER BY item_index,name')
+    assert cur.fetchall()==extraction_before
+    automatic=capture_resolution.resolve(cur,request_id=uuid.uuid4(),capture_id=CID,
+        extraction_request_id=req['request_id'],schema='core_pytest',ops='ops_pytest')
+    assert automatic['items'][0]['item_id']==result['item_id']
+    cur.execute('SELECT resolution FROM core_pytest.capture_resolved_items WHERE item_id=%s',(original,))
+    assert cur.fetchone()[0]['canonical_name']=='fixture food'
+
+
 @pytest.mark.parametrize('operation',['replace','remove'])
 def test_REQ_CAP_014_RULE_02_RULE_10_correction_transaction_replay_stale_and_readback(cur,operation):
     from tools.engines import capture_resolution, capture_corrections

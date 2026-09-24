@@ -19,7 +19,7 @@ Use each document for one purpose. Updated 2026-09-09.
 | Capture runtime procedure | `docs/CAPTURE_RUNTIME.md` | Stage capabilities, activation prerequisites and recovery limits; verify status in NEXT_SESSION |
 | Device capture setup | `device/scriptable/README.md` | Approved local helper installation and physical acceptance; source bundle is not an installed/signed Shortcut |
 | Implementation detail | `docs/build/B*.md` | Active unit only; verify schema and prerequisites |
-| Frontend detail | `docs/FRONTEND_PLAN.md`, `docs/build/L*.md` | Backend response contracts now; frontend construction after release |
+| Frontend detail | `docs/FRONTEND_PLAN.md`, `docs/build/L*.md` | Daily-use V0 UI and its backend contracts; EXECUTION_PLAN owns scope |
 | Historical evidence | `ops/PROGRESS.md`, dated audits/handoffs | Investigating a specific claim |
 
 ## Historical references

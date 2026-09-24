@@ -1,6 +1,7 @@
 # Personal OS — agent instructions
 
-Single-user system for Joe. Deliver the complete backend, then the frontend.
+Single-user system for Joe. Deliver the daily-use V0 in EXECUTION_PLAN first
+(ADR0165); the complete backend remains the later project backlog.
 Joe verifies outcomes through runnable examples and independent review, not code reading.
 
 ## Authority and navigation

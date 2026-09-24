@@ -8502,3 +8502,17 @@ Four scoped invariant cases pass; generic RULE04 pending. Merged43 unverified sk
 unchanged, evidence .local/evidence/capture-retime/. All jobs terminal. No production
 write, provisioning, deployment or full backend-completion claim. CAP014 remaining
 name/unresolved-field corrections next; paused APP_PUBLICATION excluded.
+
+2026-09-24 — Joe redirected delivery to daily-use V0 (ADR0165), explicitly allowing
+frontend/usability before full backend. EXECUTION_PLAN now owns Today/Add/History,
+simple flows and real-account day acceptance. Proposed check-in measurements await
+answer. In-flight name regression94SQLpassed65.04s terminal22664; confirms existing
+reference replacement changes canonical name without editing evidence. No new runtime
+feature, deployment or production write. Further backend expansion deferred.
+
+Joe approved proposed V0 check-in fields with1–10 scales (not1–5), optional notes.
+
+V0 scope/regression review accepted after adding explicit legacy0–10 versus new
+1–10 version separation. Existing app read paths:get_today/get_day/get_timeline/
+get_trust; Add is missing. Next unit connects durable owner entry and three-screen
+experience. No inference/advanced backend expansion.

@@ -1,7 +1,7 @@
 # Autonomous backend control — 2026-09-22
 
 This is the single active instruction sheet. Follow EXECUTION_PLAN's autonomous
-loop under the restored complete-backend goal through M6; older checkpoints below
+loop under the daily-use V0 scope in ADR0165; older checkpoints below
 are evidence, not competing task orders.
 Joe's `/goal` is active. Do not start backend execution from the monitor.
 
@@ -10,13 +10,36 @@ Joe's `/goal` is active. Do not start backend execution from the monitor.
 {
   "version": 1,
   "status": "running",
-  "updated_at": "2026-09-24T16:49:07.833134+00:00",
-  "last_progress_at": "2026-09-24T16:49:07.833134+00:00",
-  "unit": "M3-owner-event-time-corrections",
-  "next_action": "ADR0164 all local gates passed, reviewer accepted. Scoped commit excluding APP_PUBLICATION, then CAP014 remaining name/unresolved corrections; full M0-M6 remains. No live process/deployment."
+  "updated_at": "2026-09-24T16:54:15.049847+00:00",
+  "last_progress_at": "2026-09-24T16:54:15.049847+00:00",
+  "unit": "V0-daily-use-path",
+  "next_action": "Joe changed scope to daily-use V0 (ADR0165). Finish name-regression evidence94pass, then map Today/Add/History to real APIs and implement daily flow only. Check-in fields approved with1–10 scales. No live tests. Full backend deferred, not completed."
 }
 ```
 <!-- backend-control:end -->
+
+## Active scope — usable V0, superseding backend-first (2026-09-24)
+
+Joe explicitly changed direction: Today, Add, History; simple daily flows; calm
+attractive phone UI; one real-account day before release. EXECUTION_PLAN contains
+the authoritative V0 checklist. Full backend M0–M6 is deferred, not complete.
+Do not resume further correction expansion or analysis outside that daily path.
+
+Current correction finish: ADR0164 integrated5c47bfb. The additional name-change
+regression confirms existing pinned-reference replacement changes the canonical
+name, preserves raw extraction and survives automatic reads:94SQLpassed65.04s,
+session22664 terminal/server stopped; /tmp/capture-owner-name.log and.xml. That test-only change is reviewed; no additional runtime feature was started.
+Reviewer accepted regression/scope after requiring distinct1–10 definitions
+from legacy0–10 check-ins. Scope/doc verification next. Preserve unrelated APP_PUBLICATION work.
+
+Next unit: inspect current app and daily API/capture/import contracts; identify
+minimum missing connections, then implement Today/Add/History. Joe approved morning sleep quality/energy and evening mood/energy on1–10 scales,
+with optional notes. Record subjective values without clinical interpretation. New definitions must
+remain distinct from historical0–10 measurements.
+Production auth remains held; do not retry unchanged credential. Publication still
+requires a concrete reviewed packet. No deployment authorization; check-in fields/scales approved as above.
+
+## Historical completed timestamp unit
 
 ## Current bounded acceptance — owner event-time correction
 

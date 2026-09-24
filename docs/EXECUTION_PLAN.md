@@ -5,16 +5,70 @@ frontend construction and consolidation of conflicting instructions. This plan
 supersedes historical phase scheduling and the strict numeric order in build briefs.
 It preserves requirements, acceptance gates, privacy, cost limits and reserved decisions.
 
-## Current goal — finish the backend (Joe, 2026-09-24)
+## Current goal — usable daily V0 (Joe, 2026-09-24; ADR0165)
 
-Joe explicitly replaced the usability goal with finishing the backend. Restore
-M0–M6 as the stopping scope below. Preserve the local UI/release work, but pause
-frontend redesign/publication while completing required backend behavior, integration,
-deployment and real-data acceptance. ADR0162 remains historical sequencing, not the
-current work selector. Existing production permissions and reserved decisions remain.
-Resume the unfinished owner-correction contract (ADR0161/CAP014/RULE02/03/10) without
-restarting quantity grammar work. Close that coherent path, then select the earliest
-actionable remaining milestone. Do not infer backend completion from test counts.
+Joe replaced complete-backend-first delivery with a limited program he can use
+while the larger project continues. This section supersedes the M0–M6 stopping
+condition and historical backend-first prompts below. Integrity, privacy, access
+control and explicit production authorization remain binding. Finish the current
+correction change, then work exclusively on this daily-use path. Do not expand
+capture corrections or advanced analysis merely to close the eventual backend.
+
+### Product and flow scope
+
+Three screens, mobile first, with calm, attractive design and everyday actions easy
+to reach. Usability and aesthetics are release requirements, not later polish.
+
+| Screen | Required behavior |
+|---|---|
+| Today | Morning check-in, latest health/activity, recent spending, meals, evening check-in; explicit last-received timestamps |
+| Add | One-tap access to meal photo/text, check-in and workout entry; durable-save acknowledgement separate from processing |
+| History | Browse a previous day, inspect entries and correct them |
+
+| Flow | V0 scope |
+|---|---|
+| Location | Collect and show recent visits, no behavioral interpretation |
+| Credit cards | Import an actual supported export, deduplicate, show spending; bank connection deferred |
+| Biometrics | Available imported measurements, units and freshness |
+| Movement | Steps, activity and recorded workouts; no coaching |
+| Morning | Sleep quality and energy, each integer1–10, optional note; approved by Joe |
+| Meals | Save photo/text and show history; pending nutrition distinguished from verified results |
+| Evening | Mood and energy, each integer1–10, optional reflection; approved by Joe |
+
+Joe explicitly approved the proposed check-in fields with 1–10 scales. Store
+ratings as subjective reports; do not derive clinical meaning or combine scales.
+Existing capture-device restrictions remain; expose the approved capture helper
+clearly, or prepare an explicit requirement decision if direct browser capture is
+needed. Do not silently bypass existing capture policy.
+
+New 1–10 check-ins require distinct versioned measurement definitions; historical
+0–10 observations must not be relabeled or silently combined with them.
+
+### Work order and release bar
+
+1. Finish the in-flight correction regression and preserve its evidence. ADR0164
+   is integrated at5c47bfb; name-replacement regression is the final in-flight check.
+2. Trace each daily flow through existing UI, authenticated API, storage and real
+   data. Implement the minimum missing connections needed by these flows; keep one
+   active unit in NEXT_SESSION. Reuse working infrastructure and paused UI assets.
+3. Build the three-screen daily experience with loading, empty, stale, saved,
+   processing and recoverable-error states. Verify phone-sized journeys and review
+   visual hierarchy as part of implementation.
+4. Prepare exact activation/publication changes, obtain required authorization,
+   and verify on Joe's actual account/device/data. Local fixtures are not release proof.
+
+V0 is releasable only when all of these outcomes are observed:
+
+- Joe signs in on his phone without agent help.
+- Every entry saves visibly or gives a recoverable error.
+- Retrying never creates duplicate entries.
+- Missing data never appears as zero.
+- Yesterday can be reviewed and an entry corrected.
+- One complete day works with Joe's real account and data.
+
+Defer advanced inference, recommendations, correlations, elaborate dashboards and
+perfect automation. Full M0–M6 remains the later project backlog, not a prerequisite
+for this release. V0 completion must not be reported as full backend completion.
 
 ## Goal contract
 
@@ -33,8 +87,8 @@ percentage; report completed outcomes and remaining acceptance cases.
 
 ## Autonomous loop (Joe's direction, 2026-09-22; ADR-0142)
 
-The objective is **M0 through M6, the complete backend**, with the release decision
-below as the stopping condition. M7 is outside this goal. `/goal` is the execution
+The active objective and stopping condition are the **daily-use V0 contract above**.
+M0–M6 below remains the later backend backlog. `/goal` is the execution
 driver; a cron is not a coding agent. Start the goal only when Joe submits it.
 
 ### Resume and select
@@ -166,11 +220,11 @@ If every remaining unit is externally held, record the exact unblock list and
 follow the goal runtime's blocked-state rules. In this environment, mark a goal
 blocked only after the same impasse recurs for three consecutive goal turns with
 no meaningful independent progress; resumed goals start a fresh audit. Never mark
-complete to stop the loop. Mark complete only when M6's release decision passes,
-with all authorized deferrals cited and all other required work finished. Report
+complete to stop the loop. Mark the active V0 complete only when its real-account
+release bar above passes; this does not close the complete-backend backlog. Report
 what is implemented, deployed and observed, and any permitted activation hold.
 
-### Prompt Joe can submit
+### Historical full-backend prompt — superseded by V0
 
 ```text
 /goal Finish the complete Personal OS backend through M6 in docs/EXECUTION_PLAN.md.
