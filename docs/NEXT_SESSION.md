@@ -10,15 +10,40 @@ Joe's `/goal` is active. Do not start backend execution from the monitor.
 {
   "version": 1,
   "status": "running",
-  "updated_at": "2026-09-24T18:47:41.332280+00:00",
-  "last_progress_at": "2026-09-24T18:47:41.332280+00:00",
-  "unit": "V0-backend-day-health-read",
-  "next_action": "Workout0093 locally verified:fullSQL1162pass1skip462.59s,writer1451pass989skip201.25s,chain92/971,layout43pass,review accepted. No live checks. Scoped workout commit then implement ADR0170 day/health read. Preserve external AGENTS/CLAUDE/APP_PUBLICATION; next draftADR0170 excluded from workout commit."
+  "updated_at": "2026-09-24T19:08:00.731311+00:00",
+  "last_progress_at": "2026-09-24T19:08:00.731311+00:00",
+  "unit": "V0-backend-chase-credit-import",
+  "next_action": "Day0094 local integration complete:SQL1177pass1skip377.83s,writer1451pass1004skip165.97s,chain93/974,layout43pass,review accepted. No live checks. Commit scoped day files then implement ADR0171 actual Chase credit import/readback. Preserve external AGENTS/CLAUDE/APP_PUBLICATION; nextADR0171 excluded from day commit."
 }
 ```
 <!-- backend-control:end -->
 
-## Current unit — integrate workouts, then V0 day/health read
+## Current unit — integrate day/health, then Chase credit import/readback
+
+Day0094/ADR0170 local integration complete. FullSQL85826 terminal/server stopped:
+1177passed1production-skip377.83s; writer90208 terminal1451passed1004skipped165.97s;
+chain93migrations974statements; layout43pass; targeted15pass1.24s. Reviewer accepted
+statement-start read time and incompatible selected-source/unit withholding.
+Four spine invariant cases pass; generic RULE04 pending. Merged43unverified skips
+(41production,2NumPyro), ledger14/15 unchanged. Final runtime/test hashes match
+.local/evidence/v0-day/source-sha256.json. No live jobs. Commit root day/health
+files and maintained docs; preserve external AGENTS/CLAUDE/APP_PUBLICATION and
+exclude next-unit draftADR0171.
+
+Next V0 spending:3actual Chase files fail current mappings. Temporary credit
+mapping preserves109rows/amounts but108generic dedupe keys; exact duplicated pair
+must not silently collapse. Source Type/Category/Memo currently discarded. Evidence
+.local/evidence/v0-bank-preflight; no actual import. ADR0171 proposed account-scoped
+source-row ledger, exact-file receipt replay, separate overlapping-observation
+identity with explicit ambiguous state where fields/coverage cannot establish it.
+Do not make file hash/row ordinal canonical cross-file identity or infer transfers/
+income/category semantics (OQ59/61). Keep generic bank imports intact where possible.
+
+Checkins65796bd, meals92d2e08, workouts6c5aff2 and day read locally verified;
+production activation, actual aggregate configuration, real-account checks,
+spending and visits remain. No frontend or production action in this unit.
+
+## Historical workout integration
 
 Workout0093/ADR0169 locally complete. FullSQL52167 terminal/server stopped:
 1162passed1production-skip462.59s; writer88195 terminal1451passed989skipped201.25s;
@@ -2064,3 +2089,23 @@ Balance/Check or Slip #. No parser call on unmatched files, quarantine side effe
 or database import. Evidence .local/evidence/v0-bank-preflight/local-parse.json.
 Spending remains real V0 gap; add actual-format mapping with verified sign/date
 semantics and dedup/reconciliation before claiming usable finance. Plan updated.
+
+Workout integrated6c5aff2; final committed source hashes match tested manifest.
+No live jobs. Next active implementationADR0170 day/health read; source inspection
+confirmed raw file payload importer=apple_health and f_atom_rows includes atom_id.
+Use recorded raw source metadata rather than guessed label aliases; daily totals
+reuse f_atom_panel selection, latest observations retain native atom units/times.
+
+Day chain98599 and layout10883 terminal0:93migrations974statements,43pass.
+Only fullSQL85826 and writer90208 remain live; poll those before integration.
+
+Day writer90208 terminal1451pass1004skip165.97s; XML/logs copied under evidence.
+Only SQL85826 remains live. Source hashes unchanged. Next spending draftADR0171
+is design only and excluded from day commit. Temporary local card mapping parsed
+109source rows with amounts/signed total intact but108generic dedupe keys; pair
+of full-identical rows, no differing columns. Type/Category/Memo currently dropped.
+Private preflight evidence proposed-card-mapping.json and duplicate-row-shapes.json.
+No active mappings or database changed. Independent review recommends account-scoped
+source file/row ledger, explicit overlapping-observation links and ambiguous-review
+state where identity/coverage insufficient; file hash/row ordinal are not cross-file
+transaction identity. Exact-file retry must be no-op. OQ59/61 remain unresolved.

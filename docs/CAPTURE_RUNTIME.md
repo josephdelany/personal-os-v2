@@ -6,6 +6,46 @@ the individual interfaces; NEXT_SESSION records current evidence and remaining g
 This is a runbook under construction, not an activated capture service.
 Production authentication is held per NEXT_SESSION; do not retry the unchanged secret.
 
+## V0 day and health read — local implementation, not activated
+
+Migration0094/ADR0170 adds owner-only `get_v0_day(p_day)`; null uses the current
+04:00 New York subject day. Explicit dates support History. Its `checkins`,
+`meals` and `workouts` retain the existing domain response shapes and current
+entry/predecessor IDs, so corrections use the corresponding save RPC directly.
+`day_start`/`day_end` are explicit instants calculated from local boundaries;
+DST days may have23or25hours. `read_at` is statement-start knowledge time.
+
+```javascript
+const {data: day, error} = await supabase.rpc('get_v0_day', {p_day: selectedDay});
+if (error) throw error; // Show retry; never replace an error with an empty successful day.
+```
+
+Health scope is the current Apple Health import contract, with no legacy aliases
+or fallback. `latest_measurements` are actual latest observations through the
+selected subject day, not daily totals. They retain native units, registry units,
+value/interval, device, atom/capture IDs and occurrence/recorded/received times.
+A recent receipt is not evidence of a recent observation. Do not relabel a reading
+as today's merely because its file arrived today.
+
+`daily_aggregates` reuse the configured atom panel's method/version and selected
+device, with contributing atom IDs and their event/received timestamps. Never add
+Watch and phone values in the caller. A selected contributor from an incompatible
+source or unit withholds the result with a reason in `aggregation_unavailable`;
+unselected device rows do not invalidate the selected result. Missing configured
+aggregation is also explicit. Inspect the registered aggregation configuration
+under the activation procedure before calling actual steps/activity available;
+this read endpoint does not invent methods or change configuration.
+
+`recorded_workout_sessions` preserve active minutes separately from the wall-clock
+interval. They are not strength sets. Empty arrays/null freshness are missing
+evidence, not zero activity. History uses current corrections and current knowledge,
+not a claim to replay the exact screen originally shown on that day.
+
+After reviewed activation, verify owner/anonymous/nonowner behavior and these
+responses using the real account/imported data. The endpoint currently composes
+entries and health; spending and visits remain explicit V0 contracts to connect.
+No production availability is claimed from disposable tests.
+
 ## V0 workout set save/history — locally verified, not activated
 
 Migration0093/ADR0169 exposes owner-only `save_v0_workout(p_request)` and

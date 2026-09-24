@@ -8592,3 +8592,26 @@ Merged43unverified (41production,2NumPyro), ledger14/15 unchanged. Final source
 hashes match .local/evidence/v0-workouts/. All jobs terminal, no active database.
 WHAT I DID NOT DO: deployment, real-account proof, canonical exercise/atom adapter,
 coaching, frontend, or full V0 handoff. Next current day/health integrationADR0170.
+
+2026-09-24 — V0 day/health0094 implemented. Current V0 IDs compose with native
+health observations, selected-device aggregates/trace and recorded session duration.
+Initial clock failure fixed using statement time; reviewer source/unit mixing
+finding repaired through explicit withholding of incompatible selected totals.
+15targetedSQLpass1.24s; review accepted. FullSQL85826/writer90208/chain98599/layout10883
+running. Hash manifest/runbook saved. No production, frontend or V0 handoff claim.
+
+Day integration writer1451pass1004skip165.97s terminal90208; fullSQL85826 live.
+Bank read-only preflight found one exact repeated source-row pair collapsed by
+generic dedupe, plus discarded type/category/memo. No import/config mutation.
+ADR0171 proposed next-unit boundaries; independent review warns ambiguous CSV
+identity must remain visible. Private evidence retained locally, no personal values
+published. Day tested runtime hashes unchanged.
+
+2026-09-24 — V0 day/health0094 local integration complete. SQL1177pass1skip377.83s;
+writer1451pass1004skip165.97s; chain93/974; layout43pass; targeted15pass1.24s.
+Reviewer accepted clock/source/unit repairs. Four spine invariants pass; generic
+RULE04 pending, merged43unverified (41production,2NumPyro), ledger14/15 unchanged.
+Final tested source hashes match .local/evidence/v0-day/. All jobs terminal.
+WHAT I DID NOT DO: production activation, actual aggregate configuration validation,
+real-account proof, spending/visit integration or frontend. Next actual Chase credit
+source-row import/dedup/readback, scoped by ADR0171 and private preflight evidence.
