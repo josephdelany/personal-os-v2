@@ -6,6 +6,7 @@ Use each document for one purpose. Updated 2026-09-09.
 |---|---|---|
 | Agent policy | `CLAUDE.md` (AGENTS routes here) | Entry and policy questions |
 | Current work/evidence/holds | `docs/NEXT_SESSION.md` | Start or resume; verify against Git |
+| How each source reaches the daily page | `docs/DATA_IN.md` | Joe's setup: app install, Health, Chase, Overland, old jobs |
 | Integrity rules | `docs/CONSTITUTION.md` | Entry; relevant rules during edits |
 | Architecture | `docs/BACKEND_ARCHITECTURE.md` | Component/contract changes |
 | Work order and acceptance | `docs/EXECUTION_PLAN.md` | Select/close a unit |

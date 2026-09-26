@@ -36,6 +36,7 @@ The database credential failed with 28P01 on 2026-09-24. Nothing has run on Joe'
 3. Publication: the branch is merged to `main`, which deploys `app/` to Pages
    (APP_PUBLICATION.md). Until migrations are applied the page signs in but cannot load days.
 4. Use it: a morning and evening check-in, meals, sets. Seven real days.
+   Data sources and the old Mac jobs awaiting a decision: `docs/DATA_IN.md`.
 
 ## Try it before activation
 
