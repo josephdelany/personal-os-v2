@@ -60,10 +60,13 @@ def main():
         def route(request):
             url = request.request.url
             files = {'': ('index.html', 'text/html'), 'ask.mjs': ('ask.mjs', 'text/javascript'),
-                     'daily.mjs': ('daily.mjs', 'text/javascript'), 'v0_client.mjs': ('v0_client.mjs', 'text/javascript')}
+                     'daily.mjs': ('daily.mjs', 'text/javascript'), 'v0_client.mjs': ('v0_client.mjs', 'text/javascript'),
+                     'manifest.webmanifest': ('manifest.webmanifest', 'application/manifest+json'),
+                     'apple-touch-icon.png': ('apple-touch-icon.png', 'image/png'),
+                     'icon-192.png': ('icon-192.png', 'image/png'), 'icon-512.png': ('icon-512.png', 'image/png')}
             if url.startswith('https://fixture.invalid/') and url[len('https://fixture.invalid/'):] in files:
                 name, kind = files[url[len('https://fixture.invalid/'):]]
-                request.fulfill(body=(ROOT / 'app' / name).read_text(), content_type=kind)
+                request.fulfill(body=(ROOT / 'app' / name).read_bytes(), content_type=kind)
             elif url == 'https://esm.sh/@supabase/supabase-js@2':
                 request.fulfill(body=STUB, content_type='text/javascript')
             else:
@@ -76,6 +79,9 @@ def main():
         page.goto('https://fixture.invalid/')
         page.wait_for_function('typeof window.signInFixture === "function"')
         assert not page.locator('#tabs').is_visible()
+        manifest = page.evaluate("fetch(document.querySelector('link[rel=manifest]').href).then(r => r.json())")
+        assert manifest['display'] == 'standalone' and manifest['start_url'] == './'
+        assert page.evaluate("fetch('apple-touch-icon.png').then(r => r.ok)")
         page.locator('#email').fill('owner@example.invalid')
         page.locator('#sendlink').click()
         page.get_by_text('Check your inbox', exact=False).wait_for()
