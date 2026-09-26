@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {uuidv7, offsetTimestamp, checkinRequest, mealRequest, workoutRequest,
-  createPendingStore, cardReviewRequest, requestId, renderDay, renderCheckins, renderSpending, renderVisits} from '../app/daily.mjs';
+  createPendingStore, cardReviewRequest, requestId, renderDay, renderHealth, renderCheckins, renderSpending, renderVisits} from '../app/daily.mjs';
 
 test('V0-CHECKIN RULE-02 UUIDv7 carries version, variant and millisecond order', () => {
   const zero = n => new Uint8Array(n);
@@ -100,4 +100,18 @@ test('V0-CARD ambiguous rows offer owner review; linked rows can be kept separat
   assert.ok(html.includes('data-target="b"') && html.includes('Same as Cafe -4.5'));
   assert.ok(html.includes('a charge from another day'));
   assert.ok(html.includes('data-row="c" data-supersedes="dec"'));
+});
+
+test('V0-DAY RULE-06 health shows readings without a daily total and dates older readings', () => {
+  const html = renderHealth({daily_aggregates: [],
+    latest_measurements: [
+      {metric: 'resting_hr', label: 'Resting heart rate', value: 58, unit: 'bpm', subject_day: '2026-03-07', occurred_at: '2026-03-07T08:00:00-05:00'},
+      {metric: 'body_mass', label: 'Body mass', value: 170, unit: 'lb', subject_day: '2026-03-01', occurred_at: '2026-03-01T07:00:00-05:00'}],
+    aggregation_unavailable: [{metric: 'step_count', reason: 'no_registered_daily_aggregate'}],
+    freshness: {last_received_at: '2026-03-07T12:00:00+00:00'}}, '2026-03-07');
+  assert.ok(!html.includes('No health data'));
+  assert.ok(html.includes('Resting heart rate') && html.includes('58'));
+  assert.ok(html.includes('from 2026-03-01'));
+  assert.ok(html.includes('no daily total is set up: step count'));
+  assert.ok(renderHealth({daily_aggregates: [], latest_measurements: []}, '2026-03-07').includes('No health data'));
 });

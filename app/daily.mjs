@@ -130,14 +130,25 @@ export function renderWorkouts(section) {
   }).join('') + '</ul>';
 }
 
-export function renderHealth(health) {
+export function renderHealth(health, dayValue) {
   const daily = health?.daily_aggregates ?? [];
+  const totals = new Set(daily.map(a => a.metric));
+  // Latest readings through this day; a reading from an earlier day is dated, never passed off as today's.
+  const readings = (health?.latest_measurements ?? []).filter(m => !totals.has(m.metric));
+  const noTotal = (health?.aggregation_unavailable ?? []).filter(u => !totals.has(u.metric));
   const sessions = health?.recorded_workout_sessions ?? [];
-  let h = daily.length
-    ? '<ul class="stats">' + daily.map(a =>
-        `<li><span class="stat-label">${esc(a.label ?? a.metric)}</span><span class="stat">${esc(a.value)} <span class="unit">${esc(a.unit)}</span></span>` +
-        `<span class="muted small">${esc(a.device ?? '')}</span></li>`).join('') + '</ul>'
-    : missing('No health data for this day.');
+  const stat = (label, value, unit, note) => `<li><span class="stat-label">${esc(label)}</span>` +
+    `<span class="stat">${esc(value)} <span class="unit">${esc(unit)}</span></span><span class="muted small">${note}</span></li>`;
+  let h = '';
+  if (daily.length) h += '<ul class="stats">' + daily.map(a => stat(a.label ?? a.metric, a.value, a.unit, esc(a.device ?? ''))).join('') + '</ul>';
+  if (readings.length) {
+    h += `${daily.length ? '<h3 style="margin-top:12px">Latest readings</h3>' : ''}<ul class="stats">` + readings.map(m => {
+      const from = m.subject_day && dayValue && m.subject_day !== dayValue ? `from ${esc(m.subject_day)}` : time(m.occurred_at);
+      return stat(m.label ?? m.metric, m.value, m.unit, from);
+    }).join('') + '</ul>';
+  }
+  if (!daily.length && !readings.length) h += missing('No health data for this day.');
+  if (noTotal.length) h += `<p class="muted small">Recorded, but no daily total is set up: ${noTotal.map(u => esc(u.metric.replace(/_/g, ' '))).join(', ')}.</p>`;
   if (sessions.length) h += `<p class="muted small">${esc(sessions.length)} recorded workout session(s) from Apple Health.</p>`;
   const last = health?.freshness?.last_received_at;
   h += `<p class="muted small">${last ? `Last health import received ${esc(String(last).slice(0, 16).replace('T', ' '))}.` : 'No Apple Health import received yet.'}</p>`;
@@ -185,7 +196,7 @@ export function renderDay(day) {
     card('Check-ins', renderCheckins(day.checkins)) +
     card('Meals', renderMeals(day.meals)) +
     card('Workouts', renderWorkouts(day.workouts)) +
-    card('Health', renderHealth(day.health)) +
+    card('Health', renderHealth(day.health, day.day)) +
     card('Spending', renderSpending(day.spending)) +
     card('Places', renderVisits(day.visits));
 }
