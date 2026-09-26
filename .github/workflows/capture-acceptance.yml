@@ -20,11 +20,12 @@
 # job over a dead input, so no production database secret is passed to any step below.
 # `tests/test_capture_schedule.py` asserts that, by checking this file for the secret's name.
 #
-# POSTGRESQL 17 comes from the runner image. There is no PGDG fallback here, unlike the
-# `local-sql` job in tests.yml: that fallback fetches a package signing key over the network,
-# and the repository guard (RULE-29) refuses shell-level outbound requests. If a future runner
-# image drops PostgreSQL 17 this job fails loudly with the message below, which is the correct
-# outcome — mirroring tests.yml's fallback is then a reviewed change, not an accident.
+# POSTGRESQL 17: the runner image no longer ships it (first observed 2026-09-25, run
+# 36206954313: apt exit 100). This mirrors the `local-sql` fallback in tests.yml, the reviewed
+# change this comment previously anticipated. RULE-29 note (same as tests.yml): the PGDG
+# fallback fetches a package signing key from postgresql.org. That is a CI runner installing a
+# build dependency, not this system emitting personal data; no row, coordinate or credential
+# is involved, and it runs only if the image lacks PostgreSQL 17.
 name: capture-acceptance
 on:
   push:
@@ -48,14 +49,22 @@ jobs:
       - uses: actions/setup-python@v5
         with: {python-version: '3.12'}
       - run: pip install 'pg8000>=1.30,<2' 'pyyaml>=6,<7' 'ofxtools>=0.9,<1' 'dateparser>=1.2,<2' 'Pint==0.26.1'
-      - name: require PostgreSQL 17 from the runner image
+      - name: ensure PostgreSQL 17 binaries
         run: |
           set -euo pipefail
-          if [ ! -x /usr/lib/postgresql/17/bin/initdb ]; then
+          if [ -x /usr/lib/postgresql/17/bin/initdb ]; then
+            echo "PostgreSQL 17 already present"
+          else
             sudo apt-get update -qq
-            sudo apt-get install -y -qq postgresql-17
+            if ! sudo apt-get install -y -qq postgresql-17; then
+              . /etc/os-release
+              sudo sh -c "echo 'deb https://apt.postgresql.org/pub/repos/apt ${VERSION_CODENAME}-pgdg main' > /etc/apt/sources.list.d/pgdg.list"
+              sudo wget -qO /tmp/pgdg.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
+              sudo gpg --dearmor -o /etc/apt/trusted.gpg.d/pgdg.gpg /tmp/pgdg.asc
+              sudo apt-get update -qq
+              sudo apt-get install -y -qq postgresql-17
+            fi
           fi
-          /usr/lib/postgresql/17/bin/initdb --version
           echo "/usr/lib/postgresql/17/bin" >> "$GITHUB_PATH"
       - name: the ten acceptance cases (real processes, disposable server)
         env:
