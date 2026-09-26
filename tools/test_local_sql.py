@@ -18,7 +18,7 @@ import tempfile
 
 
 ROOT = Path(__file__).resolve().parents[1]
-TESTS = ("tests/test_v0_location.py", "tests/test_v0_card_store.py", "tests/test_v0_day.py", "tests/test_v0_workouts.py", "tests/test_v0_meals.py", "tests/test_v0_checkins.py", "tests/test_capture_runtime.py", "tests/test_capture_model_recovery.py", "tests/test_capture_reference.py", "tests/test_reference_dispatch_sql.py", "tests/test_capture_media_receipts.py", "tests/test_capture_transcription.py", "tests/test_ask_jobs.py", "tests/test_model_reservations.py", "tests/test_capture_processing.py", "tests/test_capture_ingress_sql.py", "tests/test_ask_ranges.py", "tests/test_ask.py", "tests/test_ask_operations.py", "tests/test_status_sql.py",
+TESTS = ("tests/test_v1_activation_check.py", "tests/test_v0_location.py", "tests/test_v0_card_store.py", "tests/test_v0_day.py", "tests/test_v0_workouts.py", "tests/test_v0_meals.py", "tests/test_v0_checkins.py", "tests/test_capture_runtime.py", "tests/test_capture_model_recovery.py", "tests/test_capture_reference.py", "tests/test_reference_dispatch_sql.py", "tests/test_capture_media_receipts.py", "tests/test_capture_transcription.py", "tests/test_ask_jobs.py", "tests/test_model_reservations.py", "tests/test_capture_processing.py", "tests/test_capture_ingress_sql.py", "tests/test_ask_ranges.py", "tests/test_ask.py", "tests/test_ask_operations.py", "tests/test_status_sql.py",
          "tests/test_status.py", "tests/test_import_drop.py",
          "tests/test_panel_attention.py",
          "tests/test_freshness.py", "tests/test_egress.py", "tests/test_ask_planner.py", "tests/test_nutrition.py",

@@ -12,6 +12,19 @@ by this document. Credentials stay in the normal private environment configurati
 
 ## Establish the target before requesting deployment
 
+Shortest path after the credential is restored (ADR-0173):
+
+```
+python3 -m tools.v1_activation_check          # read-only catalog inventory -> proposed apply list
+python3 tools/run_migration.py --core core --ops ops --only 0091           # dry run, rolled back
+python3 tools/run_migration.py --core core --ops ops --only 0091 --commit  # only after Joe approves
+```
+
+The checker infers missing migrations from object presence (no ledger exists), flags partial
+or out-of-order states for manual review, and reads no rows. Its disposable-server tests show
+an empty database reports every migration missing and a fully migrated one reports none.
+Presence is not definition correctness, so the steps below still apply.
+
 1. Restore the known-failing database credential through normal secret configuration.
    Do not paste it into chat or rerun unchanged credentials after SQLSTATE28P01.
 2. Run `ops/preflight/v0_backend.sql` privately with psql, using its normal connection

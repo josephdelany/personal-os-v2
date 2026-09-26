@@ -31,7 +31,8 @@ The database credential failed with 28P01 on 2026-09-24. Nothing has run on Joe'
 1. Supabase dashboard → Project Settings → Database → reset the database password.
    Put the new connection string in `SUPABASE_DB_URL` wherever it is normally set.
    If GitHub Actions uses it, update that repository secret too. Say "done" without pasting it.
-2. Approve the exact migration list the preflight produces (it will be shown first).
+2. Approve the exact migration list. `python3 -m tools.v1_activation_check` produces it
+   read-only; each file is dry-run before any `--commit`.
 3. Publication: the branch is merged to `main`, which deploys `app/` to Pages
    (APP_PUBLICATION.md). Until migrations are applied the page signs in but cannot load days.
 4. Use it: a morning and evening check-in, meals, sets. Seven real days.
