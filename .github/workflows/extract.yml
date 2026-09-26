@@ -34,4 +34,9 @@ jobs:
         env:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
           PYTHONPATH: ${{ github.workspace }}
-        run: python3 tools/run_sql_scalar.py "select public.refresh_v0_visits()" derive_visits
+        # Until migration 0096 is applied, refresh_v0_visits does not exist; keep the prior
+        # derivation running rather than failing every hour (ADR-0173 activation gap).
+        run: >-
+          python3 tools/run_sql_scalar.py "select public.refresh_v0_visits()" derive_visits
+          --requires 'public.refresh_v0_visits()'
+          --otherwise "select restricted.derive_visits(current_date - 3)"
