@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {createV0Client} from '../tools/v0_client.mjs';
+import {createV0Client} from '../app/v0_client.mjs';
 
 test('RULE-02 retry preserves the complete request after uncertain delivery',async()=>{
   const calls=[]; let attempt=0;

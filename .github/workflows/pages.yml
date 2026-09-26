@@ -29,7 +29,7 @@ jobs:
       - uses: actions/setup-node@v4
         with: {node-version: '24'}
       - name: Verify Ask interaction before publishing
-        run: node --test tests/ask_ui.test.mjs
+        run: node --test tests/ask_ui.test.mjs tests/daily_ui.test.mjs tests/v0_client.test.mjs
       - uses: actions/upload-pages-artifact@v3
         with: { path: app }
       - id: deployment

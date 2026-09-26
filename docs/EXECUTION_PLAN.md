@@ -66,7 +66,7 @@ unless the daily path actually depends on them.
 | Spending | 0095 owner card activity/review and private import_v0_card CLI; actual Chase credit format validated, local acceptance passed | Activation/actual-account import; day composition locally verified in0096; unresolved overlaps require owner review, canonical finance remains deferred |
 | Visits | 0096 retry-safe Overland receipt, get_v0_visits and hourly refresh; local acceptance passed | Activation, real-device collection and owner readback; no interpretation |
 | Day history | 0094 get_v0_day composes current V0 IDs and health, local acceptance passed | Spending/visits composed in0096 and locally verified; activation and real-account read/correction |
-| Owner access/operations | Authenticated RPCs; tools/v0_client.mjs and V0_OWNER_CALLER; read-only preflight and V0_BACKEND_ACTIVATION packet | Caller integration gates; live auth/access checks; exact deployment list after inventory; real-account backend smoke |
+| Owner access/operations | Authenticated RPCs; app/v0_client.mjs and V0_OWNER_CALLER; read-only preflight and V0_BACKEND_ACTIVATION packet | Caller integration gates; live auth/access checks; exact deployment list after inventory; real-account backend smoke |
 
 After these backend contracts are usable, begin frontend work. Keep the complete
 real-phone day checklist below for frontend/release acceptance; neither gate proves

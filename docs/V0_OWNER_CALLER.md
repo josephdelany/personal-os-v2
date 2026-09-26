@@ -1,10 +1,10 @@
 # Executable V0 owner API caller
 
-`tools/v0_client.mjs` has no dependencies or UI. Inject the existing signed-in
+`app/v0_client.mjs` has no dependencies or UI. Inject the existing signed-in
 Supabase client's RPC method. It does not acquire credentials or bypass owner checks.
 
 ```javascript
-import {createV0Client} from './tools/v0_client.mjs';
+import {createV0Client} from './app/v0_client.mjs';
 const v0 = createV0Client({rpc: (name,args) => supabase.rpc(name,args)});
 const operation = v0.prepare('meal', ownerSuppliedRequest);
 // Persist operation.request() privately BEFORE sending; includes the original UUIDv7.

@@ -15,7 +15,7 @@ import re
 import pytest
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-PWA = ROOT / "app" / "index.html"
+PWA_FILES = sorted([*(ROOT / "app").glob("*.html"), *(ROOT / "app").glob("*.mjs")])
 SHORTCUT_GENERATORS = sorted(ROOT.glob("tools/make_shortcut_*.py"))
 
 
@@ -23,8 +23,8 @@ def test_REQ_CAP_001_the_pwa_never_calls_get_user_media():
     """RULE-30. Microphone capture belongs to the Shortcut, which records to a file Joe can
     see and delete. A browser that can open the microphone is a browser that can do it without
     Joe noticing, and the PWA is the surface with the weakest consent affordances."""
-    assert PWA.exists(), "the PWA source must exist for this ban to mean anything"
-    source = PWA.read_text()
+    assert (ROOT / "app" / "index.html") in PWA_FILES, "the PWA source must exist for this ban to mean anything"
+    source = "\n".join(path.read_text() for path in PWA_FILES)
     assert not re.search(r"getUserMedia", source, re.I), "the PWA opens the microphone"
     assert not re.search(r"\bmediaDevices\b", source, re.I)
     assert not re.search(r"\bMediaRecorder\b", source, re.I)
@@ -34,7 +34,7 @@ def test_REQ_CAP_002_the_pwa_never_calls_the_webspeech_api():
     """A browser speech API sends audio to the browser vendor. RULE-29 permits Supabase,
     Cloudflare Workers AI and the originating source APIs — a vendor's speech endpoint is
     none of those, and it would leave no row in ops.egress_log."""
-    source = PWA.read_text()
+    source = "\n".join(path.read_text() for path in PWA_FILES)
     for banned in ("webkitSpeechRecognition", "SpeechRecognition", "speechSynthesis"):
         assert banned.lower() not in source.lower(), f"the PWA uses {banned}"
 

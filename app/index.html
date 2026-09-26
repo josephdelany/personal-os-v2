@@ -1,409 +1,205 @@
 <!doctype html>
-<!-- Personal OS — the v0 daily surface (RULE-15's deterministic rendering).
-     Single file, no build step, no framework. Reads ONLY public.get_day(p_day)
-     (migration 0021) as the signed-in owner via Supabase magic-link auth.
-     HONESTY RULES ENFORCED IN CODE:
-       - renders only numerals present in the envelope (RULE-14); absence -> "not logged"
-       - self-reports shown WITH their interval (ADR-0018), never a bare point
-       - no streaks, no composite scores, no judgment words (RULE-23/24)
-       - every number's atom_id available on hover (INV-3 traceability)
-     The page contains no data and no secrets; the anon key is public-by-design
-     (write-only server-side; reads require a signed-in session). -->
+<!-- Personal OS — daily surface (ADR-0165 V0, ADR-0172 lean track).
+     Today / Add / History over owner-only V0 RPCs, plus Ask. No data or secrets in
+     the page: the anon key is public by design and every RPC checks the owner session.
+     Older exploratory views remain at explore.html. -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#f6f5f1">
 <title>Personal OS</title>
 <style>
-  :root { color-scheme: light dark; }
-  body { font-family: -apple-system, system-ui, sans-serif; margin: 2rem auto; max-width: 40rem; padding: 0 1rem; line-height: 1.45; }
-  h1 { font-size: 1.15rem; } h2 { font-size: .95rem; margin: 1.4rem 0 .4rem; opacity:.75; text-transform: uppercase; letter-spacing:.04em;}
-  .num { font-variant-numeric: tabular-nums; }
-  .chip { display:inline-block; border:1px solid color-mix(in srgb, currentColor 25%, transparent); border-radius:.5rem; padding:.25rem .6rem; margin:.15rem .25rem .15rem 0; }
-  .muted { opacity:.6; } .warn { color:#b45309; }
-  input,button { font:inherit; padding:.4rem .6rem; border-radius:.4rem; border:1px solid color-mix(in srgb, currentColor 30%, transparent); background:transparent; color:inherit;}
-  button { cursor:pointer; }
-  #app { margin-top:1rem; }
-  .transition { transition: opacity 150ms ease-out; }
-  #question { box-sizing:border-box; width:100%; margin:.5rem 0; }
-  pre { white-space:pre-wrap; overflow-wrap:anywhere; font-size:.8rem; }
-  body { max-width:56rem; margin:1.5rem auto; }
-  h1 { font-size:1.65rem; margin-bottom:.3rem; }
-  input,button { min-height:44px; box-sizing:border-box; }
-  button:hover { background:color-mix(in srgb,currentColor 8%,transparent); }
-  :focus-visible { outline:3px solid #568bc4; outline-offset:3px; }
-  .muted { opacity:.8; }
-  .navigation,.suggestions { display:flex; gap:.5rem; flex-wrap:wrap; margin:1rem 0; }
-  .navigation button[aria-current="page"] { font-weight:700; border-width:2px; }
-  #ask-panel,#app:not(:empty) { border:1px solid color-mix(in srgb,currentColor 20%,transparent); border-radius:12px; padding:1rem; margin:1rem 0; }
-  #ask-answer { overflow-wrap:anywhere; }
-  .evidence { border-left:3px solid #568bc4; padding-left:.8rem; }
-  dt { font-weight:600; } dd { margin:0 0 .6rem; }
-  @media(max-width:480px) { body { margin:1rem auto; } #email { width:100%; margin:.5rem 0; } }
+  :root {
+    --bg:#f6f5f1; --surface:#ffffff; --text:#1d1d1b; --muted:#6b6a64; --line:#e3e1da;
+    --accent:#2f6f5e; --accent-soft:#e3efe9; --warn:#9a5b13; --radius:14px;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg:#141413; --surface:#1e1e1c; --text:#ecebe6; --muted:#9d9b93; --line:#33322e;
+      --accent:#7cc3ad; --accent-soft:#1f3530; --warn:#e0a860; color-scheme: dark;
+    }
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font:16px/1.45 -apple-system,system-ui,sans-serif;
+    padding:0 16px calc(84px + env(safe-area-inset-bottom)); }
+  main { max-width:34rem; margin:0 auto; }
+  header { padding:20px 0 8px; display:flex; justify-content:space-between; align-items:baseline; }
+  h1 { font-size:1.35rem; margin:0; letter-spacing:-.01em; }
+  h2 { font-size:1.1rem; margin:8px 0 12px; }
+  h3 { font-size:.8rem; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin:0 0 8px; font-weight:600; }
+  .card { background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); padding:14px 16px; margin:0 0 12px; }
+  .day-label { color:var(--muted); margin:4px 0 12px; font-variant-numeric:tabular-nums; }
+  .muted { color:var(--muted); } .small { font-size:.85rem; }
+  .missing { color:var(--muted); font-style:italic; margin:0; }
+  .entries { list-style:none; padding:0; margin:0; }
+  .entries li { padding:8px 0; border-top:1px solid var(--line); } .entries li:first-child { border-top:0; padding-top:0; }
+  .entries p { margin:4px 0 0; }
+  .row { display:flex; justify-content:space-between; align-items:center; gap:12px; }
+  .when { color:var(--muted); font-size:.85rem; font-variant-numeric:tabular-nums; }
+  .pill { display:inline-block; background:var(--accent-soft); border-radius:999px; padding:3px 10px; margin:4px 4px 0 0; font-size:.9rem; }
+  .scale,.unit { color:var(--muted); font-size:.8em; }
+  .stat { font-variant-numeric:tabular-nums; font-weight:600; }
+  .stats { list-style:none; margin:0; padding:0; display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .stats li { display:flex; flex-direction:column; } .stat-label { color:var(--muted); font-size:.85rem; }
+  .note { color:var(--muted); font-size:.9rem; }
+  button,input,select,textarea { font:inherit; color:inherit; }
+  button { min-height:44px; padding:8px 14px; border-radius:10px; border:1px solid var(--line); background:var(--surface); cursor:pointer; }
+  button.primary { background:var(--accent); color:var(--bg); border-color:var(--accent); font-weight:600; width:100%; }
+  button.link { border:0; background:none; min-height:32px; padding:4px 0; color:var(--accent); font-size:.9rem; }
+  button[aria-pressed="true"] { background:var(--accent); color:var(--bg); border-color:var(--accent); }
+  input,select,textarea { width:100%; min-height:44px; padding:10px 12px; border-radius:10px; border:1px solid var(--line); background:var(--surface); }
+  textarea { min-height:80px; resize:vertical; }
+  label { display:block; font-size:.9rem; color:var(--muted); margin:12px 0 6px; }
+  :focus-visible { outline:3px solid var(--accent); outline-offset:2px; }
+  .segmented { display:flex; gap:8px; margin:0 0 12px; } .segmented button { flex:1; }
+  .rating { display:grid; grid-template-columns:repeat(10,1fr); gap:4px; }
+  .rating button { padding:0; min-height:40px; font-variant-numeric:tabular-nums; }
+  .pair { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  #add-status { margin:8px 0; } #add-status:empty { display:none; }
+  #pending { border-color:var(--warn); } #pending .row { padding:6px 0; }
+  #editing { background:var(--accent-soft); border-color:transparent; }
+  nav.tabs { position:fixed; left:0; right:0; bottom:0; display:flex; background:var(--surface); border-top:1px solid var(--line);
+    padding:6px 8px calc(6px + env(safe-area-inset-bottom)); }
+  nav.tabs button { flex:1; border:0; background:none; color:var(--muted); font-size:.9rem; }
+  nav.tabs button[aria-current="true"] { color:var(--accent); font-weight:700; }
+  .evidence { border-left:3px solid var(--accent); padding-left:10px; }
+  pre { white-space:pre-wrap; overflow-wrap:anywhere; font-size:.75rem; }
+  [hidden] { display:none !important; }
 </style>
 </head>
 <body>
-<h1>Personal OS</h1>
-<p class="muted">Explore your history. Understand what your records can tell you.</p>
-<div id="auth">
-  <p>Sign in to explore your records and ask questions about them.</p>
-  <form id="signin-form">
-    <label for="email">Your owner email</label><br>
-    <input id="email" type="email" placeholder="you@example.com" autocomplete="email" required>
-    <button id="sendlink" type="submit">Email me a sign-in link</button>
-  </form>
-  <p class="muted">Open the email link in this browser. No password needed.</p>
-  <p id="authmsg" class="muted" role="status"></p>
-</div>
-<div id="picker" style="display:none">
-  <nav class="navigation" aria-label="Explore your records">
-    <button id="tab-ask">Ask</button>
-    <button id="tab-today">Overview</button> <button id="tab-timeline">Timeline</button> <button id="tab-day">Daily records</button> <button id="tab-trust">Data status</button> <button id="tab-insights">Insights</button> <button id="tab-patterns">Exploratory patterns</button>
-  </nav>
-  <label for="day">Browse a recorded date</label><br>
-  <input id="day" type="date"> <button id="load">View day</button> <button id="signout" class="muted">Sign out</button>
-</div>
-<section id="ask-panel" hidden aria-labelledby="ask-title">
-  <h2 id="ask-title">Ask about your records</h2>
-  <p class="muted">Start with a question below or write your own. Answers use saved records; missing records are never treated as zero.</p>
-  <div class="suggestions" aria-label="Suggested questions">
-    <button type="button" data-question="how is my sleep">How is my sleep?</button>
-    <button type="button" data-question="how many steps last week">Steps last week</button>
-    <button type="button" data-question="how is my screen time">My screen time</button>
+<main>
+  <header><h1>Personal OS</h1><span><a class="muted small" href="explore.html">More</a> · <button type="button" id="signout" class="link" hidden>Sign out</button></span></header>
+
+  <section id="auth" class="card">
+    <h2>Sign in</h2>
+    <form id="signin-form">
+      <label for="email">Owner email</label>
+      <input id="email" type="email" autocomplete="email" required>
+      <p><button id="sendlink" class="primary" type="submit">Email me a sign-in link</button></p>
+    </form>
+    <p id="authmsg" class="muted small" role="status">Open the link in this browser. No password needed.</p>
+  </section>
+
+  <div id="signed-in" hidden>
+    <section id="pending" class="card" hidden aria-live="polite"></section>
+    <p id="add-status" role="status" aria-live="polite"></p>
+
+    <section id="panel-today">
+      <div id="today-view"></div>
+    </section>
+
+    <section id="panel-add" hidden>
+      <div class="segmented" role="group" aria-label="What to add">
+        <button type="button" data-add="checkin" aria-pressed="true">Check-in</button>
+        <button type="button" data-add="meal" aria-pressed="false">Meal</button>
+        <button type="button" data-add="workout" aria-pressed="false">Set</button>
+      </div>
+      <div id="editing" class="card" hidden><p id="editing-text" class="small" style="margin:0"></p><button type="button" id="cancel-edit" class="link">Cancel correction</button></div>
+
+      <form id="form-checkin" class="entry card">
+        <label for="ci-period">Check-in</label>
+        <select id="ci-period"><option value="morning">Morning</option><option value="evening">Evening</option></select>
+        <div id="ci-sleep-row"><label>Sleep quality (1–10)</label><div class="rating" data-key="sleep_quality" role="group" aria-label="Sleep quality"></div></div>
+        <div id="ci-mood-row" hidden><label>Mood (1–10)</label><div class="rating" data-key="mood" role="group" aria-label="Mood"></div></div>
+        <label>Energy (1–10)</label><div class="rating" data-key="energy" role="group" aria-label="Energy"></div>
+        <label for="ci-note">Note (optional)</label><textarea id="ci-note" maxlength="4000"></textarea>
+        <p><button class="primary" type="submit">Save check-in</button></p>
+      </form>
+
+      <form id="form-meal" class="entry card" hidden>
+        <label for="meal-text">What did you eat or drink?</label>
+        <textarea id="meal-text" maxlength="10000" placeholder="e.g. two eggs, toast, black coffee"></textarea>
+        <p class="muted small">Photos go through the iPhone Shortcut.</p>
+        <p><button class="primary" type="submit">Save meal</button></p>
+      </form>
+
+      <form id="form-workout" class="entry card" hidden>
+        <label for="wo-exercise">Exercise</label><input id="wo-exercise" maxlength="200" autocomplete="off">
+        <label for="wo-mode">Type</label>
+        <select id="wo-mode"><option value="external_load">Weighted</option><option value="bodyweight">Bodyweight</option><option value="assisted">Assisted</option></select>
+        <div id="wo-load-row" class="pair">
+          <div><label for="wo-load">Load</label><input id="wo-load" type="number" inputmode="decimal" min="0" step="any"></div>
+          <div><label for="wo-unit">Unit</label><select id="wo-unit"><option>lb</option><option>kg</option></select></div>
+        </div>
+        <div class="pair">
+          <div><label for="wo-reps">Reps</label><input id="wo-reps" type="number" inputmode="numeric" min="1" step="1"></div>
+          <div><label for="wo-rpe">RPE (optional)</label><input id="wo-rpe" type="number" inputmode="decimal" min="0" max="10" step="0.5"></div>
+        </div>
+        <label for="wo-note">Note (optional)</label><textarea id="wo-note" maxlength="4000"></textarea>
+        <p><button class="primary" type="submit">Save set</button></p>
+      </form>
+    </section>
+
+    <section id="panel-history" hidden>
+      <label for="history-date">Day</label><input id="history-date" type="date">
+      <div id="history-view" style="margin-top:12px"></div>
+    </section>
+
+    <section id="panel-ask" hidden class="card">
+      <h2>Ask</h2>
+      <p class="muted small">Answers come from saved records. Missing records are never treated as zero.</p>
+      <form id="ask-form">
+        <label for="question">Question</label>
+        <input id="question" required maxlength="2000" autocomplete="off">
+        <label for="ask-date">As of (optional)</label><input id="ask-date" type="date">
+        <p><button id="ask-submit" class="primary" type="submit">Ask</button></p>
+      </form>
+      <div id="ask-answer" aria-live="polite"></div>
+    </section>
   </div>
-  <form id="ask-form">
-    <label for="question">Your question</label>
-    <input id="question" required maxlength="2000" autocomplete="off" placeholder="What would you like to know?">
-    <label for="ask-date">As of (optional)</label>
-    <input id="ask-date" type="date">
-    <button id="ask-submit" type="submit">Ask</button>
-  </form>
-  <div id="ask-answer" aria-live="polite"></div>
-</section>
-<div id="app" class="transition"></div>
+</main>
+
+<nav class="tabs" id="tabs" hidden aria-label="Sections">
+  <button type="button" id="tab-today" aria-current="true">Today</button>
+  <button type="button" id="tab-add" aria-current="false">Add</button>
+  <button type="button" id="tab-history" aria-current="false">History</button>
+  <button type="button" id="tab-ask" aria-current="false">Ask</button>
+</nav>
 
 <script type="module">
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { mountAsk } from './ask.mjs';
-import { renderDataStatus } from './data-status.mjs';
+import { mountDaily } from './daily.mjs';
 const SUPABASE_URL = "https://cykviouklidnbsbgdgdo.supabase.co";
-// anon key: public-by-design (server grants make it write-only; reads need a session)
-// baked in: the anon key is public-by-design (write-only server-side; every
-// read RPC verifies the signed-in owner). No setup parameter needed.
+// Public anon key: every owner RPC verifies the signed-in session.
 const ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN5a3Zpb3VrbGlkbmJzYmdkZ2RvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM5NzA0MzYsImV4cCI6MjA5OTU0NjQzNn0.0YqUtrBMQ-6LOOIGLCj6UcqelccV2WdNVNrbEArGnk0";
 const sb = createClient(SUPABASE_URL, ANON);
+const $ = id => document.getElementById(id);
+const rpc = (name, args) => sb.rpc(name, args);
+let storage = null;
+try { storage = window.localStorage; } catch { /* unsaved retries stay in memory */ }
 
-const $ = (id) => document.getElementById(id);
 const ask = mountAsk({form: $('ask-form'), input: $('question'), date: $('ask-date'),
-  button: $('ask-submit'), output: $('ask-answer'), rpc: (name, args) => sb.rpc(name, args)});
-document.querySelectorAll('[data-question]').forEach(button => button.addEventListener('click', () => {
-  $('question').value=button.dataset.question;
-  $('question').focus();
-}));
-document.querySelectorAll('.navigation button').forEach(button => button.addEventListener('click', () => {
-  document.querySelectorAll('.navigation button').forEach(item => item.removeAttribute('aria-current'));
-  button.setAttribute('aria-current','page');
-}));
-const esc = (s) => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  button: $('ask-submit'), output: $('ask-answer'), rpc});
+const daily = mountDaily({dom: document, rpc, storage});
 
-// deterministic renderer: emits ONLY what the envelope contains (RULE-14).
-function render(env) {
-  if (!env) { $("app").innerHTML = '<p class="muted">not logged</p>'; return; }
-  let h = `<h2>${esc(env.day)}</h2>`;
-  const ck = env.checkin || {};
-  const keys = Object.keys(ck).sort();
-  h += "<h2>Check-in</h2>";
-  h += keys.length ? keys.map(k => {
-      const v = ck[k], label = esc(k.replace(/^checkin_/, "").replace(/_/g, " "));
-      return `<span class="chip num" title="atom ${esc(v.atom_id||"")}">${label}: ${esc(v.point)} <span class="muted">(${esc(v.low)}–${esc(v.high)})</span></span>`;
-    }).join("") : '<p class="muted">not logged</p>';
-  h += "<h2>Food & drink</h2>";
-  h += (env.food && env.food.length)
-    ? "<ul>" + env.food.map(f => `<li title="atom ${esc(f.atom_id||"")}">${esc(f.label)} <span class="muted num">${esc((f.at||"").slice(11,16))}${f.precision==="hour"?" ~":""}</span></li>`).join("") + "</ul>"
-    : '<p class="muted">no food logged</p>';
-  h += "<h2>Notes</h2>";
-  h += (env.notes && env.notes.length)
-    ? env.notes.map(n => `<p title="atom ${esc(n.atom_id||"")}">${esc(n.text)}</p>`).join("")
-    : '<p class="muted">no note</p>';
-  const c = env.coverage || {};
-  h += `<h2>Record coverage</h2><p class="muted num">${esc(c.captures ?? 'Count unavailable')} captured · ${esc(c.atoms ?? 'Count unavailable')} facts` +
-       (env.last_extract_run ? ` · last processed ${esc((env.last_extract_run.at||"").slice(0,16).replace("T"," "))} (${esc(env.last_extract_run.status)})` : "") + "</p>";
-  if (c.unextracted > 0) h += `<p class="warn num">${esc(c.unextracted)} capture(s) awaiting processing</p>`;
-  $("app").innerHTML = h;
+let signedIn = null;
+function show(signed) {
+  if (signed === signedIn) return;
+  signedIn = signed;
+  $('auth').hidden = signed; $('signed-in').hidden = !signed; $('tabs').hidden = !signed; $('signout').hidden = !signed;
+  if (signed) setTimeout(() => daily.openTab('today'), 0); // leave the auth callback first
+  else ask.reset();
 }
-
-// demo mode: ?demo=1 renders a FIXTURE envelope, loudly labeled, touching no table
-// (RULE-01: fixtures never enter real data; this exercises the render path only).
-if (new URLSearchParams(location.search).get("demo")) {
-  $("auth").style.display = "none"; $("picker").style.display = "block";
-  $("app").innerHTML = "<p class='warn'>DEMO FIXTURE — not real data</p>";
-  render({ day:"2026-07-22", checkin:{ checkin_morning_energy:{point:5,low:4.5,high:5.5,atom_id:"demo"},
-    checkin_morning_restored:{point:5,low:4.5,high:5.5,atom_id:"demo"}, checkin_morning_drive:{point:4,low:3.5,high:4.5,atom_id:"demo"}},
-    food:[{label:"big mac",at:"2026-07-22T14:10:00Z",precision:"hour",atom_id:"demo"}],
-    notes:[{text:"demo note",at:"2026-07-22T14:10:00Z",atom_id:"demo"}],
-    coverage:{captures:1,atoms:4,unextracted:0},
-    last_extract_run:{at:"2026-07-22T15:00:00Z",status:"ok"} });
-  $("app").insertAdjacentHTML("afterbegin","<p class='warn'>DEMO FIXTURE — not real data</p>");
-} else if (sb) {
-  let viewRequest = 0;
-  let signedIn = false;
-  function openAsk() {
-    viewRequest++;
-    $('app').hidden=true;
-    $('ask-panel').hidden=false;
-    document.querySelectorAll('.navigation button').forEach(button => {
-      if (button.id==='tab-ask') button.setAttribute('aria-current','page');
-      else button.removeAttribute('aria-current');
-    });
-  }
-  $('tab-ask').onclick=openAsk;
-  function beginView(retry) {
-    const id = ++viewRequest;
-    $('ask-panel').hidden=true;
-    $('app').hidden=false;
-    $('app').innerHTML = '<p role="status">Loading your records…</p>';
-    const selected = {load:'tab-day',loadBrief:'tab-today',loadToday:'tab-today',
-      loadTrust:'tab-trust',loadTimeline:'tab-timeline',loadPatterns:'tab-patterns',loadInsights:'tab-insights'}[retry.name];
-    document.querySelectorAll('.navigation button').forEach(button => {
-      if (button.id === selected) button.setAttribute('aria-current','page');
-      else button.removeAttribute('aria-current');
-    });
-    return id;
-  }
-  function unavailable(retry) {
-    $('app').innerHTML = '<p role="alert">These records could not be loaded. This does not mean they are empty.</p><button id="retry-view">Try again</button>';
-    $('retry-view').onclick = retry;
-  }
-  async function readRpc(name, args) {
-    let timer;
-    try {
-      const result = await Promise.race([sb.rpc(name,args),new Promise((_,reject) => {
-        timer=setTimeout(() => reject(new Error('timeout')),30000);
-      })]);
-      if (result.error) return result;
-      const data=typeof result.data==='string'?JSON.parse(result.data):result.data;
-      if (!data || typeof data!=='object' || Array.isArray(data)) throw new Error('invalid response');
-      return {data};
-    } catch { return {error:{message:'unavailable'}}; }
-    finally { clearTimeout(timer); }
-  }
-  const show = (signed) => {
-    const changed = signedIn !== signed;
-    signedIn = signed;
-    if (signed && !changed) return false;
-    $("auth").style.display = signed?"none":"block";
-    $("picker").style.display = signed?"block":"none";
-    $("ask-panel").hidden = !signed;
-    $("app").hidden = !signed;
-    if (!signed) { viewRequest++; ask.reset(); $("app").innerHTML = ''; }
-    return changed;
-  };
-  sb.auth.getSession().then(({data:{session}}) => { const changed=show(!!session); if (session && changed) openAsk(); });
-  sb.auth.onAuthStateChange((_e, session) => {
-    const changed=show(!!session);
-    // Leave the auth callback before requesting an authenticated RPC.
-    if (session && changed) openAsk();
-  });
-  $("signin-form").onsubmit = async event => {
-    event.preventDefault();
-    if ($("sendlink").disabled) return;
-    $("sendlink").disabled = true;
-    $("authmsg").textContent = 'Requesting your sign-in link…';
-    try {
-      const { error } = await sb.auth.signInWithOtp({ email: $("email").value.trim(), options: {
-        shouldCreateUser: false, emailRedirectTo: location.href.split("?")[0].split('#')[0] } });
-      $("authmsg").textContent = error
-        ? 'Could not send the link. Check your owner email and connection, then try again.'
-        : 'Check your inbox for the sign-in link. Open it in this browser; check spam if it does not arrive.';
-    } catch {
-      $("authmsg").textContent = 'Could not reach sign-in. Check your connection and try again.';
-    } finally { $("sendlink").disabled = false; }
-  };
-  $("signout").onclick = () => sb.auth.signOut();
-  $("load").onclick = () => load();
-  $("tab-day").onclick = () => load();
-  $("tab-today").onclick = () => loadBrief();
-  $("tab-trust").onclick = () => loadTrust();
-  async function loadBrief() {
-    const request = beginView(loadBrief);
-    const { data, error } = await readRpc("get_today");
-    if (request !== viewRequest) return;
-    if (error) { unavailable(loadBrief); return; }
-    const t = typeof data === "string" ? JSON.parse(data) : data;
-    let h = `<h2>Today · for ${esc(t.for_day)} <span class="muted">(based on ${esc(t.based_on)})</span></h2>`;
-    const s2 = t.state || {};
-    const g = s2.guardian;
-    if (g) h += `<p class="warn num">⚠ ${esc(g.signals_firing)} autonomic signals outside band together — this combination has occurred ${esc(g.fires_historically)}× in your history. Pattern match, not a diagnosis.</p>`;
-    h += "<h2>State</h2>";
-    h += (s2.deviations||[]).slice(0,5).map(d => `<p class="num"><strong>${esc(d.metric)}</strong>: ${esc(d.value)} <span class="muted">(z ${esc(d.z)})</span></p>`).join("") || '<p class="muted">No deviations were returned. Missing records or baselines can also cause this.</p>';
-    (s2.streaks||[]).slice(0,3).forEach(x => h += `<p class="num muted">${esc(x.metric)}: ${esc(x.run_days)}d ${esc(x.direction)} band (record ${esc(x.historical_max_run)})</p>`);
-    if (t.patterns_waiting) { h += `<h2>Patterns</h2><p class="num">${esc(t.patterns_waiting.count)} exploratory patterns are waiting — <a href="#" id="go-patterns">read them on the Patterns tab</a>. <span class="muted">(pull, never pushed: exploratory content stays on its own labeled surface)</span></p>`; }
-    if ((s2.week_money||[]).length) {
-      h += "<h2>This week vs you</h2>";
-      h += s2.week_money.slice(0,5).map(m => `<p class="num"><strong>${esc(m.name)}</strong>: $${esc(m.this_week)} vs $${esc(m.typical_week)} <strong>(${m.delta>0?"+":""}$${esc(m.delta)})</strong></p>`).join("");
-    }
-    if ((t.watching||[]).length) {
-      h += "<h2>Watching</h2>";
-      h += t.watching.map(w => `<p class="num">⏱ ${esc(w.hypothesis)} — day ${esc(w.day)}/${esc(w.of)} <span class="muted">(${esc(w.status)})</span></p>`).join("");
-    }
-    if ((t.forecast||[]).length) {
-      h += "<h2>Forecast (tomorrow)</h2>";
-      h += t.forecast.map(f => `<p class="num"><strong>${esc(f.metric)}</strong>: ${esc(f.lo)} – ${esc(f.hi)} <span class="muted">(center ${esc(f.point)})</span></p>`).join("");
-      const r = t.forecast_track_record;
-      if (r) h += `<p class="muted num">track record: ${esc(r.inside_band)}/${esc(r.resolved)} inside band (claimed ${esc(r.claimed_coverage)}, achieved ${esc(r.achieved_coverage)})</p>`;
-    }
-    $("app").innerHTML = h;
-    const gp = document.getElementById("go-patterns");
-    if (gp) gp.onclick = (e) => { e.preventDefault(); loadPatterns(); };
-  }
-  async function loadTrust() {
-    const request = beginView(loadTrust);
-    const { data, error } = await readRpc("get_trust");
-    if (request !== viewRequest) return;
-    if (error) { unavailable(loadTrust); return; }
-    const t = typeof data === "string" ? JSON.parse(data) : data;
-    let h = renderDataStatus(t);
-    const f = t.forecasts || {};
-    if (t.forecasts) {
-    h += `<h2>Forecasts</h2><p class="num">${esc(f.inside_band??"not available")}/${esc(f.resolved??"not available")} inside band · claimed ${esc(f.claimed_coverage)} vs achieved ${esc(f.achieved_coverage??"—")} · mean Brier ${esc(f.mean_brier??"—")} · ${esc(f.pending??"not available")} pending</p>`;
-    }
-    const hy = t.hypotheses || {};
-    if (t.hypotheses) {
-    h += `<h2>Hypotheses</h2><p class="num">${esc(hy.candidates??"not available")} exploratory · ${esc(hy.watching??"not available")} under watch · ${esc(hy.confirmed??"not available")} confirmed · ${esc(hy.refuted??"not available")} refuted</p>`;
-    }
-    if (t.scan_calibration?.length) {
-    h += "<h2>Scan honesty (observed vs shuffled)</h2>";
-    h += (t.scan_calibration||[]).map(c => `<p class="num">${esc(c.run)}: ${esc(c.observed_sig)} of ${esc(c.tested)} observed vs shuffled-null median ${esc(c.shuffled_null_sig)}${c.null_p95!=null?` (p95 ${esc(c.null_p95)})`:""}</p>`).join("") || '<p class="muted">no scans yet</p>';
-    }
-    $("app").innerHTML = h;
-  }
-  $("tab-timeline").onclick = () => loadTimeline();
-  $("tab-patterns").onclick = () => loadPatterns();
-  async function loadPatterns() {
-    const request = beginView(loadPatterns);
-    const { data, error } = await readRpc("get_patterns");
-    if (request !== viewRequest) return;
-    if (error) { unavailable(loadPatterns); return; }
-    const env = typeof data === "string" ? JSON.parse(data) : data;
-    let h = `<h2>Patterns · <span class="warn">${esc(env.tier)}</span></h2><p class="muted">${esc(env.disclaimer)}</p>`;
-    const c = env.calibration;
-    if (c) h += `<p class="num muted">honesty check (run ${esc(c.run_date)}): ${esc(c.observed_significant)} significant of ${esc(c.pairs_tested)} tested vs ${esc(c.shuffled_null_significant)} on shuffled data.</p>`;
-    if ((env.keystone||[]).length) {
-      h += "<h2>Keystone drivers</h2>";
-      h += env.keystone.map(k => `<p class="num"><strong>${esc(k.driver)}</strong> appears in ${esc(k.patterns)} patterns across ${esc(k.outcome_families)} life domains <span class="warn">(exploratory)</span></p>`).join("");
-    }
-    h += "<h2>Exploratory associations</h2>";
-    h += (env.patterns||[]).map(p => {
-      let w = "";
-      if (p.watched && p.watch_progress) {
-        const wp = p.watch_progress;
-        w = ` <span class="muted num">⏱ watching: day ${esc(wp.days_elapsed)}/${esc(wp.days_needed)} (${esc(wp.status)})</span>`;
-      } else if (!p.watched) {
-        w = ` <button data-watch="${esc(p.hypothesis_id)}" class="watchbtn">Watch this</button>`;
-      }
-      return `<p class="num"><span class="warn">[${esc(p.label)}]</span> ${esc(p.sentence)} <span class="muted">(n=${esc(p.n_hi)}/${esc(p.n_lo)}, n_eff≈${esc(p.n_eff?.[0])}/${esc(p.n_eff?.[1])}, q=${esc(p.q)}${p.seeded?", seeded":""})</span>${w}</p>`;
-    }).join("") || '<p class="muted">no patterns surfaced yet — the weekly scan populates this.</p>';
-    h += `<p class="muted">text only, by design: an exploratory association gets a sentence you must read, never a chart you can over-believe.</p>`;
-    $("app").innerHTML = h;
-    document.querySelectorAll(".watchbtn").forEach(b => b.onclick = async () => {
-      b.disabled = true; b.textContent = "registering…";
-      const { error } = await sb.rpc("register_watch", { p_hypothesis_id: b.dataset.watch });
-      if (error) { unavailable(loadPatterns); return; }
-      loadPatterns();
-    });
-  }
-  async function loadToday() {
-    const request = beginView(loadToday);
-    const day = $("day").value || null;
-    const { data, error } = await readRpc("get_state", day ? { p_day: day } : {});
-    if (request !== viewRequest) return;
-    if (error) { unavailable(loadToday); return; }
-    const s = typeof data === "string" ? JSON.parse(data) : data;
-    let h = `<h2>${esc(s.day)} — vs. you</h2>`;
-    const g = s.guardian;
-    if (g) h += `<p class="warn num">⚠ ${esc(g.signals_firing)} of your autonomic signals are outside band together (threshold ${esc(g.threshold)}). This combination has occurred ${esc(g.fires_historically)} times in your history. A pattern match, not a diagnosis.</p>`;
-    h += "<h2>Deviations</h2>";
-    h += (s.deviations||[]).length ? (s.deviations||[]).map(d =>
-      `<p class="num"><strong>${esc(d.metric)}</strong>: ${esc(d.value)} <span class="muted">(z ${esc(d.z)}; your band ${esc(d.band?.[0])}–${esc(d.band?.[1])})</span></p>`).join("")
-      : '<p class="muted">No deviations were returned. This alone does not establish that your records are complete.</p>';
-    if ((s.streaks||[]).length) {
-      h += "<h2>Streaks</h2>";
-      h += s.streaks.map(x => `<p class="num"><strong>${esc(x.metric)}</strong>: ${esc(x.run_days)} days ${esc(x.direction)} your band <span class="muted">(your record: ${esc(x.historical_max_run)})</span></p>`).join("");
-    }
-    if ((s.week_money||[]).length) {
-      h += "<h2>This week's money vs you</h2>";
-      h += s.week_money.slice(0,8).map(m => `<p class="num"><strong>${esc(m.name)}</strong> <span class="muted">(${esc(m.grain)})</span>: $${esc(m.this_week)} vs $${esc(m.typical_week)} typical <strong>(${m.delta>0?"+":""}$${esc(m.delta)})</strong></p>`).join("");
-    }
-    h += `<p class="muted">descriptive comparisons against your own history — no judgment, no causal claim.</p>`;
-    $("app").innerHTML = h;
-  }
-  async function loadTimeline() {
-    const request = beginView(loadTimeline);
-    const day = $("day").value;
-    if (!day) { $("app").innerHTML = '<p class="muted">Choose a date above, then select Timeline to browse its records.</p>'; return; }
-    const { data, error } = await readRpc("get_timeline", { p_day: day });
-    if (request !== viewRequest) return;
-    if (error) { unavailable(loadTimeline); return; }
-    const t = typeof data === "string" ? JSON.parse(data) : data;
-    let h = `<h2>${esc(t.day)} — ${esc(t.n)} moments</h2>`;
-    if (t.sleep_text) h += `<p class="muted num">${esc(t.sleep_text)}</p>`;
-    const icon = {web:"🌐",video:"▶️",money:"💵",calendar:"📅",checkin:"📝",consume:"🍽",note:"✏️",workout:"🏋️",self_report:"📝"};
-    h += (t.entries||[]).map(e => `<p class="num" style="margin:.15rem 0">${esc(e.at)} ${icon[e.kind]||"·"} ${esc(e.text)}</p>`).join("") || '<p class="muted">nothing recorded this day</p>';
-    $("app").innerHTML = h;
-  }
-  $("tab-insights").onclick = () => loadInsights();
-  async function loadInsights() {
-    const request = beginView(loadInsights);
-    let { data, error } = await readRpc("get_insights_guarded");
-    if (request !== viewRequest) return;
-    if (error) { unavailable(loadInsights); return; }
-    const env = typeof data === "string" ? JSON.parse(data) : data;
-    let h = `<h2>Insights · ${esc(env.tier)}</h2><p class="muted">${esc(env.disclaimer)}</p>`;
-    if (env.stream_count) h += `<p class="num"><strong>${esc(env.fact_count)}</strong> facts across <strong>${esc(env.stream_count)}</strong> metric streams, computed live.</p>`;
-    // v1-style curated rows, if present
-    let dom = "";
-    for (const i of (env.insights || [])) {
-      if (i.domain !== dom) { dom = i.domain; h += `<h2>${esc(dom)}</h2>`; }
-      h += `<p class="num"><strong>${esc(i.title)}:</strong> ${esc(i.value)} ${esc(i.unit)} <span class="muted">(n=${esc(i.n)}, ${esc(i.window)})</span></p>`;
-    }
-    // weekday rhythms
-    const best = (env.rhythms || []).filter(r => r.is_highest);
-    if (best.length) {
-      h += "<h2>Weekly rhythm</h2>";
-      for (const r of best) h += `<p class="num"><strong>${esc(r.metric)}</strong> peaks on <strong>${esc(r.weekday)}</strong> (median ${esc(r.median)})</p>`;
-    }
-    // top lists
-    const L = env.lists || {};
-    const listBlock = (title, arr, f) => {
-      if (!arr || !arr.length) return "";
-      return `<h2>${title}</h2><ol>` + arr.map(x => `<li class="num">${f(x)}</li>`).join("") + "</ol>";
-    };
-    h += listBlock("Top websites", L.top_sites, x => `${esc(x.site)} <span class="muted">(${esc(x.visits)} visits)</span>`);
-    h += listBlock("Top YouTube channels", L.top_channels, x => `${esc(x.channel)} <span class="muted">(${esc(x.videos)} videos)</span>`);
-    h += listBlock("Top merchants", L.top_merchants, x => `${esc(x.merchant)} <span class="muted">(${esc(x.txns)} txns · $${esc(x.total)})</span>`);
-    h += listBlock("Spending by category", L.top_categories, x => `${esc(x.category)} <span class="muted">($${esc(x.total)} across ${esc(x.txns)})</span>`);
-    // the full auto battery
-    const auto = env.auto || [];
-    if (auto.length) {
-      h += `<h2>Every metric stream (${auto.length})</h2><p class="muted">median · p10–p90 · min–max · last 30d median · n</p>`;
-      let src = "";
-      for (const a of auto) {
-        if (a.source !== src) { src = a.source; h += `<h2 style="opacity:.5">${esc(src)}</h2>`; }
-        h += `<p class="num" style="margin:.15rem 0"><strong>${esc(a.metric)}</strong>: ${esc(a.median)} <span class="muted">· ${esc(a.p10)}–${esc(a.p90)} · ${esc(a.min)}–${esc(a.max)}${a.last30_median!=null?` · 30d ${esc(a.last30_median)}`:""} · n=${esc(a.n)}</span></p>`;
-      }
-    }
-    h += `<p class="muted">computed live at ${esc((env.computed_at||"").slice(0,16).replace("T"," "))} — every number is a deterministic query over the recorded data.</p>`;
-    $("app").innerHTML = h;
-  }
-  async function load() {
-    const request = beginView(load);
-    const day = $("day").value || null;
-    const { data, error } = await readRpc("get_day", day ? { p_day: day } : {});
-    if (request !== viewRequest) return;
-    if (error) { unavailable(load); return; }
-    render(typeof data === "string" ? JSON.parse(data) : data);
-  }
-}
+sb.auth.getSession().then(({data: {session}}) => show(!!session));
+sb.auth.onAuthStateChange((_e, session) => show(!!session));
+$('signout').onclick = () => sb.auth.signOut();
+$('signin-form').onsubmit = async event => {
+  event.preventDefault();
+  if ($('sendlink').disabled) return;
+  $('sendlink').disabled = true;
+  $('authmsg').textContent = 'Requesting your sign-in link…';
+  try {
+    const {error} = await sb.auth.signInWithOtp({email: $('email').value.trim(),
+      options: {shouldCreateUser: false, emailRedirectTo: location.href.split('?')[0].split('#')[0]}});
+    $('authmsg').textContent = error ? 'Could not send the link. Check the email and try again.'
+      : 'Check your inbox and open the link in this browser.';
+  } catch { $('authmsg').textContent = 'Could not reach sign-in. Check your connection.'; }
+  finally { $('sendlink').disabled = false; }
+};
 </script>
 </body>
 </html>

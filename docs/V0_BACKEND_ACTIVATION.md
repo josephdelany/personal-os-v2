@@ -77,7 +77,7 @@ checklist remain separate and are not claimed complete here.
 
 At d3d4eaa the existing app has sign-in and generic RPC handling but no get_v0 or
 save_v0 calls. Runtime documentation contains examples, not a runnable V0 client.
-The new tools/v0_client.mjs adapter now provides retained request identity,
+The new app/v0_client.mjs adapter now provides retained request identity,
 explicit unconfirmed errors, save receipts independent of readback, and current
 entry correction support; see V0_OWNER_CALLER.md. Eight local behavior cases pass
 and independent review accepted the recovery fixes. Exercise it against the

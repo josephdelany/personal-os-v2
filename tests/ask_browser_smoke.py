@@ -54,7 +54,7 @@ def main():
         def route(request):
             url=request.request.url
             if url=='https://fixture.invalid/':
-                request.fulfill(body=(ROOT/'app/index.html').read_text(),content_type='text/html')
+                request.fulfill(body=(ROOT/'app/explore.html').read_text(),content_type='text/html')
             elif url=='https://fixture.invalid/ask.mjs':
                 request.fulfill(body=(ROOT/'app/ask.mjs').read_text(),content_type='text/javascript')
             elif url=='https://fixture.invalid/data-status.mjs':
