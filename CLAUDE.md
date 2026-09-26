@@ -26,6 +26,11 @@ See [DOCUMENTATION_MAP](docs/DOCUMENTATION_MAP.md) for the maintained entry poin
 
 ## Execution
 
+- **ADR-0173 lean daily track governs current work.** The product is the daily page
+  (`app/index.html`) over the V0 RPCs. Activate it and let Joe use it on 7 real days
+  before building any new backend feature. Keep NEXT_SESSION short and overwrite it.
+  Write ADRs only for data meaning, measurement, privacy or permission changes. Run the
+  full suite when migrations/RPCs change or before production, not for UI-only work.
 - Follow one bounded unit from EXECUTION_PLAN at a time. State its outcome,
   requirement IDs, acceptance cases and affected files before implementation.
   Implementation test names must contain the requirement IDs they cover.

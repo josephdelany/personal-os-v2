@@ -145,3 +145,4 @@ rule for branded items (REQ-NUT-050/051).
 | ADR-0163 | Accepted; integration checks passed | 2026-09-24 | [Offline browser acceptance guard](adr/0163-offline-browser-acceptance-guard.md): explicit RULE00 gate correction superseding ADR0109 only for exact reviewed offline own-app harness; financial browser automation remains forbidden |
 
 - ADR-0165: Joe replaces full-backend-first delivery with [daily-use V0](adr/0165-daily-use-v0.md): Today, Add, History; complete real-account day is the release bar.
+- ADR-0173: [Lean daily track](adr/0173-lean-daily-track.md): daily V1 page is the product; activate and use it for 7 real days before new backend features; full suite only on migration/RPC change; short overwritten checkpoint.
