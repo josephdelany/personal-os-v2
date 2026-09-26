@@ -76,3 +76,11 @@ leave only to Supabase, Cloudflare Workers AI and originating APIs under RULE-29
 Keep coordinate/home restrictions and read/egress process separation (ADR-0020).
 Log every outbound model call. Credentials come from environment or repository
 secrets, never chat, source files or logs. Public Git contains code, not personal data.
+
+## Collected project files
+
+Scattered Personal OS materials now live physically under `.local/project-library/`.
+Read its `README.md` and search `FILE_INDEX.csv` when looking for earlier research,
+build packages, prototypes or separate worktrees. Use explicit `rg --no-ignore --hidden`
+searches for this local folder. Collection does not promote old plans into current
+instructions or authorize publication of personal data.

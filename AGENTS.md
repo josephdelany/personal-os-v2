@@ -18,3 +18,11 @@ Joe's; never infer data definitions from similar names.
 
 Only one agent owns a file at a time. Isolate parallel implementation in worktrees
 and disposable databases. Do not overwrite or stage another active worker's changes.
+
+## Collected project files
+
+Scattered Personal OS materials now live physically under `.local/project-library/`.
+Read its `README.md` and search `FILE_INDEX.csv` when looking for earlier research,
+build packages, prototypes or separate worktrees. Use explicit `rg --no-ignore --hidden`
+searches for this local folder. Collection does not promote old plans into current
+instructions or authorize publication of personal data.

@@ -1,53 +1,31 @@
-# App-only publication packet — approval pending
+# App publication — daily page
 
-Prepared from release/usable-ask at a74355c, based on remote main b606c64.
-Worktree: `.local/usable-app-release`. No commands below have been executed.
+Updated 2026-09-25 (ADR-0173). Supersedes the release/usable-ask packet (a74355c/274f01e),
+whose Ask improvements were integrated at 21faf12 and whose page is now `app/explore.html`.
+That packet's text remains in Git history.
 
-## Why the original main push is withdrawn
+## How the page is published
 
-The main-branch tests workflow triggers on every main push and uses the production
-SUPABASE_DB_URL. Its old test fixtures apply migrations without the modern disposable
-server guard. An app update must not trigger those legacy database tests. Do not push
-the release to main, disable its tests or push the unfinished root backend branch.
+`pages.yml` deploys `app/` to GitHub Pages on a push to `main` that touches `app/**`, after
+running the Node UI tests (Ask, daily page, V0 client). The `github-pages` environment
+already allows `main`, so no environment policy change is needed.
 
-Read-only GitHub inspection also found that the github-pages environment allows only
-main. A release-branch deployment therefore needs explicit approval to add precisely
-release/usable-ask to that environment's allowed branches. Retain the existing main
-policy; do not allow all branches or disable environment protection.
+The earlier packet withheld pushes to `main` because `tests.yml` runs the suite against the
+production database on every `main` push, and main's fixtures at that time could apply
+migrations there. The current tree refuses schema-building helpers without the disposable
+server and lints for it (ef2dd76; `tests/test_release_acceptance.py`, 28 pass locally). Main's
+nightly schedule was already running the older, unguarded fixtures, so merging the current
+tree reduces that exposure. The live suite still reads production and depends on the
+repository `SUPABASE_DB_URL` secret, which may be the stale credential (28P01).
 
-## Exact proposed authorized action
+## What publication does not do
 
-1. Recheck the local release SHA and verify no remote branch of this name has appeared.
-2. Push `git push origin release/usable-ask:release/usable-ask` (no force).
-3. Add one Pages environment branch policy:
-   `gh api --method POST repos/josephdelany/personal-os-v2/environments/github-pages/deployment-branch-policies -f name=release/usable-ask -f type=branch`
-4. Run only the app workflow:
-   `gh workflow run pages.yml --repo josephdelany/personal-os-v2 --ref release/usable-ask`
-5. Observe the workflow for this exact commit and fetch the served index/ask module;
-   compare content with the release. Report failed jobs without claiming publication.
-6. Verify owner sign-in and useful real-data reads/answers through the normal app.
-   Do not extract browser tokens or send login emails without Joe's instruction.
+It does not apply migrations 0091–0096. Until they are applied, the page can sign in but
+the Today/History reads return "Couldn't load this day" (never an empty day). Database
+activation follows V0_BACKEND_ACTIVATION after Joe restores the credential.
 
-The branch push runs the existing layout/guard checks. It does not match main's
-database test trigger, and the scheduled analysis/extract jobs are not dispatched.
-Pages runs the five Ask interaction tests before artifact upload. Publication changes
-browser code, not database schema. Ask's deployed RPC compatibility is still unknown;
-it cannot be established from the public API documentation endpoint because that
-endpoint refused the anon key with a service-role-only message. Authentication
-settings did return200 and report email enabled. No owner sign-in has been observed.
+## Verification after a push
 
-## Evidence
-
-- Five Node interaction tests pass on the isolated release.
-- Real Chrome offline mobile test passes guided sign-in, Ask, evidence, failure
-  recovery and sign-out; no email or database requests are made by those fixtures.
-- Isolated release layout:41pass/1warning (pre-existing absent local settings file);
-  destructive-command guard:26pass. Root layout43pass is a different revision.
-- Live page bytes match the original remote main app, so the app-only diff does
-  not discard an unaccounted deployed interface.
-- Independent app review found no blocker; stalled requests now release controls
-  without automatic replay. Real-data usability remains unverified.
-
-Production authorization is required by CLAUDE.md. Approval of this packet covers
-the named branch publication, one environment policy addition and Pages dispatch;
-it does not authorize database migrations, main updates or backend rollout.
+1. The `pages` run for the pushed commit succeeds (tests run before upload).
+2. The served `index.html`, `daily.mjs` and `v0_client.mjs` match the commit.
+3. After activation: Joe signs in on his phone and one real check-in saves and reads back.
