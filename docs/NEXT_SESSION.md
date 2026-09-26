@@ -37,10 +37,16 @@ The database credential failed with 28P01 on 2026-09-24. Nothing has run on Joe'
    (APP_PUBLICATION.md). Until migrations are applied the page signs in but cannot load days.
 4. Use it: a morning and evening check-in, meals, sets. Seven real days.
 
+## Try it before activation
+
+Open the published page with `?demo=1`: the real UI over an in-memory fake server. Nothing
+is sent or kept; reload resets it.
+
 ## Checks for this track
 
 - `node --test tests/daily_ui.test.mjs tests/ask_ui.test.mjs tests/v0_client.test.mjs`
 - `python3 tests/daily_browser_smoke.py` and `python3 tests/ask_browser_smoke.py`
+- `python3 tools/test_local_sql.py --tests tests/test_v1_activation_check.py` (disposable PG17)
 - Full SQL suite + ledger writer only when a migration/RPC changes, and before any production apply.
 
 ## Not done

@@ -169,14 +169,17 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { mountAsk } from './ask.mjs';
 import { mountDaily } from './daily.mjs';
+import { createDemoRpc } from './demo.mjs';
 const SUPABASE_URL = "https://cykviouklidnbsbgdgdo.supabase.co";
 // Public anon key: every owner RPC verifies the signed-in session.
 const ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN5a3Zpb3VrbGlkbmJzYmdkZ2RvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM5NzA0MzYsImV4cCI6MjA5OTU0NjQzNn0.0YqUtrBMQ-6LOOIGLCj6UcqelccV2WdNVNrbEArGnk0";
-const sb = createClient(SUPABASE_URL, ANON);
 const $ = id => document.getElementById(id);
-const rpc = (name, args) => sb.rpc(name, args);
+// ?demo=1: the real page over an in-memory fake server. Nothing is sent or kept.
+const demo = new URLSearchParams(location.search).has('demo');
+const sb = demo ? null : createClient(SUPABASE_URL, ANON);
+const rpc = demo ? createDemoRpc() : (name, args) => sb.rpc(name, args);
 let storage = null;
-try { storage = window.localStorage; } catch { /* unsaved retries stay in memory */ }
+if (!demo) try { storage = window.localStorage; } catch { /* unsaved retries stay in memory */ }
 
 const ask = mountAsk({form: $('ask-form'), input: $('question'), date: $('ask-date'),
   button: $('ask-submit'), output: $('ask-answer'), rpc});
@@ -190,9 +193,16 @@ function show(signed) {
   if (signed) setTimeout(() => daily.openTab('today'), 0); // leave the auth callback first
   else ask.reset();
 }
-sb.auth.getSession().then(({data: {session}}) => show(!!session));
-sb.auth.onAuthStateChange((_e, session) => show(!!session));
-$('signout').onclick = () => sb.auth.signOut();
+if (demo) {
+  document.querySelector('main').insertAdjacentHTML('afterbegin',
+    '<p class="card small" role="note"><strong>Demo mode.</strong> Example data only. Nothing you enter is saved or sent. <a href="./">Leave demo</a></p>');
+  show(true);
+  $('signout').hidden = true;
+} else {
+  sb.auth.getSession().then(({data: {session}}) => show(!!session));
+  sb.auth.onAuthStateChange((_e, session) => show(!!session));
+  $('signout').onclick = () => sb.auth.signOut();
+}
 $('signin-form').onsubmit = async event => {
   event.preventDefault();
   if ($('sendlink').disabled) return;

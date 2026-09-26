@@ -63,9 +63,10 @@ def main():
                      'daily.mjs': ('daily.mjs', 'text/javascript'), 'v0_client.mjs': ('v0_client.mjs', 'text/javascript'),
                      'manifest.webmanifest': ('manifest.webmanifest', 'application/manifest+json'),
                      'apple-touch-icon.png': ('apple-touch-icon.png', 'image/png'),
-                     'icon-192.png': ('icon-192.png', 'image/png'), 'icon-512.png': ('icon-512.png', 'image/png')}
-            if url.startswith('https://fixture.invalid/') and url[len('https://fixture.invalid/'):] in files:
-                name, kind = files[url[len('https://fixture.invalid/'):]]
+                     'icon-192.png': ('icon-192.png', 'image/png'), 'demo.mjs': ('demo.mjs', 'text/javascript'), 'icon-512.png': ('icon-512.png', 'image/png')}
+            path = url[len('https://fixture.invalid/'):].split('?')[0]
+            if url.startswith('https://fixture.invalid/') and path in files:
+                name, kind = files[path]
                 request.fulfill(body=(ROOT / 'app' / name).read_bytes(), content_type=kind)
             elif url == 'https://esm.sh/@supabase/supabase-js@2':
                 request.fulfill(body=STUB, content_type='text/javascript')
@@ -165,6 +166,26 @@ def main():
         page.screenshot(path=str(SHOT), full_page=True)
         page.locator('#signout').click()
         assert page.locator('#auth').is_visible() and not page.locator('#tabs').is_visible()
+
+        # Demo mode: no sign-in, no Supabase client, saves stay in memory and vanish on reload.
+        calls_before = page.evaluate("JSON.parse(sessionStorage.getItem('fixtureCalls') || '[]').length")
+        page.goto('https://fixture.invalid/?demo=1')
+        page.get_by_text('Demo mode.', exact=False).wait_for()
+        page.get_by_text('Steps (demo)', exact=True).wait_for()
+        page.locator('#tab-add').click()
+        page.locator('.rating[data-key="sleep_quality"] button[data-v="5"]').click()
+        page.locator('.rating[data-key="energy"] button[data-v="5"]').click()
+        page.locator('#ci-period').select_option('morning')
+        page.locator('.rating[data-key="sleep_quality"] button[data-v="5"]').click()
+        page.locator('.rating[data-key="energy"] button[data-v="5"]').click()
+        page.locator('#form-checkin button[type=submit]').click()
+        page.get_by_text('Saved.', exact=True).wait_for()
+        page.locator('#tab-today').click()
+        page.wait_for_function("document.getElementById('today-view').innerText.includes('energy 5/10')")
+        assert page.evaluate("JSON.parse(sessionStorage.getItem('fixtureCalls') || '[]').length") == calls_before
+        assert page.evaluate("localStorage.getItem('personal-os.pending.v1')") in (None, '[]')
+        page.reload()
+        page.get_by_text('No check-in logged.', exact=True).wait_for()
         assert not blocked, blocked
         assert not errors, errors
         context.close()
