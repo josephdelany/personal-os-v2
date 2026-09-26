@@ -17,7 +17,10 @@ function day(p_day) {
     workouts: pick('workout'),
     health: {daily_aggregates: p_day ? [] : [{metric: 'steps', label: 'Steps', value: 8123, unit: 'count', device: 'Watch'}],
       freshness: {last_received_at: p_day ? null : '2026-09-25T06:00:00-04:00'}},
-    spending: {accounts: []}, visits: {entries: [], processing_status: 'missing'}};
+    spending: {accounts: p_day ? [] : [{account_id: 'acct', entries: [
+      {row_id: 'row-a', description: 'Fixture cafe', amount: -4.5, currency: 'USD',
+       status: saved.some(s => s.kind === 'card_review' && s.request.row_id === 'row-a') ? 'distinct' : 'needs_review', candidate_ids: ['row-b']},
+      {row_id: 'row-b', description: 'Fixture cafe', amount: -4.5, currency: 'USD', status: 'distinct'}]}]}, visits: {entries: [], processing_status: 'missing'}};
 }
 export function createClient() {
   let listener;
@@ -32,11 +35,12 @@ export function createClient() {
       window.calls = JSON.parse(sessionStorage.getItem('fixtureCalls') || '[]').concat([{name, args}]);
       sessionStorage.setItem('fixtureCalls', JSON.stringify(window.calls));
       if (name === 'get_v0_day') return {data: day(args.p_day)};
-      const kind = {save_v0_checkin: 'checkin', save_v0_meal: 'meal', save_v0_workout: 'workout'}[name];
+      const kind = {save_v0_checkin: 'checkin', save_v0_meal: 'meal', save_v0_workout: 'workout', review_v0_card_row: 'card_review'}[name];
       if (kind) {
         if (window.dropNextSave) { window.dropNextSave = false; throw new Error('fixture network loss'); }
         saved.push({kind, request: args.p_request}); persist();
-        return {data: {status: 'saved', entry_id: args.p_request.entry_id}};
+        return {data: kind === 'card_review' ? {status: 'saved', decision_id: args.p_request.decision_id}
+          : {status: 'saved', entry_id: args.p_request.entry_id}};
       }
       return {error: {message: 'fixture unavailable'}};
     }
@@ -134,6 +138,13 @@ def main():
         page.locator('#tab-today').click()
         page.wait_for_function("document.getElementById('today-view').innerText.includes('energy 8/10')")
         assert 'energy 6' not in page.locator('#today-view').inner_text()
+
+        # Ambiguous card row: owner marks it separate; review request carries its own identity.
+        page.locator('#today-view [data-review="distinct"][data-row="row-a"]').click()
+        page.get_by_text('Saved.', exact=True).wait_for()
+        review = page.evaluate("window.calls.filter(c => c.name === 'review_v0_card_row').at(-1).args.p_request")
+        assert review['row_id'] == 'row-a' and review['action'] == 'distinct' and review['target_id'] is None
+        page.wait_for_function("!document.querySelector('#today-view [data-row=\"row-a\"]')")
 
         # History of another day.
         page.locator('#tab-history').click()

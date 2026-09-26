@@ -45,5 +45,5 @@ The database credential failed with 28P01 on 2026-09-24. Nothing has run on Joe'
 ## Not done
 
 Meal photos still go through the iPhone Shortcut; the page does not upload them.
-Chase import stays a CLI (`tools/import_v0_card.py`); card-row review has no UI yet.
+Chase import stays a CLI (`tools/import_v0_card.py`); ambiguous rows are reviewed in the Spending card.
 Visits depend on Overland and the hourly refresh being activated.

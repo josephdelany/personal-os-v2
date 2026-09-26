@@ -58,6 +58,16 @@ export function workoutRequest({exercise, mode, load, unit, reps, rpe = null, no
     movement_mode: mode, load: weighted ? load : null, load_unit: weighted ? unit : null, reps, rpe, note};
 }
 
+// Each V0 write carries its own retained identity (card reviews use decision_id).
+export const requestId = request => request?.entry_id ?? request?.decision_id;
+
+export function cardReviewRequest({rowId, action, targetId = null, supersedes = null, id = uuidv7()}) {
+  if (!rowId) throw new Error('Missing card row.');
+  if (action === 'link' && !targetId) throw new Error('Choose the matching charge.');
+  if (!['distinct','link'].includes(action)) throw new Error('Unknown review action.');
+  return {decision_id: id, row_id: rowId, action, target_id: action === 'link' ? targetId : null, supersedes};
+}
+
 // Unconfirmed saves survive reloads so a retry reuses the identical request.
 export function createPendingStore(storage) {
   const KEY = 'personal-os.pending.v1';
@@ -67,10 +77,10 @@ export function createPendingStore(storage) {
   return {
     list: () => memory.map(p => structuredClone(p)),
     put(kind, request) {
-      memory = memory.filter(p => p.request.entry_id !== request.entry_id).concat([{kind, request}]);
+      memory = memory.filter(p => requestId(p.request) !== requestId(request)).concat([{kind, request}]);
       writeAll(memory);
     },
-    remove(entryId) { memory = memory.filter(p => p.request.entry_id !== entryId); writeAll(memory); }
+    remove(id) { memory = memory.filter(p => requestId(p.request) !== id); writeAll(memory); }
   };
 }
 
@@ -137,10 +147,23 @@ export function renderHealth(health) {
 export function renderSpending(spending) {
   const rows = (spending?.accounts ?? []).flatMap(a => a?.entries ?? []);
   if (!rows.length) return missing('No card activity imported for this day.');
-  return '<ul class="entries">' + rows.map(r =>
-    `<li><div class="row"><span>${esc(r.description)}</span><span class="stat">${esc(r.amount)} <span class="unit">${esc(r.currency)}</span></span></div>` +
-    (r.status && r.status !== 'observed' ? `<p class="muted small">${esc(String(r.status).replace(/_/g, ' '))}</p>` : '') + '</li>'
-  ).join('') + '</ul>';
+  const byId = new Map(rows.map(r => [r.row_id, r]));
+  const name = id => { const r = byId.get(id); return r ? `${esc(r.description)} ${esc(r.amount)}` : 'a charge from another day'; };
+  return '<ul class="entries">' + rows.map(r => {
+    let extra = '';
+    if (r.status === 'needs_review') {
+      extra = '<p class="small">This may duplicate another import. Is it a separate charge?</p><div class="review">' +
+        `<button type="button" data-review="distinct" data-row="${esc(r.row_id)}" data-supersedes="${esc(r.decision_id ?? '')}">Separate charge</button>` +
+        (r.candidate_ids ?? []).map(c => `<button type="button" data-review="link" data-row="${esc(r.row_id)}" data-target="${esc(c)}" data-supersedes="${esc(r.decision_id ?? '')}">Same as ${name(c)}</button>`).join('') +
+        '</div>';
+    } else if (r.status === 'linked') {
+      extra = `<p class="muted small">Counted as the same charge as ${name(r.linked_to)}. ` +
+        `<button type="button" class="link" data-review="distinct" data-row="${esc(r.row_id)}" data-supersedes="${esc(r.decision_id ?? '')}">Keep as separate</button></p>`;
+    } else if (r.status && r.status !== 'distinct') {
+      extra = `<p class="muted small">${esc(String(r.status).replace(/_/g, ' '))}</p>`;
+    }
+    return `<li><div class="row"><span>${esc(r.description)}</span><span class="stat">${esc(r.amount)} <span class="unit">${esc(r.currency)}</span></span></div>${extra}</li>`;
+  }).join('') + '</ul>';
 }
 
 export function renderVisits(visits) {
@@ -188,6 +211,11 @@ export function mountDaily({dom, rpc, storage}) {
     lastDay = result.data;
     target.innerHTML = renderDay(result.data);
     target.querySelectorAll('[data-edit]').forEach(b => b.onclick = () => startCorrection(b.dataset.edit, b.dataset.entry));
+    target.querySelectorAll('[data-review]').forEach(b => b.onclick = () => {
+      target.querySelectorAll(`[data-row="${b.dataset.row}"]`).forEach(x => { x.disabled = true; });
+      send('card_review', cardReviewRequest({rowId: b.dataset.row, action: b.dataset.review,
+        targetId: b.dataset.target || null, supersedes: b.dataset.supersedes || null}));
+    });
   }
 
   function renderPending() {
@@ -195,11 +223,11 @@ export function mountDaily({dom, rpc, storage}) {
     const box = $('pending');
     box.hidden = !list.length;
     box.innerHTML = list.length ? `<p><strong>${list.length} unconfirmed save(s).</strong> These may or may not have reached the server. Retrying is safe.</p>` +
-      list.map(p => `<div class="row"><span>${esc(p.kind)} · ${esc(p.request.occurred_at?.slice(11, 16))}</span>` +
-        `<span><button type="button" data-retry="${esc(p.request.entry_id)}">Retry</button> ` +
-        `<button type="button" class="link" data-discard="${esc(p.request.entry_id)}">Discard</button></span></div>`).join('') : '';
+      list.map(p => `<div class="row"><span>${esc(p.kind)} · ${esc(p.kind === 'card_review' ? 'charge review' : p.request.occurred_at?.slice(11, 16))}</span>` +
+        `<span><button type="button" data-retry="${esc(requestId(p.request))}">Retry</button> ` +
+        `<button type="button" class="link" data-discard="${esc(requestId(p.request))}">Discard</button></span></div>`).join('') : '';
     box.querySelectorAll('[data-retry]').forEach(b => b.onclick = () => {
-      const p = list.find(x => x.request.entry_id === b.dataset.retry);
+      const p = list.find(x => requestId(x.request) === b.dataset.retry);
       if (p) send(p.kind, p.request);
     });
     box.querySelectorAll('[data-discard]').forEach(b => b.onclick = () => { pending.remove(b.dataset.discard); renderPending(); });
@@ -208,17 +236,19 @@ export function mountDaily({dom, rpc, storage}) {
   async function send(kind, request) {
     const status = $('add-status');
     pending.put(kind, request);             // Persist before sending (V0_OWNER_CALLER).
-    let op = operations.get(request.entry_id);
-    if (!op) { op = v0.prepare(kind, request); operations.set(request.entry_id, op); }
+    const id = requestId(request);
+    let op = operations.get(id);
+    if (!op) { op = v0.prepare(kind, request); operations.set(id, op); }
     status.textContent = 'Saving…';
     const outcome = await op.send();
     if (outcome.status === 'saved') {
-      pending.remove(request.entry_id); operations.delete(request.entry_id);
+      pending.remove(id); operations.delete(id);
       status.textContent = 'Saved.';
       resetForms();
       if (!$('panel-today').hidden) showDay($('today-view'), null);
+      else if (!$('panel-history').hidden && $('history-date').value) showDay($('history-view'), $('history-date').value);
     } else if (outcome.status === 'rejected') {
-      pending.remove(request.entry_id); operations.delete(request.entry_id);
+      pending.remove(id); operations.delete(id);
       status.textContent = outcome.recovery === 'sign_in' ? 'Not saved: sign in again.'
         : 'Not saved: the server refused it. If you were correcting an entry, reload Today and try again.';
     } else {

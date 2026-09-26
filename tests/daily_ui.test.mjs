@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {uuidv7, offsetTimestamp, checkinRequest, mealRequest, workoutRequest,
-  createPendingStore, renderDay, renderCheckins, renderSpending, renderVisits} from '../app/daily.mjs';
+  createPendingStore, cardReviewRequest, requestId, renderDay, renderCheckins, renderSpending, renderVisits} from '../app/daily.mjs';
 
 test('V0-CHECKIN RULE-02 UUIDv7 carries version, variant and millisecond order', () => {
   const zero = n => new Uint8Array(n);
@@ -80,4 +80,24 @@ test('V0-VISITS awaiting processing is distinguished from no data', () => {
   assert.ok(renderVisits({entries: [], processing_status: 'awaiting_derivation'}).includes('not processed yet'));
   assert.ok(renderVisits({entries: [{label: 'Gym', first_observed_at: '2026-09-25T18:00:00-04:00',
     last_observed_at: '2026-09-25T19:10:00-04:00'}]}).includes('18:00–19:10'));
+});
+
+test('V0-CARD ADR-0171 review requests carry their own identity and never invent a link target', () => {
+  assert.deepEqual(cardReviewRequest({rowId: 'r', action: 'distinct', targetId: 'ignored', id: 'd'}),
+    {decision_id: 'd', row_id: 'r', action: 'distinct', target_id: null, supersedes: null});
+  assert.equal(cardReviewRequest({rowId: 'r', action: 'link', targetId: 't', supersedes: 'old', id: 'd'}).supersedes, 'old');
+  assert.throws(() => cardReviewRequest({rowId: 'r', action: 'link'}), /matching charge/);
+  assert.equal(requestId({decision_id: 'd'}), 'd');
+  assert.equal(requestId({entry_id: 'e'}), 'e');
+});
+
+test('V0-CARD ambiguous rows offer owner review; linked rows can be kept separate', () => {
+  const html = renderSpending({accounts: [{entries: [
+    {row_id: 'a', description: 'Cafe', amount: -4.5, currency: 'USD', status: 'needs_review', candidate_ids: ['b']},
+    {row_id: 'b', description: 'Cafe', amount: -4.5, currency: 'USD', status: 'distinct'},
+    {row_id: 'c', description: 'Shop', amount: -9, currency: 'USD', status: 'linked', linked_to: 'z', decision_id: 'dec'}]}]});
+  assert.ok(html.includes('data-review="distinct" data-row="a"'));
+  assert.ok(html.includes('data-target="b"') && html.includes('Same as Cafe -4.5'));
+  assert.ok(html.includes('a charge from another day'));
+  assert.ok(html.includes('data-row="c" data-supersedes="dec"'));
 });
