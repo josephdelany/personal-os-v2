@@ -73,9 +73,10 @@ def test_REQ_FIN_241_244_251_255_the_live_repository_is_clean():
     assert scan_repository(".") == ()
 
 
-def test_REQ_FIN_255_RULE_00_only_exact_reviewed_offline_harness_is_recognized(tmp_path):
-    source=Path(__file__).parent/'ask_browser_smoke.py'
-    target=tmp_path/'tests'/'ask_browser_smoke.py'
+@pytest.mark.parametrize('name', ['ask_browser_smoke.py', 'daily_browser_smoke.py'])
+def test_REQ_FIN_255_RULE_00_only_exact_reviewed_offline_harness_is_recognized(tmp_path, name):
+    source=Path(__file__).parent/name
+    target=tmp_path/'tests'/name
     target.parent.mkdir()
     target.write_bytes(source.read_bytes())
     assert scan_repository(tmp_path)==()
@@ -90,15 +91,23 @@ def test_REQ_FIN_255_RULE_00_only_exact_reviewed_offline_harness_is_recognized(t
     assert codes(scan_repository(tmp_path))==['REQ-FIN-255']
 
 
+def test_REQ_FIN_255_RULE_00_a_harness_is_recognized_only_at_its_own_path(tmp_path):
+    (tmp_path/'tests').mkdir()
+    swapped=tmp_path/'tests'/'ask_browser_smoke.py'
+    swapped.write_bytes((Path(__file__).parent/'daily_browser_smoke.py').read_bytes())
+    assert codes(scan_repository(tmp_path))==['REQ-FIN-255']
+
+
+@pytest.mark.parametrize('name', ['ask_browser_smoke.py', 'daily_browser_smoke.py'])
 @pytest.mark.parametrize('addition,expected',[
     (f'\n{CRED} = None\n','REQ-FIN-241'),
     (f'\n{PAYMENT}(1)\n','REQ-FIN-251'),
     (f'\nimport {DRIVER}\n','REQ-FIN-255'),
 ])
-def test_REQ_FIN_241_251_255_RULE_00_harness_has_no_exemption_from_other_checks(tmp_path,addition,expected):
-    target=tmp_path/'tests'/'ask_browser_smoke.py'
+def test_REQ_FIN_241_251_255_RULE_00_harness_has_no_exemption_from_other_checks(tmp_path,addition,expected,name):
+    target=tmp_path/'tests'/name
     target.parent.mkdir()
-    target.write_bytes((Path(__file__).parent/'ask_browser_smoke.py').read_bytes()+addition.encode())
+    target.write_bytes((Path(__file__).parent/name).read_bytes()+addition.encode())
     found=codes(scan_repository(tmp_path))
     assert expected in found
     assert 'REQ-FIN-255' in found

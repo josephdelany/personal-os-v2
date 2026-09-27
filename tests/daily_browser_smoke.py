@@ -50,7 +50,7 @@ export function createClient() {
 
 
 def main():
-    from playwright.sync_api import sync_playwright
+    from playwright.sync_api import sync_playwright, Error
 
     with sync_playwright() as p:
         browser = p.chromium.launch(channel='chrome', headless=True)
@@ -79,6 +79,28 @@ def main():
         page.on('pageerror', lambda error: errors.append(str(error)))
         page.goto('https://fixture.invalid/')
         page.wait_for_function('typeof window.signInFixture === "function"')
+        # ADR-0163/0174 refusal cases: fetch, navigation and a popup's first request all abort.
+        assert page.evaluate("fetch('https://blocked.invalid/resource').then(()=>false,()=>true)")
+        probe = context.new_page()
+        try:
+            probe.goto('https://blocked.invalid/navigation')
+        except Error:
+            pass
+        else:
+            raise AssertionError('unexpected external navigation')
+        probe.close()
+        with context.expect_page() as popup_event:
+            page.evaluate("window.open('https://blocked.invalid/popup')")
+        popup = popup_event.value
+        try:
+            popup.wait_for_load_state()
+        except Error:
+            pass
+        popup.close()
+        assert set(blocked) == {'https://blocked.invalid/resource', 'https://blocked.invalid/navigation',
+                                'https://blocked.invalid/popup'}, blocked
+        blocked.clear()
+        assert context.cookies() == []
         assert not page.locator('#tabs').is_visible()
         manifest = page.evaluate("fetch(document.querySelector('link[rel=manifest]').href).then(r => r.json())")
         assert manifest['display'] == 'standalone' and manifest['start_url'] == './'

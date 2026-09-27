@@ -70,9 +70,12 @@ PAYMENT_INITIATION = (
 BROWSER_DRIVERS = (r"selenium", r"playwright", r"puppeteer", r"webdriver")
 
 # ADR-0163 explicitly corrects ADR-0109's blanket browser-import scope for
-# this reviewed offline own-app harness only. All other findings still apply.
-OFFLINE_HARNESS_PATH = pathlib.Path('tests/ask_browser_smoke.py')
-OFFLINE_HARNESS_SHA256 = '139070901c1c8d593a618158deb21ec27238fb7b8474778346bbd384d34e1d41'
+# reviewed offline own-app harnesses only; ADR-0174 re-pins the edited Ask harness and
+# adds the daily-page harness. Exact path AND exact bytes. All other findings still apply.
+OFFLINE_HARNESSES = {
+    pathlib.Path('tests/ask_browser_smoke.py'): '040785e6638181266a668d33bbb18bcbea4b7c8d53b31000148fb5f8685ae2cb',
+    pathlib.Path('tests/daily_browser_smoke.py'): '75255e7b6e7cb71f6af7b19bfd2e610a5a52235e51a61c37f541eb954a6b6224',
+}
 
 
 def _reviewed_offline_harness(path, root, contents):
@@ -81,14 +84,15 @@ def _reviewed_offline_harness(path, root, contents):
         relative = path.relative_to(root)
     except ValueError:
         return False
-    if relative != OFFLINE_HARNESS_PATH:
+    expected = OFFLINE_HARNESSES.get(relative)
+    if expected is None:
         return False
     candidate = root
     for part in relative.parts:
         candidate = candidate / part
         if candidate.is_symlink():
             return False
-    return hashlib.sha256(contents).hexdigest() == OFFLINE_HARNESS_SHA256
+    return hashlib.sha256(contents).hexdigest() == expected
 
 # REQ-FIN-244. The raw tables are append-only; a destructive statement against them is the
 # violation. The verb is assembled, not spelled -- see the module docstring.
