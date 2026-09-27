@@ -45,12 +45,20 @@ is sent or kept; reload resets it.
 
 ## Checks for this track
 
+Use the project virtualenv: system `python3` lacks Pint and fails ~80 tests spuriously.
+`V=/tmp/personal-os-pint-venv-cf404e6/bin` (outside the repo; /tmp may be cleared on reboot;
+recreate with `python3 -m venv` + the pip line in `.github/workflows/tests.yml`).
+
 - `node --test tests/daily_ui.test.mjs tests/ask_ui.test.mjs tests/v0_client.test.mjs`
 - `python3 tests/daily_browser_smoke.py` and `python3 tests/ask_browser_smoke.py`
-- `python3 tools/test_local_sql.py --tests tests/test_v1_activation_check.py` (disposable PG17)
-- Full SQL suite + ledger writer only when a migration/RPC changes, and before any production apply.
+- `PATH="$V:$PATH" env -u SUPABASE_DB_URL python3 -m pytest -q tests` (no-DB suite)
+- `PATH="$V:$PATH" env -u SUPABASE_DB_URL python3 tools/test_local_sql.py` (disposable PG17)
+- Last full run at ba9d9e6: no-DB 1488 passed / 0 failed; SQL 1252 passed / 1 skipped / 0 failed.
+- Editing either browser harness breaks its pinned hash (ADR-0174); re-pin only with review.
 
 ## Not done
+
+Independent review of ADR-0174's harness pins (required by ADR-0163) has not happened.
 
 Meal photos still go through the iPhone Shortcut; the page does not upload them.
 Chase import stays a CLI (`tools/import_v0_card.py`); ambiguous rows are reviewed in the Spending card.
