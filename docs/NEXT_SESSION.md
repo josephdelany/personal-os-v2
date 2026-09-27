@@ -58,7 +58,7 @@ recreate with `python3 -m venv` + the pip line in `.github/workflows/tests.yml`)
 
 ## Not done
 
-Independent review of ADR-0174's harness pins (required by ADR-0163) has not happened.
+ADR-0174 harness pins: independent review accepted 2026-09-27.
 
 Meal photos still go through the iPhone Shortcut; the page does not upload them.
 Chase import stays a CLI (`tools/import_v0_card.py`); ambiguous rows are reviewed in the Spending card.

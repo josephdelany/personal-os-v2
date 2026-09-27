@@ -1,6 +1,6 @@
 # ADR-0174 — Re-pin the Ask harness and pin the daily-page harness
 
-Date: 2026-09-26. Status: accepted; locally verified. Independent review: **pending**.
+Date: 2026-09-26. Status: accepted; locally verified; independent review accepted 2026-09-27.
 Requirements: REQ-FIN-255, RULE-00. Extends ADR-0163; does not amend REQ-FIN-255.
 
 ## What happened
@@ -23,8 +23,9 @@ The scanner recognizes an exact set of (path, SHA-256) pairs instead of one pair
 
 Everything ADR-0163 requires still holds for both. Each has an ephemeral context with
 `offline=True`, blocked service workers and no stored authentication. Context-wide routing is
-registered before pages exist. Only fixed own-app fixture URLs and the one stub dependency URL
-are fulfilled, and every other request aborts and is asserted. Both run the refusal cases for
+registered before pages exist. Only fixed own-app paths (the daily harness ignores any query
+string, needed for `?demo=1`; the Ask harness matches exact URLs) and the one stub dependency
+URL are fulfilled, and every other request aborts and is asserted. Both run the refusal cases for
 fetch, navigation and a popup's first request against reserved invalid hosts. No financial
 institution, personal data or credential is involved. Any edit, path swap, copy or symlink
 loses recognition. Credential, payment and raw-mutation checks still scan both files. There
@@ -36,8 +37,21 @@ is still no runtime switch.
   harnesses, plus a new case: the daily harness's bytes at the Ask harness's path are refused.
 - Both harnesses pass in real Chrome, including the refusal cases.
 
-## Pending
+## Independent review (2026-09-27)
 
-ADR-0163 requires independent review before a pin changes. It has not happened yet.
-Until it does, treat both pins as provisional. The next reviewer should compare the
-two files against the properties above and either accept or revert this ADR.
+A read-only reviewer accepted the change at ba9d9e6 and found no blocking defect. It checked
+that both pins equal the files' SHA-256 and that the Ask harness differs from its ADR-0163
+reviewed bytes by the page path only. It checked the daily harness against every ADR-0163
+property; it is stricter in one respect, asserting that no unexpected request was made.
+Scratch probes refused a swapped path, a case variant, a nested path, CRLF bytes, and a
+symlinked `tests/` pointing inside the root. It also confirmed that no test was loosened
+relative to 85d3364.
+
+Retained limitations:
+- **Query strings.** Fixture paths in the daily harness match regardless of query string.
+  The text above now says so. Offline routing still prevents any network access.
+- **Symlinks outside the root.** A `tests/` directory symlinked outside the repository root
+  is never walked by `tools/layout_sources.py`, so its files go unscanned rather than
+  approved. This predates this ADR and is unchanged by it.
+- **No Chrome run by the reviewer.** The reviewer did not run either harness in Chrome.
+  The author ran both, and both passed, including the refusal cases.
